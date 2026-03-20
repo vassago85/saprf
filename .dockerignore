@@ -1,0 +1,13 @@
+node_modules
+vendor
+.git
+.env
+storage/logs/*
+storage/framework/cache/*
+saprf_mysql_data
+saprf_vendor
+saprf_node_modules
+.idea
+.vscode
+*.swp
+*.swo

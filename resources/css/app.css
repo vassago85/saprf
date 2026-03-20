@@ -1,0 +1,106 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-heading: 'Barlow Condensed', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    --color-accent: var(--color-emerald-700);
+
+    --color-saprf-green-50: #ecfdf5;
+    --color-saprf-green-100: #d1fae5;
+    --color-saprf-green-200: #a7f3d0;
+    --color-saprf-green-300: #6ee7b7;
+    --color-saprf-green-400: #34d399;
+    --color-saprf-green-500: #10b981;
+    --color-saprf-green-600: #059669;
+    --color-saprf-green-700: #047857;
+    --color-saprf-green-800: #065f46;
+    --color-saprf-green-900: #064e3b;
+    --color-saprf-green-950: #022c22;
+
+    --color-saprf-gold-50: #fffbeb;
+    --color-saprf-gold-100: #fef3c7;
+    --color-saprf-gold-200: #fde68a;
+    --color-saprf-gold-300: #fcd34d;
+    --color-saprf-gold-400: #fbbf24;
+    --color-saprf-gold-500: #f59e0b;
+    --color-saprf-gold-600: #d97706;
+
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+}
+
+@utility font-heading {
+    font-family: var(--font-heading);
+}
+
+@utility container-page {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    @media (min-width: 640px) {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    @media (min-width: 1024px) {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+@utility card-base {
+    background-color: white;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-stone-200);
+    box-shadow: var(--shadow-card);
+}
+
+@utility card-hover {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    &:hover {
+        box-shadow: var(--shadow-card-hover);
+        border-color: var(--color-stone-300);
+    }
+}
+
+@utility table-premium {
+    width: 100%;
+    border-collapse: collapse;
+    & thead {
+        border-bottom: 2px solid var(--color-stone-200);
+    }
+    & th {
+        padding: 0.75rem 1.25rem;
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-stone-500);
+    }
+    & td {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.875rem;
+        color: var(--color-stone-700);
+    }
+    & tbody tr {
+        border-bottom: 1px solid var(--color-stone-100);
+        transition: background-color 0.15s ease;
+        &:hover {
+            background-color: var(--color-stone-50);
+        }
+    }
+}

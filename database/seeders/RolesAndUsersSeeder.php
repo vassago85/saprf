@@ -1,0 +1,49 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Province;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
+
+class RolesAndUsersSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $roles = ['owner', 'admin', 'match_director', 'member', 'provincial_admin'];
+
+        foreach ($roles as $role) {
+            Role::firstOrCreate(['name' => $role]);
+        }
+
+        $gp = Province::where('abbreviation', 'GP')->first();
+        $wc = Province::where('abbreviation', 'WC')->first();
+        $fs = Province::where('abbreviation', 'FS')->first();
+
+        $users = [
+            ['name' => 'SAPRF Owner', 'email' => 'owner@saprf.co.za', 'roles' => ['owner', 'member'], 'province_id' => $gp?->id],
+            ['name' => 'SAPRF Admin', 'email' => 'admin@saprf.co.za', 'roles' => ['admin', 'member'], 'province_id' => $gp?->id],
+            ['name' => 'Match Director', 'email' => 'director@saprf.co.za', 'roles' => ['match_director', 'member'], 'province_id' => $wc?->id],
+            ['name' => 'Active Member', 'email' => 'member@saprf.co.za', 'roles' => ['member'], 'province_id' => $fs?->id],
+        ];
+
+        foreach ($users as $data) {
+            $user = User::firstOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name' => $data['name'],
+                    'password' => Hash::make('password'),
+                    'province_id' => $data['province_id'],
+                ],
+            );
+
+            if ($user->province_id !== $data['province_id']) {
+                $user->update(['province_id' => $data['province_id']]);
+            }
+
+            $user->syncRoles($data['roles']);
+        }
+    }
+}
