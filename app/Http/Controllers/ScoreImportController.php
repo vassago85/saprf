@@ -17,11 +17,11 @@ class ScoreImportController extends Controller
     {
         $user = $request->user();
 
-        $imports = $user->hasAnyRole(['owner', 'admin'])
+        $scoreImports = $user->hasAnyRole(['owner', 'admin'])
             ? ScoreImport::query()->with(['match', 'uploader'])->latest()->paginate(20)
             : $user->scoreImports()->with('match')->latest()->paginate(20);
 
-        return view('score-imports.index', compact('imports'));
+        return view('score-imports.index', compact('scoreImports'));
     }
 
     public function create(): View

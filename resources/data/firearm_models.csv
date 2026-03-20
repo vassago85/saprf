@@ -1,0 +1,205 @@
+make_name,name,is_active
+Accuracy International,AT-X,true
+Accuracy International,AX,true
+Accuracy International,AXMC,true
+Accuracy International,AW,true
+Accuracy International,ASR,true
+Anschutz,1710,true
+Anschutz,1712,true
+Anschutz,1727,true
+Anschutz,1761,true
+Anschutz,1903,true
+Anschutz,54.30,true
+APA,Fat Bastard,true
+APA,Gen III,true
+Barrett,M82,true
+Barrett,M95,true
+Barrett,M107,true
+Barrett,M107A1,true
+Barrett,MRAD,true
+Barrett,REC7,true
+Bergara,B-14,true
+Bergara,B-14 HMR,true
+Bergara,B-14 BMP,true
+Bergara,B-14 Crest,true
+Bergara,B-14 Ridge,true
+Bergara,B-14 Wilderness,true
+Bergara,B-14 Squared Crest,true
+Bergara,B-14R,true
+Bergara,Premier HMR Pro,true
+Bergara,Premier Ridgeback,true
+Bergara,Premier Competition,true
+Bighorn Arms,TL3,true
+Bighorn Arms,TL3 SA,true
+Bighorn Arms,SR3,true
+Bighorn Arms,Origin,true
+Blaser,R8,true
+Blaser,R93,true
+Blaser,K95,true
+Browning,X-Bolt,true
+Browning,X-Bolt Max Long Range,true
+Browning,AB3,true
+Cadex,CDX-R7,true
+Cadex,CDX-33 Patriot,true
+Cadex,CDX-50 Tremor,true
+Cadex,CDX-MC Kraken,true
+Christensen Arms,Ridgeline,true
+Christensen Arms,MPR,true
+Christensen Arms,BA Tactical,true
+Christensen Arms,MHR,true
+Cooper,Model 22,true
+Cooper,Model 52,true
+Cooper,Model 54,true
+Curtis Custom,Vector,true
+Curtis Custom,Helix,true
+CZ,455,true
+CZ,457,true
+CZ,457 Varmint,true
+CZ,457 Lux,true
+CZ,457 MTR,true
+CZ,527,true
+CZ,550,true
+CZ,557,true
+CZ,600 Range,true
+CZ,600 Trail,true
+CZ,600 Alpha,true
+Defiance Machine,Deviant,true
+Defiance Machine,Deviant Tactical,true
+Defiance Machine,Ruckus,true
+Defiance Machine,AnTi,true
+Defiance Machine,AnTi X,true
+Desert Tech,SRS A2,true
+Desert Tech,SRS A2 Covert,true
+Desert Tech,MDRX,true
+Fierce Firearms,CT Edge,true
+Fierce Firearms,Carbon Rival,true
+FN Herstal,FN SCAR,true
+FN Herstal,FN SPR,true
+Foundation Rifles,Centurion,true
+Foundation Rifles,Exodus,true
+GA Precision,GAP-10,true
+GA Precision,Gladius,true
+GA Precision,Templar,true
+Gunwerks,Nexus,true
+Gunwerks,RevX,true
+Howa,1500,true
+Howa,1500 Mini Action,true
+Howa,1500 Barrelled Action,true
+Howa,M1500 HCR,true
+Howa,M1500 Oryx,true
+Howa,M1500 GRS,true
+Impact Precision,Maverick,true
+Impact Precision,Revolution,true
+Impact Precision,Dagger,true
+Kimber,8400,true
+Kimber,Mountain Ascent,true
+KRG,Whiskey 3,true
+KRG,Bravo,true
+KRG,W3 Chassis,true
+Lithgow Arms,LA102,true
+Lithgow Arms,LA105,true
+Lone Peak Arms,Fuzion,true
+Lone Peak Arms,Razor,true
+Masterpiece Arms,BA Lite,true
+Masterpiece Arms,BA Competition,true
+Masterpiece Arms,BA Hybrid,true
+Masterpiece Arms,PMR Pro,true
+Mauser,M98,true
+Mauser,K98,true
+Mauser,M18,true
+McMillan,TAC-50,true
+McMillan,TAC-338,true
+Mossberg,Patriot,true
+Mossberg,MVP,true
+Musgrave,RSA Target,true
+Musgrave,Musgrave 98,true
+Musgrave,Lyttelton,true
+Pierce Engineering,Deadfall,true
+Proof Research,Elevation MTR,true
+Proof Research,Tundra,true
+Remington,700,true
+Remington,700 ADL,true
+Remington,700 BDL,true
+Remington,700 CDL,true
+Remington,700 SPS,true
+Remington,700 XCR,true
+Remington,700 Sendero,true
+Remington,700 Police,true
+Remington,700 Long Range,true
+Remington,700 PCR,true
+Remington,700 SPS Tactical,true
+Remington,700 AAC-SD,true
+Remington,783,true
+Rigby,Highland Stalker,true
+Rigby,Big Game,true
+Ruger,Precision Rifle,true
+Ruger,Precision Rimfire,true
+Ruger,American,true
+Ruger,American Predator,true
+Ruger,Hawkeye Long-Range Target,true
+Ruger,10/22,true
+Ruger,77/22,true
+Sako,85,true
+Sako,90,true
+Sako,TRG-22,true
+Sako,TRG-42,true
+Sako,A7,true
+Sako,S20,true
+Sako,S20 Precision,true
+Savage,110,true
+Savage,110 Precision,true
+Savage,110 Tactical,true
+Savage,110 Elite Precision,true
+Savage,110 Storm,true
+Savage,110 Apex,true
+Savage,Mark II,true
+Savage,B22 Precision,true
+Savage,93R17,true
+Schultz & Larsen,Victory,true
+Schultz & Larsen,Classic DL,true
+Seekins Precision,Havak,true
+Seekins Precision,Havak Pro Hunter,true
+Seekins Precision,Havak HIT,true
+Seekins Precision,Havak Element,true
+Sig Sauer,Cross,true
+Sig Sauer,MCX Spear,true
+Steyr,Scout,true
+Steyr,SSG 08,true
+Steyr,SSG M1,true
+Stiller Precision,Predator,true
+Stiller Precision,TAC 30,true
+Surgeon Rifles,Remedy,true
+Surgeon Rifles,Scalpel,true
+Terminus Actions,Zeus,true
+Terminus Actions,Paladin,true
+Tikka,T3x,true
+Tikka,T3x Lite,true
+Tikka,T3x Super Varmint,true
+Tikka,T3x TAC A1,true
+Tikka,T3x CTR,true
+Tikka,T3x UPR,true
+Tikka,T3x Roughtech,true
+Tikka,T3x Compact Tactical,true
+Tikka,T3x Varmint,true
+Tikka,T1x MTR,true
+Truvelo,CMS,true
+Truvelo,Counter Measure Sniper,true
+Truvelo,SR 20x110,true
+Victrix,Scorpio,true
+Victrix,Gladio,true
+Victrix,Minerva,true
+Victrix,Pugio,true
+Vudoo Gun Works,V-22,true
+Vudoo Gun Works,Ravage,true
+Vudoo Gun Works,Three 60,true
+Weatherby,Mark V,true
+Weatherby,Vanguard,true
+Weatherby,Accumark,true
+Weatherby,Backcountry,true
+Winchester,70,true
+Winchester,XPR,true
+Zastava,M70,true
+Zastava,LK M07,true
+Zermatt Arms,RimX,true
+Zermatt Arms,Bighorn TL3,true
+Zermatt Arms,Origin,true

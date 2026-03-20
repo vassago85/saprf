@@ -93,7 +93,7 @@
             </flux:navlist.group>
             @endrole
 
-            @role('provincial_admin')
+            @role('owner|admin|provincial_admin')
             <flux:navlist.group heading="Province">
                 <flux:navlist.item icon="users" :href="route('provincial-members.index')" :current="request()->routeIs('provincial-members.*')">
                     Provincial Members

@@ -9,12 +9,12 @@ class AuditLogController extends Controller
 {
     public function index(): View
     {
-        $logs = AuditLog::query()
+        $auditLogs = AuditLog::query()
             ->with('user')
             ->latest('created_at')
             ->paginate(30);
 
-        return view('audit-logs.index', compact('logs'));
+        return view('audit-logs.index', compact('auditLogs'));
     }
 
     public function show(AuditLog $auditLog): View

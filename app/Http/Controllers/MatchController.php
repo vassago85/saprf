@@ -8,6 +8,7 @@ use App\Models\MatchEvent;
 use App\Models\Province;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
+use App\Services\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class MatchController extends Controller
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly SettingsService $settingsService,
     ) {}
 
     // ── Admin CRUD (authenticated) ──
@@ -34,16 +36,26 @@ class MatchController extends Controller
 
     public function create(): View
     {
-        return view('matches.create');
+        $provinces = Province::orderBy('name')->get();
+
+        return view('matches.create', compact('provinces'));
     }
 
     public function store(StoreMatchRequest $request): RedirectResponse
     {
+        $validated = $request->validated();
+        $baseFee = (float) ($validated['active_member_fee'] ?? 0);
+        $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
+        $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
+
         $match = MatchEvent::query()->create([
-            ...$request->validated(),
-            'series' => $request->validated('match_type'),
+            ...$validated,
+            'series' => $validated['match_type'],
             'season' => (string) now()->year,
             'created_by' => $request->user()->id,
+            'non_member_fee' => $baseFee + $nonMemberSurcharge,
+            'lapsed_member_fee' => $baseFee + $lapsedSurcharge,
+            'published' => ($validated['status'] ?? 'draft') !== 'draft',
         ]);
 
         $this->auditLogService->log(
@@ -70,7 +82,9 @@ class MatchController extends Controller
     {
         $this->authorize('update', $match);
 
-        return view('matches.edit', compact('match'));
+        $provinces = Province::orderBy('name')->get();
+
+        return view('matches.edit', compact('match', 'provinces'));
     }
 
     public function update(UpdateMatchRequest $request, MatchEvent $match): RedirectResponse

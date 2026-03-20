@@ -49,7 +49,7 @@
                             @endif
 
                             <p class="mt-3 text-xs font-medium text-stone-400">
-                                {{ $rifle->scores_count ?? 0 }} {{ Str::plural('match', $rifle->scores_count ?? 0) }}
+                                {{ $rifle->registrations_count ?? 0 }} {{ Str::plural('match', $rifle->registrations_count ?? 0) }}
                             </p>
                         </div>
 

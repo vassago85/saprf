@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class FirearmCalibre extends Model
 {
-    protected $fillable = ['name', 'category', 'family', 'bullet_diameter', 'is_active'];
+    protected $fillable = ['name', 'category', 'family', 'bullet_diameter', 'is_active', 'user_submitted'];
 
     protected function casts(): array
     {
         return [
             'bullet_diameter' => 'decimal:3',
             'is_active' => 'boolean',
+            'user_submitted' => 'boolean',
         ];
     }
 
@@ -24,5 +25,15 @@ class FirearmCalibre extends Model
     public function scopeRifle($query)
     {
         return $query->where('category', 'rifle');
+    }
+
+    public function scopeRifleOrRimfire($query)
+    {
+        return $query->whereIn('category', ['rifle', 'rimfire']);
+    }
+
+    public function scopeSearch($query, string $term)
+    {
+        return $query->where('name', 'like', "%{$term}%");
     }
 }

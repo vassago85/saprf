@@ -13,12 +13,12 @@ class QualificationRuleController extends Controller
 {
     public function index(Request $request): View
     {
-        $rules = QualificationRule::query()
+        $qualificationRules = QualificationRule::query()
             ->with('creator')
             ->latest()
             ->paginate(20);
 
-        return view('qualification-rules.index', compact('rules'));
+        return view('qualification-rules.index', compact('qualificationRules'));
     }
 
     public function create(): View

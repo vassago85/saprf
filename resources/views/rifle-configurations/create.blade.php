@@ -19,19 +19,6 @@
         @endif
 
         <form method="POST" action="{{ route('rifle-configurations.store') }}"
-            x-data="{
-                makeId: '{{ old('firearm_make_id', '') }}',
-                models: [],
-                modelId: '{{ old('firearm_model_id', '') }}',
-                async loadModels() {
-                    if (!this.makeId) { this.models = []; this.modelId = ''; return; }
-                    const res = await fetch('/api/v1/firearm-models?make_id=' + this.makeId);
-                    const data = await res.json();
-                    this.models = data.data || [];
-                    this.modelId = '';
-                }
-            }"
-            x-init="if (makeId) { await loadModels(); modelId = '{{ old('firearm_model_id', '') }}'; }"
             class="rounded-xl border border-stone-200 bg-white shadow-sm p-8 space-y-6 max-w-2xl">
             @csrf
 
@@ -43,39 +30,43 @@
                 </div>
 
                 <div>
-                    <label for="firearm_make_id" class="block text-sm font-medium text-stone-700 mb-1">Make</label>
-                    <select name="firearm_make_id" id="firearm_make_id" required
-                        x-model="makeId" @change="loadModels()"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">Select make...</option>
-                        @foreach ($makes as $make)
-                            <option value="{{ $make->id }}">{{ $make->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-typeahead
+                        name="firearm_make_id"
+                        label="Make"
+                        search-url="/api/v1/firearm-makes"
+                        create-url="/api/firearm-makes"
+                        placeholder="Type to search makes..."
+                        display-field="name"
+                        subtext-field="country"
+                        :required="true"
+                    />
                 </div>
 
                 <div>
-                    <label for="firearm_model_id" class="block text-sm font-medium text-stone-700 mb-1">Model</label>
-                    <select name="firearm_model_id" id="firearm_model_id"
-                        x-model="modelId"
-                        :disabled="models.length === 0"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-50 disabled:text-stone-400">
-                        <option value="">Select model...</option>
-                        <template x-for="model in models" :key="model.id">
-                            <option :value="model.id" x-text="model.name"></option>
-                        </template>
-                    </select>
+                    <x-typeahead
+                        name="firearm_model_id"
+                        label="Model"
+                        search-url="/api/v1/firearm-models"
+                        create-url="/api/firearm-models"
+                        placeholder="Type to search models..."
+                        display-field="name"
+                        depends-on="firearm_make_id"
+                        depends-param="make_id"
+                        :create-payload-extra="true"
+                    />
                 </div>
 
                 <div>
-                    <label for="calibre_id" class="block text-sm font-medium text-stone-700 mb-1">Calibre</label>
-                    <select name="calibre_id" id="calibre_id" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">Select calibre...</option>
-                        @foreach ($calibres as $calibre)
-                            <option value="{{ $calibre->id }}" @selected(old('calibre_id') == $calibre->id)>{{ $calibre->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-typeahead
+                        name="firearm_calibre_id"
+                        label="Calibre"
+                        search-url="/api/v1/firearm-calibres"
+                        create-url="/api/firearm-calibres"
+                        placeholder="Type to search calibres..."
+                        display-field="name"
+                        subtext-field="category"
+                        :required="true"
+                    />
                 </div>
 
                 <div>

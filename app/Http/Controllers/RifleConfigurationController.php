@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FirearmCalibre;
-use App\Models\FirearmMake;
 use App\Models\RifleConfiguration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,10 +24,7 @@ class RifleConfigurationController extends Controller
 
     public function create(): View
     {
-        $makes = FirearmMake::active()->orderBy('name')->get();
-        $calibres = FirearmCalibre::active()->rifle()->orderBy('name')->get();
-
-        return view('rifle-configurations.create', compact('makes', 'calibres'));
+        return view('rifle-configurations.create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -89,10 +84,9 @@ class RifleConfigurationController extends Controller
             abort(403);
         }
 
-        $makes = FirearmMake::active()->orderBy('name')->get();
-        $calibres = FirearmCalibre::active()->rifle()->orderBy('name')->get();
+        $rifleConfiguration->load(['make', 'model', 'calibre']);
 
-        return view('rifle-configurations.edit', compact('rifleConfiguration', 'makes', 'calibres'));
+        return view('rifle-configurations.edit', compact('rifleConfiguration'));
     }
 
     public function update(Request $request, RifleConfiguration $rifleConfiguration): RedirectResponse

@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class FirearmMake extends Model
 {
-    protected $fillable = ['name', 'country', 'is_active'];
+    protected $fillable = ['name', 'country', 'is_active', 'user_submitted'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active' => 'boolean',
+            'user_submitted' => 'boolean',
+        ];
     }
 
     public function models(): HasMany
@@ -22,5 +25,10 @@ class FirearmMake extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeSearch($query, string $term)
+    {
+        return $query->where('name', 'like', "%{$term}%");
     }
 }

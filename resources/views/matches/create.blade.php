@@ -53,7 +53,12 @@
                 </div>
 
                 <div>
-                    <label for="venue_location" class="block text-sm font-medium text-stone-700 mb-1">Venue Location</label>
+                    <label for="city" class="block text-sm font-medium text-stone-700 mb-1">City</label>
+                    <input type="text" name="city" id="city" value="{{ old('city') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label for="venue_location" class="block text-sm font-medium text-stone-700 mb-1">Venue Address / Directions</label>
                     <input type="text" name="venue_location" id="venue_location" value="{{ old('venue_location') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
@@ -63,13 +68,13 @@
                 </div>
 
                 <div>
-                    <label for="registration_opens_at" class="block text-sm font-medium text-stone-700 mb-1">Registration Opens</label>
-                    <input type="datetime-local" name="registration_opens_at" id="registration_opens_at" value="{{ old('registration_opens_at') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <label for="registration_open_date" class="block text-sm font-medium text-stone-700 mb-1">Registration Opens</label>
+                    <input type="date" name="registration_open_date" id="registration_open_date" value="{{ old('registration_open_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div>
-                    <label for="registration_closes_at" class="block text-sm font-medium text-stone-700 mb-1">Registration Closes</label>
-                    <input type="datetime-local" name="registration_closes_at" id="registration_closes_at" value="{{ old('registration_closes_at') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <label for="registration_close_date" class="block text-sm font-medium text-stone-700 mb-1">Registration Closes</label>
+                    <input type="date" name="registration_close_date" id="registration_close_date" value="{{ old('registration_close_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div>

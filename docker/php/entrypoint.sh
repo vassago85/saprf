@@ -22,7 +22,7 @@ if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
     fi
 fi
 
-if [ ! -d public/build ]; then
+if [ ! -f public/build/assets/*.css ]; then
     echo "Building frontend assets..."
     npm run build
 fi

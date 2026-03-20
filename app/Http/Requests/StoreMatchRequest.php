@@ -19,16 +19,15 @@ class StoreMatchRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
             'series_level' => ['required', Rule::in(['national', 'provincial', 'club'])],
-            'province_id' => ['required', 'exists:provinces,id'],
+            'province_id' => ['nullable', 'exists:provinces,id'],
             'match_date' => ['required', 'date', 'after_or_equal:today'],
             'venue_name' => ['nullable', 'string', 'max:255'],
             'venue_location' => ['nullable', 'string'],
+            'city' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['required', 'numeric', 'min:0'],
-            'non_member_fee' => ['required', 'numeric', 'min:0'],
-            'lapsed_member_fee' => ['required', 'numeric', 'min:0'],
             'status' => ['nullable', Rule::in(['draft', 'open', 'closed'])],
         ];
     }

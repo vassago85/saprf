@@ -32,7 +32,7 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $rule->season }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->min_out_of_province_matches }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->createdBy->name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->creator?->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->created_at->format('d M Y') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <a href="{{ route('qualification-rules.edit', $rule) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
