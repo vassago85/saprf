@@ -35,7 +35,6 @@ class RifleConfigurationController extends Controller
             'firearm_model_id' => ['nullable', 'exists:firearm_models,id'],
             'firearm_calibre_id' => ['nullable', 'exists:firearm_calibres,id'],
             'optic_description' => ['nullable', 'string', 'max:255'],
-            'bullet_description' => ['nullable', 'string', 'max:255'],
             'barrel_length' => ['nullable', 'string', 'max:50'],
             'twist_rate' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -61,7 +60,7 @@ class RifleConfigurationController extends Controller
             abort(403);
         }
 
-        $rifleConfiguration->load(['make', 'model', 'calibre']);
+        $rifleConfiguration->load(['make', 'model', 'calibre', 'ammoLoads' => fn ($q) => $q->active()->orderByDesc('created_at')]);
 
         $recentScores = $request->user()->scores()
             ->whereHas('match.registrations', function ($q) use ($rifleConfiguration, $request) {
@@ -101,7 +100,6 @@ class RifleConfigurationController extends Controller
             'firearm_model_id' => ['nullable', 'exists:firearm_models,id'],
             'firearm_calibre_id' => ['nullable', 'exists:firearm_calibres,id'],
             'optic_description' => ['nullable', 'string', 'max:255'],
-            'bullet_description' => ['nullable', 'string', 'max:255'],
             'barrel_length' => ['nullable', 'string', 'max:50'],
             'twist_rate' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],

@@ -48,11 +48,11 @@ class UserManagementController extends Controller
 
         $actor = $request->user();
 
-        if ($user->id === $actor->id) {
+        if ($user->id === $actor->id && !$actor->hasRole('owner')) {
             return back()->with('error', 'You cannot change your own roles.');
         }
 
-        if ($user->hasRole('owner')) {
+        if ($user->hasRole('owner') && $user->id !== $actor->id) {
             return back()->with('error', 'Cannot change the roles of another owner.');
         }
 

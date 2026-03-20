@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MatchController extends Controller
 {
@@ -106,6 +107,52 @@ class MatchController extends Controller
             ->with('success', 'Match updated successfully.');
     }
 
+    public function exportImpactScoringCsv(MatchEvent $match): StreamedResponse
+    {
+        $this->authorize('update', $match);
+
+        $registrations = $match->registrations()
+            ->where('registration_status', '!=', 'cancelled')
+            ->with(['user.province', 'user.membership'])
+            ->orderBy('registered_at')
+            ->get();
+
+        $filename = str($match->name)->slug() . '-impact-scoring.csv';
+
+        return response()->streamDownload(function () use ($registrations, $match) {
+            $out = fopen('php://output', 'w');
+
+            fputcsv($out, [
+                'Email',
+                'Name',
+                'Phone',
+                'Squad',
+                'Division',
+                'Member Number',
+            ]);
+
+            $squad = 1;
+            foreach ($registrations as $reg) {
+                $user = $reg->user;
+
+                fputcsv($out, [
+                    $reg->email ?: $user?->email ?: '',
+                    $reg->shooter_name ?: $user?->name ?: '',
+                    $reg->phone ?: $user?->phone ?: '',
+                    (string) $squad,
+                    $match->match_type ?: 'Open',
+                    $user?->membership?->saprf_number ?: '',
+                ]);
+
+                $squad++;
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     // ── Public Pages ──
 
     public function publicIndex(Request $request): View
@@ -123,7 +170,7 @@ class MatchController extends Controller
 
         $baseQuery = MatchEvent::query()
             ->published()
-            ->with(['province'])
+            ->with(['province', 'creator:id,name'])
             ->withCount('registrations')
             ->forDiscipline($discipline)
             ->forLevel($type)
@@ -191,7 +238,7 @@ class MatchController extends Controller
 
     public function publicShow(MatchEvent $match): View
     {
-        $match->load(['province', 'creator', 'scores' => fn ($q) => $q->where('status', 'valid')->orderBy('placement')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->orderBy('placement')]);
         $match->loadCount(['registrations', 'scores']);
 
         $userRegistration = Auth::check()
@@ -212,11 +259,11 @@ class MatchController extends Controller
 
         $events = MatchEvent::query()
             ->published()
-            ->with('province')
+            ->with(['province', 'creator:id,name'])
             ->whereBetween('match_date', [$start, $end])
             ->forDiscipline($discipline)
             ->orderBy('match_date')
-            ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'status', 'venue_name', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee']);
+            ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'status', 'venue_name', 'venue_location', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee', 'created_by']);
 
         $grouped = $events->groupBy(fn ($e) => $e->match_date->format('Y-m-d'))->map(function ($dayEvents) {
             return $dayEvents->map(fn ($e) => [
@@ -225,6 +272,9 @@ class MatchController extends Controller
                 'match_type' => $e->match_type,
                 'series_level' => $e->series_level,
                 'province' => $e->province?->name,
+                'venue_name' => $e->venue_name,
+                'location' => $e->location_display,
+                'md' => $e->creator?->name,
                 'status' => $e->registration_status,
                 'match_status' => $e->status,
                 'member_fee' => (float) $e->active_member_fee,

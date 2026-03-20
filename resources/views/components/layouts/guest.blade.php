@@ -10,12 +10,9 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|barlow-condensed:600,700,800&display=swap" rel="stylesheet" />
 
-    @fluxAppearance
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-white text-stone-900 antialiased font-sans">
+<body class="force-light min-h-screen bg-white antialiased font-sans" style="color: #1c1917;">
     {{ $slot }}
-
-    @fluxScripts
 </body>
 </html>

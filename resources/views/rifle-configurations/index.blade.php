@@ -35,9 +35,6 @@
                                 @if ($rifle->optic_description)
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ Str::limit($rifle->optic_description, 20) }}</span>
                                 @endif
-                                @if ($rifle->bullet_description)
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ Str::limit($rifle->bullet_description, 20) }}</span>
-                                @endif
                             </div>
 
                             @if ($rifle->barrel_length || $rifle->twist_rate)

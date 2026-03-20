@@ -82,23 +82,40 @@
                 <dl class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Registration Opens</dt>
-                        <dd class="mt-1.5 text-sm text-stone-900">{{ $match->registration_opens_at?->format('d M Y H:i') ?? '—' }}</dd>
+                        <dd class="mt-1.5 text-sm text-stone-900">
+                            @if($match->published)
+                                <span class="text-emerald-700 font-medium">Immediately on publish</span>
+                            @else
+                                {{ $match->registration_open_date?->format('d M Y') ?? '—' }}
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Registration Closes</dt>
-                        <dd class="mt-1.5 text-sm text-stone-900">{{ $match->registration_closes_at?->format('d M Y H:i') ?? '—' }}</dd>
+                        <dd class="mt-1.5 text-sm text-stone-900">{{ $match->registration_close_date?->format('d M Y') ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Fee (Active)</dt>
-                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->fee_active ? 'R ' . number_format($match->fee_active, 2) : '—' }}</dd>
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Fee (Active Member)</dt>
+                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->active_member_fee ? 'R ' . number_format($match->active_member_fee, 2) : '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Fee (Non-Member)</dt>
-                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->fee_non_member ? 'R ' . number_format($match->fee_non_member, 2) : '—' }}</dd>
+                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->non_member_fee ? 'R ' . number_format($match->non_member_fee, 2) : '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Fee (Lapsed)</dt>
-                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->fee_lapsed ? 'R ' . number_format($match->fee_lapsed, 2) : '—' }}</dd>
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Fee (Lapsed Member)</dt>
+                        <dd class="mt-1.5 text-sm font-medium text-stone-900">{{ $match->lapsed_member_fee ? 'R ' . number_format($match->lapsed_member_fee, 2) : '—' }}</dd>
+                    </div>
+                    @php
+                        $withdrawalFee = (float) app(\App\Services\SettingsService::class)->get('withdrawal_admin_fee', 100);
+                        $withdrawalHours = (int) app(\App\Services\SettingsService::class)->get('withdrawal_deadline_hours', 72);
+                    @endphp
+                    <div class="sm:col-span-2">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Withdrawal Policy</dt>
+                        <dd class="mt-1.5 text-sm text-stone-700">
+                            Admin fee: <strong class="text-stone-900">R {{ number_format($withdrawalFee, 2) }}</strong>
+                            &middot; Deadline: <strong class="text-stone-900">{{ $withdrawalHours }}h</strong> before match
+                        </dd>
                     </div>
                 </dl>
             </div>
@@ -113,6 +130,11 @@
                         <flux:icon.clipboard-document-list class="size-5 text-stone-400" />
                         Registrations
                         <span class="ml-auto inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">{{ $match->registrations_count ?? $match->registrations->count() }}</span>
+                    </a>
+                    <a href="{{ route('matches.export-impact-scoring', $match) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
+                        <flux:icon.arrow-down-tray class="size-5 text-stone-400" />
+                        Export for Impact Scoring
+                        <span class="ml-auto text-[10px] font-medium text-stone-400">CSV</span>
                     </a>
                     <a href="{{ route('scores.index', ['match_id' => $match->id]) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
                         <flux:icon.chart-bar class="size-5 text-stone-400" />

@@ -22,9 +22,9 @@
                             <a href="{{ route('matches.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $registration->user->name }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ $registration->category ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">
-                            {{ $registration->fee ? 'R ' . number_format($registration->fee, 2) : '—' }}
+                            {{ $registration->fee_amount ? 'R ' . number_format($registration->fee_amount, 2) : '—' }}
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                             @switch($registration->payment_status)
@@ -42,7 +42,7 @@
                             @endswitch
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($registration->status)
+                            @switch($registration->registration_status)
                                 @case('confirmed')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Confirmed</span>
                                     @break

@@ -79,7 +79,7 @@
         </div>
         <div class="divide-y divide-stone-100">
             <template x-for="ev in selectedEvents" :key="ev.id">
-                <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
                             <span :class="{
@@ -95,9 +95,26 @@
                             }" class="text-[10px] font-bold uppercase tracking-wider" x-text="ev.status"></span>
                         </div>
                         <a :href="'/events/' + ev.id" class="text-sm font-semibold text-stone-900 hover:text-emerald-800 transition" x-text="ev.name"></a>
-                        <p class="text-xs text-stone-500 mt-0.5" x-text="ev.province || 'TBC'"></p>
+                        <div class="mt-1.5 space-y-0.5">
+                            <template x-if="ev.venue_name">
+                                <p class="flex items-center gap-1.5 text-xs text-stone-700">
+                                    <svg class="size-3 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
+                                    <span x-text="ev.venue_name" class="font-medium"></span>
+                                </p>
+                            </template>
+                            <p class="flex items-center gap-1.5 text-xs text-stone-500">
+                                <svg class="size-3 text-stone-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" /></svg>
+                                <span x-text="ev.location || ev.province || 'TBC'"></span>
+                            </p>
+                            <template x-if="ev.md">
+                                <p class="flex items-center gap-1.5 text-xs text-stone-500">
+                                    <svg class="size-3 text-stone-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                                    <span>MD: <span x-text="ev.md"></span></span>
+                                </p>
+                            </template>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0 sm:pt-1">
                         <template x-if="ev.member_fee > 0">
                             <span class="text-xs text-stone-500">R<span x-text="ev.member_fee" class="font-medium text-stone-700"></span></span>
                         </template>

@@ -18,6 +18,7 @@ class StandingController extends Controller
     public function index(Request $request): View
     {
         $season = $request->input('season', (string) now()->year);
+        $division = $request->input('division', 'Overall');
         $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
         $provinces = Province::orderBy('name')->get();
 
@@ -25,11 +26,18 @@ class StandingController extends Controller
             $seasons = collect([(string) now()->year]);
         }
 
-        $base = Standing::with(['user', 'province'])->where('season', $season)->orderBy('rank');
+        $divisions = Standing::where('season', $season)->distinct()->pluck('division')->filter()->sort()->values();
+        if ($divisions->isEmpty()) {
+            $divisions = collect(['Overall']);
+        }
+
+        $base = Standing::with(['user', 'province'])->where('season', $season)->where('division', $division)->orderBy('rank');
 
         return view('standings.index', [
             'season' => $season,
             'seasons' => $seasons,
+            'division' => $division,
+            'divisions' => $divisions,
             'provinces' => $provinces,
             'prsNational' => (clone $base)->where('series', 'PRS')->whereNull('province_id')->get(),
             'pr22National' => (clone $base)->where('series', 'PR22')->whereNull('province_id')->get(),
@@ -55,20 +63,50 @@ class StandingController extends Controller
     public function publicIndex(Request $request): View
     {
         $season = $request->input('season', (string) now()->year);
-        $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
+        $division = $request->input('division', 'Overall');
+        $provinceFilter = $request->filled('province_id') ? (int) $request->input('province_id') : null;
 
+        $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
         if ($seasons->isEmpty()) {
             $seasons = collect([(string) now()->year]);
         }
 
-        $base = Standing::with(['user.province', 'province'])->where('season', $season)->orderBy('rank');
+        $provinces = Province::orderBy('name')->get();
 
-        $prsNational = (clone $base)->where('series', 'PRS')->whereNull('province_id')->get();
-        $pr22National = (clone $base)->where('series', 'PR22')->whereNull('province_id')->get();
-        $prsProvincial = (clone $base)->where('series', 'PRS')->whereNotNull('province_id')->get();
-        $pr22Provincial = (clone $base)->where('series', 'PR22')->whereNotNull('province_id')->get();
+        $divisions = Standing::where('season', $season)
+            ->distinct()
+            ->pluck('division')
+            ->filter()
+            ->sort()
+            ->values();
 
-        $totalRanked = Standing::where('season', $season)->distinct('user_id')->count('user_id');
+        if ($divisions->isEmpty()) {
+            $divisions = collect(['Overall']);
+        }
+
+        $base = Standing::with(['user.province', 'province'])
+            ->where('season', $season)
+            ->where('division', $division)
+            ->orderBy('rank');
+
+        $prsNationalBase = (clone $base)->where('series', 'PRS')->whereNull('province_id');
+        $pr22NationalBase = (clone $base)->where('series', 'PR22')->whereNull('province_id');
+        $prsProvincialBase = (clone $base)->where('series', 'PRS')->whereNotNull('province_id');
+        $pr22ProvincialBase = (clone $base)->where('series', 'PR22')->whereNotNull('province_id');
+
+        if ($provinceFilter) {
+            $prsNationalBase->whereHas('user', fn ($q) => $q->where('province_id', $provinceFilter));
+            $pr22NationalBase->whereHas('user', fn ($q) => $q->where('province_id', $provinceFilter));
+            $prsProvincialBase->where('province_id', $provinceFilter);
+            $pr22ProvincialBase->where('province_id', $provinceFilter);
+        }
+
+        $prsNational = $prsNationalBase->get();
+        $pr22National = $pr22NationalBase->get();
+        $prsProvincial = $prsProvincialBase->get();
+        $pr22Provincial = $pr22ProvincialBase->get();
+
+        $totalRanked = Standing::where('season', $season)->where('division', $division)->distinct('user_id')->count('user_id');
         $totalMatches = MatchEvent::where('season', $season)->published()->count();
         $completedMatches = MatchEvent::where('season', $season)->where('status', 'completed')->count();
         $remainingMatches = MatchEvent::where('season', $season)->where('match_date', '>=', now()->startOfDay())->whereIn('status', ['open', 'closed', 'draft'])->count();
@@ -76,6 +114,10 @@ class StandingController extends Controller
         return view('standings.public', [
             'season' => $season,
             'seasons' => $seasons,
+            'division' => $division,
+            'divisions' => $divisions,
+            'provinceFilter' => $provinceFilter,
+            'provinces' => $provinces,
             'activeSeries' => 'PRS',
             'activeLevel' => 'national',
             'prsNational' => $prsNational,
@@ -142,6 +184,7 @@ class StandingController extends Controller
             ->with(['user:id,name,province_id', 'user.province:id,abbreviation', 'province:id,name'])
             ->when($request->filled('series'), fn ($q) => $q->where('series', $request->input('series')))
             ->when($request->filled('season'), fn ($q) => $q->where('season', $request->input('season')))
+            ->when($request->filled('division'), fn ($q) => $q->where('division', $request->input('division')), fn ($q) => $q->where('division', 'Overall'))
             ->when($request->filled('province_id'), fn ($q) => $q->where('province_id', $request->input('province_id')))
             ->whereNull('province_id')
             ->orderBy('rank');

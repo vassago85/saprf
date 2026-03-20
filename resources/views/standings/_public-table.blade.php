@@ -6,7 +6,7 @@
             <svg class="size-8 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-4.5A3.375 3.375 0 0 0 13.125 10.875h-2.25A3.375 3.375 0 0 0 7.5 14.25v4.5" /></svg>
         </div>
         <h3 class="text-lg font-semibold text-stone-700">No standings data</h3>
-        <p class="mt-1 text-sm text-stone-400">Standings will appear after matches are completed and scored.</p>
+        <p class="mt-1 text-sm text-stone-400">No ranked shooters for this division/filter combination. Standings appear after matches are completed and scored.</p>
     </div>
 @else
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
@@ -43,13 +43,15 @@
                                     {{ $standing->user->name ?? '—' }}
                                 </a>
                                 @if($showProvince)
-                                    <span class="sm:hidden block text-xs text-stone-400 mt-0.5">{{ $standing->province->abbreviation ?? $standing->province->name ?? '—' }}</span>
+                                    @php $prov = $standing->province ?? $standing->user?->province; @endphp
+                                    <span class="sm:hidden block text-xs text-stone-400 mt-0.5">{{ $prov->abbreviation ?? $prov->name ?? '—' }}</span>
                                 @endif
                             </td>
                             @if($showProvince)
+                                @php $prov = $standing->province ?? $standing->user?->province; @endphp
                                 <td class="px-4 sm:px-5 py-4 hidden sm:table-cell">
                                     <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">
-                                        {{ $standing->province->abbreviation ?? $standing->province->name ?? '—' }}
+                                        {{ $prov->abbreviation ?? $prov->name ?? '—' }}
                                     </span>
                                 </td>
                             @endif

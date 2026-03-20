@@ -76,12 +76,6 @@
                 </div>
 
                 <div>
-                    <label for="bullet_description" class="block text-sm font-medium text-stone-700 mb-1">Bullet</label>
-                    <input type="text" name="bullet_description" id="bullet_description" value="{{ old('bullet_description') }}" placeholder="e.g. Berger 185gr Juggernaut"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-
-                <div>
                     <label for="barrel_length" class="block text-sm font-medium text-stone-700 mb-1">Barrel Length</label>
                     <input type="text" name="barrel_length" id="barrel_length" value="{{ old('barrel_length') }}" placeholder='e.g. 26"'
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">

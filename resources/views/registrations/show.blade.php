@@ -15,7 +15,7 @@
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Match</dt>
                     <dd class="mt-1 text-sm text-stone-900">
-                        <a href="{{ route('matches.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
+                        <a href="{{ route('events.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
                     </dd>
                 </div>
                 <div>
@@ -24,11 +24,11 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Category</dt>
-                    <dd class="mt-1 text-sm text-stone-900 capitalize">{{ $registration->category ?? '—' }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Fee</dt>
-                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->fee ? 'R ' . number_format($registration->fee, 2) : '—' }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->fee_amount ? 'R ' . number_format($registration->fee_amount, 2) : '—' }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Payment Status</dt>
@@ -51,7 +51,7 @@
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Registration Status</dt>
                     <dd class="mt-1.5">
-                        @switch($registration->status)
+                        @switch($registration->registration_status)
                             @case('confirmed')
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Confirmed</span>
                                 @break
@@ -71,10 +71,90 @@
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Registered</dt>
                     <dd class="mt-1 text-sm text-stone-900">{{ $registration->created_at->format('d M Y H:i') }}</dd>
                 </div>
+                @if($registration->match?->match_date)
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Match Date</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->match->match_date->format('D, d M Y') }}</dd>
+                </div>
+                @endif
             </dl>
         </div>
 
-        @role('owner|admin')
+        {{-- Cancellation details (if cancelled) --}}
+        @if($registration->registration_status === 'cancelled' && $registration->cancelled_at)
+            <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Withdrawal Details</h2>
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Cancelled At</dt>
+                        <dd class="mt-1 text-sm text-red-800">{{ $registration->cancelled_at->format('d M Y H:i') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Admin Fee</dt>
+                        <dd class="mt-1 text-sm text-red-800">R {{ number_format($registration->admin_fee_charged ?? 0, 2) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Refund Amount</dt>
+                        <dd class="mt-1 text-sm font-semibold {{ ($registration->refund_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-red-800' }}">
+                            R {{ number_format($registration->refund_amount ?? 0, 2) }}
+                        </dd>
+                    </div>
+                    @if($registration->cancellation_reason)
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Reason</dt>
+                        <dd class="mt-1 text-sm text-red-800">{{ $registration->cancellation_reason }}</dd>
+                    </div>
+                    @endif
+                </dl>
+            </div>
+        @endif
+
+        {{-- Withdraw button for the registrant --}}
+        @if($registration->user_id === auth()->id() && $registration->isWithdrawable())
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm" x-data="{ showForm: false }">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-amber-800">Withdraw from Match</h2>
+                        @php $calc = $registration->calculateRefund(); @endphp
+                        @if($calc['reason'] === 'before_deadline')
+                            <p class="text-sm text-amber-700 mt-1">
+                                You will receive a refund of <strong>R {{ number_format($calc['refund'], 2) }}</strong>
+                                (entry fee minus R {{ number_format($calc['admin_fee'], 2) }} admin fee).
+                            </p>
+                            <p class="text-xs text-amber-600 mt-1">
+                                Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
+                            </p>
+                        @else
+                            <p class="text-sm text-red-700 mt-1">
+                                The withdrawal deadline has passed. <strong>No refund</strong> will be issued.
+                            </p>
+                        @endif
+                    </div>
+                    <button @click="showForm = !showForm"
+                            class="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">
+                        Withdraw
+                    </button>
+                </div>
+
+                <form x-show="showForm" x-transition method="POST"
+                      action="{{ route('registrations.withdraw', $registration) }}"
+                      class="mt-4 space-y-4 border-t border-amber-200 pt-4"
+                      onsubmit="return confirm('Are you sure you want to withdraw? This cannot be undone.')">
+                    @csrf
+                    <div>
+                        <label for="cancellation_reason" class="block text-sm font-medium text-amber-800 mb-1">Reason (optional)</label>
+                        <textarea name="cancellation_reason" id="cancellation_reason" rows="2" maxlength="500"
+                                  placeholder="Why are you withdrawing?"
+                                  class="w-full rounded-lg border-amber-300 text-sm py-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                    </div>
+                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                        Confirm Withdrawal
+                    </button>
+                </form>
+            </div>
+        @endif
+
+        @role('owner|admin|match_director')
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Update Status</h2>
 
@@ -83,12 +163,12 @@
                     @method('PUT')
 
                     <div>
-                        <label for="status" class="block text-sm font-medium text-stone-700">Registration Status</label>
-                        <select name="status" id="status" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <option value="pending" @selected($registration->status === 'pending')>Pending</option>
-                            <option value="confirmed" @selected($registration->status === 'confirmed')>Confirmed</option>
-                            <option value="waitlisted" @selected($registration->status === 'waitlisted')>Waitlisted</option>
-                            <option value="cancelled" @selected($registration->status === 'cancelled')>Cancelled</option>
+                        <label for="registration_status" class="block text-sm font-medium text-stone-700">Registration Status</label>
+                        <select name="registration_status" id="registration_status" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="pending" @selected($registration->registration_status === 'pending')>Pending</option>
+                            <option value="confirmed" @selected($registration->registration_status === 'confirmed')>Confirmed</option>
+                            <option value="waitlisted" @selected($registration->registration_status === 'waitlisted')>Waitlisted</option>
+                            <option value="cancelled" @selected($registration->registration_status === 'cancelled')>Cancelled</option>
                         </select>
                     </div>
 

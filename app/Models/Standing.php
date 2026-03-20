@@ -7,10 +7,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Standing extends Model
 {
+    public const DIVISIONS = [
+        'Open',
+        'Ladies',
+        'Juniors',
+        'Seniors',
+        'Factory',
+        'Production',
+        'Heavy',
+    ];
+
     protected $fillable = [
         'user_id',
         'series',
         'season',
+        'division',
         'province_id',
         'points',
         'rank',

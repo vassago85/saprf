@@ -6,30 +6,31 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class RifleConfiguration extends Model
+class AmmoLoad extends Model
 {
     protected $fillable = [
         'user_id',
+        'rifle_configuration_id',
         'nickname',
-        'firearm_make_id',
-        'firearm_model_id',
         'firearm_calibre_id',
-        'optic_description',
-        'bullet_description',
         'bullet_make',
+        'bullet_model',
         'bullet_weight',
         'bullet_type',
-        'barrel_length',
-        'twist_rate',
+        'brass',
+        'primer',
+        'powder',
+        'charge_weight',
+        'coal',
+        'cbto',
+        'velocity',
         'notes',
-        'is_primary',
         'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_primary' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -39,24 +40,14 @@ class RifleConfiguration extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function make(): BelongsTo
+    public function rifleConfiguration(): BelongsTo
     {
-        return $this->belongsTo(FirearmMake::class, 'firearm_make_id');
-    }
-
-    public function model(): BelongsTo
-    {
-        return $this->belongsTo(FirearmModel::class, 'firearm_model_id');
+        return $this->belongsTo(RifleConfiguration::class);
     }
 
     public function calibre(): BelongsTo
     {
         return $this->belongsTo(FirearmCalibre::class, 'firearm_calibre_id');
-    }
-
-    public function ammoLoads(): HasMany
-    {
-        return $this->hasMany(AmmoLoad::class);
     }
 
     public function registrations(): HasMany
@@ -76,11 +67,25 @@ class RifleConfiguration extends Model
 
     public function displayName(): string
     {
+        if ($this->nickname) {
+            return $this->nickname;
+        }
+
         $parts = array_filter([
-            $this->make?->name,
-            $this->model?->name,
+            $this->bullet_make,
+            $this->bullet_weight,
+            $this->bullet_type,
         ]);
 
-        return $this->nickname ?: (implode(' ', $parts) ?: 'Unnamed Rifle');
+        return implode(' ', $parts) ?: 'Unnamed Load';
+    }
+
+    public function bulletSummary(): string
+    {
+        return trim(collect([
+            $this->bullet_make,
+            $this->bullet_weight,
+            $this->bullet_type,
+        ])->filter()->implode(' '));
     }
 }

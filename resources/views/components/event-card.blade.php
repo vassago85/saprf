@@ -38,10 +38,32 @@
             {{ $match->name }}
         </a>
 
-        {{-- Meta row --}}
-        <div class="flex items-center gap-1.5 text-sm text-stone-500 mb-3">
-            <svg class="size-3.5 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
-            <span class="truncate">{{ $match->location_display ?: ($match->venue_name ?: 'TBC') }}</span>
+        {{-- Venue + Location --}}
+        <div class="space-y-1 text-sm mb-3">
+            @if($match->venue_name)
+                <div class="flex items-center gap-1.5 text-stone-700">
+                    <svg class="size-3.5 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
+                    <span class="truncate font-medium">{{ $match->venue_name }}</span>
+                </div>
+            @endif
+            @if($match->location_display)
+                <div class="flex items-center gap-1.5 text-stone-500">
+                    <svg class="size-3.5 text-stone-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" /></svg>
+                    <span class="truncate">{{ $match->location_display }}</span>
+                </div>
+            @elseif(!$match->venue_name)
+                <div class="flex items-center gap-1.5 text-stone-400">
+                    <svg class="size-3.5 text-stone-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
+                    <span>Venue TBC</span>
+                </div>
+            @endif
+            {{-- Match Director --}}
+            @if($match->creator)
+                <div class="flex items-center gap-1.5 text-stone-500">
+                    <svg class="size-3.5 text-stone-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                    <span class="truncate">MD: {{ $match->creator->name }}</span>
+                </div>
+            @endif
         </div>
 
         {{-- Tag row --}}

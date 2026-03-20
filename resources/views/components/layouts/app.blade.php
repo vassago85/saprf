@@ -41,6 +41,9 @@
                 <flux:navlist.item icon="wrench-screwdriver" :href="route('rifle-configurations.index')" :current="request()->routeIs('rifle-configurations.*')">
                     My Rifles
                 </flux:navlist.item>
+                <flux:navlist.item icon="fire" :href="route('ammo-loads.index')" :current="request()->routeIs('ammo-loads.*')">
+                    My Ammo
+                </flux:navlist.item>
             </flux:navlist.group>
 
             @role('owner|admin|match_director')

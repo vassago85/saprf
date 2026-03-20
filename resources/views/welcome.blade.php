@@ -74,49 +74,49 @@
 
                 {{-- RIGHT — Live Data Panel --}}
                 <div class="lg:col-span-7 xl:col-span-7">
-                    <div class="bg-gradient-to-b from-stone-800 to-stone-900 rounded-2xl shadow-2xl shadow-stone-900/30 overflow-hidden border border-stone-700/60 ring-1 ring-white/[0.04]">
+                    <div class="bg-white rounded-2xl shadow-xl shadow-stone-900/8 overflow-hidden border border-stone-200 ring-1 ring-stone-100">
                         {{-- Panel header bar --}}
-                        <div class="flex items-center gap-2.5 px-5 py-3 bg-white/[0.03] border-b border-white/[0.06]">
-                            <span class="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.4)]"></span>
-                            <span class="text-[11px] text-stone-200 font-semibold tracking-widest uppercase">SAPRF Live</span>
-                            <span class="ml-auto text-[10px] text-stone-500 font-medium tabular-nums">2026 Season</span>
+                        <div class="flex items-center gap-2.5 px-5 py-3 bg-stone-50 border-b border-stone-200">
+                            <span class="size-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.4)]"></span>
+                            <span class="text-[11px] text-stone-900 font-semibold tracking-widest uppercase">SAPRF Live</span>
+                            <span class="ml-auto text-[10px] text-stone-400 font-medium tabular-nums">2026 Season</span>
                         </div>
 
-                        <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06]">
+                        <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
                             {{-- Upcoming Matches --}}
                             <div class="p-4 sm:p-5">
                                 <div class="flex items-center justify-between mb-3.5">
-                                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Next Matches</h3>
-                                    <a href="/events" class="text-[11px] text-emerald-400 font-semibold hover:text-emerald-300 transition">All &rarr;</a>
+                                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-stone-500">Next Matches</h3>
+                                    <a href="/events" class="text-[11px] text-emerald-600 font-semibold hover:text-emerald-700 transition">All &rarr;</a>
                                 </div>
 
                                 <template x-if="loadingM">
                                     <div class="space-y-2.5">
-                                        <div class="h-[60px] rounded-xl bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-[60px] rounded-xl bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-[60px] rounded-xl bg-white/[0.04] animate-pulse"></div>
+                                        <div class="h-[60px] rounded-xl bg-stone-100 animate-pulse"></div>
+                                        <div class="h-[60px] rounded-xl bg-stone-100 animate-pulse"></div>
+                                        <div class="h-[60px] rounded-xl bg-stone-100 animate-pulse"></div>
                                     </div>
                                 </template>
 
                                 <template x-if="!loadingM && matches.length === 0">
-                                    <p class="text-sm text-stone-500 py-8 text-center">No upcoming matches</p>
+                                    <p class="text-sm text-stone-400 py-8 text-center">No upcoming matches</p>
                                 </template>
 
                                 <template x-if="!loadingM && matches.length > 0">
                                     <div class="space-y-2">
                                         <template x-for="match in matches" :key="match.id">
                                             <a :href="'/events/' + match.id"
-                                               class="block rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.07] hover:border-white/[0.12] p-3 transition-all duration-150 group hover:-translate-y-px">
+                                               class="block rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 hover:border-stone-300 p-3 transition-all duration-150 group hover:-translate-y-px hover:shadow-sm">
                                                 <div class="flex items-start gap-3">
-                                                    <div class="flex flex-col items-center justify-center rounded-lg bg-emerald-500/15 border border-emerald-400/25 w-10 h-10 shrink-0">
-                                                        <span class="text-[8px] font-bold uppercase tracking-wider text-emerald-400 leading-none" x-text="new Date(match.match_date).toLocaleDateString('en-ZA', {month: 'short'})"></span>
-                                                        <span class="text-[13px] font-bold text-emerald-300 leading-tight" x-text="new Date(match.match_date).getDate()"></span>
+                                                    <div class="flex flex-col items-center justify-center rounded-lg bg-emerald-50 border border-emerald-200 w-10 h-10 shrink-0">
+                                                        <span class="text-[8px] font-bold uppercase tracking-wider text-emerald-600 leading-none" x-text="new Date(match.match_date).toLocaleDateString('en-ZA', {month: 'short'})"></span>
+                                                        <span class="text-[13px] font-bold text-emerald-700 leading-tight" x-text="new Date(match.match_date).getDate()"></span>
                                                     </div>
                                                     <div class="flex-1 min-w-0">
-                                                        <p class="text-[13px] font-medium text-stone-100 group-hover:text-white transition truncate leading-snug" x-text="match.name"></p>
+                                                        <p class="text-[13px] font-semibold text-stone-900 group-hover:text-stone-950 transition truncate leading-snug" x-text="match.name"></p>
                                                         <div class="flex items-center gap-2 mt-1">
                                                             <span class="text-[10px] font-semibold rounded px-1.5 py-0.5 leading-none"
-                                                                  :class="match.match_type === 'PRS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-sky-500/20 text-sky-400'"
+                                                                  :class="match.match_type === 'PRS' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'"
                                                                   x-text="match.match_type"></span>
                                                             <span class="text-[10px] text-stone-500 truncate" x-text="match.province?.abbreviation || ''"></span>
                                                         </div>
@@ -131,47 +131,47 @@
                             {{-- Standings with Tabs --}}
                             <div class="p-4 sm:p-5">
                                 <div class="flex items-center justify-between mb-3.5">
-                                    <div class="flex items-center gap-0.5 rounded-lg bg-white/[0.06] p-0.5 border border-white/[0.04]">
+                                    <div class="flex items-center gap-0.5 rounded-lg bg-stone-100 p-0.5 border border-stone-200">
                                         <button type="button"
                                                 @click="activeTab = 'PRS'"
                                                 :class="activeTab === 'PRS'
-                                                    ? 'bg-emerald-600/30 text-emerald-300 shadow-sm border-emerald-500/20'
-                                                    : 'text-stone-400 hover:text-stone-200 border-transparent'"
+                                                    ? 'bg-white text-emerald-700 shadow-sm border-stone-200'
+                                                    : 'text-stone-500 hover:text-stone-700 border-transparent'"
                                                 class="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all duration-150 border">
                                             PRS
                                         </button>
                                         <button type="button"
                                                 @click="activeTab = 'PR22'"
                                                 :class="activeTab === 'PR22'
-                                                    ? 'bg-sky-600/30 text-sky-300 shadow-sm border-sky-500/20'
-                                                    : 'text-stone-400 hover:text-stone-200 border-transparent'"
+                                                    ? 'bg-white text-sky-700 shadow-sm border-stone-200'
+                                                    : 'text-stone-500 hover:text-stone-700 border-transparent'"
                                                 class="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all duration-150 border">
                                             PR22
                                         </button>
                                     </div>
-                                    <a href="/standings" class="text-[11px] text-emerald-400 font-semibold hover:text-emerald-300 transition">Full table &rarr;</a>
+                                    <a href="/standings" class="text-[11px] text-emerald-600 font-semibold hover:text-emerald-700 transition">Full table &rarr;</a>
                                 </div>
 
                                 {{-- Column headers --}}
-                                <div class="flex items-center gap-3 px-3 pb-2 mb-1 border-b border-white/[0.06]">
-                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-500 w-5">#</span>
-                                    <span class="flex-1 text-[9px] font-bold uppercase tracking-widest text-stone-500">Shooter</span>
-                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-500 w-8 text-center">Prov</span>
-                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-500 w-11 text-right">Pts</span>
+                                <div class="flex items-center gap-3 px-3 pb-2 mb-1 border-b border-stone-200">
+                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-400 w-5">#</span>
+                                    <span class="flex-1 text-[9px] font-bold uppercase tracking-widest text-stone-400">Shooter</span>
+                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-400 w-8 text-center">Prov</span>
+                                    <span class="text-[9px] font-bold uppercase tracking-widest text-stone-400 w-11 text-right">Pts</span>
                                 </div>
 
                                 <template x-if="currentLoading">
                                     <div class="space-y-2 mt-1">
-                                        <div class="h-9 rounded-lg bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-9 rounded-lg bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-9 rounded-lg bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-9 rounded-lg bg-white/[0.04] animate-pulse"></div>
-                                        <div class="h-9 rounded-lg bg-white/[0.04] animate-pulse"></div>
+                                        <div class="h-9 rounded-lg bg-stone-100 animate-pulse"></div>
+                                        <div class="h-9 rounded-lg bg-stone-100 animate-pulse"></div>
+                                        <div class="h-9 rounded-lg bg-stone-100 animate-pulse"></div>
+                                        <div class="h-9 rounded-lg bg-stone-100 animate-pulse"></div>
+                                        <div class="h-9 rounded-lg bg-stone-100 animate-pulse"></div>
                                     </div>
                                 </template>
 
                                 <template x-if="!currentLoading && currentStandings.length === 0">
-                                    <p class="text-sm text-stone-500 py-8 text-center">No standings yet</p>
+                                    <p class="text-sm text-stone-400 py-8 text-center">No standings yet</p>
                                 </template>
 
                                 <div x-show="!currentLoading && currentStandings.length > 0"
@@ -181,23 +181,23 @@
                                     <div class="space-y-0.5">
                                         <template x-for="(entry, index) in currentStandings" :key="activeTab + '-' + (entry.id || index)">
                                             <div class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-100"
-                                                 :class="index < 3 ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]'">
+                                                 :class="index < 3 ? 'bg-stone-50' : 'hover:bg-stone-50'">
                                                 <template x-if="index === 0">
-                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-amber-400/25 text-[10px] font-bold text-amber-300">1</span>
+                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">1</span>
                                                 </template>
                                                 <template x-if="index === 1">
-                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-stone-400/20 text-[10px] font-bold text-stone-300">2</span>
+                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">2</span>
                                                 </template>
                                                 <template x-if="index === 2">
-                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-amber-400/15 text-[10px] font-bold text-amber-400/80">3</span>
+                                                    <span class="inline-flex items-center justify-center size-5 rounded-full bg-amber-50 text-[10px] font-bold text-amber-600">3</span>
                                                 </template>
                                                 <template x-if="index >= 3">
-                                                    <span class="text-[11px] font-medium text-stone-500 w-5 text-center" x-text="index + 1"></span>
+                                                    <span class="text-[11px] font-semibold text-stone-400 w-5 text-center" x-text="index + 1"></span>
                                                 </template>
-                                                <span class="flex-1 text-[13px] font-medium text-stone-200 truncate" x-text="entry.user?.name || 'Unknown'"></span>
-                                                <span class="text-[10px] text-stone-400 font-medium w-8 text-center" x-text="entry.user?.province?.abbreviation || ''"></span>
+                                                <span class="flex-1 text-[13px] font-semibold text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
+                                                <span class="text-[10px] text-stone-500 font-medium w-8 text-center" x-text="entry.user?.province?.abbreviation || ''"></span>
                                                 <span class="text-[13px] font-mono font-bold w-11 text-right"
-                                                      :class="activeTab === 'PRS' ? 'text-emerald-400' : 'text-sky-400'"
+                                                      :class="activeTab === 'PRS' ? 'text-emerald-600' : 'text-sky-600'"
                                                       x-text="parseFloat(entry.points).toFixed(0)"></span>
                                             </div>
                                         </template>
@@ -301,7 +301,7 @@
             return '';
         }
     }">
-        <div class="max-w-6xl mx-auto px-6">
+        <div class="max-w-7xl mx-auto px-6">
             <div class="flex items-end justify-between mb-10">
                 <div>
                     <h2 class="font-heading text-3xl font-bold text-stone-900">National Standings</h2>

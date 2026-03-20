@@ -81,6 +81,11 @@ class User extends Authenticatable
         return $this->hasMany(RifleConfiguration::class);
     }
 
+    public function ammoLoads(): HasMany
+    {
+        return $this->hasMany(AmmoLoad::class);
+    }
+
     public function getAdminProvinceIds(): array
     {
         return $this->committeePositions()

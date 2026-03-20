@@ -28,6 +28,8 @@ class SiteSettingsController extends Controller
             'annual_membership_fee' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'non_member_surcharge' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'lapsed_member_surcharge' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+            'withdrawal_admin_fee' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+            'withdrawal_deadline_hours' => ['required', 'integer', 'min:0', 'max:720'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -35,6 +37,8 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('annual_membership_fee', $validated['annual_membership_fee'], 'Annual membership fee (ZAR)');
         $this->settingsService->set('non_member_surcharge', $validated['non_member_surcharge'], 'Extra fee for non-members per match (ZAR)');
         $this->settingsService->set('lapsed_member_surcharge', $validated['lapsed_member_surcharge'], 'Extra fee for lapsed members per match (ZAR)');
+        $this->settingsService->set('withdrawal_admin_fee', $validated['withdrawal_admin_fee'], 'Admin fee charged on match withdrawal (ZAR)');
+        $this->settingsService->set('withdrawal_deadline_hours', $validated['withdrawal_deadline_hours'], 'Hours before match date that withdrawal refunds are cut off');
 
         $this->auditLogService->log(
             $request->user(),

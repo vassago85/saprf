@@ -16,10 +16,14 @@
             series: '{{ $activeSeries }}',
             level: '{{ $activeLevel }}',
         }">
-            {{-- Controls Row --}}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+            {{-- Controls Row 1: Season, Series, Level --}}
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
                 {{-- Season Selector --}}
-                <form method="GET" action="{{ url('/standings') }}" class="flex items-center gap-2">
+                <form id="standingsForm" method="GET" action="{{ url('/standings') }}" class="flex items-center gap-2">
+                    <input type="hidden" name="division" value="{{ $division }}">
+                    @if($provinceFilter)
+                        <input type="hidden" name="province_id" value="{{ $provinceFilter }}">
+                    @endif
                     <select name="season" onchange="this.form.submit()"
                             class="rounded-xl border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                         @foreach($seasons as $s)
@@ -55,6 +59,55 @@
                         Provincial
                     </button>
                 </div>
+            </div>
+
+            {{-- Controls Row 2: Division + Province --}}
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+                {{-- Division Filter --}}
+                <div class="flex flex-wrap rounded-xl bg-white border border-stone-200 shadow-sm p-1 gap-0.5">
+                    @foreach($divisions as $div)
+                        <a href="{{ url('/standings') . '?' . http_build_query(array_filter(['season' => $season, 'division' => $div, 'province_id' => $provinceFilter])) }}"
+                           class="px-4 py-1.5 rounded-lg text-xs font-semibold transition {{ $division === $div ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50' }}">
+                            {{ $div }}
+                        </a>
+                    @endforeach
+                </div>
+
+                {{-- Province Filter --}}
+                <form method="GET" action="{{ url('/standings') }}" class="flex items-center gap-2">
+                    <input type="hidden" name="season" value="{{ $season }}">
+                    <input type="hidden" name="division" value="{{ $division }}">
+                    <select name="province_id" onchange="this.form.submit()"
+                            class="rounded-xl border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                        <option value="">All Provinces</option>
+                        @foreach($provinces as $prov)
+                            <option value="{{ $prov->id }}" @selected($provinceFilter === $prov->id)>{{ $prov->name }}</option>
+                        @endforeach
+                    </select>
+                </form>
+
+                {{-- Active filter badges --}}
+                @if($division !== 'Overall' || $provinceFilter)
+                    <div class="flex items-center gap-2">
+                        @if($division !== 'Overall')
+                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                                {{ $division }}
+                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(['season' => $season, 'division' => 'Overall', 'province_id' => $provinceFilter])) }}"
+                                   class="ml-0.5 hover:text-amber-900">&times;</a>
+                            </span>
+                        @endif
+                        @if($provinceFilter)
+                            @php $activeProvince = $provinces->firstWhere('id', $provinceFilter); @endphp
+                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                {{ $activeProvince?->name ?? 'Province' }}
+                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(['season' => $season, 'division' => $division])) }}"
+                                   class="ml-0.5 hover:text-emerald-900">&times;</a>
+                            </span>
+                        @endif
+                        <a href="{{ url('/standings') . '?season=' . $season }}"
+                           class="text-xs text-stone-400 hover:text-stone-600 transition">Clear all</a>
+                    </div>
+                @endif
             </div>
 
             {{-- Summary Cards --}}

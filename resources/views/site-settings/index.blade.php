@@ -56,6 +56,38 @@
                 </div>
             </div>
 
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <h2 class="font-heading text-lg font-semibold text-stone-900">Withdrawal / Cancellation Policy</h2>
+                <p class="text-sm text-stone-500">
+                    Configure the admin fee charged when a shooter withdraws from a match, and the deadline before which they can receive a refund (minus the admin fee).
+                    After the deadline passes, <strong class="text-stone-700">no refund</strong> is issued.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="withdrawal_admin_fee" class="block text-sm font-medium text-stone-700">Withdrawal Admin Fee (ZAR)</label>
+                        <input type="number" name="withdrawal_admin_fee" id="withdrawal_admin_fee" step="0.01" min="0" value="{{ old('withdrawal_admin_fee', $settings['withdrawal_admin_fee'] ?? '100.00') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Deducted from refund when a shooter withdraws before the deadline.</p>
+                    </div>
+
+                    <div>
+                        <label for="withdrawal_deadline_hours" class="block text-sm font-medium text-stone-700">Refund Deadline (hours before match)</label>
+                        <input type="number" name="withdrawal_deadline_hours" id="withdrawal_deadline_hours" step="1" min="0" value="{{ old('withdrawal_deadline_hours', $settings['withdrawal_deadline_hours'] ?? '72') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Withdrawals after this deadline forfeit the full entry fee.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    @php
+                        $adminFee = (float)($settings['withdrawal_admin_fee'] ?? 100);
+                        $hours = (int)($settings['withdrawal_deadline_hours'] ?? 72);
+                    @endphp
+                    <p><strong class="text-stone-900">Example:</strong> Match fee R500, admin fee R{{ number_format($adminFee, 0) }}, deadline {{ $hours }}h:</p>
+                    <p>Withdraw <strong>before</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-emerald-700">R{{ number_format(500 - $adminFee, 0) }}</span> (R500 − R{{ number_format($adminFee, 0) }} admin fee)</p>
+                    <p>Withdraw <strong>after</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-red-600">R0</span> (full fee forfeited)</p>
+                </div>
+            </div>
+
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Settings</button>
         </form>
     </div>

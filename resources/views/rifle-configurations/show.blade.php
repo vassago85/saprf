@@ -17,6 +17,12 @@
             </a>
         </div>
 
+        @if (session('success'))
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
         <div class="grid gap-6 lg:grid-cols-2">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
                 <h2 class="font-heading text-lg font-bold text-stone-900">Build Details</h2>
@@ -36,10 +42,6 @@
                     <div>
                         <dt class="text-stone-400">Optic</dt>
                         <dd class="font-medium text-stone-900">{{ $rifleConfiguration->optic_description ?: '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-stone-400">Bullet</dt>
-                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->bullet_description ?: '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-stone-400">Barrel Length</dt>
@@ -77,6 +79,64 @@
             </div>
         </div>
 
+        {{-- Ammo Loads --}}
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <div class="border-b border-stone-100 px-5 py-3 bg-stone-50 flex items-center justify-between">
+                <h2 class="font-heading text-base font-bold text-stone-900">Ammo Loads</h2>
+                <a href="{{ route('ammo-loads.create', $rifleConfiguration) }}"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Load
+                </a>
+            </div>
+
+            @if ($rifleConfiguration->ammoLoads->isNotEmpty())
+                <div class="divide-y divide-stone-100">
+                    @foreach ($rifleConfiguration->ammoLoads as $load)
+                        <div class="px-5 py-4 flex items-center gap-4 hover:bg-stone-50/50 transition-colors">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-stone-900">{{ $load->nickname }}</p>
+                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
+                                    @if ($load->bullet_make || $load->bullet_weight || $load->bullet_type)
+                                        <span class="font-medium text-stone-700">
+                                            {{ collect([$load->bullet_make, $load->bullet_weight, $load->bullet_model ?: $load->bullet_type])->filter()->implode(' ') }}
+                                        </span>
+                                    @endif
+                                    @if ($load->powder)
+                                        <span>{{ $load->powder }}@if ($load->charge_weight) / {{ $load->charge_weight }}@endif</span>
+                                    @endif
+                                    @if ($load->velocity)
+                                        <span>{{ $load->velocity }}</span>
+                                    @endif
+                                    @if ($load->brass)
+                                        <span>{{ $load->brass }} brass</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <a href="{{ route('ammo-loads.edit', $load) }}"
+                                    class="text-xs font-medium text-emerald-700 hover:text-emerald-800 transition">Edit</a>
+                                <form method="POST" action="{{ route('ammo-loads.destroy', $load) }}" onsubmit="return confirm('Remove this ammo load?')" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-xs font-medium text-red-500 hover:text-red-700 transition">Remove</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="px-5 py-10 text-center">
+                    <p class="text-sm text-stone-400">No ammo loads for this rifle yet.</p>
+                    <a href="{{ route('ammo-loads.create', $rifleConfiguration) }}"
+                        class="mt-2 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-800">
+                        Add your first load &rarr;
+                    </a>
+                </div>
+            @endif
+        </div>
+
+        {{-- Recent Scores --}}
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div class="border-b border-stone-100 px-5 py-3 bg-stone-50">
                 <h2 class="font-heading text-base font-bold text-stone-900">Recent Scores</h2>

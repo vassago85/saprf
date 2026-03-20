@@ -100,16 +100,13 @@ class MatchEvent extends Model
             if ($this->status === 'completed') {
                 return 'closed';
             }
-            if ($this->registration_open_date && $this->registration_open_date->isFuture()) {
-                return 'upcoming';
-            }
             if ($this->registration_close_date && $this->registration_close_date->isPast()) {
                 return 'closed';
             }
             if ($this->isFull()) {
                 return $this->waitlist_enabled ? 'waitlist' : 'full';
             }
-            if ($this->status === 'open') {
+            if ($this->status === 'open' && $this->published) {
                 return 'open';
             }
 
@@ -146,12 +143,18 @@ class MatchEvent extends Model
     protected function locationDisplay(): Attribute
     {
         return Attribute::get(function () {
-            $parts = array_filter([
-                $this->city ?: $this->venue_location,
-                $this->province?->name,
-            ]);
+            $cityPart = $this->city ?: $this->venue_location;
+            $provinceName = $this->province?->name;
 
-            return implode(', ', array_unique($parts));
+            if (! $cityPart && ! $provinceName) {
+                return '';
+            }
+
+            if ($provinceName && $cityPart && str_contains($cityPart, $provinceName)) {
+                return $cityPart;
+            }
+
+            return implode(', ', array_filter([$cityPart, $provinceName]));
         });
     }
 

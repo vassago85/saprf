@@ -53,7 +53,30 @@ class StandingsCalculationService
                 return $match->series_level === 'national';
             });
 
-        $totals = $scores
+        Standing::query()
+            ->where('series', $series)
+            ->where('season', $season)
+            ->where('province_id', $provinceId)
+            ->delete();
+
+        $divisions = $scores->pluck('division')->filter()->unique()->values();
+        if ($divisions->isEmpty()) {
+            $divisions = collect(['Open']);
+        }
+
+        foreach ($divisions as $division) {
+            $divisionScores = $scores->where('division', $division);
+            $totals = $this->calculateTotals($divisionScores);
+            $this->persistRankedStandings($totals, $series, $season, $division, $provinceId);
+        }
+
+        $allTotals = $this->calculateTotals($scores);
+        $this->persistRankedStandings($allTotals, $series, $season, 'Overall', $provinceId);
+    }
+
+    private function calculateTotals(Collection $scores): Collection
+    {
+        return $scores
             ->groupBy('user_id')
             ->map(function (Collection $userScores, int $userId): array {
                 $points = $userScores->sum(function (Score $score): float {
@@ -68,17 +91,9 @@ class StandingsCalculationService
             })
             ->sortByDesc('points')
             ->values();
-
-        Standing::query()
-            ->where('series', $series)
-            ->where('season', $season)
-            ->where('province_id', $provinceId)
-            ->delete();
-
-        $this->persistRankedStandings($totals, $series, $season, $provinceId);
     }
 
-    public function persistRankedStandings(Collection $totals, string $series, string $season, ?int $provinceId): void
+    public function persistRankedStandings(Collection $totals, string $series, string $season, string $division, ?int $provinceId): void
     {
         $rank = 1;
 
@@ -87,6 +102,7 @@ class StandingsCalculationService
                 'user_id' => (int) $row['user_id'],
                 'series' => $series,
                 'season' => $season,
+                'division' => $division,
                 'province_id' => $provinceId,
                 'points' => (float) $row['points'],
                 'rank' => $rank++,

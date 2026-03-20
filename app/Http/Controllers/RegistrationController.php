@@ -74,7 +74,7 @@ class RegistrationController extends Controller
         $this->authorize('update', $registration);
 
         $validated = $request->validate([
-            'registration_status' => ['required', 'in:confirmed,cancelled'],
+            'registration_status' => ['required', 'in:confirmed,cancelled,pending,waitlisted'],
         ]);
 
         $old = $registration->only(['registration_status']);
@@ -91,5 +91,54 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', 'Registration status updated.');
+    }
+
+    public function withdraw(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($registration->user_id !== $user->id) {
+            abort(403, 'You can only withdraw your own registration.');
+        }
+
+        if (! $registration->isWithdrawable()) {
+            return back()->with('error', 'This registration cannot be withdrawn.');
+        }
+
+        $request->validate([
+            'cancellation_reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $refundCalc = $registration->calculateRefund();
+        $old = $registration->only(['registration_status', 'payment_status']);
+
+        $registration->update([
+            'registration_status' => 'cancelled',
+            'cancelled_at' => now(),
+            'cancellation_reason' => $request->input('cancellation_reason'),
+            'refund_amount' => $refundCalc['refund'],
+            'admin_fee_charged' => $refundCalc['admin_fee'],
+        ]);
+
+        $this->auditLogService->log(
+            $user,
+            'registration.withdrawn',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            [
+                'registration_status' => 'cancelled',
+                'refund_amount' => $refundCalc['refund'],
+                'admin_fee_charged' => $refundCalc['admin_fee'],
+                'reason' => $refundCalc['reason'],
+            ],
+        );
+
+        $message = $refundCalc['refund'] > 0
+            ? 'Registration withdrawn. Refund of R ' . number_format($refundCalc['refund'], 2) . ' (minus R ' . number_format($refundCalc['admin_fee'], 2) . ' admin fee).'
+            : 'Registration withdrawn. No refund — withdrawal was after the deadline.';
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', $message);
     }
 }

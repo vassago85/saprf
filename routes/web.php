@@ -9,6 +9,7 @@ use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
 use App\Http\Controllers\QualificationRuleController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\AmmoLoadController;
 use App\Http\Controllers\RifleConfigurationController;
 use App\Http\Controllers\SascocReportController;
 use App\Http\Controllers\ScoreController;
@@ -69,14 +70,24 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');
     Route::get('/registrations/{registration}', [RegistrationController::class, 'show'])->name('registrations.show');
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
+    Route::post('/registrations/{registration}/withdraw', [RegistrationController::class, 'withdraw'])->name('registrations.withdraw');
 
     // Rifle Configurations — any authenticated user
     Route::resource('rifle-configurations', RifleConfigurationController::class)
         ->names('rifle-configurations');
 
+    // Ammo Loads — nested under rifles for create, flat for edit/update/destroy
+    Route::get('/ammo-loads', [AmmoLoadController::class, 'index'])->name('ammo-loads.index');
+    Route::get('/rifle-configurations/{rifleConfiguration}/ammo-loads/create', [AmmoLoadController::class, 'create'])->name('ammo-loads.create');
+    Route::post('/rifle-configurations/{rifleConfiguration}/ammo-loads', [AmmoLoadController::class, 'store'])->name('ammo-loads.store');
+    Route::get('/ammo-loads/{ammoLoad}/edit', [AmmoLoadController::class, 'edit'])->name('ammo-loads.edit');
+    Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
+    Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
+
     // Match Director + Admin + Owner
     Route::middleware(['role:owner|admin|match_director'])->group(function (): void {
         Route::resource('matches', MatchController::class)->except(['destroy']);
+        Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');

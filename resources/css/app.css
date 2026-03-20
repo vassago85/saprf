@@ -1,6 +1,18 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
+/* Force light mode on public/guest pages */
+.force-light, .force-light * {
+    color-scheme: light !important;
+}
+.force-light.dark, html.dark .force-light {
+    --color-stone-900: oklch(21.6% .006 56.043) !important;
+    --color-stone-800: oklch(26.8% .007 34.298) !important;
+    --color-stone-700: oklch(34.1% .009 56.366) !important;
+    --color-stone-500: oklch(55.3% .013 58.071) !important;
+    --color-white: #fff !important;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
