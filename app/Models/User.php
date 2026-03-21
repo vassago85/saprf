@@ -43,10 +43,46 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_otp_expires_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'date_of_birth' => 'date',
         ];
+    }
+
+    public function generateEmailOtp(): string
+    {
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $this->update([
+            'email_otp' => $otp,
+            'email_otp_expires_at' => now()->addMinutes(30),
+        ]);
+
+        return $otp;
+    }
+
+    public function verifyEmailOtp(string $otp): bool
+    {
+        if (! $this->email_otp || ! $this->email_otp_expires_at) {
+            return false;
+        }
+
+        if ($this->email_otp_expires_at->isPast()) {
+            return false;
+        }
+
+        if (! hash_equals($this->email_otp, $otp)) {
+            return false;
+        }
+
+        $this->update([
+            'email_verified_at' => now(),
+            'email_otp' => null,
+            'email_otp_expires_at' => null,
+        ]);
+
+        return true;
     }
 
     public function province(): BelongsTo

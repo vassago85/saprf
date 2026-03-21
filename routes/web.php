@@ -24,7 +24,6 @@ use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\MatchExpenseController;
 use App\Http\Controllers\VenueController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -58,28 +57,11 @@ Route::post('/logout', function () {
     return redirect('/');
 })->name('logout')->middleware('auth');
 
-// ── Email Verification ──
+// ── Email Verification (OTP) ──
 
 Route::middleware('auth')->group(function (): void {
     Volt::route('/verify-email', 'pages.auth.verify-email')->name('verification.notice');
 });
-
-Route::get('/verify-email/{id}/{hash}', function (Request $request, string $id, string $hash) {
-    $user = \App\Models\User::findOrFail($id);
-
-    if (! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
-        abort(403, 'Invalid verification link.');
-    }
-
-    if (! $user->hasVerifiedEmail()) {
-        $user->markEmailAsVerified();
-        event(new \Illuminate\Auth\Events\Verified($user));
-    }
-
-    \Illuminate\Support\Facades\Auth::login($user);
-
-    return redirect()->intended(route('dashboard'));
-})->middleware(['throttle:6,1'])->name('verification.verify');
 
 // ── Authenticated ──
 

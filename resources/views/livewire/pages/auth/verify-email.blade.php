@@ -1,14 +1,39 @@
 <?php
 
+use App\Notifications\EmailOtpNotification;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('components.layouts.guest')] class extends Component {
+    public string $otp = '';
     public string $status = '';
+    public string $error = '';
 
-    public function sendVerification(): void
+    public function verifyOtp(): void
     {
+        $this->validate(['otp' => ['required', 'string', 'size:6']]);
+        $this->error = '';
+
+        $user = Auth::user();
+
+        if ($user->hasVerifiedEmail()) {
+            $this->redirect(route('dashboard'), navigate: true);
+            return;
+        }
+
+        if ($user->verifyEmailOtp($this->otp)) {
+            $this->redirect(route('dashboard'), navigate: true);
+            return;
+        }
+
+        $this->error = 'Invalid or expired code. Please try again or request a new one.';
+        $this->otp = '';
+    }
+
+    public function resendOtp(): void
+    {
+        $this->error = '';
         $user = Auth::user();
 
         if ($user->hasVerifiedEmail()) {
@@ -17,11 +42,12 @@ new #[Layout('components.layouts.guest')] class extends Component {
         }
 
         try {
-            $user->sendEmailVerificationNotification();
-            $this->status = 'A new verification link has been sent to your email address.';
+            $otp = $user->generateEmailOtp();
+            $user->notify(new EmailOtpNotification($otp));
+            $this->status = 'A new verification code has been sent to your email.';
         } catch (\Throwable $e) {
-            logger()->warning('Verification email failed: ' . $e->getMessage());
-            $this->status = 'Unable to send verification email. Please check mail settings or try again later.';
+            logger()->warning('OTP email failed: ' . $e->getMessage());
+            $this->status = 'Unable to send verification code. Please try again later.';
         }
     }
 
@@ -48,14 +74,14 @@ new #[Layout('components.layouts.guest')] class extends Component {
             <div class="flex items-center justify-center mb-5">
                 <div class="rounded-full bg-emerald-50 p-4">
                     <svg class="size-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                     </svg>
                 </div>
             </div>
 
             <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1 text-center">Verify Your Email</h2>
             <p class="text-sm text-stone-500 mb-6 text-center">
-                We've sent a verification link to <strong class="text-stone-700">{{ Auth::user()->email }}</strong>. Please check your inbox and click the link to activate your account.
+                Enter the 6-digit code sent to <strong class="text-stone-700">{{ Auth::user()->email }}</strong>
             </p>
 
             @if($status)
@@ -64,19 +90,39 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 </div>
             @endif
 
-            <div class="space-y-3">
-                <button wire:click="sendVerification" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                    Resend Verification Email
+            @if($error)
+                <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-5">
+                    {{ $error }}
+                </div>
+            @endif
+
+            <form wire:submit="verifyOtp" class="space-y-5">
+                <div>
+                    <label for="otp" class="block text-sm font-medium text-stone-700 mb-1">Verification Code</label>
+                    <input wire:model="otp" id="otp" type="text" inputmode="numeric" pattern="[0-9]*"
+                        maxlength="6" placeholder="000000" autofocus autocomplete="one-time-code"
+                        class="w-full rounded-lg border-stone-300 text-center text-2xl font-mono tracking-[0.5em] py-3 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                    @error('otp') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    Verify
+                </button>
+            </form>
+
+            <div class="mt-4 space-y-3">
+                <button wire:click="resendOtp" class="w-full rounded-xl bg-stone-100 px-4 py-3 text-sm font-semibold text-stone-600 hover:bg-stone-200 transition">
+                    Resend Code
                 </button>
 
-                <button wire:click="logout" class="w-full rounded-xl bg-stone-100 px-4 py-3 text-sm font-semibold text-stone-600 hover:bg-stone-200 transition">
+                <button wire:click="logout" class="w-full text-sm text-stone-400 hover:text-stone-600 transition py-2">
                     Sign Out
                 </button>
             </div>
         </div>
 
         <p class="text-center mt-6 text-xs text-stone-400">
-            Didn't receive the email? Check your spam folder or click resend above.
+            Didn't receive the code? Check your spam folder or click resend above.
         </p>
     </div>
 </div>

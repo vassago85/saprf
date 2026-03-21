@@ -1,9 +1,9 @@
 <?php
 
 use App\Models\User;
+use App\Notifications\EmailOtpNotification;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -33,9 +33,10 @@ new #[Layout('components.layouts.guest')] class extends Component {
         session()->regenerate();
 
         try {
-            event(new Registered($user));
+            $otp = $user->generateEmailOtp();
+            $user->notify(new EmailOtpNotification($otp));
         } catch (\Throwable $e) {
-            logger()->warning('Verification email failed: ' . $e->getMessage());
+            logger()->warning('OTP email failed at registration: ' . $e->getMessage());
         }
 
         $this->redirect(route('verification.notice'), navigate: true);
