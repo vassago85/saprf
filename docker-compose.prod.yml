@@ -36,15 +36,15 @@ services:
       start_period: 60s
 
   db:
-    image: mariadb:11
+    image: mariadb:10.11
     container_name: saprf-db
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-ssl
     environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Root password required}
-      MARIADB_DATABASE: ${DB_DATABASE:-saprf_platform}
-      MARIADB_USER: ${DB_USERNAME:-saprf}
-      MARIADB_PASSWORD: ${DB_PASSWORD:?Database password required}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Root password required}
+      MYSQL_DATABASE: ${DB_DATABASE:-saprf_platform}
+      MYSQL_USER: ${DB_USERNAME:-saprf}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Database password required}
     volumes:
       - saprf-db:/var/lib/mysql
     networks:
