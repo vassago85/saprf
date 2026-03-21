@@ -46,6 +46,8 @@ Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])->name('pa
 Route::middleware('guest')->group(function (): void {
     Volt::route('/login', 'pages.auth.login')->name('login');
     Volt::route('/register', 'pages.auth.register')->name('register');
+    Volt::route('/forgot-password', 'pages.auth.forgot-password')->name('password.request');
+    Volt::route('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
 });
 
 Route::post('/logout', function () {
@@ -55,9 +57,20 @@ Route::post('/logout', function () {
     return redirect('/');
 })->name('logout')->middleware('auth');
 
+// ── Email Verification ──
+
+Route::middleware('auth')->group(function (): void {
+    Volt::route('/verify-email', 'pages.auth.verify-email')->name('verification.notice');
+
+    Route::get('/verify-email/{id}/{hash}', function (\Illuminate\Foundation\Auth\EmailVerificationRequest $request) {
+        $request->fulfill();
+        return redirect()->intended(route('dashboard'));
+    })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+});
+
 // ── Authenticated ──
 
-Route::middleware(['auth'])->group(function (): void {
+Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');

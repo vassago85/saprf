@@ -36,6 +36,7 @@ class RolesAndUsersSeeder extends Seeder
                     'name' => $data['name'],
                     'password' => Hash::make('password'),
                     'province_id' => $data['province_id'],
+                    'email_verified_at' => now(),
                 ],
             );
 

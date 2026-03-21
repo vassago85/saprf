@@ -48,7 +48,7 @@
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Email</th>
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Roles</th>
                         @if(! $showTrashed)
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Active</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Membership</th>
                         @else
                             <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Deleted</th>
                         @endif
@@ -81,10 +81,28 @@
                             </td>
                             @if(! $showTrashed)
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                                    @if($user->is_active)
-                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Yes</span>
+                                    @if($user->membership)
+                                        @switch($user->membership->status)
+                                            @case('active')
+                                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
+                                                @break
+                                            @case('lapsed')
+                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Lapsed</span>
+                                                @break
+                                            @case('expired')
+                                                <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span>
+                                                @break
+                                            @case('revoked')
+                                                <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Revoked</span>
+                                                @break
+                                            @case('pending')
+                                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Pending</span>
+                                                @break
+                                            @default
+                                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($user->membership->status) }}</span>
+                                        @endswitch
                                     @else
-                                        <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">No</span>
+                                        <span class="text-xs text-stone-400">None</span>
                                     @endif
                                 </td>
                             @else

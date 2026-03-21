@@ -1,39 +1,55 @@
 <?php
 
-use App\Models\User;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
 
 new #[Layout('components.layouts.guest')] class extends Component {
-    public string $name = '';
+    public string $token = '';
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
 
-    public function register(): void
+    public function mount(string $token): void
+    {
+        $this->token = $token;
+        $this->email = request()->query('email', '');
+    }
+
+    public function resetPassword(): void
     {
         $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users'],
+            'token' => ['required'],
+            'email' => ['required', 'email'],
             'password' => ['required', 'min:8', 'confirmed'],
         ]);
 
-        $user = User::create([
-            'name' => $this->name,
-            'email' => $this->email,
-            'password' => Hash::make($this->password),
-        ]);
+        $status = Password::reset(
+            [
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password_confirmation,
+                'token' => $this->token,
+            ],
+            function ($user) {
+                $user->forceFill([
+                    'password' => Hash::make($this->password),
+                    'remember_token' => Str::random(60),
+                ])->save();
 
-        $user->assignRole('member');
+                event(new PasswordReset($user));
+            }
+        );
 
-        event(new Registered($user));
-
-        Auth::login($user);
-        session()->regenerate();
-        $this->redirect(route('verification.notice'), navigate: true);
+        if ($status === Password::PASSWORD_RESET) {
+            session()->flash('status', __($status));
+            $this->redirect(route('login'), navigate: true);
+        } else {
+            $this->addError('email', __($status));
+        }
     }
 }
 
@@ -48,17 +64,10 @@ new #[Layout('components.layouts.guest')] class extends Component {
         </div>
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-8">
-            <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Create Account</h2>
-            <p class="text-sm text-stone-500 mb-6">Join SAPRF and start competing.</p>
+            <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Reset Password</h2>
+            <p class="text-sm text-stone-500 mb-6">Enter your new password below.</p>
 
-            <form wire:submit="register" class="space-y-5">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
-                    <input wire:model="name" id="name" type="text" required autofocus
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
-                    @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                </div>
-
+            <form wire:submit="resetPassword" class="space-y-5">
                 <div>
                     <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email</label>
                     <input wire:model="email" id="email" type="email" required
@@ -67,7 +76,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Password</label>
+                    <label for="password" class="block text-sm font-medium text-stone-700 mb-1">New Password</label>
                     <input wire:model="password" id="password" type="password" required
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -80,13 +89,13 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 </div>
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                    Create Account
+                    Reset Password
                 </button>
             </form>
         </div>
 
         <p class="text-center mt-6 text-sm text-stone-500">
-            Already have an account?
+            Remember your password?
             <a href="{{ route('login') }}" class="text-emerald-700 font-medium hover:text-emerald-800">Sign in</a>
         </p>
     </div>

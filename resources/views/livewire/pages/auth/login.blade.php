@@ -40,6 +40,12 @@ new #[Layout('components.layouts.guest')] class extends Component {
             <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Sign In</h2>
             <p class="text-sm text-stone-500 mb-6">Enter your credentials to access the platform.</p>
 
+            @if(session('status'))
+                <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 mb-5">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             <form wire:submit="login" class="space-y-5">
                 <div>
                     <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email</label>
@@ -55,9 +61,12 @@ new #[Layout('components.layouts.guest')] class extends Component {
                     @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="flex items-center">
-                    <input wire:model="remember" id="remember" type="checkbox" class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                    <label for="remember" class="ml-2 text-sm text-stone-600">Remember me</label>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input wire:model="remember" id="remember" type="checkbox" class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <label for="remember" class="ml-2 text-sm text-stone-600">Remember me</label>
+                    </div>
+                    <a href="{{ route('password.request') }}" class="text-sm text-emerald-700 font-medium hover:text-emerald-800">Forgot password?</a>
                 </div>
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">

@@ -118,6 +118,7 @@ class FederationDemoSeeder extends Seeder
                         'password' => Hash::make('password'),
                         'province_id' => $provinces[$data['prov']]->id,
                         'date_of_birth' => $data['dob'],
+                        'email_verified_at' => now(),
                     ],
                 );
                 $user->assignRole('member');

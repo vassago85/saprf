@@ -16,7 +16,7 @@ class UserManagementController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::with('roles');
+        $query = User::with(['roles', 'membership']);
 
         $showTrashed = $request->boolean('trashed');
         if ($showTrashed) {
