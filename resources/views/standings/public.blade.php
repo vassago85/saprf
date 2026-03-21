@@ -1,7 +1,11 @@
+@auth
+<x-layouts.app :title="'Standings - SAPRF'">
+@else
 <x-layouts.guest>
     <x-slot:title>Standings - SAPRF</x-slot:title>
 
     <x-public-nav current="standings" />
+@endauth
 
     @php
         $isOverall = !$divisionId && !$categoryId;
@@ -183,6 +187,10 @@
         </div>
     </div>
 
+@auth
+</x-layouts.app>
+@else
     <x-sponsors-strip placement="standings_pages" class="border-t border-stone-200" />
     <x-public-footer />
 </x-layouts.guest>
+@endauth

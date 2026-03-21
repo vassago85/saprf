@@ -40,8 +40,24 @@
                         <dd class="font-medium text-stone-900">{{ $rifleConfiguration->calibre->name ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-stone-400">Optic</dt>
-                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->optic_description ?: '—' }}</dd>
+                        <dt class="text-stone-400">Action</dt>
+                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->action_description ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-stone-400">Barrel</dt>
+                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->barrel_description ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-stone-400">Chassis / Stock</dt>
+                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->chassis_description ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-stone-400">Optic Brand</dt>
+                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->opticMake?->name ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-stone-400">Optic Model</dt>
+                        <dd class="font-medium text-stone-900">{{ $rifleConfiguration->opticModel?->name ?: '—' }}</dd>
                     </div>
                     <div>
                         <dt class="text-stone-400">Barrel Length</dt>

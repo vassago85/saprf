@@ -294,6 +294,63 @@
                 </div>
             </div>
 
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-stone-900">Email (Mailgun)</h2>
+                        <p class="text-sm text-stone-500">Configure Mailgun credentials for sending transactional email (membership confirmations, registration receipts, etc.).</p>
+                    </div>
+                    @php
+                        $mgConfigured = !empty($settings['mailgun_domain'] ?? '') && !empty($settings['mailgun_secret'] ?? '');
+                    @endphp
+                    @if($mgConfigured)
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Configured</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Not Configured</span>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="mailgun_domain" class="block text-sm font-medium text-stone-700">Mailgun Domain</label>
+                        <input type="text" name="mailgun_domain" id="mailgun_domain" value="{{ old('mailgun_domain', $settings['mailgun_domain'] ?? '') }}" placeholder="e.g. mg.saprf.co.za"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="mailgun_secret" class="block text-sm font-medium text-stone-700">Mailgun API Key</label>
+                        <input type="password" name="mailgun_secret" id="mailgun_secret" value="{{ old('mailgun_secret', $settings['mailgun_secret'] ?? '') }}" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="mailgun_endpoint" class="block text-sm font-medium text-stone-700">Mailgun Endpoint</label>
+                        <select name="mailgun_endpoint" id="mailgun_endpoint"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="api.eu.mailgun.net" @selected(old('mailgun_endpoint', $settings['mailgun_endpoint'] ?? 'api.eu.mailgun.net') === 'api.eu.mailgun.net')>EU (api.eu.mailgun.net)</option>
+                            <option value="api.mailgun.net" @selected(old('mailgun_endpoint', $settings['mailgun_endpoint'] ?? '') === 'api.mailgun.net')>US (api.mailgun.net)</option>
+                        </select>
+                        <p class="mt-1 text-xs text-stone-400">EU region is recommended for South Africa (POPIA compliance).</p>
+                    </div>
+
+                    <div>
+                        <label for="mail_from_address" class="block text-sm font-medium text-stone-700">From Address</label>
+                        <input type="email" name="mail_from_address" id="mail_from_address" value="{{ old('mail_from_address', $settings['mail_from_address'] ?? '') }}" placeholder="noreply@saprf.co.za"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="mail_from_name" class="block text-sm font-medium text-stone-700">From Name</label>
+                        <input type="text" name="mail_from_name" id="mail_from_name" value="{{ old('mail_from_name', $settings['mail_from_name'] ?? '') }}" placeholder="SAPRF"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    <p><strong class="text-stone-900">Setup:</strong> Create a Mailgun account, add and verify your domain, then paste the API key and domain here. The <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">.env</code> values will be used as fallback if these fields are left blank.</p>
+                </div>
+            </div>
+
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Settings</button>
         </form>
     </div>

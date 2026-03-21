@@ -32,8 +32,11 @@
                                 @if ($rifle->calibre)
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ $rifle->calibre->name }}</span>
                                 @endif
-                                @if ($rifle->optic_description)
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ Str::limit($rifle->optic_description, 20) }}</span>
+                                @if ($rifle->opticMake || $rifle->opticModel)
+                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ Str::limit(trim(($rifle->opticMake?->name ?? '') . ' ' . ($rifle->opticModel?->name ?? '')), 25) }}</span>
+                                @endif
+                                @if ($rifle->chassis_description)
+                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ Str::limit($rifle->chassis_description, 20) }}</span>
                                 @endif
                             </div>
 

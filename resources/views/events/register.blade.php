@@ -1,7 +1,11 @@
+@auth
+<x-layouts.app :title="'Register - ' . $match->name . ' - SAPRF'">
+@else
 <x-layouts.guest>
     <x-slot:title>Register - {{ $match->name }} - SAPRF</x-slot:title>
 
     <x-public-nav current="events" />
+@endauth
 
     <div class="bg-stone-50 min-h-screen">
         <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10">
@@ -132,5 +136,9 @@
         </div>
     </div>
 
+@auth
+</x-layouts.app>
+@else
     <x-public-footer />
 </x-layouts.guest>
+@endauth

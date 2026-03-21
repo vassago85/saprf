@@ -142,8 +142,8 @@ class FederationDemoSeeder extends Seeder
                             'membership_type' => 'paid',
                             'status' => 'active',
                             'payment_status' => 'paid',
-                            'start_date' => '2026-01-01',
-                            'expiry_date' => '2026-12-31',
+                            'start_date' => now()->subMonths(rand(0, 6))->toDateString(),
+                            'expiry_date' => now()->addMonths(rand(3, 12))->toDateString(),
                         ],
                     );
                     MembershipPayment::firstOrCreate(
@@ -159,8 +159,8 @@ class FederationDemoSeeder extends Seeder
                             'membership_type' => 'paid',
                             'status' => 'lapsed',
                             'payment_status' => 'paid',
-                            'start_date' => '2025-01-01',
-                            'expiry_date' => '2025-12-31',
+                            'start_date' => now()->subYear()->subMonths(rand(0, 6))->toDateString(),
+                            'expiry_date' => now()->subMonths(rand(1, 6))->toDateString(),
                         ],
                     );
                     $memberCounter++;
@@ -183,8 +183,8 @@ class FederationDemoSeeder extends Seeder
                         'membership_type' => 'paid',
                         'status' => 'active',
                         'payment_status' => 'paid',
-                        'start_date' => '2026-01-01',
-                        'expiry_date' => '2026-12-31',
+                        'start_date' => now()->subMonths(rand(0, 6))->toDateString(),
+                        'expiry_date' => now()->addMonths(rand(3, 12))->toDateString(),
                     ],
                 );
                 $allShooters[] = [

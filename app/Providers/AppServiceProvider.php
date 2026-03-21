@@ -12,7 +12,10 @@ use App\Policies\MembershipPolicy;
 use App\Policies\QualificationRulePolicy;
 use App\Policies\RegistrationPolicy;
 use App\Policies\ScorePolicy;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,5 +37,37 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MatchRegistration::class, RegistrationPolicy::class);
         Gate::policy(Membership::class, MembershipPolicy::class);
         Gate::policy(QualificationRule::class, QualificationRulePolicy::class);
+
+        $this->applyMailgunSettings();
+    }
+
+    private function applyMailgunSettings(): void
+    {
+        try {
+            if (! Schema::hasTable('settings')) {
+                return;
+            }
+
+            $keys = ['mailgun_domain', 'mailgun_secret', 'mailgun_endpoint', 'mail_from_address', 'mail_from_name'];
+            $settings = Setting::whereIn('key', $keys)->pluck('value', 'key');
+
+            if ($settings->get('mailgun_domain')) {
+                Config::set('services.mailgun.domain', $settings->get('mailgun_domain'));
+            }
+            if ($settings->get('mailgun_secret')) {
+                Config::set('services.mailgun.secret', $settings->get('mailgun_secret'));
+            }
+            if ($settings->get('mailgun_endpoint')) {
+                Config::set('services.mailgun.endpoint', $settings->get('mailgun_endpoint'));
+            }
+            if ($settings->get('mail_from_address')) {
+                Config::set('mail.from.address', $settings->get('mail_from_address'));
+            }
+            if ($settings->get('mail_from_name')) {
+                Config::set('mail.from.name', $settings->get('mail_from_name'));
+            }
+        } catch (\Throwable) {
+            // DB not available yet (migrations, etc.)
+        }
     }
 }

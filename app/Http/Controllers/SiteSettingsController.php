@@ -50,6 +50,11 @@ class SiteSettingsController extends Controller
             'payfast_passphrase' => ['nullable', 'string', 'max:100'],
             'payfast_sandbox' => ['required', 'boolean'],
             'payments_enabled' => ['required', 'boolean'],
+            'mailgun_domain' => ['nullable', 'string', 'max:255'],
+            'mailgun_secret' => ['nullable', 'string', 'max:255'],
+            'mailgun_endpoint' => ['nullable', 'string', 'in:api.eu.mailgun.net,api.mailgun.net'],
+            'mail_from_address' => ['nullable', 'email', 'max:255'],
+            'mail_from_name' => ['nullable', 'string', 'max:255'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -82,6 +87,12 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('payfast_passphrase', $validated['payfast_passphrase'] ?? '', 'PayFast Passphrase');
         $this->settingsService->set('payfast_sandbox', $validated['payfast_sandbox'], 'PayFast sandbox mode (1=sandbox, 0=live)');
         $this->settingsService->set('payments_enabled', $validated['payments_enabled'], 'Enable online payments (1=yes, 0=no)');
+
+        $this->settingsService->set('mailgun_domain', $validated['mailgun_domain'] ?? '', 'Mailgun sending domain');
+        $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'] ?? '', 'Mailgun API key');
+        $this->settingsService->set('mailgun_endpoint', $validated['mailgun_endpoint'] ?? 'api.eu.mailgun.net', 'Mailgun API endpoint (EU or US)');
+        $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');
+        $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');
 
         $this->auditLogService->log(
             $request->user(),

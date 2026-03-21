@@ -128,8 +128,8 @@ class PaymentController extends Controller
             $existing->update([
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
-                'start_date' => now()->startOfYear(),
-                'expiry_date' => now()->endOfYear(),
+                'start_date' => now()->toDateString(),
+                'expiry_date' => now()->addYear()->toDateString(),
             ]);
             $membership = $existing;
         } else {
@@ -139,8 +139,8 @@ class PaymentController extends Controller
                 'membership_type' => 'paid',
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
-                'start_date' => now()->startOfYear(),
-                'expiry_date' => now()->endOfYear(),
+                'start_date' => now()->toDateString(),
+                'expiry_date' => now()->addYear()->toDateString(),
             ]);
         }
 

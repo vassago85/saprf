@@ -14,4 +14,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/firearm-makes', [FirearmReferenceController::class, 'searchMakes']);
     Route::get('/firearm-models', [FirearmReferenceController::class, 'searchModels']);
     Route::get('/firearm-calibres', [FirearmReferenceController::class, 'searchCalibres']);
+
+    Route::get('/optic-makes', [FirearmReferenceController::class, 'searchOpticMakes']);
+    Route::get('/optic-models', [FirearmReferenceController::class, 'searchOpticModels']);
 });

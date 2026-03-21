@@ -77,10 +77,54 @@
                 </div>
 
                 <div>
-                    <label for="optic_description" class="block text-sm font-medium text-stone-700 mb-1">Optic</label>
-                    <input type="text" name="optic_description" id="optic_description" value="{{ old('optic_description', $rifleConfiguration->optic_description) }}"
-                        placeholder="e.g. Nightforce ATACR 7-35x56"
+                    <label for="action_description" class="block text-sm font-medium text-stone-700 mb-1">Action</label>
+                    <input type="text" name="action_description" id="action_description" value="{{ old('action_description', $rifleConfiguration->action_description) }}"
+                        placeholder="e.g. Bighorn TL3, Defiance Tenacity"
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label for="barrel_description" class="block text-sm font-medium text-stone-700 mb-1">Barrel</label>
+                    <input type="text" name="barrel_description" id="barrel_description" value="{{ old('barrel_description', $rifleConfiguration->barrel_description) }}"
+                        placeholder="e.g. Bartlein 6.5mm, Krieger"
+                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label for="chassis_description" class="block text-sm font-medium text-stone-700 mb-1">Chassis / Stock</label>
+                    <input type="text" name="chassis_description" id="chassis_description" value="{{ old('chassis_description', $rifleConfiguration->chassis_description) }}"
+                        placeholder="e.g. MDT ACC Elite"
+                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <x-typeahead
+                        name="optic_make_id"
+                        label="Optic Brand"
+                        search-url="/api/v1/optic-makes"
+                        create-url="/api/optic-makes"
+                        placeholder="Type to search brands..."
+                        display-field="name"
+                        subtext-field="country"
+                        :initial-id="old('optic_make_id', $rifleConfiguration->optic_make_id)"
+                        :initial-text="$rifleConfiguration->opticMake?->name"
+                    />
+                </div>
+
+                <div>
+                    <x-typeahead
+                        name="optic_model_id"
+                        label="Optic Model"
+                        search-url="/api/v1/optic-models"
+                        create-url="/api/optic-models"
+                        placeholder="Type to search models..."
+                        display-field="name"
+                        depends-on="optic_make_id"
+                        depends-param="make_id"
+                        :create-payload-extra="true"
+                        :initial-id="old('optic_model_id', $rifleConfiguration->optic_model_id)"
+                        :initial-text="$rifleConfiguration->opticModel?->name"
+                    />
                 </div>
 
                 <div>

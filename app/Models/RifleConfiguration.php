@@ -14,7 +14,14 @@ class RifleConfiguration extends Model
         'firearm_make_id',
         'firearm_model_id',
         'firearm_calibre_id',
+        'action_description',
+        'barrel_description',
         'optic_description',
+        'chassis_description',
+        'optic_make_id',
+        'optic_model_id',
+        'optic_make',
+        'optic_model',
         'bullet_description',
         'bullet_make',
         'bullet_weight',
@@ -52,6 +59,16 @@ class RifleConfiguration extends Model
     public function calibre(): BelongsTo
     {
         return $this->belongsTo(FirearmCalibre::class, 'firearm_calibre_id');
+    }
+
+    public function opticMake(): BelongsTo
+    {
+        return $this->belongsTo(OpticMake::class, 'optic_make_id');
+    }
+
+    public function opticModel(): BelongsTo
+    {
+        return $this->belongsTo(OpticModel::class, 'optic_model_id');
     }
 
     public function ammoLoads(): HasMany

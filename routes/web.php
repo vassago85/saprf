@@ -66,6 +66,10 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('/api/firearm-models', [\App\Http\Controllers\FirearmReferenceController::class, 'storeModel'])->name('api.firearm-models.store');
     Route::post('/api/firearm-calibres', [\App\Http\Controllers\FirearmReferenceController::class, 'storeCalibre'])->name('api.firearm-calibres.store');
 
+    // Optic reference data — user-submitted entries
+    Route::post('/api/optic-makes', [\App\Http\Controllers\FirearmReferenceController::class, 'storeOpticMake'])->name('api.optic-makes.store');
+    Route::post('/api/optic-models', [\App\Http\Controllers\FirearmReferenceController::class, 'storeOpticModel'])->name('api.optic-models.store');
+
     // Standings (dashboard context — authenticated)
     Route::get('/app/standings', [StandingController::class, 'index'])->name('standings.index');
     Route::get('/app/standings/{series}/{season}', [StandingController::class, 'show'])->name('standings.show');

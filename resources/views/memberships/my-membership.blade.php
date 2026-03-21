@@ -133,7 +133,7 @@
                         <div>
                             <p class="text-sm font-medium text-stone-700">Annual Membership Fee</p>
                             <p class="text-3xl font-bold text-stone-900 mt-1">R {{ number_format($fee, 2) }}</p>
-                            <p class="text-xs text-stone-400 mt-1">Valid until 31 Dec {{ now()->year }}</p>
+                            <p class="text-xs text-stone-400 mt-1">Valid for 12 months from date of payment</p>
                         </div>
                         <form method="POST" action="{{ route('membership.join') }}">
                             @csrf
