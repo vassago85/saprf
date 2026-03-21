@@ -51,15 +51,19 @@ class AppServiceProvider extends ServiceProvider
             $keys = ['mailgun_domain', 'mailgun_secret', 'mailgun_endpoint', 'mail_from_address', 'mail_from_name'];
             $settings = Setting::whereIn('key', $keys)->pluck('value', 'key');
 
-            if ($settings->get('mailgun_domain')) {
-                Config::set('services.mailgun.domain', $settings->get('mailgun_domain'));
+            $domain = $settings->get('mailgun_domain');
+            $secret = $settings->get('mailgun_secret');
+
+            if ($domain && $secret) {
+                Config::set('mail.default', 'mailgun');
+                Config::set('services.mailgun.domain', $domain);
+                Config::set('services.mailgun.secret', $secret);
+
+                if ($settings->get('mailgun_endpoint')) {
+                    Config::set('services.mailgun.endpoint', $settings->get('mailgun_endpoint'));
+                }
             }
-            if ($settings->get('mailgun_secret')) {
-                Config::set('services.mailgun.secret', $settings->get('mailgun_secret'));
-            }
-            if ($settings->get('mailgun_endpoint')) {
-                Config::set('services.mailgun.endpoint', $settings->get('mailgun_endpoint'));
-            }
+
             if ($settings->get('mail_from_address')) {
                 Config::set('mail.from.address', $settings->get('mail_from_address'));
             }
