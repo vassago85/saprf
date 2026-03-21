@@ -42,17 +42,31 @@
                         }" class="text-sm font-medium" x-text="cell.dayNum"></span>
                     </div>
 
-                    {{-- Event dots --}}
+                    {{-- Event pills --}}
                     <template x-if="cell.events && cell.events.length > 0">
                         <div class="space-y-0.5">
-                            <template x-for="ev in cell.events.slice(0, 3)" :key="ev.id">
+                            <template x-for="ev in cell.events.slice(0, 3)" :key="ev.id + '-' + (ev.span_type || 'single')">
                                 <div :class="{
                                     'bg-emerald-100 text-emerald-800': ev.match_type === 'PRS',
                                     'bg-sky-100 text-sky-800': ev.match_type === 'PR22',
                                     'bg-stone-100 text-stone-600': ev.match_type !== 'PRS' && ev.match_type !== 'PR22',
-                                }" class="rounded px-1.5 py-0.5 text-[10px] font-medium truncate leading-tight cursor-pointer">
-                                    <span x-text="ev.name" class="hidden sm:inline"></span>
-                                    <span x-text="ev.match_type" class="sm:hidden"></span>
+                                    'rounded px-1.5': !ev.span_type || ev.span_type === 'single',
+                                    'rounded-l pl-1.5 pr-0 -mr-2': ev.span_type === 'start',
+                                    'rounded-none px-0 -mx-2': ev.span_type === 'middle',
+                                    'rounded-r pr-1.5 pl-0 -ml-2': ev.span_type === 'end',
+                                }" class="py-0.5 text-[10px] font-medium truncate leading-tight cursor-pointer">
+                                    <template x-if="!ev.span_type || ev.span_type === 'single' || ev.span_type === 'start'">
+                                        <span>
+                                            <span x-text="ev.name" class="hidden sm:inline"></span>
+                                            <span x-text="ev.match_type" class="sm:hidden"></span>
+                                        </span>
+                                    </template>
+                                    <template x-if="ev.span_type === 'end'">
+                                        <span class="hidden sm:inline text-[9px] opacity-70">&hellip;cont.</span>
+                                    </template>
+                                    <template x-if="ev.span_type === 'middle'">
+                                        <span>&nbsp;</span>
+                                    </template>
                                 </div>
                             </template>
                             <template x-if="cell.events.length > 3">

@@ -22,8 +22,8 @@ class FederationDemoSeeder extends Seeder
     {
         DB::transaction(function () {
             $provinces = Province::all()->keyBy('abbreviation');
-            $divisions = Division::all()->keyBy('code');
-            $categories = Category::all()->keyBy('code');
+            $divisions = Division::all()->keyBy('slug');
+            $categories = Category::all()->keyBy('slug');
 
             $director = User::where('email', 'director@saprf.co.za')->first();
             $admin = User::where('email', 'admin@saprf.co.za')->first();
@@ -34,35 +34,35 @@ class FederationDemoSeeder extends Seeder
             $existingMember?->update(['date_of_birth' => '1988-05-20', 'province_id' => $provinces['FS']->id]);
 
             // ── 45 Shooters ──
-            // Mix: members/non-members, ladies, juniors, seniors, super-seniors, across provinces and divisions
+            // Mix: members/non-members, ladies, juniors, seniors, across provinces and divisions
             $shooterData = [
                 // GP — Open division shooters (strong field)
                 ['name' => 'Jan van der Berg',       'email' => 'jan@example.co.za',         'prov' => 'GP',  'dob' => '1985-03-15', 'div' => 'open',       'cats' => [],             'member' => true],
                 ['name' => 'Pieter Joubert',         'email' => 'pieter@example.co.za',       'prov' => 'GP',  'dob' => '1990-07-22', 'div' => 'open',       'cats' => [],             'member' => true],
                 ['name' => 'Kobus Venter',           'email' => 'kobus@example.co.za',        'prov' => 'GP',  'dob' => '1987-09-03', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Louis Potgieter',        'email' => 'louis@example.co.za',        'prov' => 'GP',  'dob' => '1983-11-28', 'div' => 'production', 'cats' => [],             'member' => true],
-                ['name' => 'Werner Steyn',           'email' => 'werner@example.co.za',       'prov' => 'GP',  'dob' => '1991-02-14', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Louis Potgieter',        'email' => 'louis@example.co.za',        'prov' => 'GP',  'dob' => '1983-11-28', 'div' => 'factory', 'cats' => [],             'member' => true],
+                ['name' => 'Werner Steyn',           'email' => 'werner@example.co.za',       'prov' => 'GP',  'dob' => '1991-02-14', 'div' => 'factory', 'cats' => [],             'member' => true],
 
                 // GP — Ladies
-                ['name' => 'Chantel van der Merwe',   'email' => 'chantel@example.co.za',      'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['lady'],       'member' => true],
-                ['name' => 'Leandri Kruger',         'email' => 'leandri@example.co.za',      'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
-                ['name' => 'Mienkie du Preez',       'email' => 'mienkie@example.co.za',      'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['lady'],       'member' => true],
+                ['name' => 'Chantel van der Merwe',   'email' => 'chantel@example.co.za',      'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['ladies'],       'member' => true],
+                ['name' => 'Leandri Kruger',         'email' => 'leandri@example.co.za',      'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'factory', 'cats' => ['ladies'],       'member' => true],
+                ['name' => 'Mienkie du Preez',       'email' => 'mienkie@example.co.za',      'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['ladies'],       'member' => true],
 
                 // WC — Mixed field
                 ['name' => 'Andre Visser',           'email' => 'andre@example.co.za',        'prov' => 'WC',  'dob' => '1978-11-08', 'div' => 'open',       'cats' => [],             'member' => true],
                 ['name' => 'Rudi Erasmus',           'email' => 'rudi@example.co.za',         'prov' => 'WC',  'dob' => '1975-08-05', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Gerhard Cilliers',       'email' => 'gerhard@example.co.za',      'prov' => 'WC',  'dob' => '1982-05-19', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Gerhard Cilliers',       'email' => 'gerhard@example.co.za',      'prov' => 'WC',  'dob' => '1982-05-19', 'div' => 'factory', 'cats' => [],             'member' => true],
                 ['name' => 'Jacques Engelbrecht',    'email' => 'jacques@example.co.za',      'prov' => 'WC',  'dob' => '1994-12-01', 'div' => 'limited',    'cats' => [],             'member' => true],
-                ['name' => 'Suné Rossouw',           'email' => 'sune@example.co.za',         'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
+                ['name' => 'Suné Rossouw',           'email' => 'sune@example.co.za',         'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'factory', 'cats' => ['ladies'],       'member' => true],
 
                 // KZN
                 ['name' => 'Christo Muller',         'email' => 'christo@example.co.za',      'prov' => 'KZN', 'dob' => '1968-02-14', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
-                ['name' => 'Thabo Mkhize',           'email' => 'thabo@example.co.za',        'prov' => 'KZN', 'dob' => '1986-10-11', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Thabo Mkhize',           'email' => 'thabo@example.co.za',        'prov' => 'KZN', 'dob' => '1986-10-11', 'div' => 'factory', 'cats' => [],             'member' => true],
                 ['name' => 'Johan Greyling',         'email' => 'johan@example.co.za',        'prov' => 'KZN', 'dob' => '1979-07-25', 'div' => 'open',       'cats' => [],             'member' => true],
 
                 // FS
                 ['name' => 'Francois du Plessis',    'email' => 'francois@example.co.za',     'prov' => 'FS',  'dob' => '1995-04-25', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Gert Coetzee',           'email' => 'gert@example.co.za',         'prov' => 'FS',  'dob' => '1988-08-16', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Gert Coetzee',           'email' => 'gert@example.co.za',         'prov' => 'FS',  'dob' => '1988-08-16', 'div' => 'factory', 'cats' => [],             'member' => true],
 
                 // MP
                 ['name' => 'Dewald Botha',           'email' => 'dewald@example.co.za',       'prov' => 'MP',  'dob' => '1993-01-07', 'div' => 'open',       'cats' => [],             'member' => true],
@@ -70,7 +70,7 @@ class FederationDemoSeeder extends Seeder
 
                 // LP
                 ['name' => 'Hennie Pretorius',       'email' => 'hennie@example.co.za',       'prov' => 'LP',  'dob' => '1960-09-12', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
-                ['name' => 'Sakkie van Wyk',         'email' => 'sakkie@example.co.za',       'prov' => 'LP',  'dob' => '1958-04-03', 'div' => 'production', 'cats' => ['super-senior'], 'member' => true],
+                ['name' => 'Sakkie van Wyk',         'email' => 'sakkie@example.co.za',       'prov' => 'LP',  'dob' => '1958-04-03', 'div' => 'factory', 'cats' => ['senior'], 'member' => true],
 
                 // NW
                 ['name' => 'Danie Swanepoel',        'email' => 'danie@example.co.za',        'prov' => 'NW',  'dob' => '1982-12-01', 'div' => 'open',       'cats' => [],             'member' => true],
@@ -80,31 +80,31 @@ class FederationDemoSeeder extends Seeder
                 ['name' => 'Gideon Louw',            'email' => 'gideon@example.co.za',       'prov' => 'NC',  'dob' => '1984-02-11', 'div' => 'open',       'cats' => [],             'member' => true],
 
                 // Juniors (under 21 on 1 Jan 2026)
-                ['name' => 'Willem Botha',           'email' => 'willem@example.co.za',       'prov' => 'FS',  'dob' => '2007-06-30', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
-                ['name' => 'Ethan Steenkamp',        'email' => 'ethan@example.co.za',        'prov' => 'GP',  'dob' => '2008-03-14', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
+                ['name' => 'Willem Botha',           'email' => 'willem@example.co.za',       'prov' => 'FS',  'dob' => '2007-06-30', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
+                ['name' => 'Ethan Steenkamp',        'email' => 'ethan@example.co.za',        'prov' => 'GP',  'dob' => '2008-03-14', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
                 ['name' => 'Marco van Rensburg',     'email' => 'marco@example.co.za',        'prov' => 'WC',  'dob' => '2006-11-22', 'div' => 'limited',    'cats' => ['junior'],     'member' => true],
-                ['name' => 'Nico Jacobs',            'email' => 'nico@example.co.za',         'prov' => 'GP',  'dob' => '2009-08-05', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
+                ['name' => 'Nico Jacobs',            'email' => 'nico@example.co.za',         'prov' => 'GP',  'dob' => '2009-08-05', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
 
-                // Sub-junior (under 14)
-                ['name' => 'Liam du Toit',           'email' => 'liam@example.co.za',         'prov' => 'GP',  'dob' => '2012-05-18', 'div' => 'production', 'cats' => ['sub-junior'], 'member' => true],
+                // Younger junior (under 14)
+                ['name' => 'Liam du Toit',           'email' => 'liam@example.co.za',         'prov' => 'GP',  'dob' => '2012-05-18', 'div' => 'factory', 'cats' => ['junior'], 'member' => true],
 
                 // Non-members (no membership — shoot as non-member)
                 ['name' => 'Tommy Wilson',           'email' => 'tommy@example.co.za',        'prov' => 'WC',  'dob' => '1990-10-03', 'div' => 'open',       'cats' => [],             'member' => false],
-                ['name' => 'Craig Adams',            'email' => 'craig@example.co.za',        'prov' => 'GP',  'dob' => '1986-02-28', 'div' => 'production', 'cats' => [],             'member' => false],
+                ['name' => 'Craig Adams',            'email' => 'craig@example.co.za',        'prov' => 'GP',  'dob' => '1986-02-28', 'div' => 'factory', 'cats' => [],             'member' => false],
                 ['name' => 'Neville Harris',         'email' => 'neville@example.co.za',      'prov' => 'KZN', 'dob' => '1991-07-14', 'div' => 'open',       'cats' => [],             'member' => false],
                 ['name' => 'Mike Pienaar',           'email' => 'mike.p@example.co.za',       'prov' => 'FS',  'dob' => '1985-12-09', 'div' => 'limited',    'cats' => [],             'member' => false],
-                ['name' => 'James Scott',            'email' => 'james.s@example.co.za',      'prov' => 'GP',  'dob' => '1993-05-16', 'div' => 'factory',    'cats' => ['international'], 'member' => false],
+                ['name' => 'James Scott',            'email' => 'james.s@example.co.za',      'prov' => 'GP',  'dob' => '1993-05-16', 'div' => 'factory',    'cats' => [], 'member' => false],
 
                 // Lapsed members
                 ['name' => 'Boeta Kruger',           'email' => 'boeta@example.co.za',        'prov' => 'NW',  'dob' => '1976-08-22', 'div' => 'open',       'cats' => [],             'member' => 'lapsed'],
-                ['name' => 'Hein van Niekerk',       'email' => 'hein@example.co.za',         'prov' => 'MP',  'dob' => '1980-03-17', 'div' => 'production', 'cats' => [],             'member' => 'lapsed'],
+                ['name' => 'Hein van Niekerk',       'email' => 'hein@example.co.za',         'prov' => 'MP',  'dob' => '1980-03-17', 'div' => 'factory', 'cats' => [],             'member' => 'lapsed'],
 
-                // PR22-specific shooters
-                ['name' => 'Riaan Booysen',          'email' => 'riaan@example.co.za',        'prov' => 'GP',  'dob' => '1989-09-30', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
-                ['name' => 'Stefan Maritz',          'email' => 'stefan@example.co.za',       'prov' => 'WC',  'dob' => '1996-01-12', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
-                ['name' => 'Jaco de Beer',           'email' => 'jaco@example.co.za',         'prov' => 'GP',  'dob' => '1984-06-05', 'div' => 'pr22-base',  'cats' => [],             'member' => true],
-                ['name' => 'Zelda Kotzé',            'email' => 'zelda@example.co.za',        'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'pr22-open',  'cats' => ['lady'],       'member' => true],
-                ['name' => 'Ernst Schoeman',         'email' => 'ernst@example.co.za',        'prov' => 'FS',  'dob' => '1963-04-20', 'div' => 'pr22-base',  'cats' => ['senior'],     'member' => true],
+                // Former PR22 rimfire demo shooters (same divisions as centrefire)
+                ['name' => 'Riaan Booysen',          'email' => 'riaan@example.co.za',        'prov' => 'GP',  'dob' => '1989-09-30', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Stefan Maritz',          'email' => 'stefan@example.co.za',       'prov' => 'WC',  'dob' => '1996-01-12', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Jaco de Beer',           'email' => 'jaco@example.co.za',         'prov' => 'GP',  'dob' => '1984-06-05', 'div' => 'factory',  'cats' => [],             'member' => true],
+                ['name' => 'Zelda Kotzé',            'email' => 'zelda@example.co.za',        'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'open',       'cats' => ['ladies'],       'member' => true],
+                ['name' => 'Ernst Schoeman',         'email' => 'ernst@example.co.za',        'prov' => 'FS',  'dob' => '1963-04-20', 'div' => 'factory',  'cats' => ['senior'],     'member' => true],
             ];
 
             $allShooters = [];
@@ -121,6 +121,18 @@ class FederationDemoSeeder extends Seeder
                     ],
                 );
                 $user->assignRole('member');
+
+                $divisionId = $divisions[$data['div']]?->id;
+                $user->update(['division_id' => $divisionId]);
+
+                $catIds = collect($data['cats'])
+                    ->map(fn ($code) => $categories[$code]?->id)
+                    ->filter()
+                    ->values()
+                    ->toArray();
+                if (! empty($catIds)) {
+                    $user->categories()->syncWithoutDetaching($catIds);
+                }
 
                 if ($data['member'] === true) {
                     $membership = Membership::firstOrCreate(
@@ -251,10 +263,7 @@ class FederationDemoSeeder extends Seeder
 
                 $match = MatchEvent::firstOrCreate(['name' => $data['name']], $matchAttrs);
 
-                $matchDivisions = $data['type'] === 'PRS'
-                    ? $divisions->filter(fn ($d) => in_array($d->discipline, ['PRS', 'both']))->pluck('id')
-                    : $divisions->filter(fn ($d) => in_array($d->discipline, ['PR22', 'both']))->pluck('id');
-                $match->divisions()->syncWithoutDetaching($matchDivisions);
+                $match->divisions()->syncWithoutDetaching($divisions->pluck('id'));
 
                 if ($data['status'] === 'completed' && $data['type'] === 'PRS') {
                     $completedPrsMatches[] = $match;
@@ -275,8 +284,8 @@ class FederationDemoSeeder extends Seeder
             );
 
             // ── Generate Scores for Completed Matches ──
-            $prsShooters = collect($allShooters)->filter(fn ($s) => str_starts_with($s['div_code'], 'pr22') === false);
-            $pr22Shooters = collect($allShooters)->filter(fn ($s) => str_starts_with($s['div_code'], 'pr22'));
+            $prsShooters = collect($allShooters);
+            $pr22Shooters = collect($allShooters);
 
             $standingsService = app(StandingsCalculationService::class);
             $seedIndex = 42;

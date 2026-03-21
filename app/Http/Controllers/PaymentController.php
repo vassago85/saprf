@@ -8,6 +8,7 @@ use App\Models\MembershipPayment;
 use App\Models\Payment;
 use App\Services\AuditLogService;
 use App\Services\PayFastService;
+use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -105,6 +106,79 @@ class PaymentController extends Controller
         return response('OK', 200);
     }
 
+    public function joinMembership(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $existing = Membership::where('user_id', $user->id)->latest()->first();
+
+        if ($existing && $existing->status === 'active' && $existing->payment_status === 'paid') {
+            return redirect()->route('my-membership')
+                ->with('info', 'You already have an active membership.');
+        }
+
+        if (! $this->payFastService->isEnabled()) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Online payments are not currently available. Please contact the administrator.');
+        }
+
+        $fee = (float) app(SettingsService::class)->get('annual_membership_fee', 500);
+
+        if ($existing) {
+            $existing->update([
+                'status' => 'pending',
+                'payment_status' => 'unpaid',
+                'start_date' => now()->startOfYear(),
+                'expiry_date' => now()->endOfYear(),
+            ]);
+            $membership = $existing;
+        } else {
+            $membership = Membership::create([
+                'user_id' => $user->id,
+                'saprf_number' => $this->generateSaprfNumber(),
+                'membership_type' => 'paid',
+                'status' => 'pending',
+                'payment_status' => 'unpaid',
+                'start_date' => now()->startOfYear(),
+                'expiry_date' => now()->endOfYear(),
+            ]);
+        }
+
+        $payment = Payment::create([
+            'payable_type' => Membership::class,
+            'payable_id' => $membership->id,
+            'user_id' => $user->id,
+            'amount' => $fee,
+            'm_payment_id' => Payment::generateReference('MEM'),
+        ]);
+
+        $this->auditLogService->log(
+            $user,
+            'membership.self_service_join',
+            'Membership',
+            $membership->id,
+            null,
+            ['membership_id' => $membership->id, 'amount' => $fee],
+        );
+
+        return redirect()->route('payments.redirect', $payment);
+    }
+
+    private function generateSaprfNumber(): string
+    {
+        $year = now()->year;
+        $prefix = "SAPRF-{$year}-";
+
+        $maxNum = Membership::where('saprf_number', 'like', "{$prefix}%")
+            ->pluck('saprf_number')
+            ->map(fn (string $num) => (int) str_replace($prefix, '', $num))
+            ->max();
+
+        $next = ($maxNum ?? 0) + 1;
+
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
     public function payMembership(Request $request, Membership $membership): RedirectResponse
     {
         $user = $request->user();
@@ -114,7 +188,7 @@ class PaymentController extends Controller
         }
 
         if ($membership->payment_status === 'paid') {
-            return redirect()->route('memberships.show', $membership)
+            return redirect()->route('my-membership')
                 ->with('info', 'This membership is already paid.');
         }
 

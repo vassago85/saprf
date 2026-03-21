@@ -119,16 +119,62 @@
 
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
-                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden" x-data="{ filter: 'overall' }">
+                        @php
+                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) {
+                                $scoreCats = $score->categories->where('slug', '!=', 'overall');
+                                return [
+                                    'id' => $score->id,
+                                    'name' => $score->shooter_name,
+                                    'raw' => (float) $score->raw_score,
+                                    'norm' => $score->normalized_score ? round((float) $score->normalized_score, 2) : null,
+                                    'div_norm' => $score->division_normalized_score ? round((float) $score->division_normalized_score, 2) : null,
+                                    'overall_rank' => $score->overall_rank,
+                                    'div_rank' => $score->division_rank,
+                                    'div_id' => $score->division_id,
+                                    'div_name' => $score->division?->name ?? '—',
+                                    'cat_names' => $scoreCats->pluck('name')->values()->toArray(),
+                                    'cats' => $scoreCats->map(fn ($c) => [
+                                        'id' => $c->id,
+                                        'name' => $c->name,
+                                        'norm' => $c->pivot->category_normalized_score ? round((float) $c->pivot->category_normalized_score, 2) : null,
+                                        'rank' => $c->pivot->category_rank,
+                                    ])->values()->toArray(),
+                                ];
+                            })->values()->toArray();
+
+                            $divList = $divisions->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])->toArray();
+                            $catList = $categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->toArray();
+                        @endphp
+
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
+                             x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }}, {{ Js::from($catList) }})">
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex items-center justify-between mb-3">
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
                                     <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
                                 </div>
-                                <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
-                                    <button @click="filter = 'overall'" :class="filter === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>
-                                    <button @click="filter = 'division'" :class="filter === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Division</button>
-                                    <button @click="filter = 'category'" :class="filter === 'category' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Category</button>
+                                <div class="flex flex-wrap gap-2">
+                                    <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
+                                        <button @click="setFilter('overall')" :class="mode === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>
+                                        <button @click="setFilter('division')" :class="mode === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Division</button>
+                                        <button @click="setFilter('category')" :class="mode === 'category' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Category</button>
+                                    </div>
+                                    {{-- Division sub-filter --}}
+                                    <template x-if="mode === 'division' && divs.length > 1">
+                                        <div class="flex rounded-lg bg-amber-50 p-0.5 w-fit">
+                                            <template x-for="d in divs" :key="d.id">
+                                                <button @click="subFilter = d.id" :class="subFilter === d.id ? 'bg-white shadow-sm text-amber-800' : 'text-amber-600 hover:text-amber-800'" class="px-2.5 py-1 rounded-md text-xs font-semibold transition" x-text="d.name"></button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    {{-- Category sub-filter --}}
+                                    <template x-if="mode === 'category' && cats.length > 0">
+                                        <div class="flex rounded-lg bg-sky-50 p-0.5 w-fit">
+                                            <template x-for="c in cats" :key="c.id">
+                                                <button @click="subFilter = c.id" :class="subFilter === c.id ? 'bg-white shadow-sm text-sky-800' : 'text-sky-600 hover:text-sky-800'" class="px-2.5 py-1 rounded-md text-xs font-semibold transition" x-text="c.name"></button>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
 
@@ -138,36 +184,97 @@
                                         <tr>
                                             <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
-                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Raw</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Norm %</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division / Category</th>
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Impacts</th>
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">% Score</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($match->scores->sortBy('overall_rank') as $score)
-                                            @php
-                                                $rank = $score->overall_rank;
-                                                $rowClass = match($rank) { 1 => 'bg-amber-50/50', 2 => 'bg-stone-50/50', 3 => 'bg-orange-50/30', default => '' };
-                                                $rankIcon = match($rank) { 1 => 'bg-amber-100 text-amber-700', 2 => 'bg-stone-200 text-stone-600', 3 => 'bg-amber-50 text-amber-600', default => null };
-                                            @endphp
-                                            <tr class="border-b border-stone-50 {{ $rowClass }}">
+                                        <template x-for="row in filteredRows" :key="row.id">
+                                            <tr class="border-b border-stone-50 hover:bg-stone-50/50"
+                                                :class="{
+                                                    'bg-amber-50/50': row._rank === 1,
+                                                    'bg-stone-50/50': row._rank === 2,
+                                                    'bg-orange-50/30': row._rank === 3,
+                                                }">
                                                 <td class="px-5 py-3 text-center">
-                                                    @if($rankIcon)
-                                                        <span class="inline-flex items-center justify-center size-7 rounded-full {{ $rankIcon }} text-sm font-bold">{{ $rank }}</span>
-                                                    @else
-                                                        <span class="text-sm text-stone-400">{{ $rank ?? '—' }}</span>
-                                                    @endif
+                                                    <template x-if="row._rank <= 3">
+                                                        <span class="inline-flex items-center justify-center size-7 rounded-full text-sm font-bold"
+                                                              :class="{
+                                                                  'bg-amber-100 text-amber-700': row._rank === 1,
+                                                                  'bg-stone-200 text-stone-600': row._rank === 2,
+                                                                  'bg-amber-50 text-amber-600': row._rank === 3,
+                                                              }" x-text="row._rank"></span>
+                                                    </template>
+                                                    <template x-if="row._rank > 3">
+                                                        <span class="text-sm text-stone-400" x-text="row._rank"></span>
+                                                    </template>
                                                 </td>
-                                                <td class="px-5 py-3 text-sm font-medium text-stone-900">{{ $score->shooter_name }}</td>
-                                                <td class="px-5 py-3 text-sm text-stone-500">{{ $score->division?->name ?? '—' }}</td>
-                                                <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums">{{ number_format($score->raw_score, 1) }}</td>
-                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums">{{ $score->normalized_score ? number_format($score->normalized_score, 2) . '%' : '—' }}</td>
+                                                <td class="px-5 py-3 text-sm font-medium text-stone-900" x-text="row.name"></td>
+                                                <td class="px-5 py-3">
+                                                    <div class="flex flex-wrap items-center gap-1">
+                                                        <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
+                                                        <template x-for="cat in row.cat_names" :key="cat">
+                                                            <span class="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200" x-text="cat"></span>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                                <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw.toFixed(1)"></td>
+                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row._norm !== null ? row._norm.toFixed(2) : '—'"></td>
                                             </tr>
-                                        @endforeach
+                                        </template>
+                                        <template x-if="filteredRows.length === 0">
+                                            <tr>
+                                                <td colspan="5" class="px-5 py-12 text-center text-sm text-stone-400">No results for this filter.</td>
+                                            </tr>
+                                        </template>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+
+                        <script>
+                        document.addEventListener('alpine:init', () => {
+                            Alpine.data('matchResults', (scores, divs, cats) => ({
+                                scores,
+                                divs,
+                                cats,
+                                mode: 'overall',
+                                subFilter: null,
+
+                                setFilter(m) {
+                                    this.mode = m;
+                                    if (m === 'division' && this.divs.length) this.subFilter = this.divs[0].id;
+                                    else if (m === 'category' && this.cats.length) this.subFilter = this.cats[0].id;
+                                    else this.subFilter = null;
+                                },
+
+                                get filteredRows() {
+                                    let rows;
+                                    if (this.mode === 'division' && this.subFilter) {
+                                        rows = this.scores
+                                            .filter(s => s.div_id === this.subFilter)
+                                            .map(s => ({...s, _norm: s.div_norm, _rank: s.div_rank }))
+                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
+                                    } else if (this.mode === 'category' && this.subFilter) {
+                                        const catId = this.subFilter;
+                                        rows = this.scores
+                                            .filter(s => s.cats.some(c => c.id === catId))
+                                            .map(s => {
+                                                const cat = s.cats.find(c => c.id === catId);
+                                                return {...s, _norm: cat?.norm ?? s.norm, _rank: cat?.rank ?? 999 };
+                                            })
+                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
+                                    } else {
+                                        rows = this.scores
+                                            .map(s => ({...s, _norm: s.norm, _rank: s.overall_rank }))
+                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
+                                    }
+                                    return rows;
+                                },
+                            }));
+                        });
+                        </script>
                     @elseif($match->status !== 'completed')
                         {{-- No results yet for upcoming events --}}
                     @else

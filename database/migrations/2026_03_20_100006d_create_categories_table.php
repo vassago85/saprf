@@ -10,12 +10,9 @@ return new class extends Migration
     {
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 30)->unique();
             $table->string('name', 100);
+            $table->string('slug', 30)->unique();
             $table->text('description')->nullable();
-            $table->boolean('is_age_based')->default(false);
-            $table->unsignedTinyInteger('min_age')->nullable();
-            $table->unsignedTinyInteger('max_age')->nullable();
             $table->unsignedSmallInteger('display_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();

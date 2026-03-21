@@ -266,14 +266,17 @@ class MatchController extends Controller
 
     public function publicShow(MatchEvent $match): View
     {
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->with('division')->orderBy('overall_rank')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->with(['division', 'categories'])->orderBy('overall_rank')]);
         $match->loadCount(['registrations', 'scores']);
 
         $userRegistration = Auth::check()
             ? $match->userRegistration(Auth::user())
             : null;
 
-        return view('events.show', compact('match', 'userRegistration'));
+        $divisions = $match->scores->pluck('division')->filter()->unique('id')->sortBy('display_order')->values();
+        $categories = $match->scores->flatMap->categories->unique('id')->where('slug', '!=', 'overall')->sortBy('display_order')->values();
+
+        return view('events.show', compact('match', 'userRegistration', 'divisions', 'categories'));
     }
 
     public function publicCalendarData(Request $request): JsonResponse
@@ -293,8 +296,10 @@ class MatchController extends Controller
             ->orderBy('match_date')
             ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'match_end_date', 'status', 'venue_name', 'venue_location', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee', 'created_by']);
 
-        $grouped = $events->groupBy(fn ($e) => $e->match_date->format('Y-m-d'))->map(function ($dayEvents) {
-            return $dayEvents->map(fn ($e) => [
+        $grouped = [];
+
+        foreach ($events as $e) {
+            $baseData = [
                 'id' => $e->id,
                 'name' => $e->name,
                 'match_type' => $e->match_type,
@@ -308,8 +313,28 @@ class MatchController extends Controller
                 'member_fee' => (float) $e->active_member_fee,
                 'match_end_date' => $e->match_end_date?->format('Y-m-d'),
                 'multi_day' => $e->isMultiDay(),
-            ]);
-        });
+            ];
+
+            $startDate = $e->match_date->copy();
+            $endDate = $e->match_end_date ? $e->match_end_date->copy() : $startDate->copy();
+
+            if ($startDate->eq($endDate)) {
+                $key = $startDate->format('Y-m-d');
+                $grouped[$key][] = array_merge($baseData, ['span_type' => 'single']);
+            } else {
+                $cursor = $startDate->copy();
+                while ($cursor->lte($endDate)) {
+                    $key = $cursor->format('Y-m-d');
+                    $spanType = match (true) {
+                        $cursor->eq($startDate) => 'start',
+                        $cursor->eq($endDate) => 'end',
+                        default => 'middle',
+                    };
+                    $grouped[$key][] = array_merge($baseData, ['span_type' => $spanType]);
+                    $cursor->addDay();
+                }
+            }
+        }
 
         return response()->json(['events' => $grouped]);
     }

@@ -11,7 +11,6 @@ class SeasonShooterClassification extends Model
     protected $fillable = [
         'season',
         'user_id',
-        'discipline',
         'classification_date',
         'age_on_classification_date',
         'effective_division_id',

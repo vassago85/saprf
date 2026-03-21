@@ -123,7 +123,7 @@ class ScoreImportService
 
         return \App\Models\Division::query()
             ->where(function ($q) use ($lower) {
-                $q->whereRaw('LOWER(code) = ?', [$lower])
+                $q->whereRaw('LOWER(slug) = ?', [$lower])
                     ->orWhereRaw('LOWER(name) = ?', [$lower]);
             })
             ->value('id');
@@ -145,7 +145,7 @@ class ScoreImportService
             }
 
             $categoryId = \App\Models\Category::query()
-                ->where('code', $label)
+                ->where('slug', $label)
                 ->orWhere('name', $label)
                 ->value('id');
 

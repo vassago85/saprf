@@ -10,15 +10,12 @@ return new class extends Migration
     {
         Schema::create('divisions', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 30)->unique();
             $table->string('name', 100);
-            $table->string('discipline', 10); // PRS, PR22, or both
+            $table->string('slug', 30)->unique();
             $table->text('description')->nullable();
             $table->unsignedSmallInteger('display_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-
-            $table->index(['discipline', 'is_active']);
         });
     }
 

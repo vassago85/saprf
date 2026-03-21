@@ -20,6 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('total_possible_shots')->nullable();
             $table->decimal('hit_percentage', 6, 3)->nullable();
             $table->decimal('normalized_score', 8, 4)->nullable();
+            $table->decimal('division_normalized_score', 8, 4)->nullable();
             $table->unsignedInteger('overall_rank')->nullable();
             $table->unsignedInteger('division_rank')->nullable();
             $table->boolean('is_member')->default(false);

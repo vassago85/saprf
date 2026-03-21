@@ -95,9 +95,9 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
                         <label class="flex items-center gap-2">
-                            <input type="hidden" name="division_single_select_per_discipline" value="0">
-                            <input type="checkbox" name="division_single_select_per_discipline" value="1" @checked(old('division_single_select_per_discipline', $settings['division_single_select_per_discipline'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">One division per discipline per match</span>
+                            <input type="hidden" name="division_single_select" value="0">
+                            <input type="checkbox" name="division_single_select" value="1" @checked(old('division_single_select', $settings['division_single_select'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <span class="text-sm font-medium text-stone-700">One division per match</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can only compete in one division per match.</p>
                     </div>
@@ -173,26 +173,21 @@
                 </div>
 
                 <h3 class="font-heading text-sm font-semibold text-stone-700 pt-2">Age Thresholds</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                    <div>
-                        <label for="sub_junior_max_age" class="block text-sm font-medium text-stone-700">Sub-Junior Max Age</label>
-                        <input type="number" name="sub_junior_max_age" id="sub_junior_max_age" min="1" max="99" value="{{ old('sub_junior_max_age', $settings['sub_junior_max_age'] ?? '14') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label for="pr22_junior_max_age" class="block text-sm font-medium text-stone-700">PR22 Junior Max Age</label>
-                        <input type="number" name="pr22_junior_max_age" id="pr22_junior_max_age" min="1" max="99" value="{{ old('pr22_junior_max_age', $settings['pr22_junior_max_age'] ?? '18') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div>
                         <label for="prs_junior_max_age" class="block text-sm font-medium text-stone-700">PRS Junior Max Age</label>
+                        <p class="text-xs text-stone-400 mb-1">Centrefire</p>
                         <input type="number" name="prs_junior_max_age" id="prs_junior_max_age" min="1" max="99" value="{{ old('prs_junior_max_age', $settings['prs_junior_max_age'] ?? '21') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
                     <div>
-                        <label for="senior_min_age" class="block text-sm font-medium text-stone-700">Senior Min Age</label>
-                        <input type="number" name="senior_min_age" id="senior_min_age" min="1" max="99" value="{{ old('senior_min_age', $settings['senior_min_age'] ?? '55') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <label for="pr22_junior_max_age" class="block text-sm font-medium text-stone-700">PR22 Junior Max Age</label>
+                        <p class="text-xs text-stone-400 mb-1">Rimfire</p>
+                        <input type="number" name="pr22_junior_max_age" id="pr22_junior_max_age" min="1" max="99" value="{{ old('pr22_junior_max_age', $settings['pr22_junior_max_age'] ?? '18') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
                     <div>
-                        <label for="super_senior_min_age" class="block text-sm font-medium text-stone-700">Super Senior Min Age</label>
-                        <input type="number" name="super_senior_min_age" id="super_senior_min_age" min="1" max="99" value="{{ old('super_senior_min_age', $settings['super_senior_min_age'] ?? '65') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <label for="senior_min_age" class="block text-sm font-medium text-stone-700">Senior Min Age</label>
+                        <p class="text-xs text-stone-400 mb-1">All series</p>
+                        <input type="number" name="senior_min_age" id="senior_min_age" min="1" max="99" value="{{ old('senior_min_age', $settings['senior_min_age'] ?? '55') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
                 </div>
 

@@ -29,21 +29,11 @@ class CategoryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:categories,code'],
+            'slug' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:categories,slug'],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'is_age_based' => ['sometimes', 'boolean'],
-            'min_age' => ['nullable', 'integer', 'min:0', 'max:120', 'required_if:is_age_based,1'],
-            'max_age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'display_order' => ['required', 'integer', 'min:0'],
         ]);
-
-        $validated['is_age_based'] = $request->boolean('is_age_based');
-
-        if (! $validated['is_age_based']) {
-            $validated['min_age'] = null;
-            $validated['max_age'] = null;
-        }
 
         $category = Category::create($validated);
 
@@ -53,7 +43,7 @@ class CategoryController extends Controller
             'Category',
             $category->id,
             null,
-            ['code' => $category->code, 'name' => $category->name],
+            ['slug' => $category->slug, 'name' => $category->name],
             "Category '{$category->name}' created",
         );
 
@@ -68,24 +58,15 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:categories,code,' . $category->id],
+            'slug' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:categories,slug,' . $category->id],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'is_age_based' => ['sometimes', 'boolean'],
-            'min_age' => ['nullable', 'integer', 'min:0', 'max:120', 'required_if:is_age_based,1'],
-            'max_age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'display_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $old = $category->only(['code', 'name', 'is_age_based', 'is_active']);
-        $validated['is_age_based'] = $request->boolean('is_age_based');
+        $old = $category->only(['slug', 'name', 'is_active']);
         $validated['is_active'] = $request->boolean('is_active', true);
-
-        if (! $validated['is_age_based']) {
-            $validated['min_age'] = null;
-            $validated['max_age'] = null;
-        }
 
         $category->update($validated);
 
@@ -95,7 +76,7 @@ class CategoryController extends Controller
             'Category',
             $category->id,
             $old,
-            $category->only(['code', 'name', 'is_age_based', 'is_active']),
+            $category->only(['slug', 'name', 'is_active']),
             "Category '{$category->name}' updated",
         );
 

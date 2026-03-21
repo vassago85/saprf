@@ -9,9 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Division extends Model
 {
     protected $fillable = [
-        'code',
+        'slug',
         'name',
-        'discipline',
         'description',
         'display_order',
         'is_active',
@@ -40,16 +39,14 @@ class Division extends Model
         return $this->hasMany(Standing::class);
     }
 
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
-    }
-
-    public function scopeForDiscipline($query, string $discipline)
-    {
-        return $query->where(function ($q) use ($discipline) {
-            $q->where('discipline', $discipline)->orWhere('discipline', 'both');
-        });
     }
 
     public function scopeOrdered($query)

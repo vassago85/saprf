@@ -35,6 +35,9 @@
                 <flux:navlist.item icon="trophy" href="/standings" :current="request()->is('standings*')">
                     Standings
                 </flux:navlist.item>
+                <flux:navlist.item icon="identification" :href="route('my-membership')" :current="request()->routeIs('my-membership')">
+                    My Membership
+                </flux:navlist.item>
                 <flux:navlist.item icon="clipboard-document-list" :href="route('registrations.index')" :current="request()->routeIs('registrations.*')">
                     My Registrations
                 </flux:navlist.item>

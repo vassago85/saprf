@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Category;
-use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\QualificationRule;
@@ -63,8 +61,13 @@ class StandingsCalculationService
             if ($divisionId === null) {
                 continue;
             }
+            $topDivRaw = $divScores->max('raw_score');
+            if ($topDivRaw <= 0) {
+                continue;
+            }
             $rank = 1;
-            foreach ($divScores->sortByDesc('normalized_score')->values() as $score) {
+            foreach ($divScores->sortByDesc('raw_score')->values() as $score) {
+                $score->division_normalized_score = ($score->raw_score / $topDivRaw) * 100;
                 $score->division_rank = $rank++;
             }
         }
@@ -73,7 +76,7 @@ class StandingsCalculationService
             $score->save();
         }
 
-        $this->calculateCategoryRanks($scores);
+        $this->calculateCategoryScoresAndRanks($scores);
     }
 
     /**
@@ -104,21 +107,31 @@ class StandingsCalculationService
         }
     }
 
-    private function calculateCategoryRanks(Collection $scores): void
+    private function calculateCategoryScoresAndRanks(Collection $scores): void
     {
         $categoryScores = [];
 
         foreach ($scores as $score) {
+            $score->loadMissing('categories');
             foreach ($score->categories as $category) {
                 $categoryScores[$category->id][] = $score;
             }
         }
 
         foreach ($categoryScores as $categoryId => $catScores) {
-            usort($catScores, fn ($a, $b) => $b->normalized_score <=> $a->normalized_score);
+            $topCatRaw = collect($catScores)->max('raw_score');
+            if ($topCatRaw <= 0) {
+                continue;
+            }
+
+            usort($catScores, fn ($a, $b) => $b->raw_score <=> $a->raw_score);
             $rank = 1;
             foreach ($catScores as $score) {
-                $score->categories()->updateExistingPivot($categoryId, ['category_rank' => $rank++]);
+                $catNorm = ($score->raw_score / $topCatRaw) * 100;
+                $score->categories()->updateExistingPivot($categoryId, [
+                    'category_normalized_score' => round($catNorm, 4),
+                    'category_rank' => $rank++,
+                ]);
             }
         }
     }
@@ -130,7 +143,6 @@ class StandingsCalculationService
             ->pluck('user_id');
 
         $isProvincial = $provinceId !== null;
-        $scoreField = $isProvincial ? null : 'normalized_score';
 
         $allScores = Score::query()
             ->with(['match', 'categories'])
@@ -190,40 +202,48 @@ class StandingsCalculationService
             ->where('province_id', $provinceId)
             ->delete();
 
-        $overallTotals = $this->aggregateSeasonTotals($scores, null, null, $bestOf, $isProvincial);
+        $overallTotals = $this->aggregateSeasonTotals($scores, 'overall', $bestOf, $isProvincial);
         $this->persistRankedStandings($overallTotals, $series, $season, $provinceId, null, null);
 
         $divisionIds = $scores->pluck('division_id')->filter()->unique();
         foreach ($divisionIds as $divisionId) {
             $divScores = $scores->where('division_id', $divisionId);
-            $divTotals = $this->aggregateSeasonTotals($divScores, $divisionId, null, $bestOf, $isProvincial);
+            $divTotals = $this->aggregateSeasonTotals($divScores, 'division', $bestOf, $isProvincial);
             $this->persistRankedStandings($divTotals, $series, $season, $provinceId, $divisionId, null);
         }
 
         $categoryIds = $scores->flatMap(fn ($s) => $s->categories->pluck('id'))->unique();
         foreach ($categoryIds as $categoryId) {
             $catScores = $scores->filter(fn ($s) => $s->categories->contains('id', $categoryId));
-            $catTotals = $this->aggregateSeasonTotals($catScores, null, $categoryId, $bestOf, $isProvincial);
+            $catTotals = $this->aggregateSeasonTotals($catScores, 'category', $bestOf, $isProvincial, $categoryId);
             $this->persistRankedStandings($catTotals, $series, $season, $provinceId, null, $categoryId);
         }
     }
 
+    /**
+     * @param string $context 'overall' | 'division' | 'category'
+     */
     private function aggregateSeasonTotals(
         Collection $scores,
-        ?int $divisionId,
-        ?int $categoryId,
+        string $context,
         ?int $bestOf,
         bool $useProvincialScore = false,
+        ?int $categoryId = null,
     ): Collection {
         return $scores
             ->groupBy('user_id')
-            ->map(function (Collection $userScores, int $userId) use ($bestOf, $useProvincialScore): array {
-                $scored = $userScores->map(function (Score $s) use ($useProvincialScore) {
+            ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $categoryId): array {
+                $scored = $userScores->map(function (Score $s) use ($context, $useProvincialScore, $categoryId) {
                     $match = $s->match;
                     if ($useProvincialScore && $match && $match->series_level === 'national' && $match->also_counts_for_provincial) {
                         return $s->provincial_normalized_score ?? 0;
                     }
-                    return $s->normalized_score ?? 0;
+
+                    return match ($context) {
+                        'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
+                        'category' => $this->getCategoryNormalizedScore($s, $categoryId),
+                        default => $s->normalized_score ?? 0,
+                    };
                 });
 
                 $sorted = $scored->sortDesc()->values();
@@ -241,6 +261,17 @@ class StandingsCalculationService
             })
             ->sortByDesc('points')
             ->values();
+    }
+
+    private function getCategoryNormalizedScore(Score $score, ?int $categoryId): float
+    {
+        if (! $categoryId) {
+            return $score->normalized_score ?? 0;
+        }
+
+        $pivot = $score->categories->firstWhere('id', $categoryId)?->pivot;
+
+        return (float) ($pivot?->category_normalized_score ?? $score->normalized_score ?? 0);
     }
 
     public function persistRankedStandings(

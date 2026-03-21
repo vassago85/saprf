@@ -21,6 +21,7 @@ class Score extends Model
         'total_possible_shots',
         'hit_percentage',
         'normalized_score',
+        'division_normalized_score',
         'provincial_normalized_score',
         'overall_rank',
         'division_rank',
@@ -40,6 +41,7 @@ class Score extends Model
             'hit_percentage' => 'decimal:3',
             'provincial_raw_score' => 'decimal:3',
             'normalized_score' => 'decimal:4',
+            'division_normalized_score' => 'decimal:4',
             'provincial_normalized_score' => 'decimal:4',
             'is_member' => 'boolean',
             'counts_for_log' => 'boolean',
@@ -77,6 +79,6 @@ class Score extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class, 'score_category')
-            ->withPivot('category_rank');
+            ->withPivot('category_normalized_score', 'category_rank');
     }
 }

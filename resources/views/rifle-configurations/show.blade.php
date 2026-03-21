@@ -148,7 +148,7 @@
                             <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
                             <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
                             <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Placement</th>
-                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Score</th>
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-stone-100">

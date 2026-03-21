@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('season', 10);
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('discipline', 10);
             $table->date('classification_date');
             $table->unsignedTinyInteger('age_on_classification_date')->nullable();
             $table->foreignId('effective_division_id')->nullable()->constrained('divisions')->nullOnDelete();
@@ -21,7 +20,7 @@ return new class extends Migration
             $table->text('override_reason')->nullable();
             $table->timestamps();
 
-            $table->unique(['season', 'user_id', 'discipline'], 'season_user_discipline_unique');
+            $table->unique(['season', 'user_id'], 'season_user_unique');
         });
     }
 

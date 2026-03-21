@@ -36,21 +36,14 @@
 
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-stone-700 mb-2">Available Divisions</label>
-                    <p class="text-xs text-stone-400 mb-3">Select which divisions shooters can compete in for this match. Filtered by discipline.</p>
+                    <p class="text-xs text-stone-400 mb-3">Select which divisions shooters can compete in for this match.</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         @foreach(\App\Models\Division::active()->ordered()->get() as $division)
-                            <label 
-                                class="flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 cursor-pointer"
-                                x-show="!matchType || '{{ $division->discipline }}' === 'both' || '{{ $division->discipline }}' === matchType"
-                                x-cloak
-                            >
+                            <label class="flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 cursor-pointer">
                                 <input type="checkbox" name="divisions[]" value="{{ $division->id }}" 
                                     @checked($match->divisions->contains($division->id) || in_array($division->id, old('divisions', [])))
                                     class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
                                 <span>{{ $division->name }}</span>
-                                @if($division->discipline !== 'both')
-                                    <x-discipline-chip :discipline="$division->discipline" />
-                                @endif
                             </label>
                         @endforeach
                     </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Membership;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,6 +15,16 @@ class MembershipController extends Controller
     public function __construct(
         private readonly AuditLogService $auditLogService,
     ) {}
+
+    public function myMembership(Request $request): View
+    {
+        $user = $request->user();
+        $membership = Membership::where('user_id', $user->id)->latest()->first();
+        $fee = (float) app(SettingsService::class)->get('annual_membership_fee', 500);
+        $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
+
+        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'paymentsEnabled'));
+    }
 
     public function index(Request $request): View
     {

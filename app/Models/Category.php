@@ -9,12 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Category extends Model
 {
     protected $fillable = [
-        'code',
+        'slug',
         'name',
         'description',
-        'is_age_based',
-        'min_age',
-        'max_age',
         'display_order',
         'is_active',
     ];
@@ -22,9 +19,6 @@ class Category extends Model
     protected function casts(): array
     {
         return [
-            'is_age_based' => 'boolean',
-            'min_age' => 'integer',
-            'max_age' => 'integer',
             'display_order' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -41,31 +35,18 @@ class Category extends Model
         return $this->hasMany(Standing::class);
     }
 
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_category');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    public function scopeAgeBased($query)
-    {
-        return $query->where('is_age_based', true);
-    }
-
     public function scopeOrdered($query)
     {
         return $query->orderBy('display_order')->orderBy('name');
-    }
-
-    public function matchesAge(int $age): bool
-    {
-        if ($this->min_age !== null && $age < $this->min_age) {
-            return false;
-        }
-
-        if ($this->max_age !== null && $age > $this->max_age) {
-            return false;
-        }
-
-        return true;
     }
 }

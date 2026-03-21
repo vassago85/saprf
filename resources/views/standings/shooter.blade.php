@@ -87,8 +87,8 @@
                                     <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
                                     <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division</th>
                                     <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">#</th>
-                                    <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Raw</th>
-                                    <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Norm %</th>
+                                    <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
+                                    <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">% Score</th>
                                     <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
                                 </tr>
                             </thead>
@@ -114,7 +114,7 @@
                                             @endif
                                         </td>
                                         <td class="px-5 py-3 text-right text-sm text-stone-700 tabular-nums">{{ number_format($score->raw_score, 1) }}</td>
-                                        <td class="px-5 py-3 text-right text-sm font-bold {{ $isCounted ? 'text-emerald-700' : 'text-stone-400' }} tabular-nums">{{ number_format($score->normalized_score, 2) }}%</td>
+                                        <td class="px-5 py-3 text-right text-sm font-bold {{ $isCounted ? 'text-emerald-700' : 'text-stone-400' }} tabular-nums">{{ number_format($score->normalized_score, 2) }}</td>
                                         <td class="px-5 py-3 text-center">
                                             @if($isCounted)
                                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">COUNTED</span>

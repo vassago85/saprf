@@ -43,17 +43,34 @@
                     </div>
                 </div>
             </div>
-        @else
+        @elseif($membership && $membership->status === 'pending' && $membership->payment_status !== 'paid')
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-6">
-                <div class="flex items-start gap-4">
-                    <div class="inline-flex items-center justify-center size-10 rounded-lg bg-amber-100 text-amber-700 shrink-0">
-                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-start gap-4">
+                        <div class="inline-flex items-center justify-center size-10 rounded-lg bg-amber-100 text-amber-700 shrink-0">
+                            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-heading text-lg font-bold text-amber-900">Payment Pending</h3>
+                            <p class="text-sm text-amber-800 mt-1">Your membership is ready — complete payment to activate.</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="font-heading text-lg font-bold text-amber-900">Free Account</h3>
-                        <p class="text-sm text-amber-800 mt-1">You can register for matches but won't appear in official standings. Upgrade to a paid membership for full benefits including a SAPRF number and standings eligibility.</p>
-                        <p class="text-xs text-amber-700 mt-2">Contact an administrator to set up your membership.</p>
+                    <a href="{{ route('my-membership') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 shrink-0">Complete Payment</a>
+                </div>
+            </div>
+        @else
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-start gap-4">
+                        <div class="inline-flex items-center justify-center size-10 rounded-lg bg-stone-100 text-stone-500 shrink-0">
+                            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-heading text-lg font-bold text-stone-900">Free Account</h3>
+                            <p class="text-sm text-stone-600 mt-1">You can register for matches but won't appear in official standings. Become a member for a SAPRF number, standings eligibility, and reduced match fees.</p>
+                        </div>
                     </div>
+                    <a href="{{ route('my-membership') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 shrink-0">Become a Member</a>
                 </div>
             </div>
         @endif
@@ -144,7 +161,7 @@
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Match</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Province</th>
                                 <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Placement</th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Score</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Impacts</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-100">

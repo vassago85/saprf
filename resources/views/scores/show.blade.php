@@ -22,7 +22,7 @@
                     <dd class="mt-1.5 text-sm text-stone-900">{{ $score->user->name ?? $score->shooter_name ?? '—' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Score</dt>
+                    <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</dt>
                     <dd class="mt-1.5 text-lg font-bold text-stone-900 font-mono">{{ $score->raw_score }}</dd>
                 </div>
                 <div>

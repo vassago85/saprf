@@ -42,27 +42,17 @@ class SettingsSeeder extends Seeder
 
         Setting::firstOrCreate(
             ['key' => 'prs_junior_max_age'],
-            ['value' => '21', 'description' => 'PRS junior category: maximum age (shooter must be below this on classification date)'],
+            ['value' => '21', 'description' => 'Centrefire (PRS) junior category: maximum age on classification date'],
         );
 
         Setting::firstOrCreate(
             ['key' => 'pr22_junior_max_age'],
-            ['value' => '18', 'description' => 'PR22 junior category: maximum age (shooter must be below this on classification date)'],
+            ['value' => '18', 'description' => 'Rimfire (PR22) junior category: maximum age on classification date'],
         );
 
         Setting::firstOrCreate(
             ['key' => 'senior_min_age'],
             ['value' => '55', 'description' => 'Senior category: minimum age on classification date'],
-        );
-
-        Setting::firstOrCreate(
-            ['key' => 'super_senior_min_age'],
-            ['value' => '65', 'description' => 'Super Senior category: minimum age on classification date'],
-        );
-
-        Setting::firstOrCreate(
-            ['key' => 'sub_junior_max_age'],
-            ['value' => '14', 'description' => 'Sub-Junior category: maximum age on classification date'],
         );
 
         // Division & Category Rules
@@ -72,8 +62,8 @@ class SettingsSeeder extends Seeder
         );
 
         Setting::firstOrCreate(
-            ['key' => 'division_single_select_per_discipline'],
-            ['value' => '1', 'description' => 'Restrict shooter to one division per discipline per match (1=yes, 0=no)'],
+            ['key' => 'division_single_select'],
+            ['value' => '1', 'description' => 'Restrict shooter to one division per match (1=yes, 0=no)'],
         );
 
         Setting::firstOrCreate(

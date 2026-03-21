@@ -29,9 +29,8 @@ class DivisionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:divisions,code'],
+            'slug' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:divisions,slug'],
             'name' => ['required', 'string', 'max:100'],
-            'discipline' => ['required', 'string', 'in:PRS,PR22,both'],
             'description' => ['nullable', 'string'],
             'display_order' => ['required', 'integer', 'min:0'],
         ]);
@@ -44,7 +43,7 @@ class DivisionController extends Controller
             'Division',
             $division->id,
             null,
-            ['code' => $division->code, 'name' => $division->name],
+            ['slug' => $division->slug, 'name' => $division->name],
             "Division '{$division->name}' created",
         );
 
@@ -59,15 +58,14 @@ class DivisionController extends Controller
     public function update(Request $request, Division $division): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:divisions,code,' . $division->id],
+            'slug' => ['required', 'string', 'alpha_dash', 'max:30', 'unique:divisions,slug,' . $division->id],
             'name' => ['required', 'string', 'max:100'],
-            'discipline' => ['required', 'string', 'in:PRS,PR22,both'],
             'description' => ['nullable', 'string'],
             'display_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $old = $division->only(['code', 'name', 'discipline', 'is_active']);
+        $old = $division->only(['slug', 'name', 'is_active']);
         $validated['is_active'] = $request->boolean('is_active', true);
 
         $division->update($validated);
@@ -78,7 +76,7 @@ class DivisionController extends Controller
             'Division',
             $division->id,
             $old,
-            $division->only(['code', 'name', 'discipline', 'is_active']),
+            $division->only(['slug', 'name', 'is_active']),
             "Division '{$division->name}' updated",
         );
 

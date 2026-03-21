@@ -15,9 +15,6 @@ class SeasonClassificationService
         private readonly AuditLogService $auditLogService,
     ) {}
 
-    /**
-     * Get the classification date for a season based on admin settings.
-     */
     public function getClassificationDate(string $season): Carbon
     {
         $mode = $this->settingsService->get('age_classification_date_mode', 'first_day_of_calendar_year');
@@ -31,25 +28,55 @@ class SeasonClassificationService
 
     /**
      * Determine which age-based categories a shooter qualifies for.
+     * Junior thresholds differ by series: PRS (centrefire) = 21, PR22 (rimfire) = 18.
+     * When no series is given, uses the higher (more inclusive) PRS threshold.
      */
-    public function getAgeBasedCategories(int $age, string $discipline): Collection
+    public function getAgeBasedCategories(int $age, ?string $series = null): Collection
     {
-        return Category::active()
-            ->ageBased()
-            ->ordered()
-            ->get()
-            ->filter(fn (Category $cat) => $cat->matchesAge($age));
+        $juniorMaxAge = match (strtoupper($series ?? 'PRS')) {
+            'PR22' => (int) $this->settingsService->get('pr22_junior_max_age', 18),
+            default => (int) $this->settingsService->get('prs_junior_max_age', 21),
+        };
+        $seniorMinAge = (int) $this->settingsService->get('senior_min_age', 55);
+
+        $slugs = [];
+
+        if ($age <= $juniorMaxAge) {
+            $slugs[] = 'junior';
+        }
+
+        if ($age >= $seniorMinAge) {
+            $slugs[] = 'senior';
+        }
+
+        if (empty($slugs)) {
+            return collect();
+        }
+
+        return Category::active()->whereIn('slug', $slugs)->ordered()->get();
     }
 
     /**
-     * Classify a single shooter for a season and discipline.
+     * Check if a given age qualifies as junior for a specific series.
+     */
+    public function isJuniorForSeries(int $age, string $series): bool
+    {
+        $maxAge = match (strtoupper($series)) {
+            'PR22' => (int) $this->settingsService->get('pr22_junior_max_age', 18),
+            default => (int) $this->settingsService->get('prs_junior_max_age', 21),
+        };
+
+        return $age <= $maxAge;
+    }
+
+    /**
+     * Classify a single shooter for a season.
      * Returns existing classification if already locked.
      */
-    public function classifyShooterForSeason(User $user, string $season, string $discipline): SeasonShooterClassification
+    public function classifyShooterForSeason(User $user, string $season): SeasonShooterClassification
     {
         $existing = SeasonShooterClassification::where('season', $season)
             ->where('user_id', $user->id)
-            ->where('discipline', $discipline)
             ->first();
 
         if ($existing && $existing->is_locked) {
@@ -61,7 +88,7 @@ class SeasonClassificationService
         $lockEnabled = (bool) $this->settingsService->get('season_locked_age_categories', true);
 
         $classification = SeasonShooterClassification::updateOrCreate(
-            ['season' => $season, 'user_id' => $user->id, 'discipline' => $discipline],
+            ['season' => $season, 'user_id' => $user->id],
             [
                 'classification_date' => $classificationDate,
                 'age_on_classification_date' => $age,
@@ -69,9 +96,8 @@ class SeasonClassificationService
             ],
         );
 
-        // Sync age-based categories
         if ($age !== null) {
-            $ageCategories = $this->getAgeBasedCategories($age, $discipline);
+            $ageCategories = $this->getAgeBasedCategories($age);
             $classification->categories()->sync($ageCategories->pluck('id'));
         }
 
@@ -79,17 +105,17 @@ class SeasonClassificationService
     }
 
     /**
-     * Bulk classify all shooters with a date_of_birth for a season/discipline.
+     * Bulk classify all shooters with a date_of_birth for a season.
      */
-    public function classifyAllShootersForSeason(string $season, string $discipline): int
+    public function classifyAllShootersForSeason(string $season): int
     {
         $count = 0;
 
         User::whereNotNull('date_of_birth')
             ->where('is_active', true)
-            ->chunk(100, function ($users) use ($season, $discipline, &$count) {
+            ->chunk(100, function ($users) use ($season, &$count) {
                 foreach ($users as $user) {
-                    $this->classifyShooterForSeason($user, $season, $discipline);
+                    $this->classifyShooterForSeason($user, $season);
                     $count++;
                 }
             });
@@ -97,9 +123,6 @@ class SeasonClassificationService
         return $count;
     }
 
-    /**
-     * Admin override for a shooter's season classification.
-     */
     public function overrideClassification(
         SeasonShooterClassification $classification,
         array $categoryIds,

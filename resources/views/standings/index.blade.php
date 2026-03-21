@@ -112,7 +112,7 @@
         @endif
 
         {{-- Standings Table --}}
-        @include('standings._table', ['standings' => $standings, 'showProvince' => true, 'showDivision' => $isOverall])
+        @include('standings._table', ['standings' => $standings, 'showProvince' => true, 'showDivision' => true])
 
         <x-sponsors-strip placement="standings_pages" class="mt-8 border-t border-stone-200" />
     </div>

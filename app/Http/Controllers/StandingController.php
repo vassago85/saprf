@@ -39,10 +39,10 @@ class StandingController extends Controller
             $seasons = collect([(string) now()->year]);
         }
 
-        $divisions = Division::active()->ordered()->forDiscipline($series)->get();
+        $divisions = Division::active()->ordered()->get();
         $categories = Category::active()->ordered()->get();
 
-        $base = Standing::with(['user', 'province', 'division', 'category'])
+        $base = Standing::with(['user.division', 'user.categories', 'province', 'division', 'category'])
             ->where('season', $season)
             ->where('series', $series)
             ->orderBy('rank');
@@ -78,7 +78,7 @@ class StandingController extends Controller
     public function show(string $series, string $season): View
     {
         $standings = Standing::query()
-            ->with(['user', 'province'])
+            ->with(['user.division', 'user.categories', 'province'])
             ->where('series', $series)
             ->where('season', $season)
             ->orderBy('rank')
@@ -111,10 +111,10 @@ class StandingController extends Controller
         }
 
         $provinces = Province::orderBy('name')->get();
-        $divisions = Division::active()->ordered()->forDiscipline($series)->get();
+        $divisions = Division::active()->ordered()->get();
         $categories = Category::active()->ordered()->get();
 
-        $base = Standing::with(['user.province', 'province', 'division', 'category'])
+        $base = Standing::with(['user.province', 'user.division', 'user.categories', 'province', 'division', 'category'])
             ->where('season', $season)
             ->where('series', $series)
             ->orderBy('rank');
@@ -249,7 +249,7 @@ class StandingController extends Controller
         $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
 
         $query = Standing::query()
-            ->with(['user:id,name,province_id', 'user.province:id,abbreviation', 'province:id,name', 'division:id,name,code', 'category:id,name,code'])
+            ->with(['user:id,name,province_id,division_id', 'user.province:id,abbreviation', 'user.division:id,name,slug', 'user.categories:id,name,slug', 'province:id,name', 'division:id,name,slug', 'category:id,name,slug'])
             ->when($request->filled('series'), fn ($q) => $q->where('series', $request->input('series')))
             ->when($request->filled('season'), fn ($q) => $q->where('season', $request->input('season')))
             ->when($request->filled('province_id'), fn ($q) => $q->where('province_id', $request->input('province_id')))

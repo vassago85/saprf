@@ -18,14 +18,13 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('categories.store') }}" class="rounded-xl border border-stone-200 bg-white shadow-sm p-8 space-y-6 max-w-2xl"
-              x-data="{ ageBased: {{ old('is_age_based') ? 'true' : 'false' }} }">
+        <form method="POST" action="{{ route('categories.store') }}" class="rounded-xl border border-stone-200 bg-white shadow-sm p-8 space-y-6 max-w-2xl">
             @csrf
 
             <div class="grid sm:grid-cols-2 gap-6">
                 <div>
-                    <label for="code" class="block text-sm font-medium text-stone-700 mb-1">Code</label>
-                    <input type="text" name="code" id="code" value="{{ old('code') }}" required placeholder="e.g. junior, veteran"
+                    <label for="slug" class="block text-sm font-medium text-stone-700 mb-1">Slug</label>
+                    <input type="text" name="slug" id="slug" value="{{ old('slug') }}" required placeholder="e.g. overall, ladies, junior"
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <p class="mt-1 text-xs text-stone-400">Unique identifier. Letters, numbers, dashes, underscores only.</p>
                 </div>
@@ -40,34 +39,6 @@
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
                     <textarea name="description" id="description" rows="3" placeholder="Optional description of this category…"
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
-                </div>
-
-                <div class="sm:col-span-2">
-                    <label class="inline-flex items-center gap-2">
-                        <input type="hidden" name="is_age_based" value="0">
-                        <input type="checkbox" name="is_age_based" value="1"
-                            class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                            x-model="ageBased"
-                            @checked(old('is_age_based'))>
-                        <span class="text-sm text-stone-700">Age-based category</span>
-                    </label>
-                    <p class="mt-1 text-xs text-stone-400">Enable to restrict this category to a specific age range.</p>
-                </div>
-
-                <div x-show="ageBased" x-transition class="sm:col-span-2 grid sm:grid-cols-2 gap-6">
-                    <div>
-                        <label for="min_age" class="block text-sm font-medium text-stone-700 mb-1">Minimum Age</label>
-                        <input type="number" name="min_age" id="min_age" value="{{ old('min_age') }}" min="0" max="120"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Leave blank for no lower bound.</p>
-                    </div>
-
-                    <div>
-                        <label for="max_age" class="block text-sm font-medium text-stone-700 mb-1">Maximum Age</label>
-                        <input type="number" name="max_age" id="max_age" value="{{ old('max_age') }}" min="0" max="120"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Leave blank for no upper bound.</p>
-                    </div>
                 </div>
 
                 <div>

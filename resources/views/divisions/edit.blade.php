@@ -24,8 +24,8 @@
 
             <div class="grid sm:grid-cols-2 gap-6">
                 <div>
-                    <label for="code" class="block text-sm font-medium text-stone-700 mb-1">Code</label>
-                    <input type="text" name="code" id="code" value="{{ old('code', $division->code) }}" required
+                    <label for="slug" class="block text-sm font-medium text-stone-700 mb-1">Slug</label>
+                    <input type="text" name="slug" id="slug" value="{{ old('slug', $division->slug) }}" required placeholder="e.g. open, factory, limited"
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <p class="mt-1 text-xs text-stone-400">Unique identifier. Letters, numbers, dashes, underscores only.</p>
                 </div>
@@ -34,16 +34,6 @@
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Name</label>
                     <input type="text" name="name" id="name" value="{{ old('name', $division->name) }}" required
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-
-                <div>
-                    <label for="discipline" class="block text-sm font-medium text-stone-700 mb-1">Discipline</label>
-                    <select name="discipline" id="discipline" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="PRS" @selected(old('discipline', $division->discipline) === 'PRS')>PRS</option>
-                        <option value="PR22" @selected(old('discipline', $division->discipline) === 'PR22')>PR22</option>
-                        <option value="both" @selected(old('discipline', $division->discipline) === 'both')>Both</option>
-                    </select>
                 </div>
 
                 <div>

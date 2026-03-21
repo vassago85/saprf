@@ -6,6 +6,7 @@ use App\Models\SeasonShooterClassification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -27,6 +28,7 @@ class User extends Authenticatable
         'date_of_birth',
         'is_active',
         'province_id',
+        'division_id',
     ];
 
     protected $hidden = [
@@ -48,6 +50,16 @@ class User extends Authenticatable
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'user_category');
     }
 
     public function membership(): HasOne

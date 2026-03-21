@@ -36,10 +36,8 @@ class SiteSettingsController extends Controller
             'prs_junior_max_age' => ['required', 'integer', 'min:1', 'max:99'],
             'pr22_junior_max_age' => ['required', 'integer', 'min:1', 'max:99'],
             'senior_min_age' => ['required', 'integer', 'min:1', 'max:99'],
-            'super_senior_min_age' => ['required', 'integer', 'min:1', 'max:99'],
-            'sub_junior_max_age' => ['required', 'integer', 'min:1', 'max:99'],
             'category_multi_select' => ['required', 'boolean'],
-            'division_single_select_per_discipline' => ['required', 'boolean'],
+            'division_single_select' => ['required', 'boolean'],
             'category_rankings_enabled' => ['required', 'boolean'],
             'division_awards_enabled' => ['required', 'boolean'],
             'category_awards_enabled' => ['required', 'boolean'],
@@ -65,13 +63,11 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('season_locked_age_categories', $validated['season_locked_age_categories'], 'Lock age-based categories for the full season (1=yes, 0=no)');
         $this->settingsService->set('age_classification_date_mode', $validated['age_classification_date_mode'], 'How to determine the age classification date (first_day_of_calendar_year, season_start_date, custom_date)');
         $this->settingsService->set('age_classification_custom_date', $validated['age_classification_custom_date'] ?? '', 'Custom classification date (YYYY-MM-DD) used when mode is custom_date');
-        $this->settingsService->set('prs_junior_max_age', $validated['prs_junior_max_age'], 'PRS junior category: maximum age (shooter must be below this on classification date)');
-        $this->settingsService->set('pr22_junior_max_age', $validated['pr22_junior_max_age'], 'PR22 junior category: maximum age (shooter must be below this on classification date)');
+        $this->settingsService->set('prs_junior_max_age', $validated['prs_junior_max_age'], 'Centrefire (PRS) junior category: maximum age on classification date');
+        $this->settingsService->set('pr22_junior_max_age', $validated['pr22_junior_max_age'], 'Rimfire (PR22) junior category: maximum age on classification date');
         $this->settingsService->set('senior_min_age', $validated['senior_min_age'], 'Senior category: minimum age on classification date');
-        $this->settingsService->set('super_senior_min_age', $validated['super_senior_min_age'], 'Super Senior category: minimum age on classification date');
-        $this->settingsService->set('sub_junior_max_age', $validated['sub_junior_max_age'], 'Sub-Junior category: maximum age on classification date');
         $this->settingsService->set('category_multi_select', $validated['category_multi_select'], 'Allow shooters to have multiple categories per match (1=yes, 0=no)');
-        $this->settingsService->set('division_single_select_per_discipline', $validated['division_single_select_per_discipline'], 'Restrict shooter to one division per discipline per match (1=yes, 0=no)');
+        $this->settingsService->set('division_single_select', $validated['division_single_select'], 'Restrict shooter to one division per match (1=yes, 0=no)');
         $this->settingsService->set('category_rankings_enabled', $validated['category_rankings_enabled'], 'Enable category-based standings and rankings (1=yes, 0=no)');
         $this->settingsService->set('division_awards_enabled', $validated['division_awards_enabled'], 'Enable division awards and placements (1=yes, 0=no)');
         $this->settingsService->set('category_awards_enabled', $validated['category_awards_enabled'], 'Enable category awards and placements (1=yes, 0=no)');

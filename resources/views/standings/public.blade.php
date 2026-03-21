@@ -176,7 +176,7 @@
             @include('standings._public-table', [
                 'standings' => $standings,
                 'showProvince' => true,
-                'showDivision' => $isOverall,
+                'showDivision' => true,
                 'series' => $series,
                 'season' => $season,
             ])
