@@ -79,7 +79,7 @@ Route::get('/verify-email/{id}/{hash}', function (Request $request, string $id, 
     \Illuminate\Support\Facades\Auth::login($user);
 
     return redirect()->intended(route('dashboard'));
-})->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+})->middleware(['throttle:6,1'])->name('verification.verify');
 
 // ── Authenticated ──
 
