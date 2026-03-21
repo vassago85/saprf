@@ -1,12 +1,4 @@
-@auth
-<x-layouts.app :title="'Events - SAPRF'">
-@else
-<x-layouts.guest>
-    <x-slot:title>Events - SAPRF</x-slot:title>
-
-    <x-public-nav current="events" />
-@endauth
-
+<x-layouts.public title="Events - SAPRF" current="events" sponsor-placement="landing_section">
     <div class="bg-stone-50 min-h-screen">
         {{-- Page Header --}}
         <div class="bg-white border-b border-stone-200">
@@ -224,10 +216,4 @@
         </div>
     </div>
 
-@auth
-</x-layouts.app>
-@else
-    <x-sponsors-strip placement="landing_section" class="border-t border-stone-200" />
-    <x-public-footer />
-</x-layouts.guest>
-@endauth
+</x-layouts.public>

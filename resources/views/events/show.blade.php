@@ -1,12 +1,4 @@
-@auth
-<x-layouts.app :title="$match->name . ' - SAPRF'">
-@else
-<x-layouts.guest>
-    <x-slot:title>{{ $match->name }} - SAPRF</x-slot:title>
-
-    <x-public-nav current="events" />
-@endauth
-
+<x-layouts.public :title="$match->name . ' - SAPRF'" current="events" sponsor-placement="match_pages">
     <div class="bg-stone-50 min-h-screen">
         {{-- Hero / Header --}}
         <div class="bg-white border-b border-stone-200">
@@ -392,10 +384,4 @@
         </div>
     </div>
 
-@auth
-</x-layouts.app>
-@else
-    <x-sponsors-strip placement="match_pages" class="border-t border-stone-200" />
-    <x-public-footer />
-</x-layouts.guest>
-@endauth
+</x-layouts.public>

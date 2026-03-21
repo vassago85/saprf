@@ -1,12 +1,4 @@
-@auth
-<x-layouts.app :title="$shooter->name . ' - ' . $season . ' Rankings - SAPRF'">
-@else
-<x-layouts.guest>
-    <x-slot:title>{{ $shooter->name }} - {{ $season }} Rankings - SAPRF</x-slot:title>
-
-    <x-public-nav current="standings" />
-@endauth
-
+<x-layouts.public :title="$shooter->name . ' - ' . $season . ' Rankings - SAPRF'" current="standings">
     <div class="bg-stone-50 min-h-screen">
         <div class="bg-white border-b border-stone-200">
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -159,9 +151,4 @@
         </div>
     </div>
 
-@auth
-</x-layouts.app>
-@else
-    <x-public-footer />
-</x-layouts.guest>
-@endauth
+</x-layouts.public>

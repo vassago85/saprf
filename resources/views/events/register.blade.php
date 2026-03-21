@@ -1,12 +1,4 @@
-@auth
-<x-layouts.app :title="'Register - ' . $match->name . ' - SAPRF'">
-@else
-<x-layouts.guest>
-    <x-slot:title>Register - {{ $match->name }} - SAPRF</x-slot:title>
-
-    <x-public-nav current="events" />
-@endauth
-
+<x-layouts.public :title="'Register - ' . $match->name . ' - SAPRF'" current="events">
     <div class="bg-stone-50 min-h-screen">
         <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10">
             {{-- Back link --}}
@@ -136,9 +128,4 @@
         </div>
     </div>
 
-@auth
-</x-layouts.app>
-@else
-    <x-public-footer />
-</x-layouts.guest>
-@endauth
+</x-layouts.public>
