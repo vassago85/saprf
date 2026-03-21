@@ -27,10 +27,17 @@ class MatchController extends Controller
 
     public function index(Request $request): View
     {
-        $matches = MatchEvent::query()
+        $user = $request->user();
+
+        $query = MatchEvent::query()
             ->with(['province', 'creator'])
-            ->latest('match_date')
-            ->paginate(20);
+            ->latest('match_date');
+
+        if ($user->hasRole('match_director') && ! $user->hasAnyRole(['owner', 'admin'])) {
+            $query->where('created_by', $user->id);
+        }
+
+        $matches = $query->paginate(20);
 
         return view('matches.index', compact('matches'));
     }
@@ -51,15 +58,14 @@ class MatchController extends Controller
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
         $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
 
-        $match = MatchEvent::query()->create([
-            ...$validated,
-            'series' => $validated['match_type'],
-            'season' => (string) now()->year,
-            'created_by' => $request->user()->id,
-            'non_member_fee' => $baseFee + $nonMemberSurcharge,
-            'lapsed_member_fee' => $baseFee + $lapsedSurcharge,
-            'published' => ($validated['status'] ?? 'draft') !== 'draft',
-        ]);
+        $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
+        $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
+        $validated['series'] = $validated['match_type'];
+        $validated['season'] = (string) now()->year;
+        $validated['created_by'] = $request->user()->id;
+        $validated['published'] = ($validated['status'] ?? 'draft') !== 'draft';
+
+        $match = MatchEvent::query()->create($validated);
 
         $match->divisions()->sync($divisionIds);
 
@@ -78,9 +84,12 @@ class MatchController extends Controller
 
     public function show(MatchEvent $match): View
     {
-        $match->load(['province', 'creator', 'registrations', 'scoreImports']);
+        $this->authorize('view', $match);
+
+        $match->load(['province', 'creator', 'registrations', 'scoreImports', 'expenses.creator']);
 
         $financeBreakdown = null;
+        $planningEstimate = null;
         $user = Auth::user();
 
         if ($user && ($user->hasRole(['owner', 'admin']) || $match->created_by === $user->id)) {
@@ -96,9 +105,37 @@ class MatchController extends Controller
                 'total_md_net' => $paidRegistrations->sum('md_net_amount'),
                 'registration_count' => $paidRegistrations->count(),
             ];
+
+            $saprfPct = (float) $this->settingsService->get('saprf_fee_percentage', 5) / 100;
+            $platformPct = (float) $this->settingsService->get('platform_fee_percentage', 5) / 100;
+            $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5) / 100;
+            $baseFee = (float) $match->active_member_fee;
+            $capacity = $match->max_competitors ?: 30;
+
+            $grossRevenue = $baseFee * $capacity;
+            $saprfFee = $grossRevenue * $saprfPct;
+            $platformFee = $grossRevenue * $platformPct;
+            $gatewayFee = $grossRevenue * $gatewayPct;
+            $mdNet = $grossRevenue - $saprfFee - $platformFee - $gatewayFee;
+
+            $planningEstimate = [
+                'capacity' => $capacity,
+                'base_fee' => $baseFee,
+                'gross_revenue' => $grossRevenue,
+                'saprf_fee' => $saprfFee,
+                'saprf_pct' => $saprfPct * 100,
+                'platform_fee' => $platformFee,
+                'platform_pct' => $platformPct * 100,
+                'gateway_fee' => $gatewayFee,
+                'gateway_pct' => $gatewayPct * 100,
+                'md_net' => $mdNet,
+            ];
         }
 
-        return view('matches.show', compact('match', 'financeBreakdown'));
+        $expenses = $match->expenses->sortByDesc('created_at');
+        $totalExpenses = $expenses->sum('amount');
+
+        return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses'));
     }
 
     public function edit(MatchEvent $match): View
@@ -117,6 +154,13 @@ class MatchController extends Controller
         $validated = $request->validated();
         $divisionIds = $validated['divisions'] ?? [];
         unset($validated['divisions']);
+
+        $baseFee = (float) ($validated['active_member_fee'] ?? $match->active_member_fee ?? 0);
+        $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
+        $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
+
+        $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
+        $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
 
         $match->update($validated);
 
@@ -453,7 +497,7 @@ class MatchController extends Controller
             ->where('status', 'open')
             ->orderBy('match_date')
             ->limit(6)
-            ->get(['id', 'name', 'slug', 'match_type', 'series_level', 'province_id', 'match_date', 'venue_name', 'venue_location', 'city', 'status', 'is_featured', 'active_member_fee', 'non_member_fee', 'max_competitors', 'registration_close_date']);
+            ->get(['id', 'name', 'slug', 'match_type', 'series_level', 'province_id', 'match_date', 'venue_name', 'venue_location', 'city', 'status', 'active_member_fee', 'non_member_fee', 'max_competitors', 'registration_close_date']);
 
         return response()->json(['data' => $matches]);
     }

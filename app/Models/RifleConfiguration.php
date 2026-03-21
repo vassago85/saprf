@@ -31,6 +31,7 @@ class RifleConfiguration extends Model
         'notes',
         'is_primary',
         'is_active',
+        'total_barrel_rounds',
     ];
 
     protected function casts(): array
@@ -89,6 +90,12 @@ class RifleConfiguration extends Model
     public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function recalculateShotCount(): void
+    {
+        $total = $this->registrations()->whereNotNull('shot_count')->sum('shot_count');
+        $this->update(['total_barrel_rounds' => (int) $total]);
     }
 
     public function displayName(): string

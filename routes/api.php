@@ -3,6 +3,7 @@
 use App\Http\Controllers\FirearmReferenceController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\StandingController;
+use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -17,4 +18,6 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('/optic-makes', [FirearmReferenceController::class, 'searchOpticMakes']);
     Route::get('/optic-models', [FirearmReferenceController::class, 'searchOpticModels']);
+
+    Route::get('/venues', [VenueController::class, 'search']);
 });

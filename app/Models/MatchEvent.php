@@ -14,6 +14,8 @@ class MatchEvent extends Model
 {
     protected $table = 'matches';
 
+    protected $appends = ['is_featured'];
+
     protected $fillable = [
         'name',
         'slug',
@@ -37,7 +39,6 @@ class MatchEvent extends Model
         'lapsed_member_fee',
         'max_competitors',
         'waitlist_enabled',
-        'is_featured',
         'published',
         'category_rankings_enabled',
         'division_awards_enabled',
@@ -58,7 +59,6 @@ class MatchEvent extends Model
             'lapsed_member_fee' => 'decimal:2',
             'max_competitors' => 'integer',
             'waitlist_enabled' => 'boolean',
-            'is_featured' => 'boolean',
             'published' => 'boolean',
             'category_rankings_enabled' => 'boolean',
             'division_awards_enabled' => 'boolean',
@@ -104,6 +104,11 @@ class MatchEvent extends Model
     public function divisions(): BelongsToMany
     {
         return $this->belongsToMany(Division::class, 'match_division', 'match_id', 'division_id');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(MatchExpense::class, 'match_id');
     }
 
     // ── Computed Accessors ──
@@ -263,7 +268,56 @@ class MatchEvent extends Model
 
     public function scopeFeatured(Builder $query): Builder
     {
-        return $query->where('is_featured', true);
+        $ids = static::nextUpcomingNationalIds();
+
+        return $query->whereIn('id', $ids);
+    }
+
+    protected static ?array $featuredIdsCache = null;
+
+    /**
+     * Returns the IDs of the next upcoming national for each series (PRS + PR22).
+     * Cached per request to avoid repeated queries when rendering card lists.
+     */
+    public static function nextUpcomingNationalIds(): array
+    {
+        if (static::$featuredIdsCache !== null) {
+            return static::$featuredIdsCache;
+        }
+
+        $ids = [];
+
+        foreach (['PRS', 'PR22'] as $series) {
+            $match = static::query()
+                ->where('match_type', $series)
+                ->whereIn('series_level', ['national', 'final'])
+                ->where(function (Builder $q) {
+                    $q->where('match_date', '>=', now()->startOfDay())
+                        ->orWhere(function (Builder $q2) {
+                            $q2->whereNotNull('match_end_date')
+                                ->where('match_end_date', '>=', now()->startOfDay());
+                        });
+                })
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->orderBy('match_date')
+                ->first(['id']);
+
+            if ($match) {
+                $ids[] = $match->id;
+            }
+        }
+
+        return static::$featuredIdsCache = $ids;
+    }
+
+    public static function clearFeaturedCache(): void
+    {
+        static::$featuredIdsCache = null;
+    }
+
+    public function getIsFeaturedAttribute(): bool
+    {
+        return in_array($this->id, static::nextUpcomingNationalIds());
     }
 
     public function scopeForDiscipline(Builder $query, ?string $discipline): Builder

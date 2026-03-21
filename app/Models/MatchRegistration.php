@@ -33,6 +33,7 @@ class MatchRegistration extends Model
         'registration_status',
         'registered_at',
         'cancelled_at',
+        'shot_count',
     ];
 
     protected function casts(): array
@@ -48,6 +49,7 @@ class MatchRegistration extends Model
             'admin_fee_charged' => 'decimal:2',
             'registered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'shot_count' => 'integer',
         ];
     }
 

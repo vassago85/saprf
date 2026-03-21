@@ -197,29 +197,29 @@ class FederationDemoSeeder extends Seeder
 
             // ── 2026 Match Calendar ──
             $matchData = [
-                ['name' => 'Centrefire NW 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'NW', 'date' => '2026-02-14', 'end' => '2026-02-15', 'status' => 'completed', 'venue' => 'NW Klerksdorp', 'city' => 'Klerksdorp', 'max' => 40, 'featured' => true, 'dual_provincial' => true],
-                ['name' => 'Centrefire WC 2-Day National — Wolseley', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-03-07', 'end' => '2026-03-08', 'status' => 'completed', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 40, 'featured' => true, 'dual_provincial' => true],
-                ['name' => 'Rimfire PR22 GP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 30, 'featured' => false, 'dual_provincial' => false],
+                ['name' => 'Centrefire NW 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'NW', 'date' => '2026-02-14', 'end' => '2026-02-15', 'status' => 'completed', 'venue' => 'NW Klerksdorp', 'city' => 'Klerksdorp', 'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Centrefire WC 2-Day National — Wolseley', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-03-07', 'end' => '2026-03-08', 'status' => 'completed', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Rimfire PR22 GP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 30, 'dual_provincial' => false],
 
-                ['name' => 'Centrefire GP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-06-20', 'end' => '2026-06-21', 'status' => 'draft', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 40, 'featured' => true],
-                ['name' => 'Centrefire MP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-07-11', 'end' => '2026-07-12', 'status' => 'draft', 'venue' => 'Lydenburg', 'city' => 'Lydenburg', 'max' => 40, 'featured' => false],
-                ['name' => 'Centrefire LP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09', 'status' => 'draft', 'venue' => 'Marble Hall', 'city' => 'Marble Hall', 'max' => 40, 'featured' => false],
-                ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25', 'status' => 'draft', 'venue' => 'Darling Steel Valley', 'city' => 'Darling', 'max' => 40, 'featured' => false],
-                ['name' => 'Centrefire GP 2-Day Championship', 'type' => 'PRS', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-21', 'end' => '2026-11-22', 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 30, 'featured' => true],
+                ['name' => 'Centrefire GP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-06-20', 'end' => '2026-06-21', 'status' => 'draft', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 40],
+                ['name' => 'Centrefire MP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-07-11', 'end' => '2026-07-12', 'status' => 'draft', 'venue' => 'Lydenburg', 'city' => 'Lydenburg', 'max' => 40],
+                ['name' => 'Centrefire LP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09', 'status' => 'draft', 'venue' => 'Marble Hall', 'city' => 'Marble Hall', 'max' => 40],
+                ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25', 'status' => 'draft', 'venue' => 'Darling Steel Valley', 'city' => 'Darling', 'max' => 40],
+                ['name' => 'Centrefire GP 2-Day Championship', 'type' => 'PRS', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-21', 'end' => '2026-11-22', 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 30],
 
-                ['name' => 'Centrefire FS Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'FS', 'date' => '2026-04-18', 'end' => null, 'status' => 'open', 'venue' => 'Bloemfontein', 'city' => 'Bloemfontein', 'max' => 25, 'featured' => false],
-                ['name' => 'Centre Fire GP Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-02', 'end' => null, 'status' => 'open', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 25, 'featured' => false],
-                ['name' => 'Centrefire WC Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null, 'status' => 'draft', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 25, 'featured' => false],
+                ['name' => 'Centrefire FS Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'FS', 'date' => '2026-04-18', 'end' => null, 'status' => 'open', 'venue' => 'Bloemfontein', 'city' => 'Bloemfontein', 'max' => 25],
+                ['name' => 'Centre Fire GP Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-02', 'end' => null, 'status' => 'open', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 25],
+                ['name' => 'Centrefire WC Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null, 'status' => 'draft', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 25],
 
-                ['name' => 'Rimfire PR22 MP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30', 'status' => 'draft', 'venue' => 'TBC - Mpumalanga', 'city' => 'Mpumalanga', 'max' => 30, 'featured' => false],
-                ['name' => 'Rimfire PR22 GP Championship', 'type' => 'PR22', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08', 'status' => 'draft', 'venue' => 'TBC - Gauteng', 'city' => 'Gauteng', 'max' => 24, 'featured' => true],
+                ['name' => 'Rimfire PR22 MP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30', 'status' => 'draft', 'venue' => 'TBC - Mpumalanga', 'city' => 'Mpumalanga', 'max' => 30],
+                ['name' => 'Rimfire PR22 GP Championship', 'type' => 'PR22', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08', 'status' => 'draft', 'venue' => 'TBC - Gauteng', 'city' => 'Gauteng', 'max' => 24],
 
-                ['name' => 'Rimfire PR22 MP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-04-11', 'end' => null, 'status' => 'open', 'venue' => 'Balmoral Hunting Farm', 'city' => 'Balmoral', 'max' => 20, 'featured' => false],
-                ['name' => 'Rimfire PR22 GP Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-23', 'end' => null, 'status' => 'draft', 'venue' => "Leopard's Valley", 'city' => 'Gauteng', 'max' => 20, 'featured' => false],
-                ['name' => 'Rimfire PR22 WC Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-05-30', 'end' => null, 'status' => 'draft', 'venue' => 'TBC - Western Cape', 'city' => 'Western Cape', 'max' => 20, 'featured' => false],
-                ['name' => 'Rimfire PR22 WC Provincial Jun', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-06-14', 'end' => null, 'status' => 'draft', 'venue' => 'Atlantis Shooting Range', 'city' => 'Atlantis', 'max' => 20, 'featured' => false],
-                ['name' => 'Rimfire PR22 LP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'LP', 'date' => '2026-07-18', 'end' => null, 'status' => 'draft', 'venue' => 'Risla Range', 'city' => 'Limpopo', 'max' => 20, 'featured' => false],
-                ['name' => 'Rimfire PR22 GP Provincial Aug', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null, 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 MP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-04-11', 'end' => null, 'status' => 'open', 'venue' => 'Balmoral Hunting Farm', 'city' => 'Balmoral', 'max' => 20],
+                ['name' => 'Rimfire PR22 GP Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-23', 'end' => null, 'status' => 'draft', 'venue' => "Leopard's Valley", 'city' => 'Gauteng', 'max' => 20],
+                ['name' => 'Rimfire PR22 WC Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-05-30', 'end' => null, 'status' => 'draft', 'venue' => 'TBC - Western Cape', 'city' => 'Western Cape', 'max' => 20],
+                ['name' => 'Rimfire PR22 WC Provincial Jun', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-06-14', 'end' => null, 'status' => 'draft', 'venue' => 'Atlantis Shooting Range', 'city' => 'Atlantis', 'max' => 20],
+                ['name' => 'Rimfire PR22 LP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'LP', 'date' => '2026-07-18', 'end' => null, 'status' => 'draft', 'venue' => 'Risla Range', 'city' => 'Limpopo', 'max' => 20],
+                ['name' => 'Rimfire PR22 GP Provincial Aug', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null, 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 20],
             ];
 
             $completedPrsMatches = [];
@@ -229,6 +229,8 @@ class FederationDemoSeeder extends Seeder
                 $regOpen = date('Y-m-d', strtotime($data['date'] . ' -30 days'));
                 $regClose = date('Y-m-d', strtotime($data['date'] . ' -5 days'));
                 $fee = $data['level'] === 'provincial' ? 350.00 : 500.00;
+                $nonMemberSurcharge = (float) app(\App\Services\SettingsService::class)->get('non_member_surcharge', 250);
+                $lapsedSurcharge = (float) app(\App\Services\SettingsService::class)->get('lapsed_member_surcharge', 150);
 
                 $matchAttrs = [
                     'match_type' => $data['type'],
@@ -246,11 +248,10 @@ class FederationDemoSeeder extends Seeder
                     'status' => $data['status'],
                     'created_by' => $director->id,
                     'active_member_fee' => $fee,
-                    'non_member_fee' => $fee + 250,
-                    'lapsed_member_fee' => $fee + 150,
+                    'non_member_fee' => $fee + $nonMemberSurcharge,
+                    'lapsed_member_fee' => $fee + $lapsedSurcharge,
                     'max_competitors' => $data['max'],
                     'waitlist_enabled' => $data['max'] <= 30,
-                    'is_featured' => $data['featured'],
                     'published' => true,
                     'category_rankings_enabled' => true,
                     'division_awards_enabled' => true,

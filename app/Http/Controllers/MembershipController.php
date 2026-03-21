@@ -41,7 +41,7 @@ class MembershipController extends Controller
     {
         $this->authorize('view', $membership);
 
-        $membership->load(['user', 'payments']);
+        $membership->load(['user', 'payments', 'revokedByUser']);
 
         return view('memberships.show', compact('membership'));
     }
@@ -60,7 +60,7 @@ class MembershipController extends Controller
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
             'membership_type' => ['required', 'string', 'max:50'],
-            'status' => ['required', 'in:active,pending,lapsed,expired'],
+            'status' => ['required', 'in:active,pending,lapsed,expired,revoked'],
             'payment_status' => ['required', 'in:paid,unpaid,partial'],
             'start_date' => ['required', 'date'],
             'expiry_date' => ['required', 'date', 'after:start_date'],
@@ -95,7 +95,7 @@ class MembershipController extends Controller
         $this->authorize('update', $membership);
 
         $validated = $request->validate([
-            'status' => ['required', 'in:active,pending,lapsed,expired'],
+            'status' => ['required', 'in:active,pending,lapsed,expired,revoked'],
             'payment_status' => ['required', 'in:paid,unpaid,partial'],
             'expiry_date' => ['nullable', 'date'],
         ]);
@@ -114,5 +114,68 @@ class MembershipController extends Controller
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership updated successfully.');
+    }
+
+    public function revoke(Request $request, Membership $membership): RedirectResponse
+    {
+        $this->authorize('update', $membership);
+
+        $validated = $request->validate([
+            'revocation_reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $old = $membership->only(['status', 'revoked_at', 'revocation_reason', 'revoked_by']);
+
+        $membership->update([
+            'status' => 'revoked',
+            'revoked_at' => now(),
+            'revocation_reason' => $validated['revocation_reason'],
+            'revoked_by' => $request->user()->id,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'membership.revoked',
+            'Membership',
+            $membership->id,
+            $old,
+            [
+                'status' => 'revoked',
+                'revocation_reason' => $validated['revocation_reason'],
+            ],
+        );
+
+        return redirect()->route('memberships.show', $membership)
+            ->with('success', 'Membership has been revoked.');
+    }
+
+    public function reinstate(Request $request, Membership $membership): RedirectResponse
+    {
+        $this->authorize('update', $membership);
+
+        if (! $membership->isRevoked()) {
+            return back()->with('error', 'This membership is not revoked.');
+        }
+
+        $old = $membership->only(['status', 'revoked_at', 'revocation_reason', 'revoked_by']);
+
+        $membership->update([
+            'status' => 'active',
+            'revoked_at' => null,
+            'revocation_reason' => null,
+            'revoked_by' => null,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'membership.reinstated',
+            'Membership',
+            $membership->id,
+            $old,
+            ['status' => 'active'],
+        );
+
+        return redirect()->route('memberships.show', $membership)
+            ->with('success', 'Membership has been reinstated.');
     }
 }

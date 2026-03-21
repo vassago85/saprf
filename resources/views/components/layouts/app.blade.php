@@ -55,6 +55,9 @@
                 <flux:navlist.item icon="cog-6-tooth" :href="route('matches.index')" :current="request()->routeIs('matches.*')">
                     Manage Matches
                 </flux:navlist.item>
+                <flux:navlist.item icon="map-pin" :href="route('venues.index')" :current="request()->routeIs('venues.*')">
+                    Venues
+                </flux:navlist.item>
             </flux:navlist.group>
             @endrole
 

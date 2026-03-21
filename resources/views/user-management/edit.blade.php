@@ -97,5 +97,20 @@
                 <a href="{{ route('user-management.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Cancel</a>
             </div>
         </form>
+
+        @if(!$user->hasRole('owner') && $user->id !== auth()->id())
+            <div class="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
+                <h2 class="font-heading text-base font-semibold text-red-800 mb-2">Danger Zone</h2>
+                <p class="text-sm text-stone-500 mb-4">Delete this user. They will be soft-deleted and can be restored from the deleted users list.</p>
+                <form method="POST" action="{{ route('user-management.destroy', $user) }}"
+                      onsubmit="return confirm('Delete {{ addslashes($user->name) }}? They will be moved to the deleted users list and can be restored later.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">
+                        Delete User
+                    </button>
+                </form>
+            </div>
+        @endif
     </div>
 </x-layouts.app>

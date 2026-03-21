@@ -51,6 +51,9 @@
                             @case('suspended')
                                 <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Suspended</span>
                                 @break
+                            @case('revoked')
+                                <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
+                                @break
                         @endswitch
                     </dd>
                 </div>
@@ -99,6 +102,76 @@
                 </div>
             @endif
         @endif
+
+        {{-- Revocation details --}}
+        @if($membership->isRevoked())
+            <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Membership Revoked</h2>
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Revoked At</dt>
+                        <dd class="mt-1 text-sm text-red-800">{{ $membership->revoked_at->format('d M Y H:i') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Revoked By</dt>
+                        <dd class="mt-1 text-sm text-red-800">{{ $membership->revokedByUser?->name ?? '—' }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Reason</dt>
+                        <dd class="mt-1 text-sm text-red-800">{{ $membership->revocation_reason }}</dd>
+                    </div>
+                </dl>
+
+                @role('owner|admin')
+                    <form method="POST" action="{{ route('memberships.reinstate', $membership) }}"
+                          class="mt-5 border-t border-red-200 pt-4"
+                          onsubmit="return confirm('Reinstate this membership? The member will be set back to active.')">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                            Reinstate Membership
+                        </button>
+                    </form>
+                @endrole
+            </div>
+        @endif
+
+        {{-- Revoke action (admin only, only if not already revoked) --}}
+        @role('owner|admin')
+            @if(! $membership->isRevoked())
+                <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm" x-data="{ showForm: false }">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h2 class="font-heading text-lg font-semibold text-stone-900">Revoke Membership</h2>
+                            <p class="text-sm text-stone-500 mt-1">Revoke this member's membership. This will mark it as revoked and record the reason.</p>
+                        </div>
+                        <button @click="showForm = !showForm"
+                                class="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">
+                            Revoke
+                        </button>
+                    </div>
+
+                    <form x-show="showForm" x-transition method="POST"
+                          action="{{ route('memberships.revoke', $membership) }}"
+                          class="mt-4 space-y-4 border-t border-stone-200 pt-4"
+                          onsubmit="return confirm('Are you sure you want to revoke this membership? This action is logged.')">
+                        @csrf
+                        <div>
+                            <label for="revocation_reason" class="block text-sm font-medium text-stone-700 mb-1">Reason for revocation <span class="text-red-500">*</span></label>
+                            <textarea name="revocation_reason" id="revocation_reason" rows="3" maxlength="1000" required
+                                      placeholder="Describe why this membership is being revoked..."
+                                      class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">{{ old('revocation_reason') }}</textarea>
+                            @error('revocation_reason')
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <button type="submit" class="px-5 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                            Confirm Revocation
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endrole
 
         @if ($membership->payments->count())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">

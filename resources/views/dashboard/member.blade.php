@@ -3,7 +3,10 @@
 
     <div class="space-y-8">
         <div class="flex items-center justify-between">
-            <h1 class="font-heading text-3xl font-bold text-stone-900">My Dashboard</h1>
+            <div>
+                <p class="text-sm text-stone-500">Welcome back,</p>
+                <h1 class="font-heading text-3xl font-bold text-stone-900">{{ Str::before($user->name, ' ') }}</h1>
+            </div>
             @if($membership && $membership->membership_type === 'paid')
                 <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20">SAPRF Member</span>
             @else

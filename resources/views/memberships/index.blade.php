@@ -43,6 +43,9 @@
                                 @case('suspended')
                                     <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Suspended</span>
                                     @break
+                                @case('revoked')
+                                    <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
+                                    @break
                             @endswitch
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">

@@ -78,7 +78,13 @@ class RifleConfigurationController extends Controller
 
         $matchCount = $rifleConfiguration->registrations()->count();
 
-        return view('rifle-configurations.show', compact('rifleConfiguration', 'recentScores', 'matchCount'));
+        $shotLog = $rifleConfiguration->registrations()
+            ->whereNotNull('shot_count')
+            ->with('match:id,name,match_date')
+            ->orderByDesc('created_at')
+            ->get(['id', 'match_id', 'shot_count', 'created_at']);
+
+        return view('rifle-configurations.show', compact('rifleConfiguration', 'recentScores', 'matchCount', 'shotLog'));
     }
 
     public function edit(Request $request, RifleConfiguration $rifleConfiguration): View

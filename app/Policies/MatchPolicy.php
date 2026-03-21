@@ -14,7 +14,7 @@ class MatchPolicy
 
     public function view(User $user, MatchEvent $match): bool
     {
-        if ($user->hasRole(['owner', 'admin', 'member'])) {
+        if ($user->hasRole(['owner', 'admin'])) {
             return true;
         }
 

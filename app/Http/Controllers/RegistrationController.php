@@ -67,11 +67,73 @@ class RegistrationController extends Controller
             ->with('success', 'Registration submitted successfully.');
     }
 
-    public function show(MatchRegistration $registration): View
+    public function show(Request $request, MatchRegistration $registration): View
     {
-        $registration->load(['match', 'user']);
+        $registration->load(['match', 'user', 'rifleConfiguration.make', 'rifleConfiguration.model', 'rifleConfiguration.calibre']);
 
-        return view('registrations.show', compact('registration'));
+        $rifles = $request->user()->rifleConfigurations()
+            ->active()
+            ->with(['make', 'model', 'calibre'])
+            ->orderByDesc('is_primary')
+            ->get();
+
+        return view('registrations.show', compact('registration', 'rifles'));
+    }
+
+    public function updateRifle(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        if ($registration->user_id !== $request->user()->id && ! $request->user()->hasAnyRole(['owner', 'admin', 'match_director'])) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'rifle_configuration_id' => ['nullable', 'exists:rifle_configurations,id'],
+        ]);
+
+        $old = $registration->only(['rifle_configuration_id']);
+        $registration->update($validated);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.rifle.updated',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            $validated,
+        );
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', 'Rifle configuration updated.');
+    }
+
+    public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        if ($registration->user_id !== $request->user()->id && ! $request->user()->hasAnyRole(['owner', 'admin', 'match_director'])) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'shot_count' => ['nullable', 'integer', 'min:0', 'max:9999'],
+        ]);
+
+        $old = $registration->only(['shot_count']);
+        $registration->update($validated);
+
+        if ($registration->rifle_configuration_id) {
+            $registration->rifleConfiguration->recalculateShotCount();
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.shots.updated',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            $validated,
+        );
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', 'Shot count updated.');
     }
 
     public function updateStatus(Request $request, MatchRegistration $registration): RedirectResponse

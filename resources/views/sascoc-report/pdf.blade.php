@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>SASCOC Active Members Report - {{ $year }}</title>
+    <title>SASCOC Members Report - {{ $year }}</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -27,6 +27,27 @@
             color: #78716c;
             margin-bottom: 20px;
         }
+        .badge {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-active {
+            background-color: #d1fae5;
+            color: #047857;
+        }
+        .badge-expired {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .badge-lapsed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -35,11 +56,11 @@
         thead th {
             background-color: #047857;
             color: #ffffff;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 8px 6px;
+            padding: 8px 5px;
             text-align: left;
             border-bottom: 2px solid #065f46;
         }
@@ -47,9 +68,12 @@
             background-color: #f5f5f4;
         }
         tbody td {
-            padding: 6px;
+            padding: 5px;
             border-bottom: 1px solid #e7e5e4;
-            font-size: 10px;
+            font-size: 9px;
+        }
+        .row-expired td {
+            color: #78716c;
         }
         .footer {
             margin-top: 30px;
@@ -59,12 +83,26 @@
             border-top: 1px solid #e7e5e4;
             padding-top: 10px;
         }
+        .summary {
+            font-size: 10px;
+            color: #57534e;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>SASCOC Active Members Report &mdash; {{ $year }}</h1>
+    <h1>SASCOC Members Report &mdash; {{ $year }}</h1>
     <p class="subtitle">South African Precision Rifle Federation (NPC)</p>
-    <p class="meta">Generated: {{ now()->format('d F Y \a\t H:i') }} &bull; Total members: {{ $members->count() }}</p>
+    <p class="meta">Generated: {{ now()->format('d F Y \a\t H:i') }}</p>
+
+    <p class="summary">
+        Total: <strong>{{ $members->count() }}</strong> members
+        &bull; Active: <strong>{{ $members->where('status', 'active')->count() }}</strong>
+        @if($includeExpired)
+            &bull; Expired/Lapsed: <strong>{{ $members->whereIn('status', ['expired', 'lapsed'])->count() }}</strong>
+        @endif
+        &bull; All members listed have paid their membership fee.
+    </p>
 
     <table>
         <thead>
@@ -75,27 +113,41 @@
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Province</th>
-                <th>Type</th>
+                <th>Status</th>
                 <th>Start Date</th>
                 <th>Expiry Date</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($members as $member)
-                <tr>
+                <tr class="{{ in_array($member->status, ['expired', 'lapsed']) ? 'row-expired' : '' }}">
                     <td>{{ $member->saprf_number ?? '—' }}</td>
                     <td>{{ $member->user->name ?? '—' }}</td>
                     <td>{{ $member->user->sa_id_number ?? '—' }}</td>
                     <td>{{ $member->user->email ?? '—' }}</td>
                     <td>{{ $member->user->phone ?? '—' }}</td>
                     <td>{{ $member->user->province?->name ?? '—' }}</td>
-                    <td style="text-transform: capitalize;">{{ $member->membership_type ?? '—' }}</td>
+                    <td>
+                        @switch($member->status)
+                            @case('active')
+                                <span class="badge badge-active">Active</span>
+                                @break
+                            @case('expired')
+                                <span class="badge badge-expired">Expired</span>
+                                @break
+                            @case('lapsed')
+                                <span class="badge badge-lapsed">Lapsed</span>
+                                @break
+                            @default
+                                {{ ucfirst($member->status) }}
+                        @endswitch
+                    </td>
                     <td>{{ $member->start_date?->format('d/m/Y') ?? '—' }}</td>
                     <td>{{ $member->expiry_date?->format('d/m/Y') ?? '—' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 20px; color: #a8a29e;">No active paid members found for {{ $year }}.</td>
+                    <td colspan="9" style="text-align: center; padding: 20px; color: #a8a29e;">No qualifying members found for {{ $year }}.</td>
                 </tr>
             @endforelse
         </tbody>

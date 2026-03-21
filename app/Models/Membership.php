@@ -17,6 +17,9 @@ class Membership extends Model
         'payment_status',
         'start_date',
         'expiry_date',
+        'revoked_at',
+        'revocation_reason',
+        'revoked_by',
     ];
 
     protected function casts(): array
@@ -24,7 +27,18 @@ class Membership extends Model
         return [
             'start_date' => 'date',
             'expiry_date' => 'date',
+            'revoked_at' => 'datetime',
         ];
+    }
+
+    public function isRevoked(): bool
+    {
+        return $this->status === 'revoked' && $this->revoked_at !== null;
+    }
+
+    public function revokedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by');
     }
 
     public function user(): BelongsTo

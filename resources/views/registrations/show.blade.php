@@ -77,8 +77,79 @@
                     <dd class="mt-1 text-sm text-stone-900">{{ $registration->match->match_date->format('D, d M Y') }}</dd>
                 </div>
                 @endif
+                <div class="sm:col-span-2">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Rifle</dt>
+                    <dd class="mt-1 text-sm text-stone-900">
+                        @if($registration->rifleConfiguration)
+                            {{ $registration->rifleConfiguration->nickname ?: $registration->rifleConfiguration->displayName() }}
+                            <span class="text-stone-400">
+                                {{ collect([$registration->rifleConfiguration->make?->name, $registration->rifleConfiguration->model?->name, $registration->rifleConfiguration->calibre?->name])->filter()->implode(' · ') }}
+                            </span>
+                        @else
+                            <span class="text-stone-400">No rifle selected</span>
+                        @endif
+                    </dd>
+                </div>
             </dl>
         </div>
+
+        {{-- Rifle selection / update --}}
+        @if($registration->user_id === auth()->id() && $registration->registration_status !== 'cancelled' && $rifles->isNotEmpty())
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Update Rifle</h2>
+                <form method="POST" action="{{ route('registrations.update-rifle', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                    @csrf
+                    @method('PUT')
+                    <div class="flex-1 w-full">
+                        <label for="rifle_configuration_id" class="block text-sm font-medium text-stone-700 mb-1">Rifle Configuration</label>
+                        <select name="rifle_configuration_id" id="rifle_configuration_id"
+                                class="w-full rounded-lg border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="">— No rifle selected</option>
+                            @foreach($rifles as $rifle)
+                                <option value="{{ $rifle->id }}" @selected($registration->rifle_configuration_id == $rifle->id)>
+                                    {{ $rifle->nickname ?: ($rifle->make?->name . ' ' . $rifle->model?->name) }}
+                                    @if($rifle->calibre) ({{ $rifle->calibre->name }}) @endif
+                                    @if($rifle->is_primary) ★ @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        Save Rifle
+                    </button>
+                </form>
+                <p class="mt-2 text-xs text-stone-400">You can update your rifle at any time, even after the match.</p>
+            </div>
+        @endif
+
+        {{-- Shots fired tracker --}}
+        @if(($registration->user_id === auth()->id() || auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director'])) && $registration->registration_status !== 'cancelled')
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Shots Fired</h2>
+                <form method="POST" action="{{ route('registrations.update-shots', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                    @csrf
+                    @method('PUT')
+                    <div class="flex-1 w-full sm:max-w-[200px]">
+                        <label for="shot_count" class="block text-sm font-medium text-stone-700 mb-1">Round Count</label>
+                        <input type="number" name="shot_count" id="shot_count" min="0" max="9999" step="1"
+                               value="{{ old('shot_count', $registration->shot_count) }}"
+                               placeholder="e.g. 65"
+                               class="w-full rounded-lg border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        Save
+                    </button>
+                </form>
+                <p class="mt-2 text-xs text-stone-400">Include zeroing, sighters, and match rounds. You can update this at any time.</p>
+                @if($registration->rifleConfiguration && $registration->rifleConfiguration->total_barrel_rounds > 0)
+                    <p class="mt-1 text-xs text-stone-500">
+                        Barrel lifetime: <strong>{{ number_format($registration->rifleConfiguration->total_barrel_rounds) }}</strong> total rounds
+                    </p>
+                @endif
+            </div>
+        @endif
 
         {{-- Pay Now button for unpaid registrations --}}
         @if($registration->user_id === auth()->id() && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')

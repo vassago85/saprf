@@ -22,6 +22,8 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\MatchExpenseController;
+use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -91,6 +93,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/registrations/{registration}', [RegistrationController::class, 'show'])->name('registrations.show');
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::post('/registrations/{registration}/withdraw', [RegistrationController::class, 'withdraw'])->name('registrations.withdraw');
+    Route::put('/registrations/{registration}/rifle', [RegistrationController::class, 'updateRifle'])->name('registrations.update-rifle');
+    Route::put('/registrations/{registration}/shots', [RegistrationController::class, 'updateShotCount'])->name('registrations.update-shots');
 
     // Rifle Configurations — any authenticated user
     Route::resource('rifle-configurations', RifleConfigurationController::class)
@@ -106,8 +110,12 @@ Route::middleware(['auth'])->group(function (): void {
 
     // Match Director + Admin + Owner
     Route::middleware(['role:owner|admin|match_director'])->group(function (): void {
+        Route::resource('venues', VenueController::class)->except(['show']);
         Route::resource('matches', MatchController::class)->except(['destroy']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
+        Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
+        Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
+        Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');
@@ -119,12 +127,16 @@ Route::middleware(['auth'])->group(function (): void {
     Route::middleware(['role:provincial_admin|owner|admin'])->group(function (): void {
         Route::get('/provincial-members', [ProvincialMembersController::class, 'index'])
             ->name('provincial-members.index');
+        Route::get('/provincial-members/csv', [ProvincialMembersController::class, 'downloadCsv'])
+            ->name('provincial-members.csv');
     });
 
     // Admin + Owner
     Route::middleware(['role:owner|admin'])->group(function (): void {
         Route::post('/scores/{score}/override', [ScoreController::class, 'override'])->name('scores.override');
         Route::resource('memberships', MembershipController::class)->except(['destroy']);
+        Route::post('/memberships/{membership}/revoke', [MembershipController::class, 'revoke'])->name('memberships.revoke');
+        Route::post('/memberships/{membership}/reinstate', [MembershipController::class, 'reinstate'])->name('memberships.reinstate');
         Route::put('/registrations/{registration}/status', [RegistrationController::class, 'updateStatus'])->name('registrations.update-status');
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
@@ -140,6 +152,10 @@ Route::middleware(['auth'])->group(function (): void {
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
         Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
         Route::put('/user-management/{user}/role', [UserManagementController::class, 'updateRole'])->name('user-management.update-role');
+        Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
+        Route::post('/user-management/{id}/restore', [UserManagementController::class, 'restore'])->name('user-management.restore');
+        Route::get('/user-management/{id}/confirm-delete', [UserManagementController::class, 'confirmForceDelete'])->name('user-management.confirm-force-delete');
+        Route::delete('/user-management/{id}/force-delete', [UserManagementController::class, 'forceDelete'])->name('user-management.force-delete');
 
         Route::resource('qualification-rules', QualificationRuleController::class)
             ->except(['destroy', 'show'])

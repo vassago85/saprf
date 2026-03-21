@@ -3,7 +3,10 @@
 
     <div class="space-y-8">
         <div class="flex items-center justify-between">
-            <h1 class="font-heading text-3xl font-bold text-stone-900">Admin Dashboard</h1>
+            <div>
+                <p class="text-sm text-stone-500">Welcome back, {{ Str::before($user->name, ' ') }}</p>
+                <h1 class="font-heading text-3xl font-bold text-stone-900">Admin Dashboard</h1>
+            </div>
             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800">Admin</span>
         </div>
 

@@ -84,8 +84,8 @@
                         <p class="mt-0.5 text-xs text-stone-500">Total Matches</p>
                     </div>
                     <div class="rounded-lg bg-stone-50 p-4 text-center">
-                        <p class="text-2xl font-bold text-stone-400">—</p>
-                        <p class="mt-0.5 text-xs text-stone-500">Avg Placement</p>
+                        <p class="text-2xl font-bold text-stone-900">{{ number_format($rifleConfiguration->total_barrel_rounds) }}</p>
+                        <p class="mt-0.5 text-xs text-stone-500">Total Rounds</p>
                     </div>
                     <div class="rounded-lg bg-stone-50 p-4 text-center">
                         <p class="text-2xl font-bold text-stone-400">—</p>
@@ -94,6 +94,41 @@
                 </div>
             </div>
         </div>
+
+        {{-- Shot Log --}}
+        @if($shotLog->isNotEmpty())
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <div class="border-b border-stone-100 px-5 py-3 bg-stone-50">
+                <h2 class="font-heading text-base font-bold text-stone-900">Shot Log</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-stone-200">
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
+                            <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Rounds</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stone-100">
+                        @foreach($shotLog as $entry)
+                            <tr class="hover:bg-stone-50 transition-colors">
+                                <td class="whitespace-nowrap px-5 py-3 text-sm font-medium text-stone-900">{{ $entry->match->name ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-3 text-sm text-stone-500">{{ $entry->match->match_date?->format('d M Y') ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-3 text-sm font-mono text-stone-700 text-right">{{ number_format($entry->shot_count) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-t border-stone-300 bg-stone-50">
+                            <td colspan="2" class="px-5 py-3 text-sm font-semibold text-stone-700">Total</td>
+                            <td class="px-5 py-3 text-sm font-mono font-semibold text-stone-900 text-right">{{ number_format($rifleConfiguration->total_barrel_rounds) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        @endif
 
         {{-- Ammo Loads --}}
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
