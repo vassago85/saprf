@@ -17,6 +17,7 @@ services:
       - DB_USERNAME=${DB_USERNAME:-saprf}
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
     volumes:
+      - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
     depends_on:
@@ -80,6 +81,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
     command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
     volumes:
+      - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
     depends_on:
@@ -111,6 +113,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
     command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     volumes:
+      - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
     depends_on:
