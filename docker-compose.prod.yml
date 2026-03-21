@@ -39,6 +39,7 @@ services:
     image: mysql:8.0
     container_name: saprf-db
     restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Root password required}
       MYSQL_DATABASE: ${DB_DATABASE:-saprf_platform}
