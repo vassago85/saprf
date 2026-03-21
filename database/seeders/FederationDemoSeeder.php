@@ -44,16 +44,16 @@ class FederationDemoSeeder extends Seeder
                 ['name' => 'Werner Steyn',           'email' => 'werner@example.co.za',       'prov' => 'GP',  'dob' => '1991-02-14', 'div' => 'production', 'cats' => [],             'member' => true],
 
                 // GP — Ladies
-                ['name' => 'Sarah Thompson',         'email' => 'sarah@example.co.za',        'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['lady'],       'member' => true],
-                ['name' => 'Elzabe Meiring',         'email' => 'elzabe@example.co.za',       'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
-                ['name' => 'Annemarie Fourie',       'email' => 'annemarie@example.co.za',    'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['lady'],       'member' => true],
+                ['name' => 'Chantel van der Merwe',   'email' => 'chantel@example.co.za',      'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['lady'],       'member' => true],
+                ['name' => 'Leandri Kruger',         'email' => 'leandri@example.co.za',      'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
+                ['name' => 'Mienkie du Preez',       'email' => 'mienkie@example.co.za',      'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['lady'],       'member' => true],
 
                 // WC — Mixed field
                 ['name' => 'Andre Visser',           'email' => 'andre@example.co.za',        'prov' => 'WC',  'dob' => '1978-11-08', 'div' => 'open',       'cats' => [],             'member' => true],
                 ['name' => 'Rudi Erasmus',           'email' => 'rudi@example.co.za',         'prov' => 'WC',  'dob' => '1975-08-05', 'div' => 'open',       'cats' => [],             'member' => true],
                 ['name' => 'Gerhard Cilliers',       'email' => 'gerhard@example.co.za',      'prov' => 'WC',  'dob' => '1982-05-19', 'div' => 'production', 'cats' => [],             'member' => true],
                 ['name' => 'Jacques Engelbrecht',    'email' => 'jacques@example.co.za',      'prov' => 'WC',  'dob' => '1994-12-01', 'div' => 'limited',    'cats' => [],             'member' => true],
-                ['name' => 'Lizelle Nortje',         'email' => 'lizelle@example.co.za',      'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
+                ['name' => 'Suné Rossouw',           'email' => 'sune@example.co.za',         'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
 
                 // KZN
                 ['name' => 'Christo Muller',         'email' => 'christo@example.co.za',      'prov' => 'KZN', 'dob' => '1968-02-14', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
@@ -103,7 +103,7 @@ class FederationDemoSeeder extends Seeder
                 ['name' => 'Riaan Booysen',          'email' => 'riaan@example.co.za',        'prov' => 'GP',  'dob' => '1989-09-30', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
                 ['name' => 'Stefan Maritz',          'email' => 'stefan@example.co.za',       'prov' => 'WC',  'dob' => '1996-01-12', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
                 ['name' => 'Jaco de Beer',           'email' => 'jaco@example.co.za',         'prov' => 'GP',  'dob' => '1984-06-05', 'div' => 'pr22-base',  'cats' => [],             'member' => true],
-                ['name' => 'Marike Viljoen',         'email' => 'marike@example.co.za',       'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'pr22-open',  'cats' => ['lady'],       'member' => true],
+                ['name' => 'Zelda Kotzé',            'email' => 'zelda@example.co.za',        'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'pr22-open',  'cats' => ['lady'],       'member' => true],
                 ['name' => 'Ernst Schoeman',         'email' => 'ernst@example.co.za',        'prov' => 'FS',  'dob' => '1963-04-20', 'div' => 'pr22-base',  'cats' => ['senior'],     'member' => true],
             ];
 

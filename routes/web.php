@@ -19,6 +19,7 @@ use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\SponsorTierController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Auth;
@@ -34,6 +35,9 @@ Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.ind
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
 Route::get('/standings/{season}/shooter/{user}', [StandingController::class, 'publicShooter'])->name('standings.shooter');
+
+// ── PayFast ITN Webhook (CSRF-exempt, no auth) ──
+Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])->name('payments.notify');
 
 // ── Auth (guest only) ──
 
@@ -69,6 +73,12 @@ Route::middleware(['auth'])->group(function (): void {
     // Event Registration (auth required)
     Route::get('/events/{match}/register', [MatchController::class, 'showRegistration'])->name('events.register');
     Route::post('/events/{match}/register', [MatchController::class, 'storeRegistration'])->name('events.register.store');
+
+    // Payments
+    Route::get('/payments/{payment}/redirect', [PaymentController::class, 'redirect'])->name('payments.redirect');
+    Route::get('/payments/return', [PaymentController::class, 'returnFromGateway'])->name('payments.return');
+    Route::get('/payments/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
+    Route::post('/payments/membership/{membership}', [PaymentController::class, 'payMembership'])->name('payments.membership');
 
     // Registrations — any authenticated user can view own / register
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');

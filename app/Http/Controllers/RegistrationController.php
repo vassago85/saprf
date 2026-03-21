@@ -34,7 +34,7 @@ class RegistrationController extends Controller
         $user = $request->user();
         $match = MatchEvent::query()->findOrFail($request->validated('match_id'));
 
-        $pricing = $this->pricingService->determineCategoryAndFee($match, $user, $match->match_date);
+        $breakdown = $this->pricingService->calculateBreakdown($match, $user, $match->match_date);
 
         $registration = MatchRegistration::query()->create([
             'match_id' => $match->id,
@@ -42,8 +42,13 @@ class RegistrationController extends Controller
             'shooter_name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
-            'membership_fee_category' => $pricing['category'],
-            'fee_amount' => $pricing['fee'],
+            'membership_fee_category' => $breakdown['category'],
+            'fee_amount' => $breakdown['total_fee'],
+            'surcharge_amount' => $breakdown['surcharge'],
+            'saprf_fee' => $breakdown['saprf_fee'],
+            'platform_fee' => $breakdown['platform_fee'],
+            'gateway_fee' => $breakdown['gateway_fee'],
+            'md_net_amount' => $breakdown['md_net'],
             'payment_status' => 'unpaid',
             'registration_status' => 'pending',
             'registered_at' => now(),

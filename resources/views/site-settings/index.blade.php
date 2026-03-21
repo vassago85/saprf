@@ -201,6 +201,104 @@
                 </div>
             </div>
 
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Match Fee Structure</h2>
+                    <p class="text-sm text-stone-500">Configure how match registration fees are distributed between SAPRF, the platform, and the match director.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="saprf_fee_percentage" class="block text-sm font-medium text-stone-700">SAPRF Fee (%)</label>
+                        <input type="number" step="0.1" min="0" max="50" name="saprf_fee_percentage" id="saprf_fee_percentage" value="{{ old('saprf_fee_percentage', $settings['saprf_fee_percentage'] ?? '5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Percentage of the base match fee paid to the federation.</p>
+                    </div>
+
+                    <div>
+                        <label for="platform_fee_percentage" class="block text-sm font-medium text-stone-700">Platform Fee (%)</label>
+                        <input type="number" step="0.1" min="0" max="50" name="platform_fee_percentage" id="platform_fee_percentage" value="{{ old('platform_fee_percentage', $settings['platform_fee_percentage'] ?? '5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Percentage of the base match fee paid to the platform operator.</p>
+                    </div>
+
+                    <div>
+                        <label for="estimated_gateway_fee_percentage" class="block text-sm font-medium text-stone-700">Est. Gateway Fee (%)</label>
+                        <input type="number" step="0.1" min="0" max="20" name="estimated_gateway_fee_percentage" id="estimated_gateway_fee_percentage" value="{{ old('estimated_gateway_fee_percentage', $settings['estimated_gateway_fee_percentage'] ?? '3.5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Estimated PayFast transaction fee (%). Used for MD payout projection.</p>
+                    </div>
+
+                    <div>
+                        <label for="estimated_gateway_flat_fee" class="block text-sm font-medium text-stone-700">Est. Gateway Flat Fee (ZAR)</label>
+                        <input type="number" step="0.01" min="0" max="100" name="estimated_gateway_flat_fee" id="estimated_gateway_flat_fee" value="{{ old('estimated_gateway_flat_fee', $settings['estimated_gateway_flat_fee'] ?? '2.00') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Fixed per-transaction fee by PayFast (ZAR). Used for MD payout projection.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    <p><strong class="text-stone-900">How it works:</strong></p>
+                    <p>SAPRF fee and platform fee are calculated on the <strong>base match fee</strong> (active member rate). Non-member and lapsed-member surcharges go 100% to SAPRF. The estimated gateway fee is deducted from the total to project the match director's net payout.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-stone-900">Payment Gateway (PayFast)</h2>
+                        <p class="text-sm text-stone-500">Configure PayFast credentials for online payments. Leave blank to disable online payments.</p>
+                    </div>
+                    @php
+                        $pfConfigured = !empty($settings['payfast_merchant_id'] ?? '') && !empty($settings['payfast_merchant_key'] ?? '');
+                    @endphp
+                    @if($pfConfigured)
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Configured</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Not Configured</span>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="payfast_merchant_id" class="block text-sm font-medium text-stone-700">Merchant ID</label>
+                        <input type="text" name="payfast_merchant_id" id="payfast_merchant_id" value="{{ old('payfast_merchant_id', $settings['payfast_merchant_id'] ?? '') }}" placeholder="e.g. 10000100" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="payfast_merchant_key" class="block text-sm font-medium text-stone-700">Merchant Key</label>
+                        <input type="text" name="payfast_merchant_key" id="payfast_merchant_key" value="{{ old('payfast_merchant_key', $settings['payfast_merchant_key'] ?? '') }}" placeholder="e.g. 46f0cd694581a" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="payfast_passphrase" class="block text-sm font-medium text-stone-700">Passphrase</label>
+                        <input type="password" name="payfast_passphrase" id="payfast_passphrase" value="{{ old('payfast_passphrase', $settings['payfast_passphrase'] ?? '') }}" placeholder="Your PayFast passphrase" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Set in your PayFast dashboard under Settings &gt; Integration.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="payfast_sandbox" value="0">
+                            <input type="checkbox" name="payfast_sandbox" value="1" @checked(old('payfast_sandbox', $settings['payfast_sandbox'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <span class="text-sm font-medium text-stone-700">Sandbox / Test Mode</span>
+                        </label>
+                        <p class="mt-1 ml-6 text-xs text-stone-400">Use PayFast sandbox for testing. Disable for live payments.</p>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="payments_enabled" value="0">
+                            <input type="checkbox" name="payments_enabled" value="1" @checked(old('payments_enabled', $settings['payments_enabled'] ?? '0') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <span class="text-sm font-medium text-stone-700">Enable Online Payments</span>
+                        </label>
+                        <p class="mt-1 ml-6 text-xs text-stone-400">Master toggle. When off, all payment buttons are hidden and registrations are manual.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    <p><strong class="text-stone-900">Sandbox test credentials:</strong></p>
+                    <p>Merchant ID: <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">10000100</code> &nbsp; Key: <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">46f0cd694581a</code> &nbsp; Passphrase: <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">jt7NOE43FZPn</code></p>
+                </div>
+            </div>
+
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Settings</button>
         </form>
     </div>

@@ -6,6 +6,7 @@ use App\Services\SettingsService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class MatchRegistration extends Model
 {
@@ -19,6 +20,11 @@ class MatchRegistration extends Model
         'phone',
         'membership_fee_category',
         'fee_amount',
+        'surcharge_amount',
+        'saprf_fee',
+        'platform_fee',
+        'gateway_fee',
+        'md_net_amount',
         'fee_override_reason',
         'refund_amount',
         'admin_fee_charged',
@@ -33,6 +39,11 @@ class MatchRegistration extends Model
     {
         return [
             'fee_amount' => 'decimal:2',
+            'surcharge_amount' => 'decimal:2',
+            'saprf_fee' => 'decimal:2',
+            'platform_fee' => 'decimal:2',
+            'gateway_fee' => 'decimal:2',
+            'md_net_amount' => 'decimal:2',
             'refund_amount' => 'decimal:2',
             'admin_fee_charged' => 'decimal:2',
             'registered_at' => 'datetime',
@@ -45,6 +56,11 @@ class MatchRegistration extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(MatchEvent::class, 'match_id');
+    }
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(Payment::class, 'payable');
     }
 
     public function user(): BelongsTo

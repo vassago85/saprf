@@ -80,3 +80,54 @@ test('null user gets non_member_fee', function () {
     expect($result['category'])->toBe('non_member')
         ->and($result['fee'])->toBe(500.00);
 });
+
+test('calculateBreakdown returns full fee structure for active member', function () {
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-BKD-001',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+    $user->refresh();
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    expect($result['category'])->toBe('active_member')
+        ->and($result['base_fee'])->toBe(250.00)
+        ->and($result['surcharge'])->toBe(0.0)
+        ->and($result['total_fee'])->toBe(250.00)
+        ->and($result['saprf_fee'])->toBe(12.50)
+        ->and($result['platform_fee'])->toBe(12.50)
+        ->and($result['gateway_fee'])->toBe(10.75)
+        ->and($result['md_net'])->toBe(214.25)
+        ->and($result['rates'])->toHaveKeys(['saprf_pct', 'platform_pct', 'gateway_pct', 'gateway_flat']);
+});
+
+test('calculateBreakdown adds surcharge for non-member to SAPRF', function () {
+    $user = User::factory()->create();
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    expect($result['category'])->toBe('non_member')
+        ->and($result['base_fee'])->toBe(250.00)
+        ->and($result['surcharge'])->toBe(250.00)
+        ->and($result['total_fee'])->toBe(500.00)
+        ->and($result['saprf_fee'])->toBe(12.50)
+        ->and($result['platform_fee'])->toBe(12.50)
+        ->and($result['gateway_fee'])->toBe(19.50)
+        ->and($result['md_net'])->toBe(205.50);
+});
+
+test('calculateBreakdown md_net equals total minus all deductions', function () {
+    $user = User::factory()->create();
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    $expectedNet = $result['total_fee'] - $result['saprf_fee'] - $result['platform_fee']
+        - $result['surcharge'] - $result['gateway_fee'];
+
+    expect($result['md_net'])->toBe(round($expectedNet, 2));
+});

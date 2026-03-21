@@ -125,6 +125,47 @@
                     </div>
                 </dl>
             </div>
+            @if($financeBreakdown && $financeBreakdown['registration_count'] > 0)
+                <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-stone-900">Finance Breakdown</h2>
+                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Admin / MD</span>
+                    </div>
+
+                    <p class="text-xs text-stone-400 mb-4">Based on {{ $financeBreakdown['registration_count'] }} registration(s). Gateway fees are estimates.</p>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-stone-600">Total Collected from Shooters</span>
+                            <span class="font-semibold text-stone-900">R {{ number_format($financeBreakdown['total_collected'], 2) }}</span>
+                        </div>
+                        <div class="border-t border-stone-100"></div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-stone-500">SAPRF Fee</span>
+                            <span class="text-red-600">− R {{ number_format($financeBreakdown['total_saprf_fee'], 2) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-stone-500">Platform Fee</span>
+                            <span class="text-red-600">− R {{ number_format($financeBreakdown['total_platform_fee'], 2) }}</span>
+                        </div>
+                        @if($financeBreakdown['total_surcharges'] > 0)
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-stone-500">Non-Member / Lapsed Surcharges → SAPRF</span>
+                                <span class="text-red-600">− R {{ number_format($financeBreakdown['total_surcharges'], 2) }}</span>
+                            </div>
+                        @endif
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-stone-500">Est. Gateway Fee (PayFast)</span>
+                            <span class="text-red-600">− R {{ number_format($financeBreakdown['total_gateway_fee'], 2) }}</span>
+                        </div>
+                        <div class="border-t border-stone-200"></div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="font-semibold text-stone-900">Estimated MD Payout</span>
+                            <span class="font-bold text-emerald-700">R {{ number_format($financeBreakdown['total_md_net'], 2) }}</span>
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <div class="space-y-6">

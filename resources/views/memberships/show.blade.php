@@ -81,6 +81,25 @@
             </dl>
         </div>
 
+        {{-- Pay Now button for unpaid memberships --}}
+        @if(in_array($membership->payment_status, ['pending', 'unpaid', 'overdue']) && $membership->membership_type === 'paid')
+            @php $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled(); @endphp
+            @if($pfEnabled)
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-emerald-800">Payment Required</h2>
+                        <p class="text-sm text-emerald-700 mt-1">Pay your annual membership fee of <strong>R {{ number_format((float) app(\App\Services\SettingsService::class)->get('annual_membership_fee', 500), 2) }}</strong> to activate your membership.</p>
+                    </div>
+                    <form method="POST" action="{{ route('payments.membership', $membership) }}">
+                        @csrf
+                        <button type="submit" class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
+                            Pay Now
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endif
+
         @if ($membership->payments->count())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Payment History</h2>

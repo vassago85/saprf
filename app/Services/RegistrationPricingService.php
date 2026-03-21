@@ -30,4 +30,51 @@ class RegistrationPricingService
             'fee' => $fee,
         ];
     }
+
+    /**
+     * Full fee breakdown for a registration showing where the money goes.
+     *
+     * Surcharges (non-member / lapsed) go 100% to SAPRF.
+     * SAPRF fee and platform fee are each a % of the base match fee.
+     * Gateway fee is estimated from the total amount charged to the shooter.
+     * MD net = total - SAPRF fee - platform fee - surcharge - estimated gateway fee.
+     */
+    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate): array
+    {
+        $pricing = $this->determineCategoryAndFee($match, $user, $matchDate);
+
+        $baseFee = (float) $match->active_member_fee;
+        $totalFee = $pricing['fee'];
+        $category = $pricing['category'];
+
+        $surcharge = $totalFee - $baseFee;
+
+        $saprfPct = (float) $this->settingsService->get('saprf_fee_percentage', 5);
+        $platformPct = (float) $this->settingsService->get('platform_fee_percentage', 5);
+        $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5);
+        $gatewayFlat = (float) $this->settingsService->get('estimated_gateway_flat_fee', 2.00);
+
+        $saprfFee = round($baseFee * ($saprfPct / 100), 2);
+        $platformFee = round($baseFee * ($platformPct / 100), 2);
+        $gatewayFee = round($totalFee * ($gatewayPct / 100) + $gatewayFlat, 2);
+
+        $mdNet = round($totalFee - $saprfFee - $platformFee - $surcharge - $gatewayFee, 2);
+
+        return [
+            'category' => $category,
+            'base_fee' => $baseFee,
+            'surcharge' => $surcharge,
+            'total_fee' => $totalFee,
+            'saprf_fee' => $saprfFee,
+            'platform_fee' => $platformFee,
+            'gateway_fee' => $gatewayFee,
+            'md_net' => $mdNet,
+            'rates' => [
+                'saprf_pct' => $saprfPct,
+                'platform_pct' => $platformPct,
+                'gateway_pct' => $gatewayPct,
+                'gateway_flat' => $gatewayFlat,
+            ],
+        ];
+    }
 }

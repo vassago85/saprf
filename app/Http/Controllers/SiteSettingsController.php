@@ -43,6 +43,15 @@ class SiteSettingsController extends Controller
             'category_rankings_enabled' => ['required', 'boolean'],
             'division_awards_enabled' => ['required', 'boolean'],
             'category_awards_enabled' => ['required', 'boolean'],
+            'saprf_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
+            'platform_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
+            'estimated_gateway_fee_percentage' => ['required', 'numeric', 'min:0', 'max:20'],
+            'estimated_gateway_flat_fee' => ['required', 'numeric', 'min:0', 'max:100'],
+            'payfast_merchant_id' => ['nullable', 'string', 'max:20'],
+            'payfast_merchant_key' => ['nullable', 'string', 'max:50'],
+            'payfast_passphrase' => ['nullable', 'string', 'max:100'],
+            'payfast_sandbox' => ['required', 'boolean'],
+            'payments_enabled' => ['required', 'boolean'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -66,6 +75,17 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('category_rankings_enabled', $validated['category_rankings_enabled'], 'Enable category-based standings and rankings (1=yes, 0=no)');
         $this->settingsService->set('division_awards_enabled', $validated['division_awards_enabled'], 'Enable division awards and placements (1=yes, 0=no)');
         $this->settingsService->set('category_awards_enabled', $validated['category_awards_enabled'], 'Enable category awards and placements (1=yes, 0=no)');
+
+        $this->settingsService->set('saprf_fee_percentage', $validated['saprf_fee_percentage'], 'SAPRF federation fee as % of base match fee');
+        $this->settingsService->set('platform_fee_percentage', $validated['platform_fee_percentage'], 'Platform operator fee as % of base match fee');
+        $this->settingsService->set('estimated_gateway_fee_percentage', $validated['estimated_gateway_fee_percentage'], 'Estimated PayFast gateway fee % (for reporting only)');
+        $this->settingsService->set('estimated_gateway_flat_fee', $validated['estimated_gateway_flat_fee'], 'Estimated PayFast flat fee per transaction in ZAR (for reporting only)');
+
+        $this->settingsService->set('payfast_merchant_id', $validated['payfast_merchant_id'] ?? '', 'PayFast Merchant ID');
+        $this->settingsService->set('payfast_merchant_key', $validated['payfast_merchant_key'] ?? '', 'PayFast Merchant Key');
+        $this->settingsService->set('payfast_passphrase', $validated['payfast_passphrase'] ?? '', 'PayFast Passphrase');
+        $this->settingsService->set('payfast_sandbox', $validated['payfast_sandbox'], 'PayFast sandbox mode (1=sandbox, 0=live)');
+        $this->settingsService->set('payments_enabled', $validated['payments_enabled'], 'Enable online payments (1=yes, 0=no)');
 
         $this->auditLogService->log(
             $request->user(),

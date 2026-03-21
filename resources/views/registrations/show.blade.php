@@ -80,6 +80,33 @@
             </dl>
         </div>
 
+        {{-- Pay Now button for unpaid registrations --}}
+        @if($registration->user_id === auth()->id() && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
+            @php $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled(); @endphp
+            @if($pfEnabled)
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-emerald-800">Payment Required</h2>
+                        <p class="text-sm text-emerald-700 mt-1">Complete your payment of <strong>R {{ number_format($registration->fee_amount, 2) }}</strong> to confirm your entry.</p>
+                    </div>
+                    <form method="POST" action="{{ url('/events/' . $registration->match_id . '/register') }}">
+                        @csrf
+                        @php
+                            $existingPayment = \App\Models\Payment::where('payable_type', \App\Models\MatchRegistration::class)
+                                ->where('payable_id', $registration->id)
+                                ->where('status', 'pending')
+                                ->first();
+                        @endphp
+                        @if($existingPayment)
+                            <a href="{{ route('payments.redirect', $existingPayment) }}" class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
+                                Pay Now — R {{ number_format($registration->fee_amount, 2) }}
+                            </a>
+                        @endif
+                    </form>
+                </div>
+            @endif
+        @endif
+
         {{-- Cancellation details (if cancelled) --}}
         @if($registration->registration_status === 'cancelled' && $registration->cancelled_at)
             <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">

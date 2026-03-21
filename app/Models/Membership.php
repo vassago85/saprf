@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Membership extends Model
 {
@@ -34,5 +35,10 @@ class Membership extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(MembershipPayment::class);
+    }
+
+    public function gatewayPayments(): MorphMany
+    {
+        return $this->morphMany(Payment::class, 'payable');
     }
 }

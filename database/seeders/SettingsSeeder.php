@@ -90,5 +90,52 @@ class SettingsSeeder extends Seeder
             ['key' => 'category_awards_enabled'],
             ['value' => '0', 'description' => 'Enable category awards and placements (1=yes, 0=no)'],
         );
+
+        // Fee Structure
+        Setting::firstOrCreate(
+            ['key' => 'saprf_fee_percentage'],
+            ['value' => '5', 'description' => 'SAPRF federation fee as % of base match fee'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'platform_fee_percentage'],
+            ['value' => '5', 'description' => 'Platform operator fee as % of base match fee'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'estimated_gateway_fee_percentage'],
+            ['value' => '3.5', 'description' => 'Estimated PayFast gateway fee % (for reporting only)'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'estimated_gateway_flat_fee'],
+            ['value' => '2.00', 'description' => 'Estimated PayFast flat fee per transaction in ZAR (for reporting only)'],
+        );
+
+        // Payment Gateway (PayFast)
+        Setting::firstOrCreate(
+            ['key' => 'payfast_merchant_id'],
+            ['value' => '10000100', 'description' => 'PayFast Merchant ID'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'payfast_merchant_key'],
+            ['value' => '46f0cd694581a', 'description' => 'PayFast Merchant Key'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'payfast_passphrase'],
+            ['value' => 'jt7NOE43FZPn', 'description' => 'PayFast Passphrase'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'payfast_sandbox'],
+            ['value' => '1', 'description' => 'PayFast sandbox mode (1=sandbox, 0=live)'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'payments_enabled'],
+            ['value' => '1', 'description' => 'Enable online payments (1=yes, 0=no)'],
+        );
     }
 }

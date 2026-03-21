@@ -80,7 +80,25 @@ class MatchController extends Controller
     {
         $match->load(['province', 'creator', 'registrations', 'scoreImports']);
 
-        return view('matches.show', compact('match'));
+        $financeBreakdown = null;
+        $user = Auth::user();
+
+        if ($user && ($user->hasRole(['owner', 'admin']) || $match->created_by === $user->id)) {
+            $paidRegistrations = $match->registrations
+                ->where('registration_status', '!=', 'cancelled');
+
+            $financeBreakdown = [
+                'total_collected' => $paidRegistrations->sum('fee_amount'),
+                'total_saprf_fee' => $paidRegistrations->sum('saprf_fee'),
+                'total_platform_fee' => $paidRegistrations->sum('platform_fee'),
+                'total_surcharges' => $paidRegistrations->sum('surcharge_amount'),
+                'total_gateway_fee' => $paidRegistrations->sum('gateway_fee'),
+                'total_md_net' => $paidRegistrations->sum('md_net_amount'),
+                'registration_count' => $paidRegistrations->count(),
+            ];
+        }
+
+        return view('matches.show', compact('match', 'financeBreakdown'));
     }
 
     public function edit(MatchEvent $match): View
@@ -340,8 +358,8 @@ class MatchController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $pricing = app(RegistrationPricingService::class)
-            ->determineCategoryAndFee($match, $user, $match->match_date);
+        $breakdown = app(RegistrationPricingService::class)
+            ->calculateBreakdown($match, $user, $match->match_date);
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'pending';
 
@@ -352,9 +370,14 @@ class MatchController extends Controller
             'shooter_name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
-            'membership_fee_category' => $pricing['category'],
-            'fee_amount' => $pricing['fee'],
-            'payment_status' => 'unpaid',
+            'membership_fee_category' => $breakdown['category'],
+            'fee_amount' => $breakdown['total_fee'],
+            'surcharge_amount' => $breakdown['surcharge'],
+            'saprf_fee' => $breakdown['saprf_fee'],
+            'platform_fee' => $breakdown['platform_fee'],
+            'gateway_fee' => $breakdown['gateway_fee'],
+            'md_net_amount' => $breakdown['md_net'],
+            'payment_status' => 'pending',
             'registration_status' => $regStatus,
             'registered_at' => now(),
         ]);
@@ -367,6 +390,20 @@ class MatchController extends Controller
             null,
             $registration->toArray(),
         );
+
+        $payFastService = app(\App\Services\PayFastService::class);
+
+        if ($payFastService->isEnabled() && $breakdown['total_fee'] > 0) {
+            $payment = \App\Models\Payment::create([
+                'payable_type' => \App\Models\MatchRegistration::class,
+                'payable_id' => $registration->id,
+                'user_id' => $user->id,
+                'amount' => $breakdown['total_fee'],
+                'm_payment_id' => \App\Models\Payment::generateReference('REG'),
+            ]);
+
+            return redirect()->route('payments.redirect', $payment);
+        }
 
         $message = $regStatus === 'waitlisted'
             ? 'You have been added to the waitlist.'

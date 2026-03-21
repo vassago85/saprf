@@ -17,6 +17,11 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->string('membership_fee_category');
             $table->decimal('fee_amount', 10, 2);
+            $table->decimal('surcharge_amount', 10, 2)->default(0);
+            $table->decimal('saprf_fee', 10, 2)->default(0);
+            $table->decimal('platform_fee', 10, 2)->default(0);
+            $table->decimal('gateway_fee', 10, 2)->default(0);
+            $table->decimal('md_net_amount', 10, 2)->default(0);
             $table->text('fee_override_reason')->nullable();
             $table->string('payment_status')->default('pending');
             $table->string('registration_status')->default('pending');
