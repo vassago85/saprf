@@ -1,5 +1,5 @@
 <x-layouts.guest>
-    <x-slot:title>SAPRF - South African Practical Precision Rifle Federation</x-slot:title>
+    <x-slot:title>SAPRF - South African Precision Rifle Federation</x-slot:title>
 
     <x-public-nav current="home" />
 

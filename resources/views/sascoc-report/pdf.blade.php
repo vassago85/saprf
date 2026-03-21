@@ -63,7 +63,7 @@
 </head>
 <body>
     <h1>SASCOC Active Members Report &mdash; {{ $year }}</h1>
-    <p class="subtitle">South African Practical Precision Rifle Federation (NPC)</p>
+    <p class="subtitle">South African Precision Rifle Federation (NPC)</p>
     <p class="meta">Generated: {{ now()->format('d F Y \a\t H:i') }} &bull; Total members: {{ $members->count() }}</p>
 
     <table>
