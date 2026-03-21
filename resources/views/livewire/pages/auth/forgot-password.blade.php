@@ -14,13 +14,18 @@ new #[Layout('components.layouts.guest')] class extends Component {
             'email' => ['required', 'email'],
         ]);
 
-        $result = Password::sendResetLink(['email' => $this->email]);
+        try {
+            $result = Password::sendResetLink(['email' => $this->email]);
 
-        if ($result === Password::RESET_LINK_SENT) {
-            $this->status = __($result);
-            $this->email = '';
-        } else {
-            $this->addError('email', __($result));
+            if ($result === Password::RESET_LINK_SENT) {
+                $this->status = __($result);
+                $this->email = '';
+            } else {
+                $this->addError('email', __($result));
+            }
+        } catch (\Throwable $e) {
+            logger()->warning('Password reset email failed: ' . $e->getMessage());
+            $this->addError('email', 'Unable to send reset email. Please try again later.');
         }
     }
 }

@@ -92,7 +92,7 @@ class MatchController extends Controller
         $planningEstimate = null;
         $user = Auth::user();
 
-        if ($user && ($user->hasRole(['owner', 'admin']) || $match->created_by === $user->id)) {
+        if ($user && ($user->hasAnyRole(['owner', 'admin']) || $match->created_by === $user->id)) {
             $paidRegistrations = $match->registrations
                 ->where('registration_status', '!=', 'cancelled');
 

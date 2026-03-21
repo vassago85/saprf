@@ -29,10 +29,15 @@ new #[Layout('components.layouts.guest')] class extends Component {
 
         $user->assignRole('member');
 
-        event(new Registered($user));
-
         Auth::login($user);
         session()->regenerate();
+
+        try {
+            event(new Registered($user));
+        } catch (\Throwable $e) {
+            logger()->warning('Verification email failed: ' . $e->getMessage());
+        }
+
         $this->redirect(route('verification.notice'), navigate: true);
     }
 }

@@ -16,8 +16,13 @@ new #[Layout('components.layouts.guest')] class extends Component {
             return;
         }
 
-        $user->sendEmailVerificationNotification();
-        $this->status = 'A new verification link has been sent to your email address.';
+        try {
+            $user->sendEmailVerificationNotification();
+            $this->status = 'A new verification link has been sent to your email address.';
+        } catch (\Throwable $e) {
+            logger()->warning('Verification email failed: ' . $e->getMessage());
+            $this->status = 'Unable to send verification email. Please check mail settings or try again later.';
+        }
     }
 
     public function logout(): void

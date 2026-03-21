@@ -9,12 +9,12 @@ class MatchPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['owner', 'admin', 'match_director']);
+        return $user->hasAnyRole(['owner', 'admin', 'match_director']);
     }
 
     public function view(User $user, MatchEvent $match): bool
     {
-        if ($user->hasRole(['owner', 'admin'])) {
+        if ($user->hasAnyRole(['owner', 'admin'])) {
             return true;
         }
 
@@ -23,12 +23,12 @@ class MatchPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['owner', 'admin', 'match_director']);
+        return $user->hasAnyRole(['owner', 'admin', 'match_director']);
     }
 
     public function update(User $user, MatchEvent $match): bool
     {
-        if ($user->hasRole(['owner', 'admin'])) {
+        if ($user->hasAnyRole(['owner', 'admin'])) {
             return true;
         }
 
