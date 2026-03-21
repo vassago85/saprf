@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Models\Category;
+use App\Models\Division;
 use App\Models\MatchEvent;
-use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
-use App\Models\ShooterLog;
-use App\Models\Standing;
 use App\Models\User;
+use App\Services\StandingsCalculationService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -22,54 +22,152 @@ class FederationDemoSeeder extends Seeder
     {
         DB::transaction(function () {
             $provinces = Province::all()->keyBy('abbreviation');
+            $divisions = Division::all()->keyBy('code');
+            $categories = Category::all()->keyBy('code');
+
             $director = User::where('email', 'director@saprf.co.za')->first();
             $admin = User::where('email', 'admin@saprf.co.za')->first();
-            $existingMember = User::where('email', 'member@saprf.co.za')->first();
             $owner = User::where('email', 'owner@saprf.co.za')->first();
+            $existingMember = User::where('email', 'member@saprf.co.za')->first();
 
-            $newUsers = [
-                ['name' => 'Jan van der Berg',    'email' => 'jan@example.co.za',      'province' => 'GP'],
-                ['name' => 'Pieter Joubert',      'email' => 'pieter@example.co.za',    'province' => 'GP'],
-                ['name' => 'Andre Visser',        'email' => 'andre@example.co.za',     'province' => 'WC'],
-                ['name' => 'Christo Muller',       'email' => 'christo@example.co.za',   'province' => 'KZN'],
-                ['name' => 'Willem Botha',        'email' => 'willem@example.co.za',    'province' => 'FS'],
-                ['name' => 'Hennie Pretorius',    'email' => 'hennie@example.co.za',    'province' => 'LP'],
-                ['name' => 'Francois du Plessis', 'email' => 'francois@example.co.za',  'province' => 'MP'],
-                ['name' => 'Danie Swanepoel',     'email' => 'danie@example.co.za',     'province' => 'NW'],
+            $owner?->update(['date_of_birth' => '1980-01-10']);
+            $existingMember?->update(['date_of_birth' => '1988-05-20', 'province_id' => $provinces['FS']->id]);
+
+            // ── 45 Shooters ──
+            // Mix: members/non-members, ladies, juniors, seniors, super-seniors, across provinces and divisions
+            $shooterData = [
+                // GP — Open division shooters (strong field)
+                ['name' => 'Jan van der Berg',       'email' => 'jan@example.co.za',         'prov' => 'GP',  'dob' => '1985-03-15', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Pieter Joubert',         'email' => 'pieter@example.co.za',       'prov' => 'GP',  'dob' => '1990-07-22', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Kobus Venter',           'email' => 'kobus@example.co.za',        'prov' => 'GP',  'dob' => '1987-09-03', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Louis Potgieter',        'email' => 'louis@example.co.za',        'prov' => 'GP',  'dob' => '1983-11-28', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Werner Steyn',           'email' => 'werner@example.co.za',       'prov' => 'GP',  'dob' => '1991-02-14', 'div' => 'production', 'cats' => [],             'member' => true],
+
+                // GP — Ladies
+                ['name' => 'Sarah Thompson',         'email' => 'sarah@example.co.za',        'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['lady'],       'member' => true],
+                ['name' => 'Elzabe Meiring',         'email' => 'elzabe@example.co.za',       'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
+                ['name' => 'Annemarie Fourie',       'email' => 'annemarie@example.co.za',    'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['lady'],       'member' => true],
+
+                // WC — Mixed field
+                ['name' => 'Andre Visser',           'email' => 'andre@example.co.za',        'prov' => 'WC',  'dob' => '1978-11-08', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Rudi Erasmus',           'email' => 'rudi@example.co.za',         'prov' => 'WC',  'dob' => '1975-08-05', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Gerhard Cilliers',       'email' => 'gerhard@example.co.za',      'prov' => 'WC',  'dob' => '1982-05-19', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Jacques Engelbrecht',    'email' => 'jacques@example.co.za',      'prov' => 'WC',  'dob' => '1994-12-01', 'div' => 'limited',    'cats' => [],             'member' => true],
+                ['name' => 'Lizelle Nortje',         'email' => 'lizelle@example.co.za',      'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'production', 'cats' => ['lady'],       'member' => true],
+
+                // KZN
+                ['name' => 'Christo Muller',         'email' => 'christo@example.co.za',      'prov' => 'KZN', 'dob' => '1968-02-14', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
+                ['name' => 'Thabo Mkhize',           'email' => 'thabo@example.co.za',        'prov' => 'KZN', 'dob' => '1986-10-11', 'div' => 'production', 'cats' => [],             'member' => true],
+                ['name' => 'Johan Greyling',         'email' => 'johan@example.co.za',        'prov' => 'KZN', 'dob' => '1979-07-25', 'div' => 'open',       'cats' => [],             'member' => true],
+
+                // FS
+                ['name' => 'Francois du Plessis',    'email' => 'francois@example.co.za',     'prov' => 'FS',  'dob' => '1995-04-25', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Gert Coetzee',           'email' => 'gert@example.co.za',         'prov' => 'FS',  'dob' => '1988-08-16', 'div' => 'production', 'cats' => [],             'member' => true],
+
+                // MP
+                ['name' => 'Dewald Botha',           'email' => 'dewald@example.co.za',       'prov' => 'MP',  'dob' => '1993-01-07', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Pieter-Louis Marais',    'email' => 'pl.marais@example.co.za',    'prov' => 'MP',  'dob' => '1981-06-19', 'div' => 'limited',    'cats' => [],             'member' => true],
+
+                // LP
+                ['name' => 'Hennie Pretorius',       'email' => 'hennie@example.co.za',       'prov' => 'LP',  'dob' => '1960-09-12', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
+                ['name' => 'Sakkie van Wyk',         'email' => 'sakkie@example.co.za',       'prov' => 'LP',  'dob' => '1958-04-03', 'div' => 'production', 'cats' => ['super-senior'], 'member' => true],
+
+                // NW
+                ['name' => 'Danie Swanepoel',        'email' => 'danie@example.co.za',        'prov' => 'NW',  'dob' => '1982-12-01', 'div' => 'open',       'cats' => [],             'member' => true],
+                ['name' => 'Frikkie Bothma',         'email' => 'frikkie@example.co.za',      'prov' => 'NW',  'dob' => '1977-09-28', 'div' => 'factory',    'cats' => [],             'member' => true],
+
+                // NC
+                ['name' => 'Gideon Louw',            'email' => 'gideon@example.co.za',       'prov' => 'NC',  'dob' => '1984-02-11', 'div' => 'open',       'cats' => [],             'member' => true],
+
+                // Juniors (under 21 on 1 Jan 2026)
+                ['name' => 'Willem Botha',           'email' => 'willem@example.co.za',       'prov' => 'FS',  'dob' => '2007-06-30', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
+                ['name' => 'Ethan Steenkamp',        'email' => 'ethan@example.co.za',        'prov' => 'GP',  'dob' => '2008-03-14', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
+                ['name' => 'Marco van Rensburg',     'email' => 'marco@example.co.za',        'prov' => 'WC',  'dob' => '2006-11-22', 'div' => 'limited',    'cats' => ['junior'],     'member' => true],
+                ['name' => 'Nico Jacobs',            'email' => 'nico@example.co.za',         'prov' => 'GP',  'dob' => '2009-08-05', 'div' => 'production', 'cats' => ['junior'],     'member' => true],
+
+                // Sub-junior (under 14)
+                ['name' => 'Liam du Toit',           'email' => 'liam@example.co.za',         'prov' => 'GP',  'dob' => '2012-05-18', 'div' => 'production', 'cats' => ['sub-junior'], 'member' => true],
+
+                // Non-members (no membership — shoot as non-member)
+                ['name' => 'Tommy Wilson',           'email' => 'tommy@example.co.za',        'prov' => 'WC',  'dob' => '1990-10-03', 'div' => 'open',       'cats' => [],             'member' => false],
+                ['name' => 'Craig Adams',            'email' => 'craig@example.co.za',        'prov' => 'GP',  'dob' => '1986-02-28', 'div' => 'production', 'cats' => [],             'member' => false],
+                ['name' => 'Neville Harris',         'email' => 'neville@example.co.za',      'prov' => 'KZN', 'dob' => '1991-07-14', 'div' => 'open',       'cats' => [],             'member' => false],
+                ['name' => 'Mike Pienaar',           'email' => 'mike.p@example.co.za',       'prov' => 'FS',  'dob' => '1985-12-09', 'div' => 'limited',    'cats' => [],             'member' => false],
+                ['name' => 'James Scott',            'email' => 'james.s@example.co.za',      'prov' => 'GP',  'dob' => '1993-05-16', 'div' => 'factory',    'cats' => ['international'], 'member' => false],
+
+                // Lapsed members
+                ['name' => 'Boeta Kruger',           'email' => 'boeta@example.co.za',        'prov' => 'NW',  'dob' => '1976-08-22', 'div' => 'open',       'cats' => [],             'member' => 'lapsed'],
+                ['name' => 'Hein van Niekerk',       'email' => 'hein@example.co.za',         'prov' => 'MP',  'dob' => '1980-03-17', 'div' => 'production', 'cats' => [],             'member' => 'lapsed'],
+
+                // PR22-specific shooters
+                ['name' => 'Riaan Booysen',          'email' => 'riaan@example.co.za',        'prov' => 'GP',  'dob' => '1989-09-30', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
+                ['name' => 'Stefan Maritz',          'email' => 'stefan@example.co.za',       'prov' => 'WC',  'dob' => '1996-01-12', 'div' => 'pr22-open',  'cats' => [],             'member' => true],
+                ['name' => 'Jaco de Beer',           'email' => 'jaco@example.co.za',         'prov' => 'GP',  'dob' => '1984-06-05', 'div' => 'pr22-base',  'cats' => [],             'member' => true],
+                ['name' => 'Marike Viljoen',         'email' => 'marike@example.co.za',       'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'pr22-open',  'cats' => ['lady'],       'member' => true],
+                ['name' => 'Ernst Schoeman',         'email' => 'ernst@example.co.za',        'prov' => 'FS',  'dob' => '1963-04-20', 'div' => 'pr22-base',  'cats' => ['senior'],     'member' => true],
             ];
 
-            $members = [];
-            foreach ($newUsers as $data) {
-                $user = User::firstOrCreate(
+            $allShooters = [];
+            $memberCounter = 1001;
+
+            foreach ($shooterData as $data) {
+                $user = User::updateOrCreate(
                     ['email' => $data['email']],
                     [
                         'name' => $data['name'],
                         'password' => Hash::make('password'),
-                        'province_id' => $provinces[$data['province']]->id,
+                        'province_id' => $provinces[$data['prov']]->id,
+                        'date_of_birth' => $data['dob'],
                     ],
                 );
                 $user->assignRole('member');
-                $members[] = $user;
+
+                if ($data['member'] === true) {
+                    $membership = Membership::firstOrCreate(
+                        ['user_id' => $user->id],
+                        [
+                            'saprf_number' => 'SAPRF-2026-' . str_pad($memberCounter, 4, '0', STR_PAD_LEFT),
+                            'membership_type' => 'paid',
+                            'status' => 'active',
+                            'payment_status' => 'paid',
+                            'start_date' => '2026-01-01',
+                            'expiry_date' => '2026-12-31',
+                        ],
+                    );
+                    MembershipPayment::firstOrCreate(
+                        ['membership_id' => $membership->id, 'payment_reference' => 'SEED-PAY-' . $memberCounter],
+                        ['amount' => 350.00, 'payment_date' => '2026-01-05', 'payment_method' => 'eft', 'status' => 'confirmed'],
+                    );
+                    $memberCounter++;
+                } elseif ($data['member'] === 'lapsed') {
+                    Membership::firstOrCreate(
+                        ['user_id' => $user->id],
+                        [
+                            'saprf_number' => 'SAPRF-2025-' . str_pad($memberCounter, 4, '0', STR_PAD_LEFT),
+                            'membership_type' => 'paid',
+                            'status' => 'lapsed',
+                            'payment_status' => 'paid',
+                            'start_date' => '2025-01-01',
+                            'expiry_date' => '2025-12-31',
+                        ],
+                    );
+                    $memberCounter++;
+                }
+
+                $allShooters[] = [
+                    'user' => $user,
+                    'div_code' => $data['div'],
+                    'cat_codes' => $data['cats'],
+                    'is_member' => $data['member'] === true,
+                ];
             }
 
-            // ── Active paid members ──────────────────────────────────
-            $activeUsers = collect([
-                $existingMember,             // member@saprf.co.za (FS)
-                $members[0],                 // Jan (GP)
-                $members[1],                 // Pieter (GP)
-                $members[2],                 // Andre (WC)
-                $members[3],                 // Christo (KZN)
-                $members[4],                 // Willem (FS)
-                $members[5],                 // Hennie (LP)
-                $members[6],                 // Francois (MP)
-            ]);
-
-            $counter = 1001;
-            foreach ($activeUsers as $user) {
-                $membership = Membership::firstOrCreate(
-                    ['user_id' => $user->id],
+            // Also include existing member user
+            if ($existingMember) {
+                Membership::firstOrCreate(
+                    ['user_id' => $existingMember->id],
                     [
-                        'saprf_number' => 'SAPRF-2026-' . str_pad($counter, 4, '0', STR_PAD_LEFT),
+                        'saprf_number' => 'SAPRF-2026-0500',
                         'membership_type' => 'paid',
                         'status' => 'active',
                         'payment_status' => 'paid',
@@ -77,349 +175,167 @@ class FederationDemoSeeder extends Seeder
                         'expiry_date' => '2026-12-31',
                     ],
                 );
-
-                MembershipPayment::firstOrCreate(
-                    ['membership_id' => $membership->id, 'payment_reference' => 'SEED-PAY-' . $counter],
-                    [
-                        'amount' => 350.00,
-                        'payment_date' => '2026-01-05',
-                        'payment_method' => 'eft',
-                        'status' => 'confirmed',
-                    ],
-                );
-
-                $counter++;
+                $allShooters[] = [
+                    'user' => $existingMember,
+                    'div_code' => 'open',
+                    'cat_codes' => [],
+                    'is_member' => true,
+                ];
             }
 
-            // Lapsed member (Danie)
-            Membership::firstOrCreate(
-                ['user_id' => $members[7]->id],
-                [
-                    'saprf_number' => 'SAPRF-2025-2001',
-                    'membership_type' => 'paid',
-                    'status' => 'lapsed',
-                    'payment_status' => 'paid',
-                    'start_date' => '2025-01-01',
-                    'expiry_date' => '2025-12-31',
-                ],
-            );
-
-            // Owner - recently lapsed (grace period testing)
-            Membership::firstOrCreate(
-                ['user_id' => $owner->id],
-                [
-                    'saprf_number' => 'SAPRF-2026-0099',
-                    'membership_type' => 'paid',
-                    'status' => 'lapsed',
-                    'payment_status' => 'paid',
-                    'start_date' => '2025-04-01',
-                    'expiry_date' => now()->subDays(3)->toDateString(),
-                ],
-            );
-
-            // ── 2026 Match Calendar ──────────────────────────────────
+            // ── 2026 Match Calendar ──
             $matchData = [
-                // PRS National (7 matches)
-                ['name' => 'Gauteng PRS Open 2026',         'type' => 'PRS', 'level' => 'national',   'prov' => 'GP',  'date' => '2026-01-25', 'status' => 'completed', 'venue' => 'Pretoria Shooting Range',        'city' => 'Pretoria',        'max' => 40, 'featured' => true],
-                ['name' => 'Western Cape PRS Championship',  'type' => 'PRS', 'level' => 'national',   'prov' => 'WC',  'date' => '2026-02-22', 'status' => 'completed', 'venue' => 'False Bay Rifle Club',          'city' => 'Cape Town',       'max' => 40, 'featured' => true],
-                ['name' => 'KZN PRS Invitational 2026',     'type' => 'PRS', 'level' => 'national',   'prov' => 'KZN', 'date' => '2026-03-15', 'status' => 'completed', 'venue' => 'Durban Precision Rifle Club',   'city' => 'Durban',          'max' => 36, 'featured' => false],
-                ['name' => 'Mpumalanga PRS Open 2026',       'type' => 'PRS', 'level' => 'national',   'prov' => 'MP',  'date' => '2026-04-12', 'status' => 'open',      'venue' => 'Nelspruit Long Range',          'city' => 'Nelspruit',       'max' => 40, 'featured' => true],
-                ['name' => 'Free State PRS National 2026',   'type' => 'PRS', 'level' => 'national',   'prov' => 'FS',  'date' => '2026-05-24', 'status' => 'open',      'venue' => 'Bloemfontein Shooting Complex', 'city' => 'Bloemfontein',    'max' => 36, 'featured' => false],
-                ['name' => 'Limpopo PRS Shootout 2026',      'type' => 'PRS', 'level' => 'national',   'prov' => 'LP',  'date' => '2026-07-19', 'status' => 'draft',     'venue' => 'Polokwane Rifle Range',         'city' => 'Polokwane',       'max' => 30, 'featured' => false],
-                ['name' => 'PRS National Final 2026',        'type' => 'PRS', 'level' => 'final',      'prov' => 'GP',  'date' => '2026-09-20', 'status' => 'draft',     'venue' => 'Centurion Rifle Range',         'city' => 'Centurion',       'max' => 30, 'featured' => true],
+                ['name' => 'Centrefire NW 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'NW', 'date' => '2026-02-14', 'end' => '2026-02-15', 'status' => 'completed', 'venue' => 'NW Klerksdorp', 'city' => 'Klerksdorp', 'max' => 40, 'featured' => true, 'dual_provincial' => true],
+                ['name' => 'Centrefire WC 2-Day National — Wolseley', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-03-07', 'end' => '2026-03-08', 'status' => 'completed', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 40, 'featured' => true, 'dual_provincial' => true],
+                ['name' => 'Rimfire PR22 GP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 30, 'featured' => false, 'dual_provincial' => false],
 
-                // PR22 National (5 matches)
-                ['name' => 'Gauteng PR22 National 2026',     'type' => 'PR22', 'level' => 'national',  'prov' => 'GP',  'date' => '2026-02-01', 'status' => 'completed', 'venue' => 'Johannesburg Rimfire Centre',   'city' => 'Johannesburg',    'max' => 30, 'featured' => false],
-                ['name' => 'Western Cape PR22 Open 2026',    'type' => 'PR22', 'level' => 'national',  'prov' => 'WC',  'date' => '2026-03-08', 'status' => 'completed', 'venue' => 'Stellenbosch Shooting Club',    'city' => 'Stellenbosch',    'max' => 30, 'featured' => false],
-                ['name' => 'KZN PR22 Championship 2026',     'type' => 'PR22', 'level' => 'national',  'prov' => 'KZN', 'date' => '2026-04-26', 'status' => 'open',      'venue' => 'Pietermaritzburg Rifle Club',   'city' => 'Pietermaritzburg','max' => 30, 'featured' => false],
-                ['name' => 'Free State PR22 Open 2026',      'type' => 'PR22', 'level' => 'national',  'prov' => 'FS',  'date' => '2026-06-14', 'status' => 'open',      'venue' => 'Bloemfontein Shooting Complex', 'city' => 'Bloemfontein',    'max' => 28, 'featured' => false],
-                ['name' => 'PR22 National Final 2026',       'type' => 'PR22', 'level' => 'final',     'prov' => 'GP',  'date' => '2026-08-23', 'status' => 'draft',     'venue' => 'Johannesburg Rimfire Centre',   'city' => 'Johannesburg',    'max' => 24, 'featured' => true],
+                ['name' => 'Centrefire GP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-06-20', 'end' => '2026-06-21', 'status' => 'draft', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 40, 'featured' => true],
+                ['name' => 'Centrefire MP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-07-11', 'end' => '2026-07-12', 'status' => 'draft', 'venue' => 'Lydenburg', 'city' => 'Lydenburg', 'max' => 40, 'featured' => false],
+                ['name' => 'Centrefire LP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09', 'status' => 'draft', 'venue' => 'Marble Hall', 'city' => 'Marble Hall', 'max' => 40, 'featured' => false],
+                ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25', 'status' => 'draft', 'venue' => 'Darling Steel Valley', 'city' => 'Darling', 'max' => 40, 'featured' => false],
+                ['name' => 'Centrefire GP 2-Day Championship', 'type' => 'PRS', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-21', 'end' => '2026-11-22', 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 30, 'featured' => true],
 
-                // PRS Provincial (4 matches)
-                ['name' => 'GP PRS Provincial Jan 2026',     'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP',  'date' => '2026-01-18', 'status' => 'completed', 'venue' => 'Centurion Rifle Range',         'city' => 'Centurion',       'max' => 25, 'featured' => false],
-                ['name' => 'WC PRS Provincial 2026',         'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC',  'date' => '2026-02-08', 'status' => 'completed', 'venue' => 'Paarl Target Club',             'city' => 'Paarl',           'max' => 20, 'featured' => false],
-                ['name' => 'KZN PRS Provincial 2026',        'type' => 'PRS', 'level' => 'provincial', 'prov' => 'KZN', 'date' => '2026-03-08', 'status' => 'completed', 'venue' => 'Hilton Shooting Club',          'city' => 'Hilton',          'max' => 20, 'featured' => false],
-                ['name' => 'GP PRS Provincial Apr 2026',     'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP',  'date' => '2026-04-19', 'status' => 'open',      'venue' => 'Pretoria Shooting Range',       'city' => 'Pretoria',        'max' => 25, 'featured' => false],
+                ['name' => 'Centrefire FS Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'FS', 'date' => '2026-04-18', 'end' => null, 'status' => 'open', 'venue' => 'Bloemfontein', 'city' => 'Bloemfontein', 'max' => 25, 'featured' => false],
+                ['name' => 'Centre Fire GP Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-02', 'end' => null, 'status' => 'open', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 25, 'featured' => false],
+                ['name' => 'Centrefire WC Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null, 'status' => 'draft', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 25, 'featured' => false],
 
-                // PR22 Provincial (3 matches)
-                ['name' => 'GP PR22 Provincial 2026',        'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-02-15', 'status' => 'completed', 'venue' => 'Johannesburg Rimfire Centre',   'city' => 'Johannesburg',    'max' => 20, 'featured' => false],
-                ['name' => 'WC PR22 Provincial 2026',        'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-03-01', 'status' => 'completed', 'venue' => 'Stellenbosch Shooting Club',    'city' => 'Stellenbosch',    'max' => 20, 'featured' => false],
-                ['name' => 'WC PR22 Provincial Apr 2026',    'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-04-05', 'status' => 'open',      'venue' => 'Paarl Target Club',             'city' => 'Paarl',           'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 MP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30', 'status' => 'draft', 'venue' => 'TBC - Mpumalanga', 'city' => 'Mpumalanga', 'max' => 30, 'featured' => false],
+                ['name' => 'Rimfire PR22 GP Championship', 'type' => 'PR22', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08', 'status' => 'draft', 'venue' => 'TBC - Gauteng', 'city' => 'Gauteng', 'max' => 24, 'featured' => true],
+
+                ['name' => 'Rimfire PR22 MP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-04-11', 'end' => null, 'status' => 'open', 'venue' => 'Balmoral Hunting Farm', 'city' => 'Balmoral', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 GP Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-23', 'end' => null, 'status' => 'draft', 'venue' => "Leopard's Valley", 'city' => 'Gauteng', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 WC Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-05-30', 'end' => null, 'status' => 'draft', 'venue' => 'TBC - Western Cape', 'city' => 'Western Cape', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 WC Provincial Jun', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-06-14', 'end' => null, 'status' => 'draft', 'venue' => 'Atlantis Shooting Range', 'city' => 'Atlantis', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 LP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'LP', 'date' => '2026-07-18', 'end' => null, 'status' => 'draft', 'venue' => 'Risla Range', 'city' => 'Limpopo', 'max' => 20, 'featured' => false],
+                ['name' => 'Rimfire PR22 GP Provincial Aug', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null, 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 20, 'featured' => false],
             ];
 
-            $matches = [];
+            $completedPrsMatches = [];
+            $completedPr22Matches = [];
+
             foreach ($matchData as $data) {
                 $regOpen = date('Y-m-d', strtotime($data['date'] . ' -30 days'));
                 $regClose = date('Y-m-d', strtotime($data['date'] . ' -5 days'));
-
                 $fee = $data['level'] === 'provincial' ? 350.00 : 500.00;
 
-                $match = MatchEvent::firstOrCreate(
-                    ['name' => $data['name']],
-                    [
-                        'match_type' => $data['type'],
-                        'series_level' => $data['level'],
-                        'series' => $data['type'],
-                        'season' => '2026',
-                        'province_id' => $provinces[$data['prov']]->id,
-                        'venue_name' => $data['venue'],
-                        'venue_location' => $data['city'] . ', ' . $provinces[$data['prov']]->name,
-                        'city' => $data['city'],
-                        'match_date' => $data['date'],
-                        'registration_open_date' => $regOpen,
-                        'registration_close_date' => $regClose,
-                        'status' => $data['status'],
-                        'created_by' => $director->id,
-                        'active_member_fee' => $fee,
-                        'non_member_fee' => $fee + 250,
-                        'lapsed_member_fee' => $fee + 150,
-                        'max_competitors' => $data['max'],
-                        'waitlist_enabled' => $data['max'] <= 30,
-                        'is_featured' => $data['featured'],
-                        'published' => $data['status'] !== 'draft' || $data['featured'],
-                    ],
-                );
-                $matches[] = $match;
-            }
+                $matchAttrs = [
+                    'match_type' => $data['type'],
+                    'series_level' => $data['level'],
+                    'series' => $data['type'],
+                    'season' => '2026',
+                    'province_id' => $provinces[$data['prov']]->id,
+                    'venue_name' => $data['venue'],
+                    'venue_location' => $data['city'] . ', ' . $provinces[$data['prov']]->name,
+                    'city' => $data['city'],
+                    'match_date' => $data['date'],
+                    'match_end_date' => $data['end'],
+                    'registration_open_date' => $regOpen,
+                    'registration_close_date' => $regClose,
+                    'status' => $data['status'],
+                    'created_by' => $director->id,
+                    'active_member_fee' => $fee,
+                    'non_member_fee' => $fee + 250,
+                    'lapsed_member_fee' => $fee + 150,
+                    'max_competitors' => $data['max'],
+                    'waitlist_enabled' => $data['max'] <= 30,
+                    'is_featured' => $data['featured'],
+                    'published' => true,
+                    'category_rankings_enabled' => true,
+                    'division_awards_enabled' => true,
+                ];
 
-            // ── Match registrations ──────────────────────────────────
-            $registrableMatches = collect($matches)->filter(
-                fn ($m) => in_array($m->status, ['completed', 'open']),
-            );
-
-            foreach ($registrableMatches as $match) {
-                foreach ($activeUsers as $user) {
-                    MatchRegistration::firstOrCreate(
-                        ['match_id' => $match->id, 'user_id' => $user->id],
-                        [
-                            'shooter_name' => $user->name,
-                            'email' => $user->email,
-                            'membership_fee_category' => 'active',
-                            'fee_amount' => $match->active_member_fee,
-                            'payment_status' => 'paid',
-                            'registration_status' => 'confirmed',
-                            'registered_at' => $match->registration_open_date?->addDays(rand(1, 10)),
-                        ],
-                    );
+                if (!empty($data['dual_provincial'])) {
+                    $matchAttrs['also_counts_for_provincial'] = true;
+                    $matchAttrs['provincial_stage_columns'] = 'stage_1,stage_2,stage_3,stage_4,stage_5,stage_6,stage_7,stage_8,stage_9,stage_10';
                 }
 
-                // Lapsed (Danie) - registered for completed matches
-                if ($match->status === 'completed') {
-                    MatchRegistration::firstOrCreate(
-                        ['match_id' => $match->id, 'user_id' => $members[7]->id],
-                        [
-                            'shooter_name' => $members[7]->name,
-                            'email' => $members[7]->email,
-                            'membership_fee_category' => 'lapsed',
-                            'fee_amount' => $match->lapsed_member_fee,
-                            'payment_status' => 'paid',
-                            'registration_status' => 'confirmed',
-                            'registered_at' => $match->registration_open_date?->addDays(rand(1, 5)),
-                        ],
-                    );
-                }
+                $match = MatchEvent::firstOrCreate(['name' => $data['name']], $matchAttrs);
 
-                // Admin (non-member) on some completed PRS matches
-                if ($match->match_type === 'PRS' && $match->status === 'completed') {
-                    MatchRegistration::firstOrCreate(
-                        ['match_id' => $match->id, 'user_id' => $admin->id],
-                        [
-                            'shooter_name' => $admin->name,
-                            'email' => $admin->email,
-                            'membership_fee_category' => 'non_member',
-                            'fee_amount' => $match->non_member_fee,
-                            'payment_status' => 'paid',
-                            'registration_status' => 'confirmed',
-                            'registered_at' => $match->registration_open_date?->addDays(2),
-                        ],
-                    );
+                $matchDivisions = $data['type'] === 'PRS'
+                    ? $divisions->filter(fn ($d) => in_array($d->discipline, ['PRS', 'both']))->pluck('id')
+                    : $divisions->filter(fn ($d) => in_array($d->discipline, ['PR22', 'both']))->pluck('id');
+                $match->divisions()->syncWithoutDetaching($matchDivisions);
+
+                if ($data['status'] === 'completed' && $data['type'] === 'PRS') {
+                    $completedPrsMatches[] = $match;
+                }
+                if ($data['status'] === 'completed' && $data['type'] === 'PR22') {
+                    $completedPr22Matches[] = $match;
                 }
             }
 
-            // ── Scores for completed matches ─────────────────────────
-            // Varied performance profiles per shooter across matches
-            // Lower index = generally better shooter but with variance
-            $performanceSeeds = [
-                // [base_skill, consistency] — higher skill = better, higher consistency = less variance
-                [95, 85],  // existingMember - solid
-                [92, 80],  // Jan - strong
-                [90, 90],  // Pieter - very consistent
-                [88, 75],  // Andre - good but variable
-                [85, 82],  // Christo - mid-strong
-                [80, 78],  // Willem - mid
-                [76, 70],  // Hennie - developing
-                [72, 65],  // Francois - newer
-            ];
-
-            $completedMatches = collect($matches)->filter(fn ($m) => $m->status === 'completed');
-            $divisions = ['Open', 'Production', 'Heavy'];
-            $matchIndex = 0;
-
-            foreach ($completedMatches as $match) {
-                $shooterScores = [];
-
-                foreach ($activeUsers as $idx => $user) {
-                    [$skill, $consistency] = $performanceSeeds[$idx];
-                    $variance = (100 - $consistency) * 0.5;
-                    $performanceRoll = $skill + rand((int) -$variance, (int) $variance);
-                    $rawScore = round(max(150, min(480, 350 + ($performanceRoll - 75) * 3.5 + rand(-30, 30) / 10)), 3);
-
-                    $shooterScores[] = [
-                        'user' => $user,
-                        'raw_score' => $rawScore,
-                        'division' => $divisions[$idx % count($divisions)],
-                        'is_member' => true,
-                        'status' => 'valid',
-                        'validation_reason' => null,
-                    ];
-                }
-
-                // Sort by raw_score descending to assign placements
-                usort($shooterScores, fn ($a, $b) => $b['raw_score'] <=> $a['raw_score']);
-
-                $placement = 1;
-                foreach ($shooterScores as $entry) {
-                    Score::firstOrCreate(
-                        ['match_id' => $match->id, 'user_id' => $entry['user']->id],
-                        [
-                            'shooter_name' => $entry['user']->name,
-                            'raw_score' => $entry['raw_score'],
-                            'placement' => $placement,
-                            'division' => $entry['division'],
-                            'category' => 'Senior',
-                            'is_member' => $entry['is_member'],
-                            'status' => $entry['status'],
-                            'validation_reason' => $entry['validation_reason'],
-                            'match_date' => $match->match_date,
-                        ],
-                    );
-                    $placement++;
-                }
-
-                // Non-member (admin) on PRS completed matches
-                if ($match->match_type === 'PRS') {
-                    Score::firstOrCreate(
-                        ['match_id' => $match->id, 'user_id' => $admin->id],
-                        [
-                            'shooter_name' => $admin->name,
-                            'raw_score' => round(280.0 + rand(-50, 50) / 10, 3),
-                            'placement' => $placement,
-                            'division' => 'Open',
-                            'category' => 'Senior',
-                            'is_member' => false,
-                            'status' => 'invalid',
-                            'validation_reason' => 'No active SAPRF membership at time of match.',
-                            'match_date' => $match->match_date,
-                        ],
-                    );
-                    $placement++;
-                }
-
-                // Lapsed (Danie) - pending score
-                Score::firstOrCreate(
-                    ['match_id' => $match->id, 'user_id' => $members[7]->id],
-                    [
-                        'shooter_name' => $members[7]->name,
-                        'raw_score' => round(320.0 + rand(-30, 30) / 10, 3),
-                        'placement' => $placement,
-                        'division' => 'Production',
-                        'category' => 'Senior',
-                        'is_member' => false,
-                        'status' => 'pending',
-                        'validation_reason' => 'Membership lapsed — awaiting renewal within 7-day grace period.',
-                        'match_date' => $match->match_date,
-                    ],
-                );
-
-                $matchIndex++;
-            }
-
-            // ── Shooter logs ─────────────────────────────────────────
-            $validScores = Score::where('status', 'valid')->get();
-            foreach ($validScores as $score) {
-                ShooterLog::firstOrCreate(
-                    ['score_id' => $score->id],
-                    [
-                        'user_id' => $score->user_id,
-                        'match_id' => $score->match_id,
-                        'counted' => true,
-                        'notes' => "{$score->division} division, placement #{$score->placement}.",
-                    ],
-                );
-            }
-
-            // ── Qualification rules ──────────────────────────────────
+            // ── Qualification Rules ──
             QualificationRule::firstOrCreate(
                 ['series' => 'PRS', 'season' => '2026'],
-                ['min_out_of_province_matches' => 2, 'created_by' => $admin->id],
+                ['min_out_of_province_matches' => 2, 'best_of_count' => 5, 'total_qualifying_matches' => 7, 'created_by' => $admin->id],
             );
             QualificationRule::firstOrCreate(
                 ['series' => 'PR22', 'season' => '2026'],
-                ['min_out_of_province_matches' => 1, 'created_by' => $admin->id],
+                ['min_out_of_province_matches' => 1, 'best_of_count' => 4, 'total_qualifying_matches' => 6, 'created_by' => $admin->id],
             );
 
-            // ── Standings ────────────────────────────────────────────
-            // National standings (province_id = null) from national matches
-            $this->seedStandings('PRS', '2026', 'national', null);
-            $this->seedStandings('PR22', '2026', 'national', null);
+            // ── Generate Scores for Completed Matches ──
+            $prsShooters = collect($allShooters)->filter(fn ($s) => str_starts_with($s['div_code'], 'pr22') === false);
+            $pr22Shooters = collect($allShooters)->filter(fn ($s) => str_starts_with($s['div_code'], 'pr22'));
 
-            // Provincial standings per province that had provincial matches
-            foreach (['GP', 'WC', 'KZN'] as $abbr) {
-                $prov = $provinces[$abbr];
-                $this->seedStandings('PRS', '2026', 'provincial', $prov->id);
+            $standingsService = app(StandingsCalculationService::class);
+            $seedIndex = 42;
+
+            foreach ($completedPrsMatches as $match) {
+                $this->seedMatchScores($match, $prsShooters->values(), $divisions, $categories, $seedIndex);
+                $standingsService->recalculateForMatch($match);
+                $seedIndex += 7;
             }
-            foreach (['GP', 'WC'] as $abbr) {
-                $prov = $provinces[$abbr];
-                $this->seedStandings('PR22', '2026', 'provincial', $prov->id);
+
+            foreach ($completedPr22Matches as $match) {
+                $this->seedMatchScores($match, $pr22Shooters->values(), $divisions, $categories, $seedIndex);
+                $standingsService->recalculateForMatch($match);
+                $seedIndex += 7;
             }
         });
     }
 
-    private function seedStandings(string $series, string $season, string $level, ?int $provinceId): void
+    private function seedMatchScores($match, $shooters, $divisions, $categories, int $seed): void
     {
-        $scores = Score::where('status', 'valid')
-            ->whereNotNull('user_id')
-            ->whereHas('match', function ($q) use ($series, $season, $level, $provinceId) {
-                $q->where('series', $series)
-                    ->where('season', $season)
-                    ->where('series_level', $level);
+        $rng = mt_rand(0, 100);
+        mt_srand($seed);
 
-                if ($provinceId !== null) {
-                    $q->where('province_id', $provinceId);
-                }
-            })
-            ->get()
-            ->groupBy('user_id');
+        foreach ($shooters as $idx => $shooter) {
+            $user = $shooter['user'];
+            $divCode = $shooter['div_code'];
+            $catCodes = $shooter['cat_codes'];
+            $divisionId = $divisions[$divCode]?->id;
 
-        $standings = [];
-        foreach ($scores as $userId => $userScores) {
-            $points = $userScores->sum(function ($score) {
-                return $score->placement ? max(0, 101 - $score->placement) : 0;
-            });
+            $baseScore = 55 - ($idx * 0.8);
+            $variance = (mt_rand(-30, 30)) / 10;
+            $rawScore = max(5, min(60, round($baseScore + $variance, 1)));
 
-            $standings[] = [
-                'user_id' => $userId,
-                'points' => $points,
-            ];
-        }
+            $provincialRawScore = null;
+            if ($match->also_counts_for_provincial) {
+                $provincialRawScore = round($rawScore * (0.45 + (mt_rand(0, 20) / 100)), 1);
+            }
 
-        usort($standings, fn ($a, $b) => $b['points'] <=> $a['points']);
-
-        Standing::where('series', $series)
-            ->where('season', $season)
-            ->where('province_id', $provinceId)
-            ->delete();
-
-        $rank = 1;
-        foreach ($standings as $entry) {
-            Standing::create([
-                'user_id' => $entry['user_id'],
-                'series' => $series,
-                'season' => $season,
-                'province_id' => $provinceId,
-                'points' => $entry['points'],
-                'rank' => $rank++,
+            $score = Score::create([
+                'match_id' => $match->id,
+                'shooter_name' => $user->name,
+                'user_id' => $user->id,
+                'raw_score' => $rawScore,
+                'provincial_raw_score' => $provincialRawScore,
+                'placement' => null,
+                'division_id' => $divisionId,
+                'is_member' => $shooter['is_member'],
+                'status' => 'valid',
+                'match_date' => $match->match_date,
+                'counts_for_season' => true,
             ]);
+
+            foreach ($catCodes as $catCode) {
+                if (isset($categories[$catCode])) {
+                    $score->categories()->attach($categories[$catCode]->id);
+                }
+            }
         }
+
+        mt_srand();
     }
 }

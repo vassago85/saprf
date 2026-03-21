@@ -14,5 +14,7 @@
 </head>
 <body class="force-light min-h-screen bg-white antialiased font-sans" style="color: #1c1917;">
     {{ $slot }}
+
+    @fluxScripts
 </body>
 </html>

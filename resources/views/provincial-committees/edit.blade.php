@@ -26,7 +26,7 @@
             <div class="grid sm:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-stone-700 mb-1">Province</label>
-                    <input type="text" value="{{ $appointment->province }}" disabled
+                    <input type="text" value="{{ $appointment->province->name ?? '—' }}" disabled
                         class="w-full rounded-lg border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-500">
                 </div>
 

@@ -15,7 +15,7 @@
             {{-- Match Summary --}}
             <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 mb-6">
                 <div class="flex items-start gap-4">
-                    <x-date-badge :date="$match->match_date" :compact="true" />
+                    <x-date-badge :date="$match->match_date" :end-date="$match->match_end_date" :compact="true" />
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap gap-2 mb-2">
                             <x-discipline-chip :discipline="$match->match_type" />

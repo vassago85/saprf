@@ -38,7 +38,13 @@
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</dt>
-                        <dd class="mt-1.5 text-sm text-stone-900">{{ $match->match_date->format('d M Y') }}</dd>
+                        <dd class="mt-1.5 text-sm text-stone-900">
+                            {{ $match->match_date->format('d M Y') }}
+                            @if($match->isMultiDay())
+                                – {{ $match->match_end_date->format('d M Y') }}
+                                <span class="text-xs text-stone-400 ml-1">({{ $match->match_date->diffInDays($match->match_end_date) + 1 }} days)</span>
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Venue</dt>

@@ -69,7 +69,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Registered</dt>
-                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->created_at->format('d M Y H:i') }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900">{{ ($registration->registered_at ?? $registration->created_at)->format('d M Y H:i') }}</dd>
                 </div>
                 @if($registration->match?->match_date)
                 <div>

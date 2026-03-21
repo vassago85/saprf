@@ -1,4 +1,7 @@
-@php $showProvince = $showProvince ?? true; @endphp
+@php
+    $showProvince = $showProvince ?? true;
+    $showDivision = $showDivision ?? false;
+@endphp
 
 @if($standings->isEmpty())
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
@@ -16,6 +19,9 @@
                     <tr class="border-b-2 border-stone-200 bg-stone-50/50">
                         <th class="px-4 sm:px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-16">Rank</th>
                         <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
+                        @if($showDivision)
+                            <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division</th>
+                        @endif
                         @if($showProvince)
                             <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Province</th>
                         @endif
@@ -42,11 +48,21 @@
                                    class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
                                     {{ $standing->user->name ?? '—' }}
                                 </a>
+                                @if($showDivision)
+                                    <span class="sm:hidden block text-xs text-stone-400 mt-0.5">{{ $standing->division?->name ?? '—' }}</span>
+                                @endif
                                 @if($showProvince)
                                     @php $prov = $standing->province ?? $standing->user?->province; @endphp
                                     <span class="sm:hidden block text-xs text-stone-400 mt-0.5">{{ $prov->abbreviation ?? $prov->name ?? '—' }}</span>
                                 @endif
                             </td>
+                            @if($showDivision)
+                                <td class="px-4 sm:px-5 py-4 hidden sm:table-cell">
+                                    <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                                        {{ $standing->division?->name ?? '—' }}
+                                    </span>
+                                </td>
+                            @endif
                             @if($showProvince)
                                 @php $prov = $standing->province ?? $standing->user?->province; @endphp
                                 <td class="px-4 sm:px-5 py-4 hidden sm:table-cell">

@@ -45,6 +45,8 @@ class MatchController extends Controller
     public function store(StoreMatchRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $divisionIds = $validated['divisions'] ?? [];
+        unset($validated['divisions']);
         $baseFee = (float) ($validated['active_member_fee'] ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
         $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
@@ -58,6 +60,8 @@ class MatchController extends Controller
             'lapsed_member_fee' => $baseFee + $lapsedSurcharge,
             'published' => ($validated['status'] ?? 'draft') !== 'draft',
         ]);
+
+        $match->divisions()->sync($divisionIds);
 
         $this->auditLogService->log(
             $request->user(),
@@ -92,7 +96,13 @@ class MatchController extends Controller
     {
         $old = $match->toArray();
 
-        $match->update($request->validated());
+        $validated = $request->validated();
+        $divisionIds = $validated['divisions'] ?? [];
+        unset($validated['divisions']);
+
+        $match->update($validated);
+
+        $match->divisions()->sync($divisionIds);
 
         $this->auditLogService->log(
             $request->user(),
@@ -238,7 +248,7 @@ class MatchController extends Controller
 
     public function publicShow(MatchEvent $match): View
     {
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->orderBy('placement')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->with('division')->orderBy('overall_rank')]);
         $match->loadCount(['registrations', 'scores']);
 
         $userRegistration = Auth::check()
@@ -263,7 +273,7 @@ class MatchController extends Controller
             ->whereBetween('match_date', [$start, $end])
             ->forDiscipline($discipline)
             ->orderBy('match_date')
-            ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'status', 'venue_name', 'venue_location', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee', 'created_by']);
+            ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'match_end_date', 'status', 'venue_name', 'venue_location', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee', 'created_by']);
 
         $grouped = $events->groupBy(fn ($e) => $e->match_date->format('Y-m-d'))->map(function ($dayEvents) {
             return $dayEvents->map(fn ($e) => [
@@ -278,6 +288,8 @@ class MatchController extends Controller
                 'status' => $e->registration_status,
                 'match_status' => $e->status,
                 'member_fee' => (float) $e->active_member_fee,
+                'match_end_date' => $e->match_end_date?->format('Y-m-d'),
+                'multi_day' => $e->isMultiDay(),
             ]);
         });
 

@@ -56,10 +56,12 @@ test('classifyRegistrationCategory returns active_member for valid member', func
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-TEST-004',
+        'membership_type' => 'paid',
         'status' => 'active',
         'payment_status' => 'paid',
         'expiry_date' => Carbon::today()->addYear(),
     ]);
+    $user->refresh();
     expect($this->service->classifyRegistrationCategory($user, Carbon::today()))->toBe('active_member');
 });
 
@@ -68,10 +70,12 @@ test('classifyRegistrationCategory returns lapsed_member for expired member', fu
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-TEST-005',
+        'membership_type' => 'paid',
         'status' => 'expired',
         'payment_status' => 'paid',
         'expiry_date' => Carbon::today()->subMonth(),
     ]);
+    $user->refresh();
     expect($this->service->classifyRegistrationCategory($user, Carbon::today()))->toBe('lapsed_member');
 });
 

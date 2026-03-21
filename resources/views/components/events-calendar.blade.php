@@ -95,6 +95,9 @@
                             }" class="text-[10px] font-bold uppercase tracking-wider" x-text="ev.status"></span>
                         </div>
                         <a :href="'/events/' + ev.id" class="text-sm font-semibold text-stone-900 hover:text-emerald-800 transition" x-text="ev.name"></a>
+                        <template x-if="ev.multi_day">
+                            <p class="text-[10px] font-semibold text-indigo-600 mt-0.5">2-Day Event</p>
+                        </template>
                         <div class="mt-1.5 space-y-0.5">
                             <template x-if="ev.venue_name">
                                 <p class="flex items-center gap-1.5 text-xs text-stone-700">

@@ -16,13 +16,19 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->decimal('raw_score', 10, 3)->default(0);
             $table->unsignedInteger('placement')->nullable();
-            $table->string('division')->nullable();
-            $table->string('category')->nullable();
+            $table->foreignId('division_id')->nullable()->constrained('divisions')->nullOnDelete();
+            $table->unsignedInteger('total_possible_shots')->nullable();
+            $table->decimal('hit_percentage', 6, 3)->nullable();
+            $table->decimal('normalized_score', 8, 4)->nullable();
+            $table->unsignedInteger('overall_rank')->nullable();
+            $table->unsignedInteger('division_rank')->nullable();
             $table->boolean('is_member')->default(false);
             $table->string('status')->default('pending');
             $table->text('validation_reason')->nullable();
             $table->date('match_date');
             $table->json('raw_meta')->nullable();
+            $table->boolean('counts_for_log')->default(true);
+            $table->boolean('counts_for_season')->default(true);
             $table->timestamps();
 
             $table->index(['match_id', 'status']);

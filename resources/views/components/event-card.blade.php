@@ -2,11 +2,8 @@
 
 @php
     $regStatus = $match->registration_status;
+    $effectiveEnd = $match->match_end_date ?? $match->match_date;
     $daysAway = $match->match_date->isFuture() ? (int) now()->diffInDays($match->match_date, false) : null;
-    $closingSoon = $match->registration_close_date
-        && $match->registration_close_date->isFuture()
-        && $match->registration_close_date->diffInDays(now()) <= 3;
-
     $userReg = auth()->check() ? $match->userRegistration(auth()->user()) : null;
 @endphp
 
@@ -15,7 +12,7 @@
     <div class="p-5 flex flex-col flex-1">
         {{-- Top row: date badge + urgency cue --}}
         <div class="flex items-start justify-between gap-3 mb-3">
-            <x-date-badge :date="$match->match_date" :compact="true" />
+            <x-date-badge :date="$match->match_date" :end-date="$match->match_end_date" :compact="true" />
 
             <div class="flex flex-col items-end gap-1.5">
                 @if($match->is_featured)
@@ -25,9 +22,6 @@
                     <span class="text-[10px] font-bold uppercase tracking-wider {{ $daysAway <= 3 ? 'text-red-600' : 'text-amber-600' }}">
                         {{ $daysAway === 0 ? 'Today' : ($daysAway === 1 ? 'Tomorrow' : $daysAway . 'd away') }}
                     </span>
-                @endif
-                @if($closingSoon)
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-red-500">Closing soon</span>
                 @endif
             </div>
         </div>

@@ -17,6 +17,8 @@ use App\Http\Controllers\ScoreImportController;
 use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\SponsorTierController;
+use App\Http\Controllers\DivisionController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +28,8 @@ use Livewire\Volt\Volt;
 // ── Public Pages ──
 
 Route::view('/', 'welcome');
+Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
+Route::view('/terms', 'legal.terms')->name('legal.terms');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
@@ -128,6 +132,14 @@ Route::middleware(['auth'])->group(function (): void {
         Route::resource('sponsor-tiers', SponsorTierController::class)
             ->except(['show', 'destroy'])
             ->names('sponsor-tiers');
+
+        Route::resource('divisions', DivisionController::class)
+            ->except(['show', 'destroy'])
+            ->names('divisions');
+
+        Route::resource('categories', CategoryController::class)
+            ->except(['show', 'destroy'])
+            ->names('categories');
 
         Route::get('/sascoc-report', [SascocReportController::class, 'index'])->name('sascoc-report.index');
         Route::get('/sascoc-report/excel', [SascocReportController::class, 'downloadExcel'])->name('sascoc-report.excel');

@@ -81,7 +81,7 @@
             </dl>
         </div>
 
-        @if (isset($payments) && $payments->count())
+        @if ($membership->payments->count())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Payment History</h2>
 
@@ -96,12 +96,12 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-100">
-                            @foreach ($payments as $payment)
+                            @foreach ($membership->payments as $payment)
                                 <tr class="hover:bg-stone-50 transition-colors">
                                     <td class="whitespace-nowrap px-4 py-3 text-sm text-stone-900">{{ $payment->created_at->format('d M Y') }}</td>
                                     <td class="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-stone-900">R {{ number_format($payment->amount, 2) }}</td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-sm text-stone-500 capitalize">{{ $payment->method ?? '—' }}</td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-sm text-stone-500">{{ $payment->reference ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-sm text-stone-500 capitalize">{{ $payment->payment_method ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-sm text-stone-500">{{ $payment->payment_reference ?? '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

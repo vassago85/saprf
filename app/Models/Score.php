@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Score extends Model
@@ -14,21 +15,35 @@ class Score extends Model
         'shooter_name',
         'user_id',
         'raw_score',
+        'provincial_raw_score',
         'placement',
-        'division',
-        'category',
+        'division_id',
+        'total_possible_shots',
+        'hit_percentage',
+        'normalized_score',
+        'provincial_normalized_score',
+        'overall_rank',
+        'division_rank',
         'is_member',
         'status',
         'validation_reason',
         'match_date',
         'raw_meta',
+        'counts_for_log',
+        'counts_for_season',
     ];
 
     protected function casts(): array
     {
         return [
             'raw_score' => 'decimal:3',
+            'hit_percentage' => 'decimal:3',
+            'provincial_raw_score' => 'decimal:3',
+            'normalized_score' => 'decimal:4',
+            'provincial_normalized_score' => 'decimal:4',
             'is_member' => 'boolean',
+            'counts_for_log' => 'boolean',
+            'counts_for_season' => 'boolean',
             'match_date' => 'date',
             'raw_meta' => 'array',
         ];
@@ -52,5 +67,16 @@ class Score extends Model
     public function shooterLog(): HasOne
     {
         return $this->hasOne(ShooterLog::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'score_category')
+            ->withPivot('category_rank');
     }
 }

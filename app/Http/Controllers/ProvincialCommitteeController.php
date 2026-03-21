@@ -92,7 +92,10 @@ class ProvincialCommitteeController extends Controller
         $provincialCommittee->load(['province', 'user']);
         $positions = ProvincialCommittee::POSITIONS;
 
-        return view('provincial-committees.edit', compact('provincialCommittee', 'positions'));
+        return view('provincial-committees.edit', [
+            'appointment' => $provincialCommittee,
+            'positions' => $positions,
+        ]);
     }
 
     public function update(Request $request, ProvincialCommittee $provincialCommittee): RedirectResponse

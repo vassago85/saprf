@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between">
         <h1 class="font-heading text-3xl font-bold text-stone-900">Matches</h1>
 
-        @can('create', App\Models\Match::class)
+        @can('create', App\Models\MatchEvent::class)
             <flux:button href="{{ route('matches.create') }}" variant="primary" icon="plus">
                 Create Match
             </flux:button>
@@ -63,7 +63,12 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $match->series_level }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->province?->name ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->match_date->format('d M Y') }}</td>
+                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">
+                            {{ $match->match_date->format('d M Y') }}
+                            @if($match->isMultiDay())
+                                <span class="text-stone-400">–</span> {{ $match->match_end_date->format('d M') }}
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm">
                             @switch($match->status)
                                 @case('draft')

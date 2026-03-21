@@ -156,7 +156,7 @@
                                     <td class="px-5 py-3 text-right font-mono font-bold {{ $score->placement && $score->placement <= 3 ? 'text-amber-600' : 'text-stone-900' }}">
                                         {{ $score->placement ? '#'.$score->placement : '—' }}
                                     </td>
-                                    <td class="px-5 py-3 text-right font-mono text-stone-700">{{ $score->total_score ?? '—' }}</td>
+                                    <td class="px-5 py-3 text-right font-mono text-stone-700">{{ $score->raw_score ?? '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

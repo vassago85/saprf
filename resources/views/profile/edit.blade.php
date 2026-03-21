@@ -4,12 +4,12 @@
     <div class="max-w-2xl space-y-8">
         <div class="flex items-center justify-between">
             <h1 class="font-heading text-3xl font-bold text-stone-900">Edit Profile</h1>
-            <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst(str_replace('_', ' ', $user->role)) }}</span>
+            <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst(str_replace('_', ' ', $user->getRoleNames()->first() ?? 'member')) }}</span>
         </div>
 
         <form method="POST" action="{{ route('profile.update') }}" class="space-y-6">
             @csrf
-            @method('PATCH')
+            @method('PUT')
 
             @if ($errors->any())
                 <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

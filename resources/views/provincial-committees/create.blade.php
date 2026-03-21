@@ -24,12 +24,12 @@
 
             <div class="grid sm:grid-cols-2 gap-6">
                 <div>
-                    <label for="province" class="block text-sm font-medium text-stone-700 mb-1">Province</label>
-                    <select name="province" id="province" required
+                    <label for="province_id" class="block text-sm font-medium text-stone-700 mb-1">Province</label>
+                    <select name="province_id" id="province_id" required
                         class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select province...</option>
                         @foreach ($provinces as $prov)
-                            <option value="{{ $prov }}" @selected(old('province') === $prov)>{{ $prov }}</option>
+                            <option value="{{ $prov->id }}" @selected(old('province_id') == $prov->id)>{{ $prov->name }}</option>
                         @endforeach
                     </select>
                 </div>

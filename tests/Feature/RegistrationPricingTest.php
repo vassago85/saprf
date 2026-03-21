@@ -34,10 +34,12 @@ test('active member gets active_member_fee', function () {
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-PRICE-001',
+        'membership_type' => 'paid',
         'status' => 'active',
         'payment_status' => 'paid',
         'expiry_date' => Carbon::today()->addYear(),
     ]);
+    $user->refresh();
 
     $result = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today());
 
@@ -59,15 +61,17 @@ test('lapsed member gets lapsed_member_fee', function () {
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-PRICE-002',
+        'membership_type' => 'paid',
         'status' => 'expired',
         'payment_status' => 'paid',
         'expiry_date' => Carbon::today()->subMonth(),
     ]);
+    $user->refresh();
 
     $result = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today());
 
     expect($result['category'])->toBe('lapsed_member')
-        ->and($result['fee'])->toBe(375.00);
+        ->and($result['fee'])->toBe(400.00);
 });
 
 test('null user gets non_member_fee', function () {

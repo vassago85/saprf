@@ -24,23 +24,27 @@ class ScoreImportService
             DB::transaction(function () use ($scoreImport, $fullPath, &$count) {
                 $rows = $this->readCsv($fullPath);
 
+                $match = $scoreImport->match;
+                $provincialColumns = $this->parseProvincialColumns($match);
+
                 foreach ($rows as $row) {
                     $score = Score::query()->create([
-                        'match_id' => $scoreImport->match_id,
+                        'match_id' => $match->id,
                         'score_import_id' => $scoreImport->id,
                         'shooter_name' => (string) ($row['shooter_name'] ?? 'Unknown'),
                         'user_id' => $this->resolveUserId($row),
                         'raw_score' => (float) ($row['raw_score'] ?? 0),
+                        'provincial_raw_score' => $this->calculateProvincialScore($row, $provincialColumns),
                         'placement' => isset($row['placement']) ? (int) $row['placement'] : null,
-                        'division' => $row['division'] ?? null,
-                        'category' => $row['category'] ?? null,
+                        'division_id' => $this->resolveDivisionId($row),
                         'status' => 'pending',
                         'is_member' => false,
-                        'match_date' => $scoreImport->match->match_date,
+                        'match_date' => $match->match_date,
                         'raw_meta' => $row,
                     ]);
 
                     $this->scoreValidationService->evaluateScoreStatus($score);
+                    $this->attachScoreCategories($score, $row);
                     $count++;
                 }
             });
@@ -106,6 +110,80 @@ class ScoreImportService
         }
 
         return null;
+    }
+
+    private function resolveDivisionId(array $row): ?int
+    {
+        $value = trim($row['division'] ?? '');
+        if ($value === '') {
+            return null;
+        }
+
+        $lower = Str::lower($value);
+
+        return \App\Models\Division::query()
+            ->where(function ($q) use ($lower) {
+                $q->whereRaw('LOWER(code) = ?', [$lower])
+                    ->orWhereRaw('LOWER(name) = ?', [$lower]);
+            })
+            ->value('id');
+    }
+
+    private function attachScoreCategories(Score $score, array $row): void
+    {
+        $value = trim($row['category'] ?? '');
+        if ($value === '') {
+            return;
+        }
+
+        $labels = preg_split('/[|,]/', $value);
+
+        foreach ($labels as $label) {
+            $label = trim($label);
+            if ($label === '') {
+                continue;
+            }
+
+            $categoryId = \App\Models\Category::query()
+                ->where('code', $label)
+                ->orWhere('name', $label)
+                ->value('id');
+
+            if ($categoryId) {
+                $score->categories()->attach($categoryId);
+            }
+        }
+    }
+
+    private function parseProvincialColumns(\App\Models\MatchEvent $match): array
+    {
+        if (! $match->also_counts_for_provincial || blank($match->provincial_stage_columns)) {
+            return [];
+        }
+
+        return array_map(
+            fn ($col) => Str::snake(trim($col)),
+            explode(',', $match->provincial_stage_columns),
+        );
+    }
+
+    private function calculateProvincialScore(array $row, array $columns): ?float
+    {
+        if (empty($columns)) {
+            return null;
+        }
+
+        $total = 0.0;
+        $found = false;
+
+        foreach ($columns as $col) {
+            if (isset($row[$col]) && is_numeric($row[$col])) {
+                $total += (float) $row[$col];
+                $found = true;
+            }
+        }
+
+        return $found ? round($total, 3) : null;
     }
 
     private function normalizeHeader(string $header): string

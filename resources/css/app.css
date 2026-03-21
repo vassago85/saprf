@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
+[x-cloak] { display: none !important; }
+
 /* Force light mode on public/guest pages */
 .force-light, .force-light * {
     color-scheme: light !important;

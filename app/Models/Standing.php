@@ -7,22 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Standing extends Model
 {
-    public const DIVISIONS = [
-        'Open',
-        'Ladies',
-        'Juniors',
-        'Seniors',
-        'Factory',
-        'Production',
-        'Heavy',
-    ];
-
     protected $fillable = [
         'user_id',
         'series',
         'season',
-        'division',
         'province_id',
+        'division_id',
+        'category_id',
         'points',
         'rank',
     ];
@@ -42,5 +33,15 @@ class Standing extends Model
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 }

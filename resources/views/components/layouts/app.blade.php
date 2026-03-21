@@ -77,6 +77,12 @@
                 <flux:navlist.item icon="cog-6-tooth" :href="route('qualification-rules.index')" :current="request()->routeIs('qualification-rules.*')">
                     Qualification Rules
                 </flux:navlist.item>
+                <flux:navlist.item icon="squares-2x2" :href="route('divisions.index')" :current="request()->routeIs('divisions.*')">
+                    Divisions
+                </flux:navlist.item>
+                <flux:navlist.item icon="rectangle-stack" :href="route('categories.index')" :current="request()->routeIs('categories.*')">
+                    Categories
+                </flux:navlist.item>
                 <flux:navlist.item icon="adjustments-horizontal" :href="route('site-settings.index')" :current="request()->routeIs('site-settings.*')">
                     Site Settings
                 </flux:navlist.item>

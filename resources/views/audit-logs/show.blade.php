@@ -23,7 +23,7 @@
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Action</dt>
                     <dd class="mt-1.5">
-                        @switch($auditLog->action)
+                        @switch($auditLog->action_type)
                             @case('created')
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Created</span>
                                 @break
@@ -34,7 +34,7 @@
                                 <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Deleted</span>
                                 @break
                             @default
-                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($auditLog->action) }}</span>
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($auditLog->action_type) }}</span>
                         @endswitch
                     </dd>
                 </div>
@@ -55,17 +55,17 @@
             </dl>
         </div>
 
-        @if ($auditLog->old_values)
+        @if ($auditLog->old_value)
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Old Values</h2>
-                <pre class="overflow-x-auto rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-800"><code>{{ json_encode($auditLog->old_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</code></pre>
+                <pre class="overflow-x-auto rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-800"><code>{{ json_encode($auditLog->old_value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</code></pre>
             </div>
         @endif
 
-        @if ($auditLog->new_values)
+        @if ($auditLog->new_value)
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">New Values</h2>
-                <pre class="overflow-x-auto rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-800"><code>{{ json_encode($auditLog->new_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</code></pre>
+                <pre class="overflow-x-auto rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-800"><code>{{ json_encode($auditLog->new_value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</code></pre>
             </div>
         @endif
     </div>

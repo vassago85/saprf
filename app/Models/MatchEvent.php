@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,7 @@ class MatchEvent extends Model
         'city',
         'description',
         'match_date',
+        'match_end_date',
         'registration_open_date',
         'registration_close_date',
         'status',
@@ -37,12 +39,18 @@ class MatchEvent extends Model
         'waitlist_enabled',
         'is_featured',
         'published',
+        'category_rankings_enabled',
+        'division_awards_enabled',
+        'category_awards_enabled',
+        'also_counts_for_provincial',
+        'provincial_stage_columns',
     ];
 
     protected function casts(): array
     {
         return [
             'match_date' => 'date',
+            'match_end_date' => 'date',
             'registration_open_date' => 'date',
             'registration_close_date' => 'date',
             'active_member_fee' => 'decimal:2',
@@ -52,6 +60,10 @@ class MatchEvent extends Model
             'waitlist_enabled' => 'boolean',
             'is_featured' => 'boolean',
             'published' => 'boolean',
+            'category_rankings_enabled' => 'boolean',
+            'division_awards_enabled' => 'boolean',
+            'category_awards_enabled' => 'boolean',
+            'also_counts_for_provincial' => 'boolean',
         ];
     }
 
@@ -87,6 +99,11 @@ class MatchEvent extends Model
     public function scores(): HasMany
     {
         return $this->hasMany(Score::class, 'match_id');
+    }
+
+    public function divisions(): BelongsToMany
+    {
+        return $this->belongsToMany(Division::class, 'match_division', 'match_id', 'division_id');
     }
 
     // ── Computed Accessors ──
@@ -136,8 +153,21 @@ class MatchEvent extends Model
                 return '';
             }
 
+            if ($this->match_end_date && ! $this->match_end_date->isSameDay($this->match_date)) {
+                if ($this->match_date->month === $this->match_end_date->month) {
+                    return $this->match_date->format('j') . '–' . $this->match_end_date->format('j M Y');
+                }
+
+                return $this->match_date->format('j M') . ' – ' . $this->match_end_date->format('j M Y');
+            }
+
             return $this->match_date->format('D, j M Y');
         });
+    }
+
+    public function isMultiDay(): bool
+    {
+        return $this->match_end_date && ! $this->match_end_date->isSameDay($this->match_date);
     }
 
     protected function locationDisplay(): Attribute
@@ -209,15 +239,25 @@ class MatchEvent extends Model
 
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('match_date', '>=', now()->startOfDay())
-            ->whereIn('status', ['open', 'closed', 'draft']);
+        return $query->where(function (Builder $q) {
+            $q->where('match_date', '>=', now()->startOfDay())
+                ->orWhere(function (Builder $q2) {
+                    $q2->whereNotNull('match_end_date')
+                        ->where('match_end_date', '>=', now()->startOfDay());
+                });
+        })->whereIn('status', ['open', 'closed', 'draft']);
     }
 
     public function scopePast(Builder $query): Builder
     {
         return $query->where(function (Builder $q) {
-            $q->where('match_date', '<', now()->startOfDay())
-                ->orWhere('status', 'completed');
+            $q->where(function (Builder $q2) {
+                $q2->whereNull('match_end_date')
+                    ->where('match_date', '<', now()->startOfDay());
+            })->orWhere(function (Builder $q2) {
+                $q2->whereNotNull('match_end_date')
+                    ->where('match_end_date', '<', now()->startOfDay());
+            })->orWhere('status', 'completed');
         });
     }
 

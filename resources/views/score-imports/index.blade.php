@@ -31,7 +31,7 @@
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $import->source_type }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $import->original_filename ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm">
-                            @switch($import->status)
+                            @switch($import->import_status)
                                 @case('pending')
                                     <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
                                     @break
@@ -46,7 +46,7 @@
                                     @break
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $import->uploadedBy->name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $import->uploader->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $import->created_at->format('d M Y H:i') }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-right text-sm">
                             <flux:button href="{{ route('score-imports.show', $import) }}" variant="ghost" size="sm" icon="eye" />

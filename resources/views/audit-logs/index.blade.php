@@ -19,7 +19,7 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $log->created_at->format('d M Y H:i:s') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $log->user->name ?? 'System' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($log->action)
+                            @switch($log->action_type)
                                 @case('created')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Created</span>
                                     @break
@@ -30,7 +30,7 @@
                                     <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Deleted</span>
                                     @break
                                 @default
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($log->action) }}</span>
+                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($log->action_type) }}</span>
                             @endswitch
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ class_basename($log->entity_type) }}</td>

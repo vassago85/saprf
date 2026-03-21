@@ -31,7 +31,11 @@
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-stone-500">
                     <span class="inline-flex items-center gap-1.5">
                         <svg class="size-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                        {{ $match->match_date->format('l, j F Y') }}
+                        @if($match->isMultiDay())
+                            {{ $match->match_date->format('l, j') }}–{{ $match->match_end_date->format('j F Y') }}
+                        @else
+                            {{ $match->match_date->format('l, j F Y') }}
+                        @endif
                     </span>
                     @if($match->venue_name)
                         <span class="inline-flex items-center gap-1.5 text-stone-700 font-medium">
@@ -115,10 +119,17 @@
 
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
-                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
-                                <h2 class="text-lg font-semibold text-stone-900">Results</h2>
-                                <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden" x-data="{ filter: 'overall' }">
+                            <div class="px-6 py-4 border-b border-stone-100">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h2 class="text-lg font-semibold text-stone-900">Results</h2>
+                                    <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
+                                </div>
+                                <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
+                                    <button @click="filter = 'overall'" :class="filter === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>
+                                    <button @click="filter = 'division'" :class="filter === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Division</button>
+                                    <button @click="filter = 'category'" :class="filter === 'category' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Category</button>
+                                </div>
                             </div>
 
                             <div class="overflow-x-auto">
@@ -128,39 +139,29 @@
                                             <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Points</th>
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Raw</th>
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Norm %</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($match->scores as $score)
+                                        @foreach($match->scores->sortBy('overall_rank') as $score)
                                             @php
-                                                $points = $score->placement ? max(0, 101 - $score->placement) : 0;
-                                                $rowClass = match($score->placement) {
-                                                    1 => 'bg-amber-50/50',
-                                                    2 => 'bg-stone-50/50',
-                                                    3 => 'bg-orange-50/30',
-                                                    default => '',
-                                                };
-                                                $rankIcon = match($score->placement) {
-                                                    1 => 'bg-amber-100 text-amber-700',
-                                                    2 => 'bg-stone-200 text-stone-600',
-                                                    3 => 'bg-amber-50 text-amber-600',
-                                                    default => null,
-                                                };
+                                                $rank = $score->overall_rank;
+                                                $rowClass = match($rank) { 1 => 'bg-amber-50/50', 2 => 'bg-stone-50/50', 3 => 'bg-orange-50/30', default => '' };
+                                                $rankIcon = match($rank) { 1 => 'bg-amber-100 text-amber-700', 2 => 'bg-stone-200 text-stone-600', 3 => 'bg-amber-50 text-amber-600', default => null };
                                             @endphp
                                             <tr class="border-b border-stone-50 {{ $rowClass }}">
                                                 <td class="px-5 py-3 text-center">
                                                     @if($rankIcon)
-                                                        <span class="inline-flex items-center justify-center size-7 rounded-full {{ $rankIcon }} text-sm font-bold">{{ $score->placement }}</span>
+                                                        <span class="inline-flex items-center justify-center size-7 rounded-full {{ $rankIcon }} text-sm font-bold">{{ $rank }}</span>
                                                     @else
-                                                        <span class="text-sm text-stone-400">{{ $score->placement }}</span>
+                                                        <span class="text-sm text-stone-400">{{ $rank ?? '—' }}</span>
                                                     @endif
                                                 </td>
                                                 <td class="px-5 py-3 text-sm font-medium text-stone-900">{{ $score->shooter_name }}</td>
-                                                <td class="px-5 py-3 text-sm text-stone-500">{{ $score->division ?? '—' }}</td>
+                                                <td class="px-5 py-3 text-sm text-stone-500">{{ $score->division?->name ?? '—' }}</td>
                                                 <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums">{{ number_format($score->raw_score, 1) }}</td>
-                                                <td class="px-5 py-3 text-sm font-semibold text-stone-900 text-right tabular-nums">{{ $points }}</td>
+                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums">{{ $score->normalized_score ? number_format($score->normalized_score, 2) . '%' : '—' }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -202,7 +203,7 @@
                                 @if($match->registration_close_date)
                                     <div class="flex items-center justify-between">
                                         <dt class="text-xs text-stone-400">Closes</dt>
-                                        <dd class="text-sm font-medium {{ $match->registration_close_date->isFuture() && $match->registration_close_date->diffInDays(now()) <= 3 ? 'text-red-600' : 'text-stone-700' }}">
+                                        <dd class="text-sm font-medium {{ $match->registration_close_date->isFuture() && $match->registration_close_date->diffInDays(now()) <= 2 ? 'text-red-600' : 'text-stone-700' }}">
                                             {{ $match->registration_close_date->format('j M Y') }}
                                         </dd>
                                     </div>

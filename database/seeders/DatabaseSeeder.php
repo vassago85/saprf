@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             RolesAndUsersSeeder::class,
             SponsorTierSeeder::class,
             FirearmReferenceSeeder::class,
+            DivisionCategorySeeder::class,
             FederationDemoSeeder::class,
         ]);
     }

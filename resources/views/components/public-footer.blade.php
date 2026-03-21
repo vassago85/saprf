@@ -36,8 +36,11 @@
         </div>
 
         <div class="mt-12 pt-8 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p class="text-sm text-stone-500">&copy; {{ date('Y') }} South African Practical Precision Rifle Federation (NPC). All rights reserved.</p>
-            <a href="https://www.precisionrifle.co.za/privacy" class="text-sm text-stone-500 hover:text-stone-300 transition">Privacy</a>
+            <p class="text-sm text-stone-500">&copy; {{ date('Y') }} South African Precision Rifle Federation (NPC). All rights reserved.</p>
+            <div class="flex items-center gap-4">
+                <a href="/privacy" class="text-sm text-stone-500 hover:text-stone-300 transition">Privacy Policy</a>
+                <a href="/terms" class="text-sm text-stone-500 hover:text-stone-300 transition">Terms of Use</a>
+            </div>
         </div>
     </div>
 </footer>

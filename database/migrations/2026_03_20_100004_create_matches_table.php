@@ -28,6 +28,9 @@ return new class extends Migration
             $table->decimal('active_member_fee', 10, 2)->default(0);
             $table->decimal('non_member_fee', 10, 2)->default(0);
             $table->decimal('lapsed_member_fee', 10, 2)->default(0);
+            $table->boolean('category_rankings_enabled')->default(false);
+            $table->boolean('division_awards_enabled')->default(false);
+            $table->boolean('category_awards_enabled')->default(false);
             $table->timestamps();
 
             $table->index(['match_type', 'series_level', 'season']);

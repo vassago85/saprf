@@ -157,7 +157,7 @@
                                 <td class="whitespace-nowrap px-5 py-3 text-sm font-medium text-stone-900">{{ $score->match->name ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-3 text-sm text-stone-500">{{ $score->match->match_date?->format('d M Y') ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-3 text-sm text-stone-500">{{ $score->placement ?? '—' }}</td>
-                                <td class="whitespace-nowrap px-5 py-3 text-sm font-mono text-stone-700">{{ $score->total_score ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-3 text-sm font-mono text-stone-700">{{ $score->raw_score ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>

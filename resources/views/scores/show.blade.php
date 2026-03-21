@@ -31,7 +31,7 @@
                 </div>
                 <div>
                     <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Division</dt>
-                    <dd class="mt-1.5 text-sm text-stone-900">{{ $score->division ?? '—' }}</dd>
+                    <dd class="mt-1.5 text-sm text-stone-900">{{ $score->division?->name ?? '—' }}</dd>
                 </div>
                 <div>
                     <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</dt>
