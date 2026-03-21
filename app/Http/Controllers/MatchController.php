@@ -284,6 +284,8 @@ class MatchController extends Controller
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
         $discipline = $request->input('discipline');
+        $provinceId = $request->input('province_id');
+        $type = $request->input('type');
 
         $start = now()->setDate($year, $month, 1)->startOfMonth()->subDays(6);
         $end = now()->setDate($year, $month, 1)->endOfMonth()->addDays(6);
@@ -293,6 +295,8 @@ class MatchController extends Controller
             ->with(['province', 'creator:id,name'])
             ->whereBetween('match_date', [$start, $end])
             ->forDiscipline($discipline)
+            ->when($provinceId, fn ($q) => $q->where('province_id', $provinceId))
+            ->when($type, fn ($q) => $q->where('match_type', $type))
             ->orderBy('match_date')
             ->get(['id', 'name', 'match_type', 'series_level', 'province_id', 'match_date', 'match_end_date', 'status', 'venue_name', 'venue_location', 'city', 'registration_close_date', 'max_competitors', 'waitlist_enabled', 'active_member_fee', 'non_member_fee', 'created_by']);
 

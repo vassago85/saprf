@@ -186,7 +186,7 @@
             {{-- Content Area --}}
             @if($view === 'calendar')
                 {{-- Calendar View --}}
-                <x-events-calendar :discipline="$discipline" />
+                <x-events-calendar :discipline="$discipline" :province-id="$provinceId" :type="$type" />
             @else
                 {{-- Card Grid View --}}
                 @if($events->isEmpty())

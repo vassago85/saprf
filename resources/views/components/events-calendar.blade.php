@@ -1,6 +1,6 @@
-@props(['discipline' => null])
+@props(['discipline' => null, 'provinceId' => null, 'type' => null])
 
-<div x-data="eventsCalendar('{{ $discipline }}')" x-init="loadMonth()" class="space-y-4">
+<div x-data="eventsCalendar('{{ $discipline }}', '{{ $provinceId }}', '{{ $type }}')" x-init="loadMonth()" class="space-y-4">
     {{-- Calendar header --}}
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         {{-- Month navigation --}}
@@ -154,7 +154,7 @@
 
 <script>
 document.addEventListener('alpine:init', () => {
-    Alpine.data('eventsCalendar', (discipline) => ({
+    Alpine.data('eventsCalendar', (discipline, provinceId, matchType) => ({
         currentMonth: new Date().getMonth(),
         currentYear: new Date().getFullYear(),
         events: {},
@@ -201,6 +201,8 @@ document.addEventListener('alpine:init', () => {
                 year: this.currentYear,
             });
             if (discipline) params.set('discipline', discipline);
+            if (provinceId) params.set('province_id', provinceId);
+            if (matchType) params.set('type', matchType);
 
             try {
                 const res = await fetch('/api/v1/events/calendar?' + params.toString());
