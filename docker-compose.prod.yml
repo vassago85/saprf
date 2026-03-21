@@ -36,21 +36,20 @@ services:
       start_period: 60s
 
   db:
-    image: mysql:8.0
+    image: mariadb:11
     container_name: saprf-db
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password --skip-ssl
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Root password required}
-      MYSQL_DATABASE: ${DB_DATABASE:-saprf_platform}
-      MYSQL_USER: ${DB_USERNAME:-saprf}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?Database password required}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Root password required}
+      MARIADB_DATABASE: ${DB_DATABASE:-saprf_platform}
+      MARIADB_USER: ${DB_USERNAME:-saprf}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Database password required}
     volumes:
       - saprf-db:/var/lib/mysql
     networks:
       - saprf-internal
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
