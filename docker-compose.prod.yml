@@ -16,6 +16,8 @@ services:
       - DB_DATABASE=${DB_DATABASE:-saprf_platform}
       - DB_USERNAME=${DB_USERNAME:-saprf}
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
+    ports:
+      - "8090:80"
     volumes:
       - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
@@ -27,7 +29,6 @@ services:
         condition: service_started
     networks:
       - saprf-internal
-      - nginx-proxy-manager_default
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/up"]
       interval: 30s
@@ -130,8 +131,6 @@ services:
 networks:
   saprf-internal:
     driver: bridge
-  nginx-proxy-manager_default:
-    external: true
 
 volumes:
   saprf-db:
