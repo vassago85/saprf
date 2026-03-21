@@ -2,22 +2,7 @@
 # Multi-stage build for optimized image size
 
 # =============================================================================
-# Stage 1: Build frontend assets
-# =============================================================================
-FROM node:22-alpine AS frontend-builder
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci --production=false
-
-COPY resources/ ./resources/
-COPY vite.config.js ./
-
-RUN npm run build
-
-# =============================================================================
-# Stage 2: Install PHP dependencies
+# Stage 1: Install PHP dependencies (needed by frontend for Flux CSS)
 # =============================================================================
 FROM composer:2 AS composer-builder
 
@@ -35,6 +20,22 @@ RUN composer install \
 COPY . .
 
 RUN composer dump-autoload --optimize --no-dev
+
+# =============================================================================
+# Stage 2: Build frontend assets
+# =============================================================================
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --production=false
+
+COPY resources/ ./resources/
+COPY vite.config.js ./
+COPY --from=composer-builder /app/vendor ./vendor
+
+RUN npm run build
 
 # =============================================================================
 # Stage 3: Production image
