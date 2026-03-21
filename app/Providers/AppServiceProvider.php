@@ -13,6 +13,7 @@ use App\Policies\QualificationRulePolicy;
 use App\Policies\RegistrationPolicy;
 use App\Policies\ScorePolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (app()->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         Gate::policy(MatchEvent::class, MatchPolicy::class);
         Gate::policy(Score::class, ScorePolicy::class);
         Gate::policy(MatchRegistration::class, RegistrationPolicy::class);
