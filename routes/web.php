@@ -38,6 +38,7 @@ Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.ind
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
 Route::get('/standings/{season}/shooter/{user}', [StandingController::class, 'publicShooter'])->name('standings.shooter');
+Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->name('membership.verify');
 
 // ── PayFast ITN Webhook (CSRF-exempt, no auth) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])->name('payments.notify');
@@ -96,6 +97,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/payments/membership/{membership}', [PaymentController::class, 'payMembership'])->name('payments.membership');
     Route::post('/membership/join', [PaymentController::class, 'joinMembership'])->name('membership.join');
     Route::get('/my-membership', [MembershipController::class, 'myMembership'])->name('my-membership');
+    Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])->name('membership.certificate');
+    Route::get('/my-membership/activity-report', [MembershipController::class, 'activityReport'])->name('membership.activity-report');
 
     // Registrations — any authenticated user can view own / register
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');

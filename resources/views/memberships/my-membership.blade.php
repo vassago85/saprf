@@ -24,6 +24,39 @@
                         <p class="text-lg font-bold text-emerald-900 mt-1">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</p>
                     </div>
                 </div>
+
+                {{-- Certificate & Activity Report --}}
+                <div class="mt-5 pt-5 border-t border-emerald-200 space-y-4">
+                    <a href="{{ route('membership.certificate') }}"
+                       class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                        Download Certificate
+                    </a>
+
+                    <div class="rounded-lg bg-white/60 border border-emerald-200 p-4" x-data="{ season: '{{ now()->year }}', includeStandings: false }">
+                        <p class="text-sm font-semibold text-emerald-900 mb-3">Activity Report</p>
+                        <p class="text-xs text-emerald-700 mb-3">Download a report of your match history for dedicated status applications or firearm licence submissions.</p>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label for="report-season" class="block text-xs font-medium text-emerald-700 mb-1">Season</label>
+                                <select id="report-season" x-model="season" class="rounded-md border-emerald-300 text-sm py-1.5 px-3 focus:border-emerald-500 focus:ring-emerald-500">
+                                    @foreach($seasons as $s)
+                                        <option value="{{ $s }}">{{ $s }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm text-emerald-800 cursor-pointer">
+                                <input type="checkbox" x-model="includeStandings" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                                Include standings
+                            </label>
+                            <a :href="`{{ route('membership.activity-report') }}?season=${season}&include_standings=${includeStandings ? 1 : 0}`"
+                               class="inline-flex items-center gap-2 rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2">
+                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                                Download Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         @elseif($membership && $membership->status === 'pending' && $membership->payment_status !== 'paid')
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-6">

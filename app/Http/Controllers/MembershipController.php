@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Membership;
+use App\Models\Score;
+use App\Models\Standing;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SettingsService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class MembershipController extends Controller
 {
@@ -23,7 +28,12 @@ class MembershipController extends Controller
         $fee = (float) app(SettingsService::class)->get('annual_membership_fee', 500);
         $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
 
-        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'paymentsEnabled'));
+        $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
+        if ($seasons->isEmpty()) {
+            $seasons = collect([(string) now()->year]);
+        }
+
+        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'paymentsEnabled', 'seasons'));
     }
 
     public function index(Request $request): View
@@ -177,5 +187,130 @@ class MembershipController extends Controller
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership has been reinstated.');
+    }
+
+    // ── Public Verification ──
+
+    public function verify(string $saprfNumber): View
+    {
+        $membership = Membership::with('user')
+            ->where('saprf_number', $saprfNumber)
+            ->latest()
+            ->first();
+
+        return view('memberships.verify', compact('membership'));
+    }
+
+    // ── Certificate PDF ──
+
+    public function certificate(Request $request): Response
+    {
+        $user = $request->user();
+        $user->load('province');
+        $membership = Membership::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('payment_status', 'paid')
+            ->latest()
+            ->firstOrFail();
+
+        $verifyUrl = url("/verify/{$membership->saprf_number}");
+        $qrCodeSvg = QrCode::format('svg')->size(150)->margin(0)->generate($verifyUrl);
+        $qrBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        $pdf = Pdf::loadView('memberships.certificate-pdf', [
+            'user' => $user,
+            'membership' => $membership,
+            'qrBase64' => $qrBase64,
+            'verifyUrl' => $verifyUrl,
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->download("SAPRF-Certificate-{$membership->saprf_number}.pdf");
+    }
+
+    // ── Activity Report PDF ──
+
+    public function activityReport(Request $request): Response
+    {
+        $user = $request->user();
+        $user->load('province');
+        $membership = Membership::where('user_id', $user->id)->latest()->first();
+
+        abort_unless($membership, 404, 'No membership found.');
+
+        $season = $request->input('season', (string) now()->year);
+        $includeStandings = $request->boolean('include_standings', false);
+
+        $scores = Score::with(['match.province', 'division', 'categories'])
+            ->where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('season', $season)->where('status', 'completed'))
+            ->where('status', 'valid')
+            ->orderBy('match_date')
+            ->get();
+
+        $standingsSummary = [];
+        if ($includeStandings) {
+            foreach (['PRS', 'PR22'] as $series) {
+                $overall = Standing::where('user_id', $user->id)
+                    ->where('season', $season)
+                    ->where('series', $series)
+                    ->whereNull('province_id')
+                    ->whereNull('division_id')
+                    ->whereNull('category_id')
+                    ->first();
+
+                if ($overall) {
+                    $divisionStanding = Standing::where('user_id', $user->id)
+                        ->where('season', $season)
+                        ->where('series', $series)
+                        ->whereNull('province_id')
+                        ->whereNotNull('division_id')
+                        ->with('division')
+                        ->first();
+
+                    $categoryStandings = Standing::where('user_id', $user->id)
+                        ->where('season', $season)
+                        ->where('series', $series)
+                        ->whereNull('province_id')
+                        ->whereNotNull('category_id')
+                        ->with('category')
+                        ->get();
+
+                    $standingsSummary[] = [
+                        'series' => $series,
+                        'overall_rank' => $overall->rank,
+                        'overall_points' => $overall->points,
+                        'division_name' => $divisionStanding?->division?->name,
+                        'division_rank' => $divisionStanding?->rank,
+                        'division_points' => $divisionStanding?->points,
+                        'categories' => $categoryStandings->map(fn ($s) => [
+                            'name' => $s->category?->name,
+                            'rank' => $s->rank,
+                            'points' => $s->points,
+                        ])->toArray(),
+                    ];
+                }
+            }
+        }
+
+        $verifyUrl = url("/verify/{$membership->saprf_number}");
+        $qrCodeSvg = QrCode::format('svg')->size(120)->margin(0)->generate($verifyUrl);
+        $qrBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        $pdf = Pdf::loadView('memberships.activity-report-pdf', [
+            'user' => $user,
+            'membership' => $membership,
+            'season' => $season,
+            'scores' => $scores,
+            'includeStandings' => $includeStandings,
+            'standingsSummary' => $standingsSummary,
+            'qrBase64' => $qrBase64,
+            'verifyUrl' => $verifyUrl,
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->download("SAPRF-Activity-Report-{$membership->saprf_number}-{$season}.pdf");
     }
 }
