@@ -7,6 +7,18 @@
             <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst(str_replace('_', ' ', $user->getRoleNames()->first() ?? 'member')) }}</span>
         </div>
 
+        @if(session('profile_incomplete'))
+            <div class="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div class="flex items-start gap-3">
+                    <svg class="size-5 text-amber-600 mt-0.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                    <div>
+                        <h3 class="text-sm font-semibold text-amber-900">Complete Your Profile</h3>
+                        <p class="text-sm text-amber-800 mt-1">As a paid SAPRF member, you are required to complete your <strong>SA ID Number</strong>, <strong>Date of Birth</strong>, and <strong>Province</strong> for SASCOC reporting. Please fill in the missing fields below.</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('profile.update') }}" class="space-y-6">
             @csrf
             @method('PUT')
@@ -40,14 +52,20 @@
                 </div>
 
                 <div>
-                    <label for="sa_id_number" class="block text-sm font-medium text-stone-700">SA ID Number</label>
-                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <label for="sa_id_number" class="block text-sm font-medium text-stone-700">SA ID Number @if(session('profile_incomplete') && empty($user->sa_id_number))<span class="text-red-600">*</span>@endif</label>
+                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->sa_id_number)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
                     <p class="mt-1 text-xs text-stone-400">Required for SASCOC reporting. 13 digits only.</p>
                 </div>
 
                 <div>
-                    <label for="province_id" class="block text-sm font-medium text-stone-700">Province</label>
-                    <select name="province_id" id="province_id" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <label for="date_of_birth" class="block text-sm font-medium text-stone-700">Date of Birth @if(session('profile_incomplete') && empty($user->date_of_birth))<span class="text-red-600">*</span>@endif</label>
+                    <input type="date" name="date_of_birth" id="date_of_birth" value="{{ old('date_of_birth', $user->date_of_birth?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->date_of_birth)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
+                    <p class="mt-1 text-xs text-stone-400">Used for age category classification and SASCOC reporting.</p>
+                </div>
+
+                <div>
+                    <label for="province_id" class="block text-sm font-medium text-stone-700">Province @if(session('profile_incomplete') && empty($user->province_id))<span class="text-red-600">*</span>@endif</label>
+                    <select name="province_id" id="province_id" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->province_id)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
                         <option value="">— Select province —</option>
                         @foreach($provinces as $province)
                             <option value="{{ $province->id }}" @selected(old('province_id', $user->province_id) == $province->id)>{{ $province->name }}</option>

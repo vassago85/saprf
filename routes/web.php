@@ -67,7 +67,7 @@ Route::middleware('auth')->group(function (): void {
 
 // ── Authenticated ──
 
-Route::middleware(['auth', 'verified'])->group(function (): void {
+Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');

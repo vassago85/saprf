@@ -15,7 +15,8 @@ RUN composer install \
     --no-interaction \
     --no-scripts \
     --no-autoloader \
-    --prefer-dist
+    --prefer-dist \
+    --ignore-platform-req=ext-gd
 
 COPY . .
 
