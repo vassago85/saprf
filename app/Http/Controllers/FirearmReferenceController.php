@@ -64,9 +64,10 @@ class FirearmReferenceController extends Controller
             'name' => $validated['name'],
             'is_active' => true,
             'user_submitted' => true,
+            'is_approved' => false,
         ]);
 
-        return response()->json(['data' => $make->only('id', 'name', 'country')], 201);
+        return response()->json(['data' => $make->only('id', 'name', 'country'), 'pending_approval' => true], 201);
     }
 
     public function storeModel(Request $request): JsonResponse
@@ -89,9 +90,10 @@ class FirearmReferenceController extends Controller
             'name' => $validated['name'],
             'is_active' => true,
             'user_submitted' => true,
+            'is_approved' => false,
         ]);
 
-        return response()->json(['data' => $model->only('id', 'firearm_make_id', 'name')], 201);
+        return response()->json(['data' => $model->only('id', 'firearm_make_id', 'name'), 'pending_approval' => true], 201);
     }
 
     public function storeCalibre(Request $request): JsonResponse
@@ -108,9 +110,10 @@ class FirearmReferenceController extends Controller
             'category' => 'rifle',
             'is_active' => true,
             'user_submitted' => true,
+            'is_approved' => false,
         ]);
 
-        return response()->json(['data' => $calibre->only('id', 'name', 'category', 'family')], 201);
+        return response()->json(['data' => $calibre->only('id', 'name', 'category', 'family'), 'pending_approval' => true], 201);
     }
 
     public function searchOpticMakes(Request $request): JsonResponse
@@ -153,9 +156,10 @@ class FirearmReferenceController extends Controller
             'name' => $validated['name'],
             'is_active' => true,
             'user_submitted' => true,
+            'is_approved' => false,
         ]);
 
-        return response()->json(['data' => $make->only('id', 'name', 'country')], 201);
+        return response()->json(['data' => $make->only('id', 'name', 'country'), 'pending_approval' => true], 201);
     }
 
     public function storeOpticModel(Request $request): JsonResponse
@@ -178,8 +182,9 @@ class FirearmReferenceController extends Controller
             'name' => $validated['name'],
             'is_active' => true,
             'user_submitted' => true,
+            'is_approved' => false,
         ]);
 
-        return response()->json(['data' => $model->only('id', 'optic_make_id', 'name')], 201);
+        return response()->json(['data' => $model->only('id', 'optic_make_id', 'name'), 'pending_approval' => true], 201);
     }
 }

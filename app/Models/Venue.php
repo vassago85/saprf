@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\User;
 
 class Venue extends Model
 {
@@ -22,12 +23,15 @@ class Venue extends Model
         'longitude',
         'notes',
         'is_active',
+        'is_approved',
+        'submitted_by',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_approved' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -49,9 +53,19 @@ class Venue extends Model
         ])->filter()->implode(', ');
     }
 
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('is_approved', true);
+    }
+
+    public function scopePendingApproval(Builder $query): Builder
+    {
+        return $query->where('is_approved', false);
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder

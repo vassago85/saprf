@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ApprovalController;
 use App\Models\AuditLog;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
@@ -71,6 +72,7 @@ class DashboardController extends Controller
             'pendingMemberships' => Membership::where('status', 'pending')->count(),
             'upcomingMatches' => MatchEvent::where('match_date', '>=', Carbon::today())->count(),
             'pendingScores' => Score::where('status', 'pending')->count(),
+            'pendingApprovals' => ApprovalController::totalPendingCount(),
             'recentAuditLogs' => AuditLog::with('user')->latest('created_at')->limit(5)->get(),
         ]);
     }

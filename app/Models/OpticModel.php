@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OpticModel extends Model
 {
-    protected $fillable = ['optic_make_id', 'name', 'is_active', 'user_submitted'];
+    protected $fillable = ['optic_make_id', 'name', 'is_active', 'user_submitted', 'is_approved'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
             'user_submitted' => 'boolean',
+            'is_approved' => 'boolean',
         ];
     }
 
@@ -24,7 +25,12 @@ class OpticModel extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('is_approved', true);
+    }
+
+    public function scopePendingApproval($query)
+    {
+        return $query->where('is_approved', false);
     }
 
     public function scopeForMake($query, int $makeId)

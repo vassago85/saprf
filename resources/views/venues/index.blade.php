@@ -72,7 +72,9 @@
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                                    @if($venue->is_active)
+                                    @if(! $venue->is_approved)
+                                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending Approval</span>
+                                    @elseif($venue->is_active)
                                         <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
                                     @else
                                         <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Inactive</span>

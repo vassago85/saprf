@@ -23,6 +23,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\MatchExpenseController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -141,6 +142,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
     // Admin + Owner
     Route::middleware(['role:owner|admin'])->group(function (): void {
+        Route::get('/admin/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::post('/admin/approvals/{type}/{id}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('/admin/approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
+
         Route::post('/scores/{score}/override', [ScoreController::class, 'override'])->name('scores.override');
         Route::resource('memberships', MembershipController::class)->except(['destroy']);
         Route::post('/memberships/{membership}/revoke', [MembershipController::class, 'revoke'])->name('memberships.revoke');

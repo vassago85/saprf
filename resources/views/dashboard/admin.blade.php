@@ -13,7 +13,7 @@
         <hr class="border-stone-200 my-6">
 
         <!-- Status Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">
                 <div class="flex items-center justify-between">
                     <p class="text-sm text-stone-500">Pending Memberships</p>
@@ -45,6 +45,19 @@
                 <p class="text-3xl font-bold text-stone-900">{{ number_format($pendingScores ?? 0) }}</p>
                 <a href="{{ route('score-imports.index') }}" class="inline-flex items-center justify-center w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 transition-colors">
                     Review Scores
+                </a>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-stone-500">Pending Approvals</p>
+                    @if(($pendingApprovals ?? 0) > 0)
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800">{{ $pendingApprovals }}</span>
+                    @endif
+                </div>
+                <p class="text-3xl font-bold text-stone-900">{{ number_format($pendingApprovals ?? 0) }}</p>
+                <a href="{{ route('approvals.index') }}" class="inline-flex items-center justify-center w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 transition-colors">
+                    Review Approvals
                 </a>
             </div>
         </div>

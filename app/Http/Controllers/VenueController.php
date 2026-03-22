@@ -39,10 +39,19 @@ class VenueController extends Controller
     {
         $validated = $request->validate($this->rules());
 
+        $user = $request->user();
+        $autoApprove = $user->hasAnyRole(['owner', 'admin']);
+
+        $validated['is_approved'] = $autoApprove;
+        $validated['submitted_by'] = $user->id;
+
         $venue = Venue::create($validated);
 
-        return redirect()->route('venues.index')
-            ->with('success', "Venue '{$venue->name}' created.");
+        $message = $autoApprove
+            ? "Venue '{$venue->name}' created."
+            : "Venue '{$venue->name}' submitted for approval.";
+
+        return redirect()->route('venues.index')->with('success', $message);
     }
 
     public function edit(Venue $venue): View

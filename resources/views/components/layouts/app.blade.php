@@ -74,6 +74,12 @@
 
             @role('owner|admin')
             <flux:navlist.group heading="Federation">
+                <flux:navlist.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')">
+                    Approvals
+                    @if(($pendingApprovalCount = \App\Http\Controllers\ApprovalController::totalPendingCount()) > 0)
+                        <flux:badge size="sm" color="amber" class="ml-auto">{{ $pendingApprovalCount }}</flux:badge>
+                    @endif
+                </flux:navlist.item>
                 <flux:navlist.item icon="users" :href="route('memberships.index')" :current="request()->routeIs('memberships.*')">
                     Memberships
                 </flux:navlist.item>
