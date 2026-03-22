@@ -6,6 +6,7 @@ use App\Http\Requests\StoreMatchRequest;
 use App\Http\Requests\UpdateMatchRequest;
 use App\Models\MatchEvent;
 use App\Models\Province;
+use App\Models\Venue;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
@@ -45,8 +46,9 @@ class MatchController extends Controller
     public function create(): View
     {
         $provinces = Province::orderBy('name')->get();
+        $venues = Venue::active()->with('province')->orderBy('name')->get();
 
-        return view('matches.create', compact('provinces'));
+        return view('matches.create', compact('provinces', 'venues'));
     }
 
     public function store(StoreMatchRequest $request): RedirectResponse
@@ -144,8 +146,9 @@ class MatchController extends Controller
         $this->authorize('update', $match);
 
         $provinces = Province::orderBy('name')->get();
+        $venues = Venue::active()->with('province')->orderBy('name')->get();
 
-        return view('matches.edit', compact('match', 'provinces'));
+        return view('matches.edit', compact('match', 'provinces', 'venues'));
     }
 
     public function update(UpdateMatchRequest $request, MatchEvent $match): RedirectResponse

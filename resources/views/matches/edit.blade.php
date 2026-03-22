@@ -70,20 +70,7 @@
                     <p class="mt-1 text-xs text-stone-400">Leave blank for single-day matches.</p>
                 </div>
 
-                <div>
-                    <label for="venue_name" class="block text-sm font-medium text-stone-700 mb-1">Venue Name</label>
-                    <input type="text" name="venue_name" id="venue_name" value="{{ old('venue_name', $match->venue_name) }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                </div>
-
-                <div>
-                    <label for="city" class="block text-sm font-medium text-stone-700 mb-1">City</label>
-                    <input type="text" name="city" id="city" value="{{ old('city', $match->city) }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                </div>
-
-                <div class="sm:col-span-2">
-                    <label for="venue_location" class="block text-sm font-medium text-stone-700 mb-1">Venue Address / Directions</label>
-                    <input type="text" name="venue_location" id="venue_location" value="{{ old('venue_location', $match->venue_location) }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                </div>
+                @include('matches._venue-selector', ['currentVenueName' => old('venue_name', $match->venue_name), 'currentCity' => old('city', $match->city), 'currentLocation' => old('venue_location', $match->venue_location), 'currentProvinceId' => old('province_id', $match->province_id)])
 
                 <div class="sm:col-span-2">
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
