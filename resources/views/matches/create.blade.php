@@ -103,16 +103,7 @@
                     <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
-                @php
-                    $nmSurcharge = (float) app(\App\Services\SettingsService::class)->get('non_member_surcharge', 0);
-                    $lmSurcharge = (float) app(\App\Services\SettingsService::class)->get('lapsed_member_surcharge', 0);
-                @endphp
-                <div class="sm:col-span-2">
-                    <div class="rounded-lg bg-stone-50 border border-stone-200 px-4 py-3 text-xs text-stone-600 space-y-1">
-                        <p>Non-member surcharge: <strong>+ R {{ number_format($nmSurcharge, 2) }}</strong> &middot; Lapsed member surcharge: <strong>+ R {{ number_format($lmSurcharge, 2) }}</strong></p>
-                        <p class="text-stone-400">These surcharges are added automatically to the entry fee. Configured in <a href="{{ route('site-settings.index') }}" class="text-emerald-700 hover:underline">Site Settings</a>.</p>
-                    </div>
-                </div>
+                @include('matches._cost-estimator')
 
                 <div>
                     <label for="status" class="block text-sm font-medium text-stone-700 mb-1">Status</label>
