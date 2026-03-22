@@ -35,6 +35,7 @@ class StoreMatchRequest extends FormRequest
             'category_rankings_enabled' => ['boolean'],
             'division_awards_enabled' => ['boolean'],
             'category_awards_enabled' => ['boolean'],
+            'estimated_shooters' => ['nullable', 'integer', 'min:1', 'max:999'],
             'also_counts_for_provincial' => ['boolean'],
             'provincial_stage_columns' => ['nullable', 'string', 'max:1000'],
         ];

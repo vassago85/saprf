@@ -110,7 +110,7 @@ class MatchController extends Controller
             $platformPct = (float) $this->settingsService->get('platform_fee_percentage', 5) / 100;
             $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5) / 100;
             $baseFee = (float) $match->active_member_fee;
-            $capacity = $match->max_competitors ?: 30;
+            $capacity = $match->estimated_shooters ?: ($match->max_competitors ?: 30);
 
             $grossRevenue = $baseFee * $capacity;
             $saprfFee = $grossRevenue * $saprfPct;
@@ -133,9 +133,10 @@ class MatchController extends Controller
         }
 
         $expenses = $match->expenses->sortByDesc('created_at');
-        $totalExpenses = $expenses->sum('amount');
+        $estimatedShooters = $match->estimated_shooters ?: ($match->max_competitors ?: 0);
+        $totalExpenses = $expenses->sum(fn ($e) => $e->effectiveAmount($estimatedShooters));
 
-        return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses'));
+        return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses', 'estimatedShooters'));
     }
 
     public function edit(MatchEvent $match): View

@@ -98,9 +98,16 @@
                     <input type="date" name="registration_close_date" id="registration_close_date" value="{{ old('registration_close_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
-                <div>
-                    <label for="active_member_fee" class="block text-sm font-medium text-stone-700 mb-1">Match Entry Fee (ZAR) <span class="text-red-500">*</span></label>
-                    <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="active_member_fee" class="block text-sm font-medium text-stone-700 mb-1">Match Entry Fee (ZAR) <span class="text-red-500">*</span></label>
+                        <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    </div>
+                    <div>
+                        <label for="estimated_shooters" class="block text-sm font-medium text-stone-700 mb-1">Estimated Shooters</label>
+                        <input type="number" name="estimated_shooters" id="estimated_shooters" min="1" max="999" value="{{ old('estimated_shooters') }}" placeholder="e.g. 30" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                        <p class="mt-1 text-xs text-stone-400">Used for per-shooter expense calculations and revenue projections.</p>
+                    </div>
                 </div>
 
                 @include('matches._cost-estimator')

@@ -11,6 +11,7 @@ class MatchExpense extends Model
         'match_id',
         'description',
         'amount',
+        'cost_type',
         'category',
         'notes',
         'created_by',
@@ -23,6 +24,11 @@ class MatchExpense extends Model
         ];
     }
 
+    public const COST_TYPES = [
+        'fixed' => 'Fixed Cost',
+        'per_shooter' => 'Per Shooter',
+    ];
+
     public const CATEGORIES = [
         'venue' => 'Venue',
         'targets' => 'Targets / Steel',
@@ -33,6 +39,15 @@ class MatchExpense extends Model
         'insurance' => 'Insurance',
         'other' => 'Other',
     ];
+
+    public function effectiveAmount(?int $shooterCount = null): float
+    {
+        if ($this->cost_type === 'per_shooter') {
+            return (float) $this->amount * ($shooterCount ?? 0);
+        }
+
+        return (float) $this->amount;
+    }
 
     public function match(): BelongsTo
     {

@@ -215,6 +215,13 @@
                         <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ $expenses->count() }} {{ Str::plural('item', $expenses->count()) }}</span>
                     </div>
 
+                    @if($estimatedShooters > 0)
+                        <div class="rounded-lg bg-blue-50 border border-blue-200 p-3 mb-4 flex items-center gap-2">
+                            <svg class="size-4 text-blue-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+                            <span class="text-xs text-blue-800">Per-shooter costs calculated for <strong>{{ $estimatedShooters }}</strong> estimated shooters</span>
+                        </div>
+                    @endif
+
                     @if($expenses->isNotEmpty())
                         <div class="overflow-x-auto -mx-6 px-6">
                             <table class="w-full">
@@ -222,7 +229,9 @@
                                     <tr class="border-b border-stone-200">
                                         <th class="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Description</th>
                                         <th class="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Category</th>
-                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Amount</th>
+                                        <th class="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Type</th>
+                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Unit Cost</th>
+                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Total</th>
                                         <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-20">Actions</th>
                                     </tr>
                                 </thead>
@@ -242,7 +251,20 @@
                                                     </span>
                                                 @endif
                                             </td>
-                                            <td class="py-2.5 text-right text-sm font-mono text-stone-700">R {{ number_format($expense->amount, 2) }}</td>
+                                            <td class="py-2.5 pr-3">
+                                                @if($expense->cost_type === 'per_shooter')
+                                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">Per Shooter</span>
+                                                @else
+                                                    <span class="inline-flex items-center rounded-full bg-stone-50 px-2 py-0.5 text-[10px] font-semibold text-stone-500">Fixed</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-2.5 text-right text-sm font-mono text-stone-500">
+                                                R {{ number_format($expense->amount, 2) }}
+                                                @if($expense->cost_type === 'per_shooter')
+                                                    <span class="text-[10px] text-stone-400">x{{ $estimatedShooters }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-2.5 text-right text-sm font-mono text-stone-700 font-semibold">R {{ number_format($expense->effectiveAmount($estimatedShooters), 2) }}</td>
                                             <td class="py-2.5 text-right">
                                                 <div class="flex items-center justify-end gap-1">
                                                     <button @click="editing = {{ $expense->id }}" class="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition" title="Edit">
@@ -259,10 +281,10 @@
                                         </tr>
                                         {{-- Inline edit row --}}
                                         <tr x-show="editing === {{ $expense->id }}" x-cloak>
-                                            <td colspan="4" class="py-3">
+                                            <td colspan="6" class="py-3">
                                                 <form method="POST" action="{{ route('match-expenses.update', [$match, $expense]) }}" class="space-y-3">
                                                     @csrf @method('PUT')
-                                                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
                                                         <div class="sm:col-span-2">
                                                             <input type="text" name="description" value="{{ $expense->description }}" required placeholder="Description" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                                         </div>
@@ -271,6 +293,13 @@
                                                                 <option value="">No category</option>
                                                                 @foreach(\App\Models\MatchExpense::CATEGORIES as $key => $label)
                                                                     <option value="{{ $key }}" {{ $expense->category === $key ? 'selected' : '' }}>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <select name="cost_type" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                                                @foreach(\App\Models\MatchExpense::COST_TYPES as $key => $label)
+                                                                    <option value="{{ $key }}" {{ $expense->cost_type === $key ? 'selected' : '' }}>{{ $label }}</option>
                                                                 @endforeach
                                                             </select>
                                                         </div>
@@ -292,7 +321,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="border-t border-stone-300">
-                                        <td colspan="2" class="py-2.5 text-sm font-semibold text-stone-700">Total Expenses</td>
+                                        <td colspan="4" class="py-2.5 text-sm font-semibold text-stone-700">Total Expenses</td>
                                         <td class="py-2.5 text-right text-sm font-mono font-semibold text-stone-900">R {{ number_format($totalExpenses, 2) }}</td>
                                         <td></td>
                                     </tr>
@@ -312,14 +341,21 @@
 
                         <form x-show="showAdd" x-cloak method="POST" action="{{ route('match-expenses.store', $match) }}" class="space-y-3">
                             @csrf
-                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
                                 <div class="sm:col-span-2">
-                                    <input type="text" name="description" required placeholder="e.g. Venue hire, Steel targets x20" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                    <input type="text" name="description" required placeholder="e.g. Range fee, Catering, Venue hire" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                 </div>
                                 <div>
                                     <select name="category" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
                                         <option value="">Category</option>
                                         @foreach(\App\Models\MatchExpense::CATEGORIES as $key => $label)
+                                            <option value="{{ $key }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <select name="cost_type" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                        @foreach(\App\Models\MatchExpense::COST_TYPES as $key => $label)
                                             <option value="{{ $key }}">{{ $label }}</option>
                                         @endforeach
                                     </select>

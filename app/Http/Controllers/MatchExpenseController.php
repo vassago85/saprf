@@ -16,9 +16,12 @@ class MatchExpenseController extends Controller
         $validated = $request->validate([
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
+            'cost_type' => ['nullable', 'in:fixed,per_shooter'],
             'category' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $validated['cost_type'] ??= 'fixed';
 
         $match->expenses()->create([
             ...$validated,
@@ -37,10 +40,12 @@ class MatchExpenseController extends Controller
         $validated = $request->validate([
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
+            'cost_type' => ['nullable', 'in:fixed,per_shooter'],
             'category' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $validated['cost_type'] ??= 'fixed';
         $expense->update($validated);
 
         return redirect()->route('matches.show', $match)
