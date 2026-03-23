@@ -32,6 +32,7 @@ class FinancialTransaction extends Model
         'refund' => 'Refund',
         'adjustment' => 'Adjustment',
         'payout' => 'Payout',
+        'expense' => 'Expense',
     ];
 
     public function user(): BelongsTo

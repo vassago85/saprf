@@ -41,6 +41,9 @@
         <tr><td>Surcharges</td><td>R{{ number_format($summary['total_surcharges'], 2) }}</td></tr>
         <tr><td style="font-weight:700;">Net Revenue (SAPRF)</td><td style="font-weight:700; color:#166534;">R{{ number_format($summary['net_revenue'], 2) }}</td></tr>
         <tr><td>Total MD Payouts</td><td>R{{ number_format($summary['total_md_payouts'], 2) }}</td></tr>
+        <tr><td>Other Income</td><td>R{{ number_format($summary['other_income']['total'], 2) }}</td></tr>
+        <tr><td>Platform Expenses</td><td style="color:#dc2626;">-R{{ number_format($summary['platform_expenses']['total'], 2) }}</td></tr>
+        <tr><td style="font-weight:700;">Net After Expenses</td><td style="font-weight:700; color:{{ $summary['net_after_expenses'] >= 0 ? '#166534' : '#dc2626' }};">R{{ number_format($summary['net_after_expenses'], 2) }}</td></tr>
     </table>
 
     <h2>Revenue by Match</h2>

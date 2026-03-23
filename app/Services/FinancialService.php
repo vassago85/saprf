@@ -6,6 +6,8 @@ use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
+use App\Models\PlatformExpense;
+use App\Models\PlatformIncome;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -27,24 +29,30 @@ class FinancialService
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($from, $to) {
             $matchRevenue = $this->matchRevenueAggregates($from, $to);
             $membershipRevenue = $this->membershipRevenueAggregates($from, $to);
+            $otherIncome = $this->otherIncomeAggregates($from, $to);
+            $platformExpenses = $this->platformExpenseAggregates($from, $to);
 
-            $grossIncome = $matchRevenue['gross'] + $membershipRevenue['gross'];
+            $grossIncome = $matchRevenue['gross'] + $membershipRevenue['gross'] + $otherIncome['total'];
             $totalPlatformFees = $matchRevenue['platform_fees'] + $membershipRevenue['platform_fees'];
             $totalSaprfFees = $matchRevenue['saprf_fees'];
             $totalGatewayFees = $matchRevenue['gateway_fees'] + $membershipRevenue['gateway_fees'];
             $totalSurcharges = $matchRevenue['surcharges'];
             $totalMdPayouts = $matchRevenue['md_net'];
-            $netRevenue = $totalPlatformFees + $totalSaprfFees + $totalSurcharges;
+            $netRevenue = $totalPlatformFees + $totalSaprfFees + $totalSurcharges + $membershipRevenue['net_to_saprf'] + $otherIncome['total'];
+            $netAfterExpenses = $netRevenue - $platformExpenses['total'];
 
             return [
                 'gross_income' => $grossIncome,
                 'match_revenue' => $matchRevenue,
                 'membership_revenue' => $membershipRevenue,
+                'other_income' => $otherIncome,
+                'platform_expenses' => $platformExpenses,
                 'total_platform_fees' => $totalPlatformFees,
                 'total_saprf_fees' => $totalSaprfFees,
                 'total_gateway_fees' => $totalGatewayFees,
                 'total_surcharges' => $totalSurcharges,
                 'net_revenue' => $netRevenue,
+                'net_after_expenses' => $netAfterExpenses,
                 'total_md_payouts' => $totalMdPayouts,
             ];
         });
@@ -111,7 +119,7 @@ class FinancialService
         $gatewayPct = (float) $this->settings->get('estimated_gateway_fee_percentage', 3.5) / 100;
         $gatewayFlat = (float) $this->settings->get('estimated_gateway_flat_fee', 2);
 
-        $platformFees = $gross * $membershipPlatformPct;
+        $platformFees = round($gross * $membershipPlatformPct, 2);
         $gatewayFees = $agg->total_payments > 0
             ? ($gross * $gatewayPct) + ($gatewayFlat * (int) $agg->total_payments)
             : 0;
@@ -119,9 +127,71 @@ class FinancialService
         return [
             'total_payments' => (int) $agg->total_payments,
             'gross' => $gross,
-            'platform_fees' => round($platformFees, 2),
+            'platform_cost' => $platformFees,
             'gateway_fees' => round($gatewayFees, 2),
             'net_to_saprf' => round($gross - $gatewayFees, 2),
+        ];
+    }
+
+    private function otherIncomeAggregates(?Carbon $from, ?Carbon $to): array
+    {
+        $query = PlatformIncome::query();
+
+        if ($from) {
+            $query->where('income_date', '>=', $from->toDateString());
+        }
+        if ($to) {
+            $query->where('income_date', '<=', $to->toDateString());
+        }
+
+        $agg = $query->selectRaw('
+            COUNT(*) as count,
+            COALESCE(SUM(amount), 0) as total
+        ')->first();
+
+        $byCategory = PlatformIncome::query()
+            ->when($from, fn ($q) => $q->where('income_date', '>=', $from->toDateString()))
+            ->when($to, fn ($q) => $q->where('income_date', '<=', $to->toDateString()))
+            ->selectRaw('category, COALESCE(SUM(amount), 0) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category')
+            ->toArray();
+
+        return [
+            'count' => (int) $agg->count,
+            'total' => (float) $agg->total,
+            'by_category' => $byCategory,
+        ];
+    }
+
+    private function platformExpenseAggregates(?Carbon $from, ?Carbon $to): array
+    {
+        $query = PlatformExpense::query();
+
+        if ($from) {
+            $query->where('expense_date', '>=', $from->toDateString());
+        }
+        if ($to) {
+            $query->where('expense_date', '<=', $to->toDateString());
+        }
+
+        $agg = $query->selectRaw('
+            COUNT(*) as count,
+            COALESCE(SUM(amount), 0) as total
+        ')->first();
+
+        $byCategory = PlatformExpense::query()
+            ->when($from, fn ($q) => $q->where('expense_date', '>=', $from->toDateString()))
+            ->when($to, fn ($q) => $q->where('expense_date', '<=', $to->toDateString()))
+            ->selectRaw('category, COALESCE(SUM(amount), 0) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category')
+            ->toArray();
+
+        return [
+            'count' => (int) $agg->count,
+            'total' => (float) $agg->total,
+            'by_category' => $byCategory,
         ];
     }
 

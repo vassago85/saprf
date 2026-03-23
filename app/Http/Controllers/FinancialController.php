@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\FinancialTransaction;
 use App\Models\MatchEvent;
 use App\Models\Payout;
+use App\Models\PlatformExpense;
+use App\Models\PlatformIncome;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
+use App\Services\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -17,6 +20,7 @@ class FinancialController extends Controller
     public function __construct(
         private readonly FinancialService $financials,
         private readonly AuditLogService $audit,
+        private readonly SettingsService $settingsService,
     ) {}
 
     // ── Platform Dashboard ──
@@ -29,9 +33,10 @@ class FinancialController extends Controller
         $matchBreakdown = $this->financials->revenueByMatch($from, $to);
         $monthlyTrend = $this->financials->monthlyTrend(12);
         $seasons = range(now()->year, now()->year - 3);
+        $settings = $this->settingsService->all();
 
         return view('financials.dashboard', compact(
-            'summary', 'matchBreakdown', 'monthlyTrend', 'seasons', 'from', 'to',
+            'summary', 'matchBreakdown', 'monthlyTrend', 'seasons', 'from', 'to', 'settings',
         ));
     }
 
@@ -160,6 +165,230 @@ class FinancialController extends Controller
 
         return redirect()->route('financials.payouts')
             ->with('success', "Payment recorded on {$payout->reference}");
+    }
+
+    // ── Platform Expenses ──
+
+    public function expenses(Request $request): View
+    {
+        $category = $request->input('category');
+
+        $expenses = PlatformExpense::query()
+            ->with('creator')
+            ->when($category, fn ($q) => $q->where('category', $category))
+            ->orderByDesc('expense_date')
+            ->paginate(25);
+
+        $totalAll = PlatformExpense::sum('amount');
+        $totalFiltered = $category
+            ? PlatformExpense::where('category', $category)->sum('amount')
+            : $totalAll;
+
+        $categories = PlatformExpense::CATEGORIES;
+
+        return view('financials.expenses', compact('expenses', 'totalAll', 'totalFiltered', 'category', 'categories'));
+    }
+
+    public function createExpense(): View
+    {
+        $categories = PlatformExpense::CATEGORIES;
+
+        return view('financials.create-expense', compact('categories'));
+    }
+
+    public function storeExpense(Request $request)
+    {
+        $validated = $request->validate([
+            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformExpense::CATEGORIES))],
+            'description' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_date' => ['required', 'date'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'vendor' => ['nullable', 'string', 'max:150'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'is_recurring' => ['nullable', 'boolean'],
+        ]);
+
+        $validated['is_recurring'] = $request->boolean('is_recurring');
+        $validated['created_by'] = $request->user()->id;
+
+        $expense = PlatformExpense::create($validated);
+
+        FinancialTransaction::create([
+            'type' => 'expense',
+            'source_type' => 'platform_expense',
+            'source_id' => $expense->id,
+            'user_id' => $request->user()->id,
+            'amount' => -$expense->amount,
+            'description' => "Platform expense: {$expense->description}",
+        ]);
+
+        $this->audit->log(
+            $request->user(),
+            'platform_expense_created',
+            'platform_expense',
+            $expense->id,
+            null,
+            $expense->toArray(),
+        );
+
+        return redirect()->route('financials.expenses')
+            ->with('success', "Expense recorded: {$expense->description} — R" . number_format($expense->amount, 2));
+    }
+
+    public function editExpense(PlatformExpense $expense): View
+    {
+        $categories = PlatformExpense::CATEGORIES;
+
+        return view('financials.edit-expense', compact('expense', 'categories'));
+    }
+
+    public function updateExpense(Request $request, PlatformExpense $expense)
+    {
+        $validated = $request->validate([
+            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformExpense::CATEGORIES))],
+            'description' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_date' => ['required', 'date'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'vendor' => ['nullable', 'string', 'max:150'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'is_recurring' => ['nullable', 'boolean'],
+        ]);
+
+        $oldValues = $expense->toArray();
+        $validated['is_recurring'] = $request->boolean('is_recurring');
+        $expense->update($validated);
+
+        $this->audit->log(
+            $request->user(),
+            'platform_expense_updated',
+            'platform_expense',
+            $expense->id,
+            $oldValues,
+            $expense->fresh()->toArray(),
+        );
+
+        return redirect()->route('financials.expenses')
+            ->with('success', "Expense updated: {$expense->description}");
+    }
+
+    public function destroyExpense(Request $request, PlatformExpense $expense)
+    {
+        $this->audit->log(
+            $request->user(),
+            'platform_expense_deleted',
+            'platform_expense',
+            $expense->id,
+            $expense->toArray(),
+            null,
+        );
+
+        $expense->delete();
+
+        return redirect()->route('financials.expenses')
+            ->with('success', 'Expense deleted.');
+    }
+
+    // ── Platform Income ──
+
+    public function income(Request $request): View
+    {
+        $category = $request->input('category');
+
+        $incomeItems = PlatformIncome::query()
+            ->with('creator')
+            ->when($category, fn ($q) => $q->where('category', $category))
+            ->orderByDesc('income_date')
+            ->paginate(25);
+
+        $totalAll = PlatformIncome::sum('amount');
+        $totalFiltered = $category
+            ? PlatformIncome::where('category', $category)->sum('amount')
+            : $totalAll;
+
+        $categories = PlatformIncome::CATEGORIES;
+
+        return view('financials.income', compact('incomeItems', 'totalAll', 'totalFiltered', 'category', 'categories'));
+    }
+
+    public function createIncome(): View
+    {
+        $categories = PlatformIncome::CATEGORIES;
+
+        return view('financials.create-income', compact('categories'));
+    }
+
+    public function storeIncome(Request $request)
+    {
+        $validated = $request->validate([
+            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'description' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'income_date' => ['required', 'date'],
+            'source' => ['nullable', 'string', 'max:150'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'is_recurring' => ['nullable', 'boolean'],
+        ]);
+
+        $validated['is_recurring'] = $request->boolean('is_recurring');
+        $validated['created_by'] = $request->user()->id;
+
+        $income = PlatformIncome::create($validated);
+
+        FinancialTransaction::create([
+            'type' => 'payment',
+            'source_type' => 'platform_income',
+            'source_id' => $income->id,
+            'user_id' => $request->user()->id,
+            'amount' => $income->amount,
+            'description' => "Income: {$income->description}",
+        ]);
+
+        $this->audit->log($request->user(), 'platform_income_created', 'platform_income', $income->id, null, $income->toArray());
+
+        return redirect()->route('financials.income')
+            ->with('success', "Income recorded: {$income->description} — R" . number_format($income->amount, 2));
+    }
+
+    public function editIncome(PlatformIncome $income): View
+    {
+        $categories = PlatformIncome::CATEGORIES;
+
+        return view('financials.edit-income', compact('income', 'categories'));
+    }
+
+    public function updateIncome(Request $request, PlatformIncome $income)
+    {
+        $validated = $request->validate([
+            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'description' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'income_date' => ['required', 'date'],
+            'source' => ['nullable', 'string', 'max:150'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'is_recurring' => ['nullable', 'boolean'],
+        ]);
+
+        $oldValues = $income->toArray();
+        $validated['is_recurring'] = $request->boolean('is_recurring');
+        $income->update($validated);
+
+        $this->audit->log($request->user(), 'platform_income_updated', 'platform_income', $income->id, $oldValues, $income->fresh()->toArray());
+
+        return redirect()->route('financials.income')
+            ->with('success', "Income updated: {$income->description}");
+    }
+
+    public function destroyIncome(Request $request, PlatformIncome $income)
+    {
+        $this->audit->log($request->user(), 'platform_income_deleted', 'platform_income', $income->id, $income->toArray(), null);
+        $income->delete();
+
+        return redirect()->route('financials.income')
+            ->with('success', 'Income entry deleted.');
     }
 
     // ── Transactions Log ──

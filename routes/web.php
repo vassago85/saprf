@@ -170,6 +170,21 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/payouts', [FinancialController::class, 'storePayout'])->name('payouts.store');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
         Route::get('/transactions', [FinancialController::class, 'transactions'])->name('transactions');
+
+        Route::get('/expenses', [FinancialController::class, 'expenses'])->name('expenses');
+        Route::get('/expenses/create', [FinancialController::class, 'createExpense'])->name('expenses.create');
+        Route::post('/expenses', [FinancialController::class, 'storeExpense'])->name('expenses.store');
+        Route::get('/expenses/{expense}/edit', [FinancialController::class, 'editExpense'])->name('expenses.edit');
+        Route::put('/expenses/{expense}', [FinancialController::class, 'updateExpense'])->name('expenses.update');
+        Route::delete('/expenses/{expense}', [FinancialController::class, 'destroyExpense'])->name('expenses.destroy');
+
+        Route::get('/income', [FinancialController::class, 'income'])->name('income');
+        Route::get('/income/create', [FinancialController::class, 'createIncome'])->name('income.create');
+        Route::post('/income', [FinancialController::class, 'storeIncome'])->name('income.store');
+        Route::get('/income/{income}/edit', [FinancialController::class, 'editIncome'])->name('income.edit')->whereNumber('income');
+        Route::put('/income/{income}', [FinancialController::class, 'updateIncome'])->name('income.update')->whereNumber('income');
+        Route::delete('/income/{income}', [FinancialController::class, 'destroyIncome'])->name('income.destroy')->whereNumber('income');
+
         Route::get('/export/summary-csv', [FinancialController::class, 'exportDashboardCsv'])->name('export.dashboard-csv');
         Route::get('/export/summary-pdf', [FinancialController::class, 'exportDashboardPdf'])->name('export.dashboard-pdf');
         Route::get('/export/matches-csv', [FinancialController::class, 'exportMatchesCsv'])->name('export.matches-csv');

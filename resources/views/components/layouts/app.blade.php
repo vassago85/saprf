@@ -126,7 +126,13 @@
             @role('owner|admin')
             <flux:navlist.group heading="Finance">
                 <flux:navlist.item icon="banknotes" :href="route('financials.dashboard')" :current="request()->routeIs('financials.dashboard')">
-                    Financial Dashboard
+                    Dashboard
+                </flux:navlist.item>
+                <flux:navlist.item icon="arrow-trending-up" :href="route('financials.income')" :current="request()->routeIs('financials.income*')">
+                    Income
+                </flux:navlist.item>
+                <flux:navlist.item icon="receipt-percent" :href="route('financials.expenses')" :current="request()->routeIs('financials.expenses*')">
+                    Expenses
                 </flux:navlist.item>
                 <flux:navlist.item icon="credit-card" :href="route('financials.payouts')" :current="request()->routeIs('financials.payouts*')">
                     Payouts

@@ -64,21 +64,26 @@
         </form>
 
         {{-- Summary Cards --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">Gross Income</p>
                 <p class="mt-1 text-2xl font-bold text-stone-900">R{{ number_format($summary['gross_income'], 2) }}</p>
-                <p class="mt-1 text-xs text-stone-400">Matches + Memberships</p>
+                <p class="mt-1 text-xs text-stone-400">All revenue sources</p>
             </div>
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm p-5">
-                <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Net Revenue (SAPRF)</p>
+                <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Net Revenue</p>
                 <p class="mt-1 text-2xl font-bold text-emerald-800">R{{ number_format($summary['net_revenue'], 2) }}</p>
-                <p class="mt-1 text-xs text-emerald-600">Platform + SAPRF fees + surcharges</p>
+                <p class="mt-1 text-xs text-emerald-600">Before expenses</p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">Gateway Fees</p>
-                <p class="mt-1 text-2xl font-bold text-red-600">R{{ number_format($summary['total_gateway_fees'], 2) }}</p>
-                <p class="mt-1 text-xs text-stone-400">PayFast / payment processor</p>
+            <div class="rounded-xl border border-red-200 bg-red-50 shadow-sm p-5">
+                <p class="text-xs font-medium text-red-700 uppercase tracking-wide">Platform Expenses</p>
+                <p class="mt-1 text-2xl font-bold text-red-800">R{{ number_format($summary['platform_expenses']['total'], 2) }}</p>
+                <p class="mt-1 text-xs text-red-600">{{ $summary['platform_expenses']['count'] }} items</p>
+            </div>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm p-5">
+                <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Net After Expenses</p>
+                <p class="mt-1 text-2xl font-bold {{ $summary['net_after_expenses'] >= 0 ? 'text-emerald-800' : 'text-red-700' }}">R{{ number_format($summary['net_after_expenses'], 2) }}</p>
+                <p class="mt-1 text-xs text-emerald-600">Bottom line</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">MD Payouts</p>
@@ -128,6 +133,7 @@
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                 <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide mb-4">Membership Revenue</h2>
+                <p class="text-xs text-stone-400 mb-3">SAPRF retains all membership fees</p>
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <dt class="text-stone-600">Total Payments</dt>
@@ -138,8 +144,8 @@
                         <dd class="font-semibold">R{{ number_format($summary['membership_revenue']['gross'], 2) }}</dd>
                     </div>
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">Platform Fees (2.5%)</dt>
-                        <dd class="text-red-600">-R{{ number_format($summary['membership_revenue']['platform_fees'], 2) }}</dd>
+                        <dt class="text-stone-500">Platform Cost ({{ $settings['membership_platform_fee_pct'] ?? '2.5' }}%)</dt>
+                        <dd class="text-orange-600">-R{{ number_format($summary['membership_revenue']['platform_cost'], 2) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Est. Gateway Fees</dt>
@@ -150,6 +156,55 @@
                         <dd class="font-bold text-emerald-700">R{{ number_format($summary['membership_revenue']['net_to_saprf'], 2) }}</dd>
                     </div>
                 </dl>
+            </div>
+        </div>
+
+        {{-- Other Income & Expenses --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Other Income</h2>
+                    <a href="{{ route('financials.income') }}" class="text-xs text-emerald-700 hover:text-emerald-800 font-medium">Manage</a>
+                </div>
+                @if(!empty($summary['other_income']['by_category']))
+                <dl class="space-y-2 text-sm">
+                    @foreach($summary['other_income']['by_category'] as $cat => $amount)
+                    <div class="flex justify-between">
+                        <dt class="text-stone-600">{{ \App\Models\PlatformIncome::CATEGORIES[$cat] ?? ucfirst($cat) }}</dt>
+                        <dd class="font-semibold text-emerald-700">R{{ number_format($amount, 2) }}</dd>
+                    </div>
+                    @endforeach
+                    <div class="flex justify-between border-t border-stone-200 pt-2">
+                        <dt class="font-semibold text-stone-700">Total</dt>
+                        <dd class="font-bold text-emerald-800">R{{ number_format($summary['other_income']['total'], 2) }}</dd>
+                    </div>
+                </dl>
+                @else
+                <p class="text-sm text-stone-400">No other income recorded for this period.</p>
+                @endif
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Platform Expenses</h2>
+                    <a href="{{ route('financials.expenses') }}" class="text-xs text-emerald-700 hover:text-emerald-800 font-medium">Manage</a>
+                </div>
+                @if(!empty($summary['platform_expenses']['by_category']))
+                <dl class="space-y-2 text-sm">
+                    @foreach($summary['platform_expenses']['by_category'] as $cat => $amount)
+                    <div class="flex justify-between">
+                        <dt class="text-stone-600">{{ \App\Models\PlatformExpense::CATEGORIES[$cat] ?? ucfirst($cat) }}</dt>
+                        <dd class="font-semibold text-red-600">R{{ number_format($amount, 2) }}</dd>
+                    </div>
+                    @endforeach
+                    <div class="flex justify-between border-t border-stone-200 pt-2">
+                        <dt class="font-semibold text-stone-700">Total</dt>
+                        <dd class="font-bold text-red-700">R{{ number_format($summary['platform_expenses']['total'], 2) }}</dd>
+                    </div>
+                </dl>
+                @else
+                <p class="text-sm text-stone-400">No expenses recorded for this period.</p>
+                @endif
             </div>
         </div>
 

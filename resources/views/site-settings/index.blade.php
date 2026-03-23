@@ -235,6 +235,30 @@
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Membership & Other Transaction Fees</h2>
+                    <p class="text-sm text-stone-500">Platform fee applied to memberships and other non-match transactions. SAPRF retains all membership revenue — this fee covers platform operating costs.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="membership_platform_fee_pct" class="block text-sm font-medium text-stone-700">Platform Fee (%)</label>
+                        <input type="number" step="0.1" min="0" max="50" name="membership_platform_fee_pct" id="membership_platform_fee_pct" value="{{ old('membership_platform_fee_pct', $settings['membership_platform_fee_pct'] ?? '2.5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Percentage allocated to platform costs on membership payments, donations, etc.</p>
+                    </div>
+
+                    <div class="flex items-end pb-1">
+                        <p class="text-sm text-stone-500">Gateway fees ({{ $settings['estimated_gateway_fee_percentage'] ?? '3.5' }}% + R{{ $settings['estimated_gateway_flat_fee'] ?? '2.00' }}) are shared across all transactions and configured above.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    <p><strong class="text-stone-900">How it works:</strong></p>
+                    <p>Unlike match fees (which are split with match directors), SAPRF keeps 100% of membership and other income. This platform fee is used in financial reporting to track the cost of running the platform against these revenue streams.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="font-heading text-lg font-semibold text-stone-900">Payment Gateway (PayFast)</h2>

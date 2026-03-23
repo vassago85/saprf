@@ -43,6 +43,7 @@ class SiteSettingsController extends Controller
             'category_awards_enabled' => ['required', 'boolean'],
             'saprf_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
             'platform_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
+            'membership_platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:50'],
             'estimated_gateway_fee_percentage' => ['required', 'numeric', 'min:0', 'max:20'],
             'estimated_gateway_flat_fee' => ['required', 'numeric', 'min:0', 'max:100'],
             'payfast_merchant_id' => ['nullable', 'string', 'max:20'],
@@ -79,6 +80,7 @@ class SiteSettingsController extends Controller
 
         $this->settingsService->set('saprf_fee_percentage', $validated['saprf_fee_percentage'], 'SAPRF federation fee as % of base match fee');
         $this->settingsService->set('platform_fee_percentage', $validated['platform_fee_percentage'], 'Platform operator fee as % of base match fee');
+        $this->settingsService->set('membership_platform_fee_pct', $validated['membership_platform_fee_pct'], 'Platform fee % on membership and other non-match transactions');
         $this->settingsService->set('estimated_gateway_fee_percentage', $validated['estimated_gateway_fee_percentage'], 'Estimated PayFast gateway fee % (for reporting only)');
         $this->settingsService->set('estimated_gateway_flat_fee', $validated['estimated_gateway_flat_fee'], 'Estimated PayFast flat fee per transaction in ZAR (for reporting only)');
 
