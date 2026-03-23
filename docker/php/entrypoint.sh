@@ -8,10 +8,8 @@ if [ ! -f .env ]; then
     echo "Copied .env.docker to .env"
 fi
 
-if [ ! -f vendor/autoload.php ]; then
-    echo "Installing Composer dependencies..."
-    composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=ext-gd
-fi
+echo "Installing Composer dependencies..."
+composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=ext-gd
 
 if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
     echo "Installing NPM dependencies..."
