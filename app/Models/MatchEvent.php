@@ -113,6 +113,16 @@ class MatchEvent extends Model
         return $this->hasMany(MatchExpense::class, 'match_id');
     }
 
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class, 'match_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     // ── Computed Accessors ──
 
     protected function registrationStatus(): Attribute

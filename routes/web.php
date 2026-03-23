@@ -23,6 +23,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\MatchExpenseController;
+use App\Http\Controllers\FinancialController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Auth;
@@ -158,6 +159,21 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->only(['index', 'show'])
             ->names('audit-logs');
         Route::resource('sponsors', SponsorController::class)->except(['show']);
+    });
+
+    // Financials (Admin + Owner)
+    Route::middleware(['role:owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
+        Route::get('/', [FinancialController::class, 'dashboard'])->name('dashboard');
+        Route::get('/match/{match}', [FinancialController::class, 'matchReport'])->name('match-report');
+        Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
+        Route::get('/payouts/create', [FinancialController::class, 'createPayout'])->name('payouts.create');
+        Route::post('/payouts', [FinancialController::class, 'storePayout'])->name('payouts.store');
+        Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
+        Route::get('/transactions', [FinancialController::class, 'transactions'])->name('transactions');
+        Route::get('/export/summary-csv', [FinancialController::class, 'exportDashboardCsv'])->name('export.dashboard-csv');
+        Route::get('/export/summary-pdf', [FinancialController::class, 'exportDashboardPdf'])->name('export.dashboard-pdf');
+        Route::get('/export/matches-csv', [FinancialController::class, 'exportMatchesCsv'])->name('export.matches-csv');
+        Route::get('/export/payouts-csv', [FinancialController::class, 'exportPayoutsCsv'])->name('export.payouts-csv');
     });
 
     // Owner only

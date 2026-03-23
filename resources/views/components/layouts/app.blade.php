@@ -124,6 +124,20 @@
             @endrole
 
             @role('owner|admin')
+            <flux:navlist.group heading="Finance">
+                <flux:navlist.item icon="banknotes" :href="route('financials.dashboard')" :current="request()->routeIs('financials.dashboard')">
+                    Financial Dashboard
+                </flux:navlist.item>
+                <flux:navlist.item icon="credit-card" :href="route('financials.payouts')" :current="request()->routeIs('financials.payouts*')">
+                    Payouts
+                </flux:navlist.item>
+                <flux:navlist.item icon="queue-list" :href="route('financials.transactions')" :current="request()->routeIs('financials.transactions')">
+                    Transactions
+                </flux:navlist.item>
+            </flux:navlist.group>
+            @endrole
+
+            @role('owner|admin')
             <flux:navlist.group heading="System">
                 <flux:navlist.item icon="document-magnifying-glass" :href="route('audit-logs.index')" :current="request()->routeIs('audit-logs.*')">
                     Audit Logs
