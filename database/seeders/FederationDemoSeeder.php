@@ -33,78 +33,93 @@ class FederationDemoSeeder extends Seeder
             $owner?->update(['date_of_birth' => '1980-01-10']);
             $existingMember?->update(['date_of_birth' => '1988-05-20', 'province_id' => $provinces['FS']->id]);
 
-            // ── 45 Shooters ──
-            // Mix: members/non-members, ladies, juniors, seniors, across provinces and divisions
+            // ── Shooters (real names from precisionrifle.co.za standings) ──
+            // Demo data only. Provinces and DOBs are approximations to populate
+            // categories (senior / junior / ladies) correctly.
             $shooterData = [
-                // GP — Open division shooters (strong field)
-                ['name' => 'Jan van der Berg',       'email' => 'jan@example.co.za',         'prov' => 'GP',  'dob' => '1985-03-15', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Pieter Joubert',         'email' => 'pieter@example.co.za',       'prov' => 'GP',  'dob' => '1990-07-22', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Kobus Venter',           'email' => 'kobus@example.co.za',        'prov' => 'GP',  'dob' => '1987-09-03', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Louis Potgieter',        'email' => 'louis@example.co.za',        'prov' => 'GP',  'dob' => '1983-11-28', 'div' => 'factory', 'cats' => [],             'member' => true],
-                ['name' => 'Werner Steyn',           'email' => 'werner@example.co.za',       'prov' => 'GP',  'dob' => '1991-02-14', 'div' => 'factory', 'cats' => [],             'member' => true],
+                // ── Open Division — Top tier ──
+                ['name' => 'Warren Britnell',        'email' => 'warren.britnell@example.co.za',     'prov' => 'GP',  'dob' => '1982-04-12', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Donovan Cook',           'email' => 'donovan.cook@example.co.za',        'prov' => 'GP',  'dob' => '1985-08-19', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Malcolm Coetzee',        'email' => 'malcolm.coetzee@example.co.za',     'prov' => 'GP',  'dob' => '1979-11-06', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Kevin Goncalves',        'email' => 'kevin.goncalves@example.co.za',     'prov' => 'GP',  'dob' => '1983-02-23', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Willem Van Biljon',      'email' => 'willem.vanbiljon@example.co.za',    'prov' => 'GP',  'dob' => '1986-07-15', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Jason Marais',           'email' => 'jason.marais@example.co.za',        'prov' => 'GP',  'dob' => '1988-09-28', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Leon Goosen',            'email' => 'leon.goosen@example.co.za',         'prov' => 'GP',  'dob' => '1984-03-09', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Marcel Steyn',           'email' => 'marcel.steyn@example.co.za',        'prov' => 'GP',  'dob' => '1990-12-04', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Dirk Pio',               'email' => 'dirk.pio@example.co.za',            'prov' => 'GP',  'dob' => '1987-05-21', 'div' => 'open',    'cats' => [],         'member' => true],
 
-                // GP — Ladies
-                ['name' => 'Chantel van der Merwe',   'email' => 'chantel@example.co.za',      'prov' => 'GP',  'dob' => '1992-01-18', 'div' => 'open',       'cats' => ['ladies'],       'member' => true],
-                ['name' => 'Leandri Kruger',         'email' => 'leandri@example.co.za',      'prov' => 'GP',  'dob' => '1995-06-10', 'div' => 'factory', 'cats' => ['ladies'],       'member' => true],
-                ['name' => 'Mienkie du Preez',       'email' => 'mienkie@example.co.za',      'prov' => 'GP',  'dob' => '1989-04-22', 'div' => 'limited',    'cats' => ['ladies'],       'member' => true],
+                // ── Western Cape Open ──
+                ['name' => 'Johan Nel',              'email' => 'johan.nel@example.co.za',           'prov' => 'WC',  'dob' => '1981-06-14', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Dennis Van der Merwe',   'email' => 'dennis.vdmerwe@example.co.za',      'prov' => 'WC',  'dob' => '1980-10-02', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Ruan Zeeman',            'email' => 'ruan.zeeman@example.co.za',         'prov' => 'WC',  'dob' => '1989-01-17', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Sean Graham',            'email' => 'sean.graham@example.co.za',         'prov' => 'WC',  'dob' => '1985-04-25', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Gerhard Slabbert',       'email' => 'gerhard.slabbert@example.co.za',    'prov' => 'WC',  'dob' => '1983-08-30', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Angelo Van Zyl',         'email' => 'angelo.vanzyl@example.co.za',       'prov' => 'WC',  'dob' => '1987-11-12', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Clive Mey',              'email' => 'clive.mey@example.co.za',           'prov' => 'WC',  'dob' => '1976-02-08', 'div' => 'open',    'cats' => [],         'member' => true],
 
-                // WC — Mixed field
-                ['name' => 'Andre Visser',           'email' => 'andre@example.co.za',        'prov' => 'WC',  'dob' => '1978-11-08', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Rudi Erasmus',           'email' => 'rudi@example.co.za',         'prov' => 'WC',  'dob' => '1975-08-05', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Gerhard Cilliers',       'email' => 'gerhard@example.co.za',      'prov' => 'WC',  'dob' => '1982-05-19', 'div' => 'factory', 'cats' => [],             'member' => true],
-                ['name' => 'Jacques Engelbrecht',    'email' => 'jacques@example.co.za',      'prov' => 'WC',  'dob' => '1994-12-01', 'div' => 'limited',    'cats' => [],             'member' => true],
-                ['name' => 'Suné Rossouw',           'email' => 'sune@example.co.za',         'prov' => 'WC',  'dob' => '1997-03-30', 'div' => 'factory', 'cats' => ['ladies'],       'member' => true],
+                // ── Senior — Centrefire (50+) ──
+                ['name' => 'Le Riche Coetzer Snr',   'email' => 'leriche.coetzer@example.co.za',     'prov' => 'WC',  'dob' => '1968-09-04', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
+                ['name' => 'Greg Sykes',             'email' => 'greg.sykes@example.co.za',          'prov' => 'GP',  'dob' => '1965-03-22', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
+                ['name' => 'Glen Clark',             'email' => 'glen.clark@example.co.za',          'prov' => 'GP',  'dob' => '1967-07-11', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
+                ['name' => 'Andries Lategan',        'email' => 'andries.lategan@example.co.za',     'prov' => 'KZN', 'dob' => '1963-05-29', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
+                ['name' => 'Riaan Kunneke',          'email' => 'riaan.kunneke@example.co.za',       'prov' => 'LP',  'dob' => '1969-12-18', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
+                ['name' => 'Etienne De Waal',        'email' => 'etienne.dewaal@example.co.za',      'prov' => 'WC',  'dob' => '1966-10-07', 'div' => 'open',    'cats' => ['senior'], 'member' => true],
 
-                // KZN
-                ['name' => 'Christo Muller',         'email' => 'christo@example.co.za',      'prov' => 'KZN', 'dob' => '1968-02-14', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
-                ['name' => 'Thabo Mkhize',           'email' => 'thabo@example.co.za',        'prov' => 'KZN', 'dob' => '1986-10-11', 'div' => 'factory', 'cats' => [],             'member' => true],
-                ['name' => 'Johan Greyling',         'email' => 'johan@example.co.za',        'prov' => 'KZN', 'dob' => '1979-07-25', 'div' => 'open',       'cats' => [],             'member' => true],
+                // ── Factory ──
+                ['name' => 'Russell Ferreira',       'email' => 'russell.ferreira@example.co.za',    'prov' => 'GP',  'dob' => '1986-03-08', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Desmond Wellen',         'email' => 'desmond.wellen@example.co.za',      'prov' => 'GP',  'dob' => '1982-09-21', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Hanno Van Niekerk',      'email' => 'hanno.vanniekerk@example.co.za',    'prov' => 'WC',  'dob' => '1988-04-16', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Chris Leeson',           'email' => 'chris.leeson@example.co.za',        'prov' => 'GP',  'dob' => '1984-08-03', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Patrick Capes',          'email' => 'patrick.capes@example.co.za',       'prov' => 'WC',  'dob' => '1987-01-26', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Stelios Christofi',      'email' => 'stelios.christofi@example.co.za',   'prov' => 'KZN', 'dob' => '1985-11-09', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Handre van Niekerk',     'email' => 'handre.vanniekerk@example.co.za',   'prov' => 'WC',  'dob' => '1989-06-30', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'AJ Deysel',              'email' => 'aj.deysel@example.co.za',           'prov' => 'FS',  'dob' => '1990-02-13', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Alwyn van Graan',        'email' => 'alwyn.vangraan@example.co.za',      'prov' => 'GP',  'dob' => '1981-07-05', 'div' => 'factory', 'cats' => [],         'member' => true],
+                ['name' => 'Dumisani Shabangu',      'email' => 'dumisani.shabangu@example.co.za',   'prov' => 'MP',  'dob' => '1986-10-22', 'div' => 'factory', 'cats' => [],         'member' => true],
 
-                // FS
-                ['name' => 'Francois du Plessis',    'email' => 'francois@example.co.za',     'prov' => 'FS',  'dob' => '1995-04-25', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Gert Coetzee',           'email' => 'gert@example.co.za',         'prov' => 'FS',  'dob' => '1988-08-16', 'div' => 'factory', 'cats' => [],             'member' => true],
+                // ── Limited ──
+                ['name' => 'Jc Robertson',           'email' => 'jc.robertson@example.co.za',        'prov' => 'GP',  'dob' => '1983-12-11', 'div' => 'limited', 'cats' => [],         'member' => true],
+                ['name' => 'Mohsin Tajbhai',         'email' => 'mohsin.tajbhai@example.co.za',      'prov' => 'GP',  'dob' => '1987-05-04', 'div' => 'limited', 'cats' => [],         'member' => true],
+                ['name' => 'Devan Nell',             'email' => 'devan.nell@example.co.za',          'prov' => 'GP',  'dob' => '1991-08-19', 'div' => 'limited', 'cats' => [],         'member' => true],
+                ['name' => 'Edward Henwood',         'email' => 'edward.henwood@example.co.za',      'prov' => 'WC',  'dob' => '1984-02-27', 'div' => 'limited', 'cats' => [],         'member' => true],
+                ['name' => 'Jozef Kriek',            'email' => 'jozef.kriek@example.co.za',         'prov' => 'GP',  'dob' => '1988-11-15', 'div' => 'limited', 'cats' => [],         'member' => true],
 
-                // MP
-                ['name' => 'Dewald Botha',           'email' => 'dewald@example.co.za',       'prov' => 'MP',  'dob' => '1993-01-07', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Pieter-Louis Marais',    'email' => 'pl.marais@example.co.za',    'prov' => 'MP',  'dob' => '1981-06-19', 'div' => 'limited',    'cats' => [],             'member' => true],
+                // ── Ladies — GP ──
+                ['name' => 'Kim-Leigh Ferreira',     'email' => 'kim.ferreira@example.co.za',        'prov' => 'GP',  'dob' => '1990-06-08', 'div' => 'open',    'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Monica Le Roux',         'email' => 'monica.leroux@example.co.za',       'prov' => 'GP',  'dob' => '1988-03-17', 'div' => 'factory', 'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Natasha Britnell',       'email' => 'natasha.britnell@example.co.za',    'prov' => 'GP',  'dob' => '1985-10-29', 'div' => 'open',    'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Belinda Botha',          'email' => 'belinda.botha@example.co.za',       'prov' => 'GP',  'dob' => '1992-01-14', 'div' => 'limited', 'cats' => ['ladies'], 'member' => true],
 
-                // LP
-                ['name' => 'Hennie Pretorius',       'email' => 'hennie@example.co.za',       'prov' => 'LP',  'dob' => '1960-09-12', 'div' => 'open',       'cats' => ['senior'],     'member' => true],
-                ['name' => 'Sakkie van Wyk',         'email' => 'sakkie@example.co.za',       'prov' => 'LP',  'dob' => '1958-04-03', 'div' => 'factory', 'cats' => ['senior'], 'member' => true],
+                // ── Ladies — WC ──
+                ['name' => 'Jeanette Coetzee',       'email' => 'jeanette.coetzee@example.co.za',    'prov' => 'WC',  'dob' => '1987-07-23', 'div' => 'open',    'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Liezel Foot',            'email' => 'liezel.foot@example.co.za',         'prov' => 'WC',  'dob' => '1989-04-30', 'div' => 'open',    'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Aliza Mey',              'email' => 'aliza.mey@example.co.za',           'prov' => 'WC',  'dob' => '1986-09-18', 'div' => 'factory', 'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Liné de Witt',           'email' => 'line.dewitt@example.co.za',         'prov' => 'WC',  'dob' => '1993-12-02', 'div' => 'open',    'cats' => ['ladies'], 'member' => true],
+                ['name' => 'Marieke Van Rooyen',     'email' => 'marieke.vanrooyen@example.co.za',   'prov' => 'WC',  'dob' => '1991-05-26', 'div' => 'factory', 'cats' => ['ladies'], 'member' => true],
 
-                // NW
-                ['name' => 'Danie Swanepoel',        'email' => 'danie@example.co.za',        'prov' => 'NW',  'dob' => '1982-12-01', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Frikkie Bothma',         'email' => 'frikkie@example.co.za',      'prov' => 'NW',  'dob' => '1977-09-28', 'div' => 'factory',    'cats' => [],             'member' => true],
+                // ── Juniors (under 21 on 1 Jan 2026) ──
+                ['name' => 'Tinus Cronje',           'email' => 'tinus.cronje@example.co.za',        'prov' => 'WC',  'dob' => '2007-09-12', 'div' => 'open',    'cats' => ['junior'], 'member' => true],
+                ['name' => 'Conner Britnell',        'email' => 'conner.britnell@example.co.za',     'prov' => 'GP',  'dob' => '2008-02-25', 'div' => 'open',    'cats' => ['junior'], 'member' => true],
+                ['name' => 'Catelynn Britnell',      'email' => 'catelynn.britnell@example.co.za',   'prov' => 'GP',  'dob' => '2010-06-14', 'div' => 'open',    'cats' => ['junior', 'ladies'], 'member' => true],
+                ['name' => 'Johan Symington',        'email' => 'johan.symington@example.co.za',     'prov' => 'WC',  'dob' => '2006-11-08', 'div' => 'open',    'cats' => ['junior'], 'member' => true],
+                ['name' => 'Lian Van der Merwe',     'email' => 'lian.vdmerwe@example.co.za',        'prov' => 'FS',  'dob' => '2007-08-30', 'div' => 'open',    'cats' => ['junior'], 'member' => true],
+                ['name' => 'Erich Van der Merwe',    'email' => 'erich.vdmerwe@example.co.za',       'prov' => 'FS',  'dob' => '2009-04-17', 'div' => 'open',    'cats' => ['junior'], 'member' => true],
+                ['name' => 'MC Van Tonder',          'email' => 'mc.vantonder@example.co.za',        'prov' => 'GP',  'dob' => '2011-01-22', 'div' => 'factory', 'cats' => ['junior'], 'member' => true],
 
-                // NC
-                ['name' => 'Gideon Louw',            'email' => 'gideon@example.co.za',       'prov' => 'NC',  'dob' => '1984-02-11', 'div' => 'open',       'cats' => [],             'member' => true],
+                // ── Other provinces ──
+                ['name' => 'Terblanche De Jager',    'email' => 'terblanche.dejager@example.co.za',  'prov' => 'FS',  'dob' => '1984-07-19', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Schalk van der Merwe',   'email' => 'schalk.vdmerwe@example.co.za',      'prov' => 'NW',  'dob' => '1986-12-08', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Asharuf Moorad',         'email' => 'asharuf.moorad@example.co.za',      'prov' => 'NC',  'dob' => '1989-03-25', 'div' => 'open',    'cats' => [],         'member' => true],
+                ['name' => 'Pieter le Roux',         'email' => 'pieter.leroux@example.co.za',       'prov' => 'MP',  'dob' => '1985-10-11', 'div' => 'factory', 'cats' => [],         'member' => true],
 
-                // Juniors (under 21 on 1 Jan 2026)
-                ['name' => 'Willem Botha',           'email' => 'willem@example.co.za',       'prov' => 'FS',  'dob' => '2007-06-30', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
-                ['name' => 'Ethan Steenkamp',        'email' => 'ethan@example.co.za',        'prov' => 'GP',  'dob' => '2008-03-14', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
-                ['name' => 'Marco van Rensburg',     'email' => 'marco@example.co.za',        'prov' => 'WC',  'dob' => '2006-11-22', 'div' => 'limited',    'cats' => ['junior'],     'member' => true],
-                ['name' => 'Nico Jacobs',            'email' => 'nico@example.co.za',         'prov' => 'GP',  'dob' => '2009-08-05', 'div' => 'factory', 'cats' => ['junior'],     'member' => true],
+                // ── Non-members ──
+                ['name' => 'Trevor Graham',          'email' => 'trevor.graham@example.co.za',       'prov' => 'GP',  'dob' => '1972-08-15', 'div' => 'open',    'cats' => ['senior'], 'member' => false],
+                ['name' => 'Danie du Preez',         'email' => 'danie.dupreez@example.co.za',       'prov' => 'WC',  'dob' => '1971-04-03', 'div' => 'open',    'cats' => ['senior'], 'member' => false],
+                ['name' => 'Grant Bower',            'email' => 'grant.bower@example.co.za',         'prov' => 'WC',  'dob' => '1983-11-28', 'div' => 'factory', 'cats' => [],         'member' => false],
 
-                // Younger junior (under 14)
-                ['name' => 'Liam du Toit',           'email' => 'liam@example.co.za',         'prov' => 'GP',  'dob' => '2012-05-18', 'div' => 'factory', 'cats' => ['junior'], 'member' => true],
-
-                // Non-members (no membership — shoot as non-member)
-                ['name' => 'Tommy Wilson',           'email' => 'tommy@example.co.za',        'prov' => 'WC',  'dob' => '1990-10-03', 'div' => 'open',       'cats' => [],             'member' => false],
-                ['name' => 'Craig Adams',            'email' => 'craig@example.co.za',        'prov' => 'GP',  'dob' => '1986-02-28', 'div' => 'factory', 'cats' => [],             'member' => false],
-                ['name' => 'Neville Harris',         'email' => 'neville@example.co.za',      'prov' => 'KZN', 'dob' => '1991-07-14', 'div' => 'open',       'cats' => [],             'member' => false],
-                ['name' => 'Mike Pienaar',           'email' => 'mike.p@example.co.za',       'prov' => 'FS',  'dob' => '1985-12-09', 'div' => 'limited',    'cats' => [],             'member' => false],
-                ['name' => 'James Scott',            'email' => 'james.s@example.co.za',      'prov' => 'GP',  'dob' => '1993-05-16', 'div' => 'factory',    'cats' => [], 'member' => false],
-
-                // Lapsed members
-                ['name' => 'Boeta Kruger',           'email' => 'boeta@example.co.za',        'prov' => 'NW',  'dob' => '1976-08-22', 'div' => 'open',       'cats' => [],             'member' => 'lapsed'],
-                ['name' => 'Hein van Niekerk',       'email' => 'hein@example.co.za',         'prov' => 'MP',  'dob' => '1980-03-17', 'div' => 'factory', 'cats' => [],             'member' => 'lapsed'],
-
-                // Former PR22 rimfire demo shooters (same divisions as centrefire)
-                ['name' => 'Riaan Booysen',          'email' => 'riaan@example.co.za',        'prov' => 'GP',  'dob' => '1989-09-30', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Stefan Maritz',          'email' => 'stefan@example.co.za',       'prov' => 'WC',  'dob' => '1996-01-12', 'div' => 'open',       'cats' => [],             'member' => true],
-                ['name' => 'Jaco de Beer',           'email' => 'jaco@example.co.za',         'prov' => 'GP',  'dob' => '1984-06-05', 'div' => 'factory',  'cats' => [],             'member' => true],
-                ['name' => 'Zelda Kotzé',            'email' => 'zelda@example.co.za',        'prov' => 'WC',  'dob' => '1998-11-14', 'div' => 'open',       'cats' => ['ladies'],       'member' => true],
-                ['name' => 'Ernst Schoeman',         'email' => 'ernst@example.co.za',        'prov' => 'FS',  'dob' => '1963-04-20', 'div' => 'factory',  'cats' => ['senior'],     'member' => true],
+                // ── Lapsed members ──
+                ['name' => 'Jaco Bosman',            'email' => 'jaco.bosman@example.co.za',         'prov' => 'GP',  'dob' => '1980-06-20', 'div' => 'open',    'cats' => [],         'member' => 'lapsed'],
+                ['name' => 'Derek Reyneke',          'email' => 'derek.reyneke@example.co.za',       'prov' => 'GP',  'dob' => '1966-02-09', 'div' => 'open',    'cats' => ['senior'], 'member' => 'lapsed'],
             ];
 
             $allShooters = [];
@@ -196,31 +211,37 @@ class FederationDemoSeeder extends Seeder
                 ];
             }
 
-            // ── 2026 Match Calendar ──
+            // ── 2026 Match Calendar (today: 21 May 2026) ──
             $matchData = [
-                ['name' => 'Centrefire NW 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'NW', 'date' => '2026-02-14', 'end' => '2026-02-15', 'status' => 'completed', 'venue' => 'NW Klerksdorp', 'city' => 'Klerksdorp', 'max' => 40, 'dual_provincial' => true],
-                ['name' => 'Centrefire WC 2-Day National — Wolseley', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-03-07', 'end' => '2026-03-08', 'status' => 'completed', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 40, 'dual_provincial' => true],
-                ['name' => 'Rimfire PR22 GP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 30, 'dual_provincial' => false],
+                // ─────────── PAST PRS Nationals (completed) ───────────
+                ['name' => 'Centrefire NW 2-Day National',           'type' => 'PRS', 'level' => 'national', 'prov' => 'NW', 'date' => '2026-02-14', 'end' => '2026-02-15', 'status' => 'completed', 'venue' => 'NW Klerksdorp',              'city' => 'Klerksdorp',   'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Centrefire WC 2-Day National — Wolseley','type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-03-07', 'end' => '2026-03-08', 'status' => 'completed', 'venue' => 'Romansrivier Wolseley',     'city' => 'Wolseley',     'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Centrefire GP 2-Day National',           'type' => 'PRS', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-04-11', 'end' => '2026-04-12', 'status' => 'completed', 'venue' => 'Legends Adventure Farm',   'city' => 'Gauteng',      'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Centrefire FS 2-Day National',           'type' => 'PRS', 'level' => 'national', 'prov' => 'FS', 'date' => '2026-05-02', 'end' => '2026-05-03', 'status' => 'completed', 'venue' => 'Bloemfontein Range',        'city' => 'Bloemfontein', 'max' => 36, 'dual_provincial' => true],
 
-                ['name' => 'Centrefire GP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'GP', 'date' => '2026-06-20', 'end' => '2026-06-21', 'status' => 'draft', 'venue' => 'Hippo Creek', 'city' => 'Gauteng', 'max' => 40],
-                ['name' => 'Centrefire MP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-07-11', 'end' => '2026-07-12', 'status' => 'draft', 'venue' => 'Lydenburg', 'city' => 'Lydenburg', 'max' => 40],
-                ['name' => 'Centrefire LP 2-Day National', 'type' => 'PRS', 'level' => 'national', 'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09', 'status' => 'draft', 'venue' => 'Marble Hall', 'city' => 'Marble Hall', 'max' => 40],
-                ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national', 'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25', 'status' => 'draft', 'venue' => 'Darling Steel Valley', 'city' => 'Darling', 'max' => 40],
-                ['name' => 'Centrefire GP 2-Day Championship', 'type' => 'PRS', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-21', 'end' => '2026-11-22', 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 30],
+                // ─────────── PAST PR22 Nationals (completed) ───────────
+                ['name' => 'Rimfire PR22 GP 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek',              'city' => 'Gauteng',      'max' => 30],
+                ['name' => 'Rimfire PR22 WC 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'WC', 'date' => '2026-04-04', 'end' => '2026-04-05', 'status' => 'completed', 'venue' => 'Atlantis Shooting Range',  'city' => 'Atlantis',     'max' => 30],
 
-                ['name' => 'Centrefire FS Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'FS', 'date' => '2026-04-18', 'end' => null, 'status' => 'open', 'venue' => 'Bloemfontein', 'city' => 'Bloemfontein', 'max' => 25],
-                ['name' => 'Centre Fire GP Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-02', 'end' => null, 'status' => 'open', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 25],
-                ['name' => 'Centrefire WC Provincial', 'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null, 'status' => 'draft', 'venue' => 'Romansrivier Wolseley', 'city' => 'Wolseley', 'max' => 25],
+                // ─────────── PAST Provincial (completed) ───────────
+                ['name' => 'Centrefire MP Provincial',               'type' => 'PRS', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-03-21', 'end' => null,        'status' => 'completed', 'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 25],
+                ['name' => 'Rimfire PR22 MP Provincial',             'type' => 'PR22','level' => 'provincial', 'prov' => 'MP', 'date' => '2026-04-11', 'end' => null,        'status' => 'completed', 'venue' => 'Balmoral Hunting Farm',    'city' => 'Balmoral',     'max' => 20],
 
-                ['name' => 'Rimfire PR22 MP 2-Day National', 'type' => 'PR22', 'level' => 'national', 'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30', 'status' => 'draft', 'venue' => 'TBC - Mpumalanga', 'city' => 'Mpumalanga', 'max' => 30],
-                ['name' => 'Rimfire PR22 GP Championship', 'type' => 'PR22', 'level' => 'final', 'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08', 'status' => 'draft', 'venue' => 'TBC - Gauteng', 'city' => 'Gauteng', 'max' => 24],
+                // ─────────── UPCOMING — Registration open ───────────
+                ['name' => 'Rimfire PR22 GP Provincial — May',       'type' => 'PR22','level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-30', 'end' => null,        'status' => 'open',      'venue' => "Leopard's Valley",        'city' => 'Gauteng',      'max' => 20],
+                ['name' => 'Rimfire PR22 WC Provincial — Jun',       'type' => 'PR22','level' => 'provincial', 'prov' => 'WC', 'date' => '2026-06-14', 'end' => null,        'status' => 'open',      'venue' => 'Atlantis Shooting Range',  'city' => 'Atlantis',     'max' => 20],
+                ['name' => 'Centrefire GP Provincial — Jun',         'type' => 'PRS', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-06-21', 'end' => null,        'status' => 'open',      'venue' => 'Legends Adventure Farm',  'city' => 'Gauteng',      'max' => 25],
+                ['name' => 'Centrefire MP 2-Day National',           'type' => 'PRS', 'level' => 'national',   'prov' => 'MP', 'date' => '2026-07-11', 'end' => '2026-07-12','status' => 'open',      'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Rimfire PR22 LP Provincial',             'type' => 'PR22','level' => 'provincial', 'prov' => 'LP', 'date' => '2026-07-18', 'end' => null,        'status' => 'open',      'venue' => 'Risla Range',              'city' => 'Limpopo',      'max' => 20],
 
-                ['name' => 'Rimfire PR22 MP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-04-11', 'end' => null, 'status' => 'open', 'venue' => 'Balmoral Hunting Farm', 'city' => 'Balmoral', 'max' => 20],
-                ['name' => 'Rimfire PR22 GP Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-05-23', 'end' => null, 'status' => 'draft', 'venue' => "Leopard's Valley", 'city' => 'Gauteng', 'max' => 20],
-                ['name' => 'Rimfire PR22 WC Provincial May', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-05-30', 'end' => null, 'status' => 'draft', 'venue' => 'TBC - Western Cape', 'city' => 'Western Cape', 'max' => 20],
-                ['name' => 'Rimfire PR22 WC Provincial Jun', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-06-14', 'end' => null, 'status' => 'draft', 'venue' => 'Atlantis Shooting Range', 'city' => 'Atlantis', 'max' => 20],
-                ['name' => 'Rimfire PR22 LP Provincial', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'LP', 'date' => '2026-07-18', 'end' => null, 'status' => 'draft', 'venue' => 'Risla Range', 'city' => 'Limpopo', 'max' => 20],
-                ['name' => 'Rimfire PR22 GP Provincial Aug', 'type' => 'PR22', 'level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null, 'status' => 'draft', 'venue' => 'Legends Adventure Farm', 'city' => 'Gauteng', 'max' => 20],
+                // ─────────── UPCOMING — Draft (announced, not open) ───────────
+                ['name' => 'Centrefire LP 2-Day National',           'type' => 'PRS', 'level' => 'national',   'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09','status' => 'draft',     'venue' => 'Marble Hall Range',        'city' => 'Marble Hall',  'max' => 40, 'dual_provincial' => true],
+                ['name' => 'Rimfire PR22 GP Provincial — Aug',       'type' => 'PR22','level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null,        'status' => 'draft',     'venue' => 'Legends Adventure Farm',  'city' => 'Gauteng',      'max' => 20],
+                ['name' => 'Rimfire PR22 MP 2-Day National',         'type' => 'PR22','level' => 'national',   'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30','status' => 'draft',     'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 30],
+                ['name' => 'Centrefire WC Provincial',               'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null,        'status' => 'draft',     'venue' => 'Romansrivier Wolseley',    'city' => 'Wolseley',     'max' => 25],
+                ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national',   'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25','status' => 'draft',     'venue' => 'Darling Steel Valley',     'city' => 'Darling',      'max' => 40],
+                ['name' => 'Rimfire PR22 GP Championship',           'type' => 'PR22','level' => 'final',      'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08','status' => 'draft',     'venue' => 'Hippo Creek',              'city' => 'Gauteng',      'max' => 24],
+                ['name' => 'Centrefire GP 2-Day Championship',       'type' => 'PRS', 'level' => 'final',      'prov' => 'GP', 'date' => '2026-11-21', 'end' => '2026-11-22','status' => 'draft',     'venue' => 'Legends Adventure Farm',  'city' => 'Gauteng',      'max' => 30],
             ];
 
             $completedPrsMatches = [];
