@@ -10,9 +10,11 @@
         <div class="flex items-center gap-2">
             @php
                 $roles = [
+                    'developer' => ['label' => 'Developer', 'icon' => 'code-bracket', 'color' => 'violet'],
                     'owner' => ['label' => 'Owner', 'icon' => 'crown', 'color' => 'amber'],
                     'admin' => ['label' => 'Admin', 'icon' => 'shield', 'color' => 'sky'],
                     'match_director' => ['label' => 'Match Director', 'icon' => 'flag', 'color' => 'violet'],
+                    'provincial_admin' => ['label' => 'Provincial Admin', 'icon' => 'building-library', 'color' => 'teal'],
                     'member' => ['label' => 'Member', 'icon' => 'user', 'color' => 'emerald'],
                 ];
             @endphp

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
+use App\Models\ProvincialCommittee;
 use App\Models\QualificationRule;
 use App\Models\RifleConfiguration;
 use App\Models\Score;
@@ -20,6 +21,17 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    // Highest-priority role first. A user with multiple roles lands on the
+    // dashboard for the first role they have in this list.
+    private const ROLE_PRIORITY = [
+        'developer',
+        'owner',
+        'admin',
+        'match_director',
+        'provincial_admin',
+        'member',
+    ];
+
     public function __construct(
         private QualificationService $qualificationService,
         private SettingsService $settingsService,
@@ -28,27 +40,50 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
-        $viewAs = $request->input('view_as');
 
-        $canSwitch = app()->isLocal() || $user->hasRole('owner');
+        // Dev impersonation: local env only. In production every user lands on
+        // the dashboard for their actual role.
+        $canImpersonate = app()->isLocal();
+        $viewAs = $canImpersonate ? $request->input('view_as') : null;
 
-        // Everyone is a member first — admin views are via sidebar nav
-        if ($canSwitch && $viewAs && in_array($viewAs, ['owner', 'admin', 'match_director', 'member'])) {
-            $dashboard = match ($viewAs) {
-                'owner' => $this->ownerDashboard($user),
-                'admin' => $this->adminDashboard($user),
-                'match_director' => $this->matchDirectorDashboard($user),
-                default => $this->memberDashboard($user),
-            };
-        } else {
-            $dashboard = $this->memberDashboard($user);
-        }
+        $role = $viewAs && in_array($viewAs, self::ROLE_PRIORITY, true)
+            ? $viewAs
+            : $this->resolveRole($user);
 
-        $currentRole = $viewAs ?: 'member';
+        $dashboard = match ($role) {
+            'developer' => $this->developerDashboard($user),
+            'owner' => $this->ownerDashboard($user),
+            'admin' => $this->adminDashboard($user),
+            'match_director' => $this->matchDirectorDashboard($user),
+            'provincial_admin' => $this->provincialAdminDashboard($user),
+            default => $this->memberDashboard($user),
+        };
 
         return $dashboard->with([
-            'devSwitcherEnabled' => $canSwitch,
-            'currentViewAs' => $currentRole,
+            'devSwitcherEnabled' => $canImpersonate,
+            'currentViewAs' => $role,
+        ]);
+    }
+
+    private function resolveRole(User $user): string
+    {
+        foreach (self::ROLE_PRIORITY as $role) {
+            if ($user->hasRole($role)) {
+                return $role;
+            }
+        }
+
+        return 'member';
+    }
+
+    private function developerDashboard(User $user): View
+    {
+        return view('dashboard.developer', [
+            'user' => $user,
+            'appEnv' => app()->environment(),
+            'appDebug' => (bool) config('app.debug'),
+            'phpVersion' => PHP_VERSION,
+            'laravelVersion' => app()->version(),
         ]);
     }
 
@@ -88,6 +123,36 @@ class DashboardController extends Controller
                 'match_id',
                 MatchEvent::where('created_by', $user->id)->pluck('id')
             )->where('registration_status', 'pending')->count(),
+        ]);
+    }
+
+    private function provincialAdminDashboard(User $user): View
+    {
+        $committeePositions = $user->committeePositions()
+            ->where('is_active', true)
+            ->with('province')
+            ->get();
+
+        $provinceIds = $committeePositions->pluck('province_id')->unique()->values()->all();
+
+        $provincialMembersCount = User::whereIn('province_id', $provinceIds)->count();
+
+        $provincialActiveMembersCount = User::whereIn('province_id', $provinceIds)
+            ->whereHas('membership', fn ($q) => $q->where('status', 'active'))
+            ->count();
+
+        $upcomingProvincialMatches = MatchEvent::whereIn('province_id', $provinceIds)
+            ->where('match_date', '>=', Carbon::today())
+            ->orderBy('match_date')
+            ->limit(5)
+            ->get();
+
+        return view('dashboard.provincial-admin', [
+            'user' => $user,
+            'committeePositions' => $committeePositions,
+            'provincialMembersCount' => $provincialMembersCount,
+            'provincialActiveMembersCount' => $provincialActiveMembersCount,
+            'upcomingProvincialMatches' => $upcomingProvincialMatches,
         ]);
     }
 

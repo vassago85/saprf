@@ -12,7 +12,7 @@ class RolesAndUsersSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = ['owner', 'admin', 'match_director', 'member', 'provincial_admin'];
+        $roles = ['developer', 'owner', 'admin', 'match_director', 'member', 'provincial_admin'];
 
         foreach ($roles as $role) {
             Role::firstOrCreate(['name' => $role]);
@@ -23,6 +23,7 @@ class RolesAndUsersSeeder extends Seeder
         $fs = Province::where('abbreviation', 'FS')->first();
 
         $users = [
+            ['name' => 'SAPRF Developer', 'email' => 'developer@saprf.co.za', 'roles' => ['developer', 'member'], 'province_id' => $gp?->id],
             ['name' => 'SAPRF Owner', 'email' => 'owner@saprf.co.za', 'roles' => ['owner', 'member'], 'province_id' => $gp?->id],
             ['name' => 'SAPRF Admin', 'email' => 'admin@saprf.co.za', 'roles' => ['admin', 'member'], 'province_id' => $gp?->id],
             ['name' => 'Match Director', 'email' => 'director@saprf.co.za', 'roles' => ['match_director', 'member'], 'province_id' => $wc?->id],
