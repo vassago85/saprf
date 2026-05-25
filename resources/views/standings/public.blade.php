@@ -25,6 +25,9 @@
             </div>
         </div>
 
+        {{-- Leaderboard Sponsor (above the table) --}}
+        <x-sponsors-strip placement="leaderboard" class="bg-white border-b border-stone-200 !py-4" />
+
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
             {{-- Row 1: Season, Series, Level --}}
             <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">

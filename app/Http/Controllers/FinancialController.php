@@ -7,6 +7,7 @@ use App\Models\MatchEvent;
 use App\Models\Payout;
 use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
+use App\Models\Sponsor;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\SettingsService;
@@ -297,7 +298,7 @@ class FinancialController extends Controller
         $category = $request->input('category');
 
         $incomeItems = PlatformIncome::query()
-            ->with('creator')
+            ->with(['creator', 'sponsor'])
             ->when($category, fn ($q) => $q->where('category', $category))
             ->orderByDesc('income_date')
             ->paginate(25);
@@ -315,14 +316,16 @@ class FinancialController extends Controller
     public function createIncome(): View
     {
         $categories = PlatformIncome::CATEGORIES;
+        $sponsors = Sponsor::orderBy('name')->get(['id', 'name']);
 
-        return view('financials.create-income', compact('categories'));
+        return view('financials.create-income', compact('categories', 'sponsors'));
     }
 
     public function storeIncome(Request $request)
     {
         $validated = $request->validate([
             'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'sponsor_id' => ['nullable', 'exists:sponsors,id'],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'income_date' => ['required', 'date'],
@@ -331,6 +334,10 @@ class FinancialController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
             'is_recurring' => ['nullable', 'boolean'],
         ]);
+
+        if ($validated['category'] !== 'sponsorship') {
+            $validated['sponsor_id'] = null;
+        }
 
         $validated['is_recurring'] = $request->boolean('is_recurring');
         $validated['created_by'] = $request->user()->id;
@@ -355,14 +362,16 @@ class FinancialController extends Controller
     public function editIncome(PlatformIncome $income): View
     {
         $categories = PlatformIncome::CATEGORIES;
+        $sponsors = Sponsor::orderBy('name')->get(['id', 'name']);
 
-        return view('financials.edit-income', compact('income', 'categories'));
+        return view('financials.edit-income', compact('income', 'categories', 'sponsors'));
     }
 
     public function updateIncome(Request $request, PlatformIncome $income)
     {
         $validated = $request->validate([
             'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'sponsor_id' => ['nullable', 'exists:sponsors,id'],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'income_date' => ['required', 'date'],
@@ -371,6 +380,10 @@ class FinancialController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
             'is_recurring' => ['nullable', 'boolean'],
         ]);
+
+        if ($validated['category'] !== 'sponsorship') {
+            $validated['sponsor_id'] = null;
+        }
 
         $oldValues = $income->toArray();
         $validated['is_recurring'] = $request->boolean('is_recurring');

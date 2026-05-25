@@ -51,7 +51,16 @@ class SponsorService
 
     public function clearCache(): void
     {
-        $placements = ['landing_hero', 'landing_section', 'app_sidebar', 'match_pages', 'standings_pages'];
+        $placements = [
+            'landing_hero',
+            'landing_section',
+            'app_sidebar',
+            'match_pages',
+            'standings_pages',
+            'live_scoring',
+            'leaderboard',
+            'results_pages',
+        ];
 
         foreach ($placements as $placement) {
             Cache::forget(self::CACHE_PREFIX . $placement);

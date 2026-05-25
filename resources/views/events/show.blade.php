@@ -113,6 +113,11 @@
                         </dl>
                     </div>
 
+                    {{-- Results Sponsor Strip (above results) --}}
+                    @if($match->scores->isNotEmpty())
+                        <x-sponsors-strip placement="results_pages" class="bg-white border border-stone-200 rounded-2xl shadow-sm !py-4 mb-4" />
+                    @endif
+
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
                         @php

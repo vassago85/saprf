@@ -31,7 +31,9 @@
                         <option value="national" @selected(old('series_level', $match->series_level) === 'national')>National</option>
                         <option value="provincial" @selected(old('series_level', $match->series_level) === 'provincial')>Provincial</option>
                         <option value="club" @selected(old('series_level', $match->series_level) === 'club')>Club</option>
+                        <option value="final" @selected(old('series_level', $match->series_level) === 'final')>Final / Champs</option>
                     </select>
+                    <p class="mt-1 text-xs text-stone-400">Finals attract the configured weighting multiplier in season standings.</p>
                 </div>
 
                 <div class="sm:col-span-2">
@@ -101,13 +103,35 @@
 
                 @include('matches._cost-estimator')
 
+                <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50/50 p-4">
+                    <h3 class="text-sm font-semibold text-stone-700 mb-3">Capacity &amp; Waitlist</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="max_competitors" class="block text-sm font-medium text-stone-700 mb-1">Maximum Competitors</label>
+                            <input type="number" name="max_competitors" id="max_competitors" min="1" max="999" value="{{ old('max_competitors', $match->max_competitors) }}" placeholder="No limit" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                            <p class="mt-1 text-xs text-stone-400">Leave blank for unlimited entries.</p>
+                        </div>
+                        <div class="flex items-end">
+                            <label class="inline-flex items-start gap-2 mb-1">
+                                <input type="hidden" name="waitlist_enabled" value="0">
+                                <input type="checkbox" name="waitlist_enabled" value="1" @checked(old('waitlist_enabled', $match->waitlist_enabled)) class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                                <span class="text-sm text-stone-700">
+                                    Enable waitlist when full
+                                    <span class="block text-xs font-normal text-stone-400 mt-0.5">Once capacity is reached, additional shooters can join a waitlist.</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label for="status" class="block text-sm font-medium text-stone-700 mb-1">Status</label>
                     <select name="status" id="status" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="draft" @selected(old('status', $match->status) === 'draft')>Draft</option>
-                        <option value="open" @selected(old('status', $match->status) === 'open')>Open</option>
-                        <option value="closed" @selected(old('status', $match->status) === 'closed')>Closed</option>
+                        <option value="draft" @selected(old('status', $match->status) === 'draft')>Draft (not visible publicly)</option>
+                        <option value="open" @selected(old('status', $match->status) === 'open')>Open (registration available)</option>
+                        <option value="closed" @selected(old('status', $match->status) === 'closed')>Closed (registration shut)</option>
                         <option value="completed" @selected(old('status', $match->status) === 'completed')>Completed</option>
+                        <option value="cancelled" @selected(old('status', $match->status) === 'cancelled')>Cancelled</option>
                     </select>
                 </div>
 

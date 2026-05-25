@@ -1,8 +1,11 @@
 <x-layouts.app :title="'Qualification Rules'">
-    <div class="flex items-center justify-between">
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Qualification Rules</h1>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Qualification Rules</h1>
+            <p class="mt-1 text-sm text-stone-500">Per-series, per-season rules for finals selection and season standings.</p>
+        </div>
 
-        <a href="{{ route('qualification-rules.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+        <a href="{{ route('qualification-rules.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition">
             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Add Rule
         </a>
@@ -14,9 +17,11 @@
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Series</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Season</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Min Out-of-Province Matches</th>
+                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Min Out-of-Province</th>
+                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Best-Of</th>
+                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Total Matches</th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Finals Weight</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Created By</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Created</th>
                     <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                 </tr>
             </thead>
@@ -32,8 +37,16 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $rule->season }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->min_out_of_province_matches }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->best_of_count ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->total_qualifying_matches ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                            @if ($rule->weighted_final_enabled)
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">{{ number_format($rule->weighted_final_multiplier, 2) }}x</span>
+                            @else
+                                <span class="text-xs text-stone-400">Off</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->creator?->name ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->created_at->format('d M Y') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <a href="{{ route('qualification-rules.edit', $rule) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
                                 <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
@@ -42,7 +55,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No qualification rules defined.</td>
+                        <td colspan="8" class="px-5 py-12 text-center text-sm text-stone-400">No qualification rules defined.</td>
                     </tr>
                 @endforelse
             </tbody>

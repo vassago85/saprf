@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
 use App\Jobs\ResolvePendingScoresJob;
 use Illuminate\Foundation\Inspiring;
@@ -12,3 +13,4 @@ Artisan::command('inspire', function () {
 
 Schedule::job(new ResolvePendingScoresJob)->dailyAt('01:00');
 Schedule::job(new ExpireSponsorsJob)->dailyAt('00:15');
+Schedule::job(new ExpireMembershipsJob)->dailyAt('02:00');

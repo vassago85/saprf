@@ -11,6 +11,7 @@ class PlatformIncome extends Model
 
     protected $fillable = [
         'category',
+        'sponsor_id',
         'description',
         'amount',
         'income_date',
@@ -42,6 +43,11 @@ class PlatformIncome extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function sponsor(): BelongsTo
+    {
+        return $this->belongsTo(Sponsor::class);
     }
 
     public function categoryLabel(): string

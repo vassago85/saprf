@@ -1,14 +1,19 @@
-@php $isEdit = isset($income); @endphp
+@php
+    $isEdit = isset($income);
+    $sponsors = $sponsors ?? collect();
+    $currentCategory = old('category', $isEdit ? $income->category : '');
+    $currentSponsor = old('sponsor_id', $isEdit ? $income->sponsor_id : '');
+@endphp
 
-<div class="space-y-5 max-w-2xl">
+<div class="space-y-5 max-w-2xl" x-data="{ category: '{{ $currentCategory }}' }">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <label for="category" class="block text-sm font-medium text-stone-700 mb-1">Category <span class="text-red-500">*</span></label>
-            <select name="category" id="category" required
+            <select name="category" id="category" required x-model="category"
                     class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">— Select —</option>
                 @foreach($categories as $key => $label)
-                    <option value="{{ $key }}" @selected(old('category', $isEdit ? $income->category : '') === $key)>{{ $label }}</option>
+                    <option value="{{ $key }}" @selected($currentCategory === $key)>{{ $label }}</option>
                 @endforeach
             </select>
             @error('category') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -21,6 +26,19 @@
                    class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             @error('income_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
+    </div>
+
+    <div x-show="category === 'sponsorship'" x-cloak class="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+        <label for="sponsor_id" class="block text-sm font-medium text-stone-700 mb-1">Sponsor <span class="text-stone-400 font-normal">(optional)</span></label>
+        <select name="sponsor_id" id="sponsor_id"
+                class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+            <option value="">— Not linked to a sponsor profile —</option>
+            @foreach($sponsors as $sponsor)
+                <option value="{{ $sponsor->id }}" @selected((string) $currentSponsor === (string) $sponsor->id)>{{ $sponsor->name }}</option>
+            @endforeach
+        </select>
+        <p class="mt-1.5 text-xs text-stone-500">Linking to a sponsor profile lets the sponsorship report group payments by sponsor.</p>
+        @error('sponsor_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
     <div>

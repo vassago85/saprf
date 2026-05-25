@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FinancialTransaction;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
+use App\Notifications\MembershipConfirmedNotification;
+use App\Notifications\PaymentReceivedNotification;
 use App\Services\AuditLogService;
 use App\Services\PayFastService;
 use App\Services\SettingsService;
@@ -228,6 +231,29 @@ class PaymentController extends Controller
                 ['payment_status' => 'unpaid'],
                 ['payment_status' => 'paid', 'payment_id' => $payment->id],
             );
+
+            FinancialTransaction::create([
+                'type' => 'payment',
+                'source_type' => 'match_registration',
+                'source_id' => $payable->id,
+                'user_id' => $payment->user_id,
+                'amount' => $payment->amount,
+                'description' => 'Match registration payment via PayFast',
+                'meta' => [
+                    'payment_id' => $payment->id,
+                    'm_payment_id' => $payment->m_payment_id,
+                    'gateway_payment_id' => $payment->gateway_payment_id,
+                    'match_id' => $payable->match_id,
+                ],
+            ]);
+
+            if ($payment->user) {
+                try {
+                    $payment->user->notify(new PaymentReceivedNotification($payment, 'registration'));
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send registration payment notification', ['error' => $e->getMessage()]);
+                }
+            }
         }
 
         if ($payable instanceof Membership) {
@@ -236,7 +262,7 @@ class PaymentController extends Controller
                 'status' => 'active',
             ]);
 
-            MembershipPayment::create([
+            $membershipPayment = MembershipPayment::create([
                 'membership_id' => $payable->id,
                 'amount' => $payment->amount,
                 'payment_date' => now()->toDateString(),
@@ -254,6 +280,30 @@ class PaymentController extends Controller
                 ['payment_status' => $payable->getOriginal('payment_status')],
                 ['payment_status' => 'paid', 'payment_id' => $payment->id],
             );
+
+            FinancialTransaction::create([
+                'type' => 'payment',
+                'source_type' => 'membership',
+                'source_id' => $payable->id,
+                'user_id' => $payment->user_id,
+                'amount' => $payment->amount,
+                'description' => 'Membership payment via PayFast',
+                'meta' => [
+                    'payment_id' => $payment->id,
+                    'm_payment_id' => $payment->m_payment_id,
+                    'gateway_payment_id' => $payment->gateway_payment_id,
+                    'saprf_number' => $payable->saprf_number,
+                ],
+            ]);
+
+            if ($payment->user) {
+                try {
+                    $payment->user->notify(new MembershipConfirmedNotification($payable, $membershipPayment));
+                    $payment->user->notify(new PaymentReceivedNotification($payment, 'membership'));
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send membership confirmation notification', ['error' => $e->getMessage()]);
+                }
+            }
         }
     }
 }

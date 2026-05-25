@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Sponsor extends Model
 {
@@ -32,6 +33,16 @@ class Sponsor extends Model
     public function tier(): BelongsTo
     {
         return $this->belongsTo(SponsorTier::class, 'sponsor_tier_id');
+    }
+
+    public function platformIncome(): HasMany
+    {
+        return $this->hasMany(PlatformIncome::class);
+    }
+
+    public function totalRevenue(): float
+    {
+        return (float) $this->platformIncome()->sum('amount');
     }
 
     public function scopeActive($query)

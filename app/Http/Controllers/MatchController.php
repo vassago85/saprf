@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateMatchRequest;
 use App\Models\MatchEvent;
 use App\Models\Province;
 use App\Models\Venue;
+use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
@@ -14,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -467,6 +469,12 @@ class MatchController extends Controller
             null,
             $registration->toArray(),
         );
+
+        try {
+            $user->notify(new MatchRegistrationConfirmedNotification($registration));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
+        }
 
         $payFastService = app(\App\Services\PayFastService::class);
 

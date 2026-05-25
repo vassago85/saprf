@@ -9,6 +9,7 @@ use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
 use App\Http\Controllers\QualificationRuleController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\AmmoLoadController;
 use App\Http\Controllers\RifleConfigurationController;
 use App\Http\Controllers\SascocReportController;
@@ -142,6 +143,17 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->name('provincial-members.index');
         Route::get('/provincial-members/csv', [ProvincialMembersController::class, 'downloadCsv'])
             ->name('provincial-members.csv');
+    });
+
+    // Reports (Admin + Owner)
+    Route::middleware(['role:owner|admin'])->prefix('reports')->name('reports.')->group(function (): void {
+        Route::get('/', [ReportsController::class, 'index'])->name('index');
+        Route::get('/sponsorship', [ReportsController::class, 'sponsorship'])->name('sponsorship');
+        Route::get('/sponsorship/export', [ReportsController::class, 'sponsorshipExport'])->name('sponsorship.export');
+        Route::get('/selection', [ReportsController::class, 'selection'])->name('selection');
+        Route::get('/selection/export', [ReportsController::class, 'selectionExport'])->name('selection.export');
+        Route::get('/participation', [ReportsController::class, 'participation'])->name('participation');
+        Route::get('/participation/export', [ReportsController::class, 'participationExport'])->name('participation.export');
     });
 
     // Admin + Owner

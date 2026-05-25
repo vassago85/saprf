@@ -65,7 +65,12 @@
                                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-600 ml-1">Recurring</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-stone-700">{{ $item->description }}</td>
+                            <td class="py-3 px-4 text-stone-700">
+                                {{ $item->description }}
+                                @if($item->sponsor)
+                                    <span class="block mt-0.5 text-xs text-amber-700 font-medium">&rarr; {{ $item->sponsor->name }}</span>
+                                @endif
+                            </td>
                             <td class="py-3 px-4 text-stone-500">{{ $item->source ?? '—' }}</td>
                             <td class="py-3 px-4 text-right font-semibold text-emerald-700">R{{ number_format($item->amount, 2) }}</td>
                             <td class="py-3 px-4 text-xs text-stone-400">{{ $item->reference ?? '—' }}</td>

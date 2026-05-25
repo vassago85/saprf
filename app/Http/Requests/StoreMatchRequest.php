@@ -18,7 +18,7 @@ class StoreMatchRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
-            'series_level' => ['required', Rule::in(['national', 'provincial', 'club'])],
+            'series_level' => ['required', Rule::in(['national', 'provincial', 'club', 'final'])],
             'province_id' => ['nullable', 'exists:provinces,id'],
             'match_date' => ['required', 'date', 'after_or_equal:today'],
             'match_end_date' => ['nullable', 'date', 'after_or_equal:match_date'],
@@ -30,6 +30,8 @@ class StoreMatchRequest extends FormRequest
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['required', 'numeric', 'min:0'],
             'status' => ['nullable', Rule::in(['draft', 'open', 'closed'])],
+            'max_competitors' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'waitlist_enabled' => ['boolean'],
             'divisions' => ['nullable', 'array'],
             'divisions.*' => ['exists:divisions,id'],
             'category_rankings_enabled' => ['boolean'],

@@ -18,7 +18,7 @@ class StandingsCalculationService
         $match->loadMissing('province');
         $season = $match->season ?: (string) $match->match_date->year;
 
-        if ($match->series_level === 'national') {
+        if (in_array($match->series_level, ['national', 'final'], true)) {
             $this->recalculateSeasonStandings($match->series, $season);
 
             if ($match->also_counts_for_provincial && $match->province_id) {
@@ -189,33 +189,36 @@ class StandingsCalculationService
 
                 return $match->series === $series
                     && $matchSeason === $season
-                    && $match->series_level === 'national'
+                    && in_array($match->series_level, ['national', 'final'], true)
                     && $score->normalized_score !== null;
             });
         }
 
         $rule = QualificationRule::where('series', $series)->where('season', $season)->first();
         $bestOf = $rule?->best_of_count;
+        $finalsMultiplier = ($rule && $rule->weighted_final_enabled)
+            ? (float) ($rule->weighted_final_multiplier ?? 1.0)
+            : 1.0;
 
         Standing::where('series', $series)
             ->where('season', $season)
             ->where('province_id', $provinceId)
             ->delete();
 
-        $overallTotals = $this->aggregateSeasonTotals($scores, 'overall', $bestOf, $isProvincial);
+        $overallTotals = $this->aggregateSeasonTotals($scores, 'overall', $bestOf, $isProvincial, null, $finalsMultiplier);
         $this->persistRankedStandings($overallTotals, $series, $season, $provinceId, null, null);
 
         $divisionIds = $scores->pluck('division_id')->filter()->unique();
         foreach ($divisionIds as $divisionId) {
             $divScores = $scores->where('division_id', $divisionId);
-            $divTotals = $this->aggregateSeasonTotals($divScores, 'division', $bestOf, $isProvincial);
+            $divTotals = $this->aggregateSeasonTotals($divScores, 'division', $bestOf, $isProvincial, null, $finalsMultiplier);
             $this->persistRankedStandings($divTotals, $series, $season, $provinceId, $divisionId, null);
         }
 
         $categoryIds = $scores->flatMap(fn ($s) => $s->categories->pluck('id'))->unique();
         foreach ($categoryIds as $categoryId) {
             $catScores = $scores->filter(fn ($s) => $s->categories->contains('id', $categoryId));
-            $catTotals = $this->aggregateSeasonTotals($catScores, 'category', $bestOf, $isProvincial, $categoryId);
+            $catTotals = $this->aggregateSeasonTotals($catScores, 'category', $bestOf, $isProvincial, $categoryId, $finalsMultiplier);
             $this->persistRankedStandings($catTotals, $series, $season, $provinceId, null, $categoryId);
         }
     }
@@ -229,21 +232,28 @@ class StandingsCalculationService
         ?int $bestOf,
         bool $useProvincialScore = false,
         ?int $categoryId = null,
+        float $finalsMultiplier = 1.0,
     ): Collection {
         return $scores
             ->groupBy('user_id')
-            ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $categoryId): array {
-                $scored = $userScores->map(function (Score $s) use ($context, $useProvincialScore, $categoryId) {
+            ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $categoryId, $finalsMultiplier): array {
+                $scored = $userScores->map(function (Score $s) use ($context, $useProvincialScore, $categoryId, $finalsMultiplier) {
                     $match = $s->match;
                     if ($useProvincialScore && $match && $match->series_level === 'national' && $match->also_counts_for_provincial) {
                         return $s->provincial_normalized_score ?? 0;
                     }
 
-                    return match ($context) {
+                    $base = match ($context) {
                         'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
                         'category' => $this->getCategoryNormalizedScore($s, $categoryId),
                         default => $s->normalized_score ?? 0,
                     };
+
+                    if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
+                        $base = $base * $finalsMultiplier;
+                    }
+
+                    return $base;
                 });
 
                 $sorted = $scored->sortDesc()->values();

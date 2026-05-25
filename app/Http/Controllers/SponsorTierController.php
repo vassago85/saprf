@@ -38,7 +38,7 @@ class SponsorTierController extends Controller
             'price_per_year' => ['required', 'numeric', 'min:0', 'max:999999.99'],
             'logo_max_height' => ['required', 'integer', 'min:16', 'max:200'],
             'placement' => ['required', 'array', 'min:1'],
-            'placement.*' => ['string', 'in:landing_hero,landing_section,app_sidebar,match_pages,standings_pages'],
+            'placement.*' => ['string', 'in:landing_hero,landing_section,app_sidebar,match_pages,standings_pages,live_scoring,leaderboard,results_pages'],
         ]);
 
         $tier = SponsorTier::create($validated);
@@ -72,7 +72,7 @@ class SponsorTierController extends Controller
             'price_per_year' => ['required', 'numeric', 'min:0', 'max:999999.99'],
             'logo_max_height' => ['required', 'integer', 'min:16', 'max:200'],
             'placement' => ['required', 'array', 'min:1'],
-            'placement.*' => ['string', 'in:landing_hero,landing_section,app_sidebar,match_pages,standings_pages'],
+            'placement.*' => ['string', 'in:landing_hero,landing_section,app_sidebar,match_pages,standings_pages,live_scoring,leaderboard,results_pages'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -101,8 +101,11 @@ class SponsorTierController extends Controller
             'landing_hero' => 'Landing Page — Hero Area',
             'landing_section' => 'Landing Page — Sponsors Section',
             'app_sidebar' => 'App — Sidebar',
-            'match_pages' => 'Match Detail Pages',
-            'standings_pages' => 'Standings Pages',
+            'match_pages' => 'Match Detail / Event Sponsor',
+            'standings_pages' => 'Standings — General',
+            'live_scoring' => 'Live Scoring Pages',
+            'leaderboard' => 'Leaderboard / Public Standings Hero',
+            'results_pages' => 'Results Pages (post-match)',
         ];
     }
 }
