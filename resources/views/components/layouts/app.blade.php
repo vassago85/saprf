@@ -48,6 +48,12 @@
                 <flux:navlist.item icon="fire" :href="route('ammo-loads.index')" :current="request()->routeIs('ammo-loads.*')">
                     My Ammo
                 </flux:navlist.item>
+                <flux:navlist.item icon="users" :href="route('family.index')" :current="request()->routeIs('family.*')">
+                    My Family
+                    @if(($juniorCount = auth()->user()?->juniors()->count() ?? 0) > 0)
+                        <flux:badge size="sm" color="emerald" class="ml-auto">{{ $juniorCount }}</flux:badge>
+                    @endif
+                </flux:navlist.item>
             </flux:navlist.group>
 
             @role('owner|admin|match_director')

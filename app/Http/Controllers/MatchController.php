@@ -395,37 +395,53 @@ class MatchController extends Controller
 
     // ── Registration Flow ──
 
-    public function showRegistration(MatchEvent $match): View|RedirectResponse
+    public function showRegistration(Request $request, MatchEvent $match): View|RedirectResponse
     {
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
+        /** @var \App\Models\User $parent */
+        $parent = $request->user();
 
-        $existing = $match->userRegistration($user);
+        // Resolve who we're registering: self, or one of the parent's juniors
+        $shooter = $this->resolveShooter($parent, $request->input('for_user'));
+
+        $existing = $match->userRegistration($shooter);
         if ($existing) {
             return redirect()->route('registrations.show', $existing)
-                ->with('info', 'You are already registered for this match.');
+                ->with('info', $this->isManagedShooter($shooter, $parent)
+                    ? $shooter->name . ' is already registered for this match.'
+                    : 'You are already registered for this match.');
         }
 
         $pricing = app(RegistrationPricingService::class)
-            ->determineCategoryAndFee($match, $user, $match->match_date);
+            ->determineCategoryAndFee($match, $shooter, $match->match_date);
 
-        $rifles = $user->rifleConfigurations()
+        // Rifles: managed accounts use the parent's rifles since juniors typically
+        // shoot the parent's setup. Independent users use their own.
+        $rifleOwner = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
+
+        $rifles = $rifleOwner->rifleConfigurations()
             ->where('is_active', true)
             ->with(['make', 'model', 'calibre'])
             ->orderByDesc('is_primary')
             ->get();
 
-        return view('events.register', compact('match', 'pricing', 'rifles'));
+        $juniors = $parent->juniors()->orderBy('name')->get();
+
+        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
     {
-        $user = $request->user();
+        /** @var \App\Models\User $parent */
+        $parent = $request->user();
 
-        $existing = $match->userRegistration($user);
+        $shooter = $this->resolveShooter($parent, $request->input('for_user'));
+
+        $existing = $match->userRegistration($shooter);
         if ($existing) {
             return redirect()->route('registrations.show', $existing)
-                ->with('info', 'You are already registered for this match.');
+                ->with('info', $this->isManagedShooter($shooter, $parent)
+                    ? $shooter->name . ' is already registered for this match.'
+                    : 'You are already registered for this match.');
         }
 
         if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
@@ -438,17 +454,21 @@ class MatchController extends Controller
         ]);
 
         $breakdown = app(RegistrationPricingService::class)
-            ->calculateBreakdown($match, $user, $match->match_date);
+            ->calculateBreakdown($match, $shooter, $match->match_date);
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'pending';
 
+        // For managed juniors, we contact the parent (placeholder email won't deliver).
+        $contactEmail = $this->isManagedShooter($shooter, $parent) ? $parent->email : $shooter->email;
+        $contactPhone = $this->isManagedShooter($shooter, $parent) ? ($parent->phone ?: $shooter->phone) : $shooter->phone;
+
         $registration = \App\Models\MatchRegistration::query()->create([
             'match_id' => $match->id,
-            'user_id' => $user->id,
+            'user_id' => $shooter->id,
             'rifle_configuration_id' => $request->input('rifle_configuration_id'),
-            'shooter_name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
+            'shooter_name' => $shooter->name,
+            'email' => $contactEmail,
+            'phone' => $contactPhone,
             'membership_fee_category' => $breakdown['category'],
             'fee_amount' => $breakdown['total_fee'],
             'surcharge_amount' => $breakdown['surcharge'],
@@ -462,16 +482,22 @@ class MatchController extends Controller
         ]);
 
         $this->auditLogService->log(
-            $user,
+            $parent,
             'registration.created',
             'MatchRegistration',
             $registration->id,
             null,
-            $registration->toArray(),
+            array_merge($registration->toArray(), [
+                'registered_for_user_id' => $shooter->id,
+                'registered_by_parent_id' => $this->isManagedShooter($shooter, $parent) ? $parent->id : null,
+            ]),
         );
 
         try {
-            $user->notify(new MatchRegistrationConfirmedNotification($registration));
+            // Notify the parent for managed juniors (junior has placeholder email);
+            // notify the shooter directly otherwise.
+            $recipient = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
+            $recipient->notify(new MatchRegistrationConfirmedNotification($registration));
         } catch (\Throwable $e) {
             Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
         }
@@ -479,10 +505,13 @@ class MatchController extends Controller
         $payFastService = app(\App\Services\PayFastService::class);
 
         if ($payFastService->isEnabled() && $breakdown['total_fee'] > 0) {
+            // Payment is always made by the parent for managed juniors.
+            $payer = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
+
             $payment = \App\Models\Payment::create([
                 'payable_type' => \App\Models\MatchRegistration::class,
                 'payable_id' => $registration->id,
-                'user_id' => $user->id,
+                'user_id' => $payer->id,
                 'amount' => $breakdown['total_fee'],
                 'm_payment_id' => \App\Models\Payment::generateReference('REG'),
             ]);
@@ -526,5 +555,40 @@ class MatchController extends Controller
             ->get(['id', 'name', 'slug', 'match_type', 'series_level', 'province_id', 'match_date', 'venue_name', 'venue_location', 'city', 'status']);
 
         return response()->json($matches);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Family / Managed Account helpers
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Resolve the actual shooter for a registration. Defaults to the
+     * authenticated user, but may be a managed junior they're registering on
+     * behalf of (when `for_user` is supplied and points to one of their juniors).
+     */
+    private function resolveShooter(\App\Models\User $parent, ?string $forUserId): \App\Models\User
+    {
+        if (! $forUserId) {
+            return $parent;
+        }
+
+        $junior = \App\Models\User::query()
+            ->where('id', $forUserId)
+            ->where('parent_id', $parent->id)
+            ->where('is_managed_account', true)
+            ->first();
+
+        if (! $junior) {
+            abort(403, 'You can only register your own family accounts.');
+        }
+
+        return $junior;
+    }
+
+    private function isManagedShooter(\App\Models\User $shooter, \App\Models\User $parent): bool
+    {
+        return $shooter->id !== $parent->id
+            && $shooter->is_managed_account
+            && $shooter->parent_id === $parent->id;
     }
 }

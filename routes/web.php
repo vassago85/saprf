@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\ProfileController;
@@ -45,6 +46,10 @@ Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->na
 // ── PayFast ITN Webhook (CSRF-exempt, no auth) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])->name('payments.notify');
 
+// ── Public Account Handover (junior accepts their account from parent) ──
+Route::get('/family/handover/{token}', [FamilyController::class, 'acceptHandover'])->name('family.handover.accept');
+Route::post('/family/handover/{token}', [FamilyController::class, 'completeHandover'])->name('family.handover.complete');
+
 // ── Auth (guest only) ──
 
 Route::middleware('guest')->group(function (): void {
@@ -74,6 +79,18 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Family / Managed Junior Accounts
+    Route::prefix('family')->name('family.')->group(function (): void {
+        Route::get('/', [FamilyController::class, 'index'])->name('index');
+        Route::get('/add', [FamilyController::class, 'create'])->name('create');
+        Route::post('/', [FamilyController::class, 'store'])->name('store');
+        Route::get('/{junior}', [FamilyController::class, 'show'])->name('show');
+        Route::get('/{junior}/edit', [FamilyController::class, 'edit'])->name('edit');
+        Route::put('/{junior}', [FamilyController::class, 'update'])->name('update');
+        Route::post('/{junior}/handover', [FamilyController::class, 'startHandover'])->name('handover.start');
+        Route::delete('/{junior}/handover', [FamilyController::class, 'cancelHandover'])->name('handover.cancel');
+    });
 
     // Firearm reference data — user-submitted entries
     Route::post('/api/firearm-makes', [\App\Http\Controllers\FirearmReferenceController::class, 'storeMake'])->name('api.firearm-makes.store');

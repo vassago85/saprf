@@ -34,6 +34,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_otp',
         'email_otp_expires_at',
         'email_verified_at',
+        'parent_id',
+        'is_managed_account',
+        'handover_email',
+        'handover_token',
+        'handover_expires_at',
     ];
 
     protected $hidden = [
@@ -47,8 +52,10 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'email_otp_expires_at' => 'datetime',
+            'handover_expires_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_managed_account' => 'boolean',
             'date_of_birth' => 'date',
         ];
     }
@@ -165,5 +172,46 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         return $this->date_of_birth->diffInYears($date);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Family / Managed Accounts
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'parent_id');
+    }
+
+    public function juniors(): HasMany
+    {
+        return $this->hasMany(User::class, 'parent_id');
+    }
+
+    public function isManaged(): bool
+    {
+        return (bool) $this->is_managed_account && $this->parent_id !== null;
+    }
+
+    public function hasPendingHandover(): bool
+    {
+        return $this->handover_token !== null
+            && $this->handover_expires_at !== null
+            && $this->handover_expires_at->isFuture();
+    }
+
+    /**
+     * Route mail notifications to handover_email when sending the
+     * account handover invitation (because the managed account's email
+     * is a non-deliverable placeholder).
+     */
+    public function routeNotificationForMail($notification = null): array|string
+    {
+        if ($notification instanceof \App\Notifications\AccountHandoverInvitationNotification
+            && $this->handover_email) {
+            return $this->handover_email;
+        }
+
+        return $this->email;
     }
 }
