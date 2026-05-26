@@ -74,6 +74,13 @@ Route::middleware('auth')->group(function (): void {
 
 // ── Authenticated ──
 
+// Force password change — must be reachable BEFORE the profile.complete + verified
+// gates so a fresh seeded user with a starter password can change it.
+Route::middleware('auth')->group(function (): void {
+    Route::get('/password/force-change', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'edit'])->name('password.force.edit');
+    Route::put('/password/force-change', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'update'])->name('password.force.update');
+});
+
 Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

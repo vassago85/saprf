@@ -19,7 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'profile.complete' => \App\Http\Middleware\EnsureProfileComplete::class,
+            'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
+
+        $middleware->appendToGroup('web', \App\Http\Middleware\ForcePasswordChange::class);
 
         $middleware->validateCsrfTokens(except: [
             'webhooks/payfast',

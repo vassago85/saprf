@@ -29,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'sa_id_number',
         'date_of_birth',
         'is_active',
+        'must_change_password',
         'province_id',
         'division_id',
         'email_otp',
@@ -55,6 +56,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'handover_expires_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
             'is_managed_account' => 'boolean',
             'date_of_birth' => 'date',
         ];

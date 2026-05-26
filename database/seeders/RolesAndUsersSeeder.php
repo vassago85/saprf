@@ -27,6 +27,7 @@ class RolesAndUsersSeeder extends Seeder
             ['name' => 'SAPRF Owner', 'email' => 'owner@saprf.co.za', 'roles' => ['owner', 'member'], 'province_id' => $gp?->id],
             ['name' => 'SAPRF Admin', 'email' => 'admin@saprf.co.za', 'roles' => ['admin', 'member'], 'province_id' => $gp?->id],
             ['name' => 'Match Director', 'email' => 'director@saprf.co.za', 'roles' => ['match_director', 'member'], 'province_id' => $wc?->id],
+            ['name' => 'Provincial Admin', 'email' => 'provincial@saprf.co.za', 'roles' => ['provincial_admin', 'member'], 'province_id' => $gp?->id],
             ['name' => 'Active Member', 'email' => 'member@saprf.co.za', 'roles' => ['member'], 'province_id' => $fs?->id],
         ];
 
@@ -38,6 +39,7 @@ class RolesAndUsersSeeder extends Seeder
                     'password' => Hash::make('password'),
                     'province_id' => $data['province_id'],
                     'email_verified_at' => now(),
+                    'must_change_password' => true,
                 ],
             );
 
