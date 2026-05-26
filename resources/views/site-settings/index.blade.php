@@ -203,17 +203,66 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                        <label for="saprf_fee_percentage" class="block text-sm font-medium text-stone-700">SAPRF Fee (%)</label>
-                        <input type="number" step="0.1" min="0" max="50" name="saprf_fee_percentage" id="saprf_fee_percentage" value="{{ old('saprf_fee_percentage', $settings['saprf_fee_percentage'] ?? '5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Percentage of the base match fee paid to the federation.</p>
+                    {{-- SAPRF Fee — editable by owner + developer --}}
+                    <div x-data="{ type: '{{ old('saprf_fee_type', $settings['saprf_fee_type'] ?? 'percentage') }}' }">
+                        <label class="block text-sm font-medium text-stone-700">SAPRF Fee</label>
+                        <div class="mt-1 flex gap-2">
+                            <select name="saprf_fee_type" x-model="type"
+                                    class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <option value="percentage">% of match fee</option>
+                                <option value="fixed">R fixed amount</option>
+                            </select>
+                            <div class="relative flex-1">
+                                <input type="number" step="0.01" min="0" name="saprf_fee_value"
+                                       value="{{ old('saprf_fee_value', $settings['saprf_fee_value'] ?? ($settings['saprf_fee_percentage'] ?? '5')) }}"
+                                       required
+                                       class="block w-full rounded-lg border border-stone-300 px-3 py-2 pr-8 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <span class="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-400" x-text="type === 'percentage' ? '%' : 'R'"></span>
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-stone-400" x-show="type === 'percentage'">Percentage of the base match fee paid to the federation.</p>
+                        <p class="mt-1 text-xs text-stone-400" x-show="type === 'fixed'">Fixed rand amount per shooter paid to the federation.</p>
                     </div>
 
-                    <div>
-                        <label for="platform_fee_percentage" class="block text-sm font-medium text-stone-700">Platform Fee (%)</label>
-                        <input type="number" step="0.1" min="0" max="50" name="platform_fee_percentage" id="platform_fee_percentage" value="{{ old('platform_fee_percentage', $settings['platform_fee_percentage'] ?? '5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Percentage of the base match fee paid to the platform operator.</p>
+                    {{-- Platform Fee — developer writes, owner reads --}}
+                    @php
+                        $platformType = $settings['platform_fee_type'] ?? 'percentage';
+                        $platformValue = $settings['platform_fee_value'] ?? ($settings['platform_fee_percentage'] ?? '5');
+                    @endphp
+                    @role('developer')
+                    <div x-data="{ type: '{{ old('platform_fee_type', $platformType) }}' }">
+                        <label class="block text-sm font-medium text-stone-700">Platform Fee
+                            <span class="ml-1 inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">Developer</span>
+                        </label>
+                        <div class="mt-1 flex gap-2">
+                            <select name="platform_fee_type" x-model="type"
+                                    class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <option value="percentage">% of match fee</option>
+                                <option value="fixed">R fixed amount</option>
+                            </select>
+                            <div class="relative flex-1">
+                                <input type="number" step="0.01" min="0" name="platform_fee_value"
+                                       value="{{ old('platform_fee_value', $platformValue) }}"
+                                       required
+                                       class="block w-full rounded-lg border border-stone-300 px-3 py-2 pr-8 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <span class="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-400" x-text="type === 'percentage' ? '%' : 'R'"></span>
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-stone-400" x-show="type === 'percentage'">Percentage of the base match fee paid to the platform operator.</p>
+                        <p class="mt-1 text-xs text-stone-400" x-show="type === 'fixed'">Fixed rand amount per shooter paid to the platform operator.</p>
                     </div>
+                    @else
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">Platform Fee
+                            <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Read only</span>
+                        </label>
+                        <div class="mt-1 flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
+                            <span class="font-mono">{{ $platformType === 'fixed' ? 'R ' . number_format((float) $platformValue, 2) : number_format((float) $platformValue, 2) . ' %' }}</span>
+                            <span class="text-xs text-stone-400">{{ $platformType === 'fixed' ? 'per shooter' : 'of match fee' }}</span>
+                        </div>
+                        <p class="mt-1 text-xs text-stone-400">Platform fee is managed by the developer role.</p>
+                    </div>
+                    @endrole
 
                     <div>
                         <label for="estimated_gateway_fee_percentage" class="block text-sm font-medium text-stone-700">Est. Gateway Fee (%)</label>

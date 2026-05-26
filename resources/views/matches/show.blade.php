@@ -183,11 +183,11 @@
                         </div>
                         <div class="border-t border-stone-100"></div>
                         <div class="flex items-center justify-between text-sm">
-                            <span class="text-stone-500">SAPRF Fee ({{ number_format($planningEstimate['saprf_pct'], 1) }}%)</span>
+                            <span class="text-stone-500">SAPRF Fee ({{ $planningEstimate['saprf_type'] === 'fixed' ? 'R ' . number_format($planningEstimate['saprf_value'], 2) . ' / shooter' : number_format($planningEstimate['saprf_value'], 1) . '%' }})</span>
                             <span class="text-red-600">− R {{ number_format($planningEstimate['saprf_fee'], 2) }}</span>
                         </div>
                         <div class="flex items-center justify-between text-sm">
-                            <span class="text-stone-500">Platform Fee ({{ number_format($planningEstimate['platform_pct'], 1) }}%)</span>
+                            <span class="text-stone-500">Platform Fee ({{ $planningEstimate['platform_type'] === 'fixed' ? 'R ' . number_format($planningEstimate['platform_value'], 2) . ' / shooter' : number_format($planningEstimate['platform_value'], 1) . '%' }})</span>
                             <span class="text-red-600">− R {{ number_format($planningEstimate['platform_fee'], 2) }}</span>
                         </div>
                         <div class="flex items-center justify-between text-sm">

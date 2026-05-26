@@ -81,15 +81,36 @@ class SettingsSeeder extends Seeder
             ['value' => '0', 'description' => 'Enable category awards and placements (1=yes, 0=no)'],
         );
 
-        // Fee Structure
+        // Fee Structure — type/value pair lets each fee be a percentage of the
+        // match fee OR a fixed rand amount per shooter.
+        Setting::firstOrCreate(
+            ['key' => 'saprf_fee_type'],
+            ['value' => 'percentage', 'description' => 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter'],
+        );
+        Setting::firstOrCreate(
+            ['key' => 'saprf_fee_value'],
+            ['value' => '5', 'description' => 'SAPRF fee value (interpreted by saprf_fee_type)'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'platform_fee_type'],
+            ['value' => 'percentage', 'description' => 'Platform fee type: percentage of match fee or fixed rand amount per shooter'],
+        );
+        Setting::firstOrCreate(
+            ['key' => 'platform_fee_value'],
+            ['value' => '5', 'description' => 'Platform fee value (interpreted by platform_fee_type)'],
+        );
+
+        // Legacy keys kept for backward compatibility; fee resolution falls back to these
+        // when the new type/value keys are absent.
         Setting::firstOrCreate(
             ['key' => 'saprf_fee_percentage'],
-            ['value' => '5', 'description' => 'SAPRF federation fee as % of base match fee'],
+            ['value' => '5', 'description' => '[Legacy] SAPRF federation fee as % of base match fee'],
         );
 
         Setting::firstOrCreate(
             ['key' => 'platform_fee_percentage'],
-            ['value' => '5', 'description' => 'Platform operator fee as % of base match fee'],
+            ['value' => '5', 'description' => '[Legacy] Platform operator fee as % of base match fee'],
         );
 
         Setting::firstOrCreate(

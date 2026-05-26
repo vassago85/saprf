@@ -49,13 +49,15 @@ class RegistrationPricingService
 
         $surcharge = $totalFee - $baseFee;
 
-        $saprfPct = (float) $this->settingsService->get('saprf_fee_percentage', 5);
-        $platformPct = (float) $this->settingsService->get('platform_fee_percentage', 5);
+        $saprfType = (string) $this->settingsService->get('saprf_fee_type', 'percentage');
+        $saprfValue = (float) $this->settingsService->get('saprf_fee_value', $this->settingsService->get('saprf_fee_percentage', 5));
+        $platformType = (string) $this->settingsService->get('platform_fee_type', 'percentage');
+        $platformValue = (float) $this->settingsService->get('platform_fee_value', $this->settingsService->get('platform_fee_percentage', 5));
         $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5);
         $gatewayFlat = (float) $this->settingsService->get('estimated_gateway_flat_fee', 2.00);
 
-        $saprfFee = round($baseFee * ($saprfPct / 100), 2);
-        $platformFee = round($baseFee * ($platformPct / 100), 2);
+        $saprfFee = $this->resolveFee($saprfType, $saprfValue, $baseFee);
+        $platformFee = $this->resolveFee($platformType, $platformValue, $baseFee);
         $gatewayFee = round($totalFee * ($gatewayPct / 100) + $gatewayFlat, 2);
 
         $mdNet = round($totalFee - $saprfFee - $platformFee - $surcharge - $gatewayFee, 2);
@@ -70,11 +72,20 @@ class RegistrationPricingService
             'gateway_fee' => $gatewayFee,
             'md_net' => $mdNet,
             'rates' => [
-                'saprf_pct' => $saprfPct,
-                'platform_pct' => $platformPct,
+                'saprf_type' => $saprfType,
+                'saprf_value' => $saprfValue,
+                'platform_type' => $platformType,
+                'platform_value' => $platformValue,
                 'gateway_pct' => $gatewayPct,
                 'gateway_flat' => $gatewayFlat,
             ],
         ];
+    }
+
+    private function resolveFee(string $type, float $value, float $baseFee): float
+    {
+        return $type === 'fixed'
+            ? round($value, 2)
+            : round($baseFee * ($value / 100), 2);
     }
 }

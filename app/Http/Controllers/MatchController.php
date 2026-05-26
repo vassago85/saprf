@@ -110,15 +110,20 @@ class MatchController extends Controller
                 'registration_count' => $paidRegistrations->count(),
             ];
 
-            $saprfPct = (float) $this->settingsService->get('saprf_fee_percentage', 5) / 100;
-            $platformPct = (float) $this->settingsService->get('platform_fee_percentage', 5) / 100;
+            $saprfType = (string) $this->settingsService->get('saprf_fee_type', 'percentage');
+            $saprfValue = (float) $this->settingsService->get('saprf_fee_value', $this->settingsService->get('saprf_fee_percentage', 5));
+            $platformType = (string) $this->settingsService->get('platform_fee_type', 'percentage');
+            $platformValue = (float) $this->settingsService->get('platform_fee_value', $this->settingsService->get('platform_fee_percentage', 5));
             $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5) / 100;
             $baseFee = (float) $match->active_member_fee;
             $capacity = $match->estimated_shooters ?: ($match->max_competitors ?: 30);
 
+            $saprfPerShooter = $saprfType === 'fixed' ? $saprfValue : $baseFee * ($saprfValue / 100);
+            $platformPerShooter = $platformType === 'fixed' ? $platformValue : $baseFee * ($platformValue / 100);
+
             $grossRevenue = $baseFee * $capacity;
-            $saprfFee = $grossRevenue * $saprfPct;
-            $platformFee = $grossRevenue * $platformPct;
+            $saprfFee = $saprfPerShooter * $capacity;
+            $platformFee = $platformPerShooter * $capacity;
             $gatewayFee = $grossRevenue * $gatewayPct;
             $mdNet = $grossRevenue - $saprfFee - $platformFee - $gatewayFee;
 
@@ -127,9 +132,11 @@ class MatchController extends Controller
                 'base_fee' => $baseFee,
                 'gross_revenue' => $grossRevenue,
                 'saprf_fee' => $saprfFee,
-                'saprf_pct' => $saprfPct * 100,
+                'saprf_type' => $saprfType,
+                'saprf_value' => $saprfValue,
                 'platform_fee' => $platformFee,
-                'platform_pct' => $platformPct * 100,
+                'platform_type' => $platformType,
+                'platform_value' => $platformValue,
                 'gateway_fee' => $gatewayFee,
                 'gateway_pct' => $gatewayPct * 100,
                 'md_net' => $mdNet,

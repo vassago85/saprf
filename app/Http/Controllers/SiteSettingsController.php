@@ -41,8 +41,10 @@ class SiteSettingsController extends Controller
             'category_rankings_enabled' => ['required', 'boolean'],
             'division_awards_enabled' => ['required', 'boolean'],
             'category_awards_enabled' => ['required', 'boolean'],
-            'saprf_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
-            'platform_fee_percentage' => ['required', 'numeric', 'min:0', 'max:50'],
+            'saprf_fee_type' => ['required', 'in:percentage,fixed'],
+            'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+            'platform_fee_type' => ['nullable', 'in:percentage,fixed'],
+            'platform_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'membership_platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:50'],
             'estimated_gateway_fee_percentage' => ['required', 'numeric', 'min:0', 'max:20'],
             'estimated_gateway_flat_fee' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -78,8 +80,15 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('division_awards_enabled', $validated['division_awards_enabled'], 'Enable division awards and placements (1=yes, 0=no)');
         $this->settingsService->set('category_awards_enabled', $validated['category_awards_enabled'], 'Enable category awards and placements (1=yes, 0=no)');
 
-        $this->settingsService->set('saprf_fee_percentage', $validated['saprf_fee_percentage'], 'SAPRF federation fee as % of base match fee');
-        $this->settingsService->set('platform_fee_percentage', $validated['platform_fee_percentage'], 'Platform operator fee as % of base match fee');
+        $this->settingsService->set('saprf_fee_type', $validated['saprf_fee_type'], 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter');
+        $this->settingsService->set('saprf_fee_value', $validated['saprf_fee_value'], 'SAPRF fee value (interpreted by saprf_fee_type)');
+
+        // Platform fee is developer-managed. Only persist when a developer is editing — otherwise
+        // owners submitting the form would clear the platform fee.
+        if ($request->user()->hasRole('developer') && isset($validated['platform_fee_type'], $validated['platform_fee_value'])) {
+            $this->settingsService->set('platform_fee_type', $validated['platform_fee_type'], 'Platform fee type: percentage of match fee or fixed rand amount per shooter');
+            $this->settingsService->set('platform_fee_value', $validated['platform_fee_value'], 'Platform fee value (interpreted by platform_fee_type)');
+        }
         $this->settingsService->set('membership_platform_fee_pct', $validated['membership_platform_fee_pct'], 'Platform fee % on membership and other non-match transactions');
         $this->settingsService->set('estimated_gateway_fee_percentage', $validated['estimated_gateway_fee_percentage'], 'Estimated PayFast gateway fee % (for reporting only)');
         $this->settingsService->set('estimated_gateway_flat_fee', $validated['estimated_gateway_flat_fee'], 'Estimated PayFast flat fee per transaction in ZAR (for reporting only)');

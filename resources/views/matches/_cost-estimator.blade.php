@@ -1,7 +1,9 @@
 @php
     $settings = app(\App\Services\SettingsService::class);
-    $saprfPct = (float) $settings->get('saprf_fee_percentage', 5);
-    $platformPct = (float) $settings->get('platform_fee_percentage', 5);
+    $saprfType = $settings->get('saprf_fee_type', 'percentage');
+    $saprfValue = (float) $settings->get('saprf_fee_value', $settings->get('saprf_fee_percentage', 5));
+    $platformType = $settings->get('platform_fee_type', 'percentage');
+    $platformValue = (float) $settings->get('platform_fee_value', $settings->get('platform_fee_percentage', 5));
     $gatewayPct = (float) $settings->get('estimated_gateway_fee_percentage', 3.5);
     $gatewayFlat = (float) $settings->get('estimated_gateway_flat_fee', 2);
     $nmSurcharge = (float) $settings->get('non_member_surcharge', 0);
@@ -10,8 +12,10 @@
 
 <div class="sm:col-span-2"
      x-data="costEstimator({
-         saprfPct: {{ $saprfPct }},
-         platformPct: {{ $platformPct }},
+         saprfType: '{{ $saprfType }}',
+         saprfValue: {{ $saprfValue }},
+         platformType: '{{ $platformType }}',
+         platformValue: {{ $platformValue }},
          gatewayPct: {{ $gatewayPct }},
          gatewayFlat: {{ $gatewayFlat }},
          nmSurcharge: {{ $nmSurcharge }},
@@ -51,11 +55,11 @@
                     <hr class="border-stone-200 my-1">
 
                     <div class="flex justify-between text-xs text-stone-400">
-                        <span>SAPRF fee (<span x-text="saprfPct"></span>%)</span>
+                        <span>SAPRF fee (<span x-text="saprfType === 'fixed' ? 'R ' + fmt(saprfValue) + ' / shooter' : saprfValue + '%'"></span>)</span>
                         <span class="text-red-500">- R <span x-text="fmt(saprfFee)"></span></span>
                     </div>
                     <div class="flex justify-between text-xs text-stone-400">
-                        <span>Platform fee (<span x-text="platformPct"></span>%)</span>
+                        <span>Platform fee (<span x-text="platformType === 'fixed' ? 'R ' + fmt(platformValue) + ' / shooter' : platformValue + '%'"></span>)</span>
                         <span class="text-red-500">- R <span x-text="fmt(platformFee)"></span></span>
                     </div>
                     <div class="flex justify-between text-xs text-stone-400">
@@ -107,8 +111,10 @@
 <script>
     function costEstimator(config) {
         return {
-            saprfPct: config.saprfPct,
-            platformPct: config.platformPct,
+            saprfType: config.saprfType,
+            saprfValue: config.saprfValue,
+            platformType: config.platformType,
+            platformValue: config.platformValue,
             gatewayPct: config.gatewayPct,
             gatewayFlat: config.gatewayFlat,
             nmSurcharge: config.nmSurcharge,
@@ -122,8 +128,8 @@
             calculate() {
                 const el = document.getElementById('active_member_fee');
                 this.fee = el ? parseFloat(el.value) || 0 : 0;
-                this.saprfFee = this.fee * (this.saprfPct / 100);
-                this.platformFee = this.fee * (this.platformPct / 100);
+                this.saprfFee = this.saprfType === 'fixed' ? this.saprfValue : this.fee * (this.saprfValue / 100);
+                this.platformFee = this.platformType === 'fixed' ? this.platformValue : this.fee * (this.platformValue / 100);
                 this.gatewayFee = this.fee > 0 ? this.fee * (this.gatewayPct / 100) + this.gatewayFlat : 0;
                 this.netMd = this.fee - this.saprfFee - this.platformFee - this.gatewayFee;
                 if (this.netMd < 0) this.netMd = 0;
