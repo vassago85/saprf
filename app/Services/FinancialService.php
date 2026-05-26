@@ -33,7 +33,7 @@ class FinancialService
             $platformExpenses = $this->platformExpenseAggregates($from, $to);
 
             $grossIncome = $matchRevenue['gross'] + $membershipRevenue['gross'] + $otherIncome['total'];
-            $totalPlatformFees = $matchRevenue['platform_fees'] + $membershipRevenue['platform_fees'];
+            $totalPlatformFees = $matchRevenue['platform_fees'] + $membershipRevenue['platform_cost'];
             $totalSaprfFees = $matchRevenue['saprf_fees'];
             $totalGatewayFees = $matchRevenue['gateway_fees'] + $membershipRevenue['gateway_fees'];
             $totalSurcharges = $matchRevenue['surcharges'];
