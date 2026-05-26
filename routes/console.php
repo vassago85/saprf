@@ -14,3 +14,6 @@ Artisan::command('inspire', function () {
 Schedule::job(new ResolvePendingScoresJob)->dailyAt('01:00');
 Schedule::job(new ExpireSponsorsJob)->dailyAt('00:15');
 Schedule::job(new ExpireMembershipsJob)->dailyAt('02:00');
+
+Schedule::command('backup:clean')->dailyAt('02:30')->withoutOverlapping();
+Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();

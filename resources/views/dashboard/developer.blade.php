@@ -35,29 +35,29 @@
             </div>
         </div>
 
-        {{-- Coming Soon: Backups + Mail --}}
+        {{-- Backups + Mail --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-6 space-y-3">
+            <a href="{{ route('developer.backups.index') }}" class="block rounded-xl border border-stone-200 bg-white shadow-sm hover:border-emerald-300 hover:shadow transition p-6 space-y-3 group">
                 <div class="flex items-center gap-3">
-                    <div class="inline-flex items-center justify-center size-10 rounded-lg bg-stone-200 text-stone-600">
+                    <div class="inline-flex items-center justify-center size-10 rounded-lg bg-emerald-100 text-emerald-700">
                         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
                     </div>
-                    <h3 class="font-heading text-lg font-bold text-stone-900">R2 Backups</h3>
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-stone-200 text-stone-600 ml-auto">Coming soon</span>
+                    <h3 class="font-heading text-lg font-bold text-stone-900 group-hover:text-emerald-700">R2 Backups</h3>
+                    <span class="ml-auto text-stone-400 group-hover:text-emerald-600">&rarr;</span>
                 </div>
-                <p class="text-sm text-stone-600">Scheduled database and file backups to Cloudflare R2 storage. Restore from snapshot.</p>
-            </div>
+                <p class="text-sm text-stone-600">Scheduled database + file backups to Cloudflare R2. Trigger on demand, download any snapshot.</p>
+            </a>
 
-            <div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-6 space-y-3">
+            <a href="{{ route('developer.mail.index') }}" class="block rounded-xl border border-stone-200 bg-white shadow-sm hover:border-emerald-300 hover:shadow transition p-6 space-y-3 group">
                 <div class="flex items-center gap-3">
-                    <div class="inline-flex items-center justify-center size-10 rounded-lg bg-stone-200 text-stone-600">
+                    <div class="inline-flex items-center justify-center size-10 rounded-lg bg-emerald-100 text-emerald-700">
                         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
                     </div>
-                    <h3 class="font-heading text-lg font-bold text-stone-900">Mail Settings</h3>
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-stone-200 text-stone-600 ml-auto">Coming soon</span>
+                    <h3 class="font-heading text-lg font-bold text-stone-900 group-hover:text-emerald-700">Mail Settings</h3>
+                    <span class="ml-auto text-stone-400 group-hover:text-emerald-600">&rarr;</span>
                 </div>
-                <p class="text-sm text-stone-600">SMTP / Mailgun configuration, test mail, and recent send log.</p>
-            </div>
+                <p class="text-sm text-stone-600">Configure Mailgun and send a test email to verify delivery.</p>
+            </a>
         </div>
 
         <hr class="border-stone-200 my-6">

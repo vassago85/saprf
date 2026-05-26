@@ -256,4 +256,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('provincial-committees', ProvincialCommitteeController::class)
             ->names('provincial-committees');
     });
+
+    // Developer (sysadmin tools)
+    Route::middleware(['role:developer|owner'])->prefix('developer')->name('developer.')->group(function (): void {
+        Route::get('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'index'])->name('mail.index');
+        Route::put('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'update'])->name('mail.update');
+        Route::post('/mail/test', [\App\Http\Controllers\Developer\MailSettingsController::class, 'test'])->name('mail.test');
+
+        Route::get('/backups', [\App\Http\Controllers\Developer\BackupController::class, 'index'])->name('backups.index');
+        Route::post('/backups', [\App\Http\Controllers\Developer\BackupController::class, 'store'])->name('backups.store');
+        Route::get('/backups/download/{disk}/{path}', [\App\Http\Controllers\Developer\BackupController::class, 'download'])
+            ->where('path', '.*')->name('backups.download');
+    });
 });
