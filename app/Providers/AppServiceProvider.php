@@ -32,9 +32,11 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Developers bypass every policy check — superuser role for sysadmin work.
+        // Developers + EXCO bypass every policy check — developer is the sysadmin
+        // superuser, EXCO is a shared board-walkthrough login that's been
+        // explicitly granted owner-equivalent access by the user.
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('developer') ? true : null;
+            return $user->hasAnyRole(['developer', 'exco']) ? true : null;
         });
 
         Gate::policy(MatchEvent::class, MatchPolicy::class);

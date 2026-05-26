@@ -40,6 +40,11 @@
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" /></svg>
                         Cards
                     </a>
+                    <a href="{{ request()->fullUrlWithQuery(['view' => 'table']) }}"
+                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ $view === 'table' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m-9.75 0h.008v.008h-.008v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.008v.008h-.008v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                        Table
+                    </a>
                     <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar']) }}"
                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ $view === 'calendar' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
@@ -183,6 +188,88 @@
             @if($view === 'calendar')
                 {{-- Calendar View --}}
                 <x-events-calendar :discipline="$discipline" :province-id="$provinceId" :type="$type" />
+            @elseif($view === 'table')
+                {{-- Table View --}}
+                @if($events->isEmpty())
+                    <div class="text-center py-20">
+                        <div class="inline-flex items-center justify-center size-16 rounded-2xl bg-stone-100 mb-4">
+                            <svg class="size-8 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-stone-700">No events found</h3>
+                        <p class="mt-1 text-sm text-stone-400">
+                            @if(!empty($activeFilters))Try adjusting your filters.@else Check back soon for new events.@endif
+                        </p>
+                    </div>
+                @else
+                    <div class="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-stone-50 border-b border-stone-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Date</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Match</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Discipline</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Type</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Province</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 hidden lg:table-cell">Venue</th>
+                                        <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-500 hidden md:table-cell">Spots</th>
+                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                                        <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-500"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100">
+                                    @foreach($events as $match)
+                                        <tr class="hover:bg-stone-50 transition-colors">
+                                            <td class="px-4 py-3 whitespace-nowrap text-stone-900 font-medium">
+                                                {{ $match->match_date?->format('d M Y') ?? '—' }}
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <a href="{{ url('/events/' . $match->id) }}" class="font-semibold text-stone-900 hover:text-emerald-700">{{ $match->name }}</a>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ $match->match_type === 'PRS' ? 'bg-emerald-100 text-emerald-800 ring-emerald-600/20' : 'bg-sky-100 text-sky-800 ring-sky-600/20' }}">
+                                                    {{ $match->match_type }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-stone-600 capitalize">{{ $match->series_level ?? '—' }}</td>
+                                            <td class="px-4 py-3 text-stone-600">{{ $match->province?->abbreviation ?? '—' }}</td>
+                                            <td class="px-4 py-3 text-stone-600 hidden lg:table-cell">
+                                                <div class="max-w-[200px] truncate">{{ $match->venue_name ?? $match->city ?? '—' }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap hidden md:table-cell">
+                                                @if($match->max_competitors)
+                                                    <span class="font-mono text-stone-700">{{ $match->registrations_count }}/{{ $match->max_competitors }}</span>
+                                                @else
+                                                    <span class="text-stone-400">—</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                @if($match->status === 'open')
+                                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Open</span>
+                                                @elseif($match->status === 'completed')
+                                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-400/20">Completed</span>
+                                                @elseif($match->status === 'draft')
+                                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Draft</span>
+                                                @else
+                                                    <span class="inline-flex items-center rounded-full bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">{{ ucfirst($match->status) }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                                                <a href="{{ url('/events/' . $match->id) }}" class="text-emerald-700 hover:text-emerald-900 font-semibold text-xs">
+                                                    {{ $match->status === 'open' ? 'Register' : 'View' }} &rarr;
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        {{ $events->links() }}
+                    </div>
+                @endif
             @else
                 {{-- Card Grid View --}}
                 @if($events->isEmpty())

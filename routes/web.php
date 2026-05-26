@@ -148,13 +148,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     // Venues — match directors can browse + submit new ones (auto goes to approval
     // queue); edits/deletes require federation admin or owner sign-off.
-    Route::middleware(['role:developer|owner|admin|match_director'])->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
         Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
         Route::get('/venues/create', [VenueController::class, 'create'])->name('venues.create');
         Route::post('/venues', [VenueController::class, 'store'])->name('venues.store');
     });
 
-    Route::middleware(['role:developer|owner|admin'])->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin'])->group(function (): void {
         Route::get('/venues/{venue}/edit', [VenueController::class, 'edit'])->name('venues.edit');
         Route::put('/venues/{venue}', [VenueController::class, 'update'])->name('venues.update');
         Route::patch('/venues/{venue}', [VenueController::class, 'update']);
@@ -162,7 +162,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Match Director + Admin + Owner (+ Developer)
-    Route::middleware(['role:developer|owner|admin|match_director'])->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
         Route::resource('matches', MatchController::class)->except(['destroy']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
@@ -176,7 +176,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Provincial admin + Admin + Owner + Developer (read-only member view)
-    Route::middleware(['role:developer|provincial_admin|owner|admin'])->group(function (): void {
+    Route::middleware(['role:developer|exco|provincial_admin|owner|admin'])->group(function (): void {
         Route::get('/provincial-members', [ProvincialMembersController::class, 'index'])
             ->name('provincial-members.index');
         Route::get('/provincial-members/csv', [ProvincialMembersController::class, 'downloadCsv'])
@@ -184,7 +184,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Reports (Admin + Owner)
-    Route::middleware(['role:developer|owner|admin'])->prefix('reports')->name('reports.')->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin'])->prefix('reports')->name('reports.')->group(function (): void {
         Route::get('/', [ReportsController::class, 'index'])->name('index');
         Route::get('/sponsorship', [ReportsController::class, 'sponsorship'])->name('sponsorship');
         Route::get('/sponsorship/export', [ReportsController::class, 'sponsorshipExport'])->name('sponsorship.export');
@@ -195,7 +195,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Admin + Owner
-    Route::middleware(['role:developer|owner|admin'])->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin'])->group(function (): void {
         Route::get('/admin/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
         Route::post('/admin/approvals/{type}/{id}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('/admin/approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
@@ -212,7 +212,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Financials (Admin + Owner)
-    Route::middleware(['role:developer|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
+    Route::middleware(['role:developer|exco|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
         Route::get('/', [FinancialController::class, 'dashboard'])->name('dashboard');
         Route::get('/match/{match}', [FinancialController::class, 'matchReport'])->name('match-report');
         Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
@@ -242,7 +242,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Owner only
-    Route::middleware(['role:developer|owner'])->group(function (): void {
+    Route::middleware(['role:developer|exco|owner'])->group(function (): void {
         Route::get('/site-settings', [SiteSettingsController::class, 'index'])->name('site-settings.index');
         Route::put('/site-settings', [SiteSettingsController::class, 'update'])->name('site-settings.update');
 
@@ -279,7 +279,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Developer (sysadmin tools)
-    Route::middleware(['role:developer|owner'])->prefix('developer')->name('developer.')->group(function (): void {
+    Route::middleware(['role:developer|exco|owner'])->prefix('developer')->name('developer.')->group(function (): void {
         Route::get('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'index'])->name('mail.index');
         Route::put('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'update'])->name('mail.update');
         Route::post('/mail/test', [\App\Http\Controllers\Developer\MailSettingsController::class, 'test'])->name('mail.test');

@@ -25,6 +25,7 @@ class DashboardController extends Controller
     // dashboard for the first role they have in this list.
     private const ROLE_PRIORITY = [
         'developer',
+        'exco',
         'owner',
         'admin',
         'match_director',
@@ -52,6 +53,7 @@ class DashboardController extends Controller
 
         $dashboard = match ($role) {
             'developer' => $this->developerDashboard($user),
+            'exco' => $this->ownerDashboard($user),
             'owner' => $this->ownerDashboard($user),
             'admin' => $this->adminDashboard($user),
             'match_director' => $this->matchDirectorDashboard($user),

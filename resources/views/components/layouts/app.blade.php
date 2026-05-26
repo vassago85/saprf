@@ -56,7 +56,7 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
-            @role('developer|owner|admin|match_director')
+            @role('developer|exco|owner|admin|match_director')
             <flux:navlist.group heading="Match Admin">
                 <flux:navlist.item icon="cog-6-tooth" :href="route('matches.index')" :current="request()->routeIs('matches.*')">
                     Manage Matches
@@ -67,7 +67,7 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner|admin|match_director')
+            @role('developer|exco|owner|admin|match_director')
             <flux:navlist.group heading="Scores">
                 <flux:navlist.item icon="arrow-up-tray" :href="route('score-imports.index')" :current="request()->routeIs('score-imports.*')">
                     Score Imports
@@ -78,8 +78,8 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner|admin')
-            <flux:navlist.group heading="Federation" expandable :expanded="request()->routeIs('approvals.*', 'memberships.*', 'sponsors.*', 'sponsor-tiers.*')">
+            @role('developer|exco|owner|admin')
+            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'sponsors.*', 'sponsor-tiers.*')">
                 <flux:navlist.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')">
                     Approvals
                     @if(($pendingApprovalCount = \App\Http\Controllers\ApprovalController::totalPendingCount()) > 0)
@@ -92,7 +92,7 @@
                 <flux:navlist.item icon="megaphone" :href="route('sponsors.index')" :current="request()->routeIs('sponsors.*')">
                     Sponsors
                 </flux:navlist.item>
-                @role('owner')
+                @role('exco|owner')
                 <flux:navlist.item icon="tag" :href="route('sponsor-tiers.index')" :current="request()->routeIs('sponsor-tiers.*')">
                     Sponsor Tiers
                 </flux:navlist.item>
@@ -103,8 +103,8 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner|admin')
-            <flux:navlist.group heading="Finance" expandable :expanded="request()->routeIs('financials.*')">
+            @role('developer|exco|owner|admin')
+            <flux:navlist.group heading="Finance" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('financials.*')">
                 <flux:navlist.item icon="banknotes" :href="route('financials.dashboard')" :current="request()->routeIs('financials.dashboard')">
                     Dashboard
                 </flux:navlist.item>
@@ -123,9 +123,9 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner|admin|provincial_admin')
-            <flux:navlist.group heading="Reports" expandable :expanded="request()->routeIs('reports.*', 'sascoc-report.*', 'provincial-members.*')">
-                @role('developer|owner|admin')
+            @role('developer|exco|owner|admin|provincial_admin')
+            <flux:navlist.group heading="Reports" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('reports.*', 'sascoc-report.*', 'provincial-members.*')">
+                @role('developer|exco|owner|admin')
                 <flux:navlist.item icon="chart-bar" :href="route('reports.index')" :current="request()->routeIs('reports.index')">
                     Reports Hub
                 </flux:navlist.item>
@@ -142,7 +142,7 @@
                 <flux:navlist.item icon="users" :href="route('provincial-members.index')" :current="request()->routeIs('provincial-members.*')">
                     Provincial Members
                 </flux:navlist.item>
-                @role('owner')
+                @role('exco|owner')
                 <flux:navlist.item icon="document-chart-bar" :href="route('sascoc-report.index')" :current="request()->routeIs('sascoc-report.*')">
                     SASCOC Report
                 </flux:navlist.item>
@@ -150,8 +150,8 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner')
-            <flux:navlist.group heading="Setup" expandable :expanded="request()->routeIs('qualification-rules.*', 'divisions.*', 'categories.*', 'site-settings.*', 'user-management.*')">
+            @role('developer|exco|owner')
+            <flux:navlist.group heading="Setup" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('qualification-rules.*', 'divisions.*', 'categories.*', 'site-settings.*', 'user-management.*')">
                 <flux:navlist.item icon="cog-6-tooth" :href="route('qualification-rules.index')" :current="request()->routeIs('qualification-rules.*')">
                     Qualification Rules
                 </flux:navlist.item>
@@ -170,8 +170,8 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|owner|admin')
-            <flux:navlist.group heading="System" expandable :expanded="request()->routeIs('audit-logs.*')">
+            @role('developer|exco|owner|admin')
+            <flux:navlist.group heading="System" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('audit-logs.*')">
                 <flux:navlist.item icon="document-magnifying-glass" :href="route('audit-logs.index')" :current="request()->routeIs('audit-logs.*')">
                     Audit Logs
                 </flux:navlist.item>
