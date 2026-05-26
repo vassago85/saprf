@@ -17,7 +17,7 @@
             <div>
                 <label for="match_id" class="block text-sm font-medium text-stone-700 mb-1">Select Match</label>
                 <select name="match_id" id="match_id" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">— Choose a match —</option>
                     @foreach($matches as $match)
                     <option value="{{ $match->id }}">
@@ -31,7 +31,7 @@
             <div>
                 <label for="notes" class="block text-sm font-medium text-stone-700 mb-1">Notes (optional)</label>
                 <textarea name="notes" id="notes" rows="3" maxlength="500"
-                          class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500"
+                          class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500"
                           placeholder="Any notes about this payout..."></textarea>
             </div>
 

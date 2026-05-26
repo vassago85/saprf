@@ -9,11 +9,11 @@
             <div>
                 <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Name, email, SAPRF number..."
-                    class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             </div>
             <div>
                 <label class="block text-xs font-medium text-stone-500 mb-1">Province</label>
-                <select name="province_id" class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Provinces</option>
                     @foreach ($provinces as $prov)
                         <option value="{{ $prov->id }}" @selected(request('province_id') == $prov->id)>{{ $prov->name }}</option>

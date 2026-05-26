@@ -103,7 +103,7 @@
                     <div class="flex-1 w-full">
                         <label for="rifle_configuration_id" class="block text-sm font-medium text-stone-700 mb-1">Rifle Configuration</label>
                         <select name="rifle_configuration_id" id="rifle_configuration_id"
-                                class="w-full rounded-lg border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                             <option value="">— No rifle selected</option>
                             @foreach($rifles as $rifle)
                                 <option value="{{ $rifle->id }}" @selected($registration->rifle_configuration_id == $rifle->id)>
@@ -135,7 +135,7 @@
                         <input type="number" name="shot_count" id="shot_count" min="0" max="9999" step="1"
                                value="{{ old('shot_count', $registration->shot_count) }}"
                                placeholder="e.g. 65"
-                               class="w-full rounded-lg border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <button type="submit"
                             class="shrink-0 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">

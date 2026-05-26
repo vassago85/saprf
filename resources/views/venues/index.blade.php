@@ -16,11 +16,11 @@
             <div>
                 <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
                 <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Name, city, address..."
-                       class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                       class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             </div>
             <div>
                 <label class="block text-xs font-medium text-stone-500 mb-1">Province</label>
-                <select name="province_id" class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Provinces</option>
                     @foreach ($provinces as $prov)
                         <option value="{{ $prov->id }}" @selected(($provinceFilter ?? '') == $prov->id)>{{ $prov->name }}</option>
@@ -81,6 +81,7 @@
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
+                                    @role('developer|owner|admin')
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('venues.edit', $venue) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
                                             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
@@ -94,6 +95,9 @@
                                             </button>
                                         </form>
                                     </div>
+                                    @else
+                                    <span class="text-xs text-stone-400" title="Match directors can submit new venues. Edits require admin approval.">View only</span>
+                                    @endrole
                                 </td>
                             </tr>
                         @empty

@@ -61,28 +61,28 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 <div>
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
                     <input wire:model="name" id="name" type="text" required autofocus
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email</label>
                     <input wire:model="email" id="email" type="email" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Password</label>
                     <input wire:model="password" id="password" type="password" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="password_confirmation" class="block text-sm font-medium text-stone-700 mb-1">Confirm Password</label>
                     <input wire:model="password_confirmation" id="password_confirmation" type="password" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">

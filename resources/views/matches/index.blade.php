@@ -14,7 +14,7 @@
     <div class="mt-6 flex flex-wrap gap-3">
         <form method="GET" action="{{ route('matches.index') }}" class="flex flex-wrap items-end gap-3">
             <div>
-                <select name="match_type" class="rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="match_type" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Types</option>
                     <option value="PRS" @selected(request('match_type') === 'PRS')>PRS</option>
                     <option value="PR22" @selected(request('match_type') === 'PR22')>PR22</option>
@@ -22,7 +22,7 @@
             </div>
 
             <div>
-                <select name="status" class="rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                     <option value="open" @selected(request('status') === 'open')>Open</option>

@@ -70,7 +70,7 @@
 
                     <div>
                         <label for="status" class="block text-sm font-medium text-stone-700 mb-1">New Status <span class="text-red-500">*</span></label>
-                        <select name="status" id="status" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <select name="status" id="status" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                             <option value="">Select status…</option>
                             <option value="valid">Valid</option>
                             <option value="invalid">Invalid</option>
@@ -80,7 +80,7 @@
 
                     <div>
                         <label for="reason" class="block text-sm font-medium text-stone-700 mb-1">Reason <span class="text-red-500">*</span></label>
-                        <textarea name="reason" id="reason" rows="3" placeholder="Explain the reason for this override…" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+                        <textarea name="reason" id="reason" rows="3" placeholder="Explain the reason for this override…" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500"></textarea>
                     </div>
 
                     @if ($errors->any())

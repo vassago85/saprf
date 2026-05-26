@@ -26,7 +26,7 @@
                 <div>
                     <label for="province_id" class="block text-sm font-medium text-stone-700 mb-1">Province</label>
                     <select name="province_id" id="province_id" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select province...</option>
                         @foreach ($provinces as $prov)
                             <option value="{{ $prov->id }}" @selected(old('province_id') == $prov->id)>{{ $prov->name }}</option>
@@ -37,7 +37,7 @@
                 <div>
                     <label for="user_id" class="block text-sm font-medium text-stone-700 mb-1">Member</label>
                     <select name="user_id" id="user_id" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select member...</option>
                         @foreach ($users as $user)
                             <option value="{{ $user->id }}" @selected(old('user_id') == $user->id)>{{ $user->name }} ({{ $user->email }})</option>
@@ -48,7 +48,7 @@
                 <div>
                     <label for="position" class="block text-sm font-medium text-stone-700 mb-1">Position</label>
                     <select name="position" id="position" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select position...</option>
                         @foreach ($positions as $pos)
                             <option value="{{ $pos }}" @selected(old('position') === $pos)>{{ str_replace('_', ' ', ucfirst($pos)) }}</option>
@@ -59,7 +59,7 @@
                 <div>
                     <label for="appointed_at" class="block text-sm font-medium text-stone-700 mb-1">Appointed Date</label>
                     <input type="date" name="appointed_at" id="appointed_at" value="{{ old('appointed_at', now()->format('Y-m-d')) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
             </div>
 

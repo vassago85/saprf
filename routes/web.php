@@ -146,9 +146,19 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
     Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
 
-    // Venues — managed by federation admins, not match directors
+    // Venues — match directors can browse + submit new ones (auto goes to approval
+    // queue); edits/deletes require federation admin or owner sign-off.
+    Route::middleware(['role:developer|owner|admin|match_director'])->group(function (): void {
+        Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
+        Route::get('/venues/create', [VenueController::class, 'create'])->name('venues.create');
+        Route::post('/venues', [VenueController::class, 'store'])->name('venues.store');
+    });
+
     Route::middleware(['role:developer|owner|admin'])->group(function (): void {
-        Route::resource('venues', VenueController::class)->except(['show']);
+        Route::get('/venues/{venue}/edit', [VenueController::class, 'edit'])->name('venues.edit');
+        Route::put('/venues/{venue}', [VenueController::class, 'update'])->name('venues.update');
+        Route::patch('/venues/{venue}', [VenueController::class, 'update']);
+        Route::delete('/venues/{venue}', [VenueController::class, 'destroy'])->name('venues.destroy');
     });
 
     // Match Director + Admin + Owner (+ Developer)

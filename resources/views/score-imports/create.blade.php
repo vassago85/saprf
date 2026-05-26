@@ -9,7 +9,7 @@
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-6">
             <div>
                 <label for="match_id" class="block text-sm font-medium text-stone-700 mb-1">Match <span class="text-red-500">*</span></label>
-                <select name="match_id" id="match_id" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="match_id" id="match_id" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">Select match…</option>
                     @foreach ($matches as $match)
                         <option value="{{ $match->id }}" @selected(old('match_id') == $match->id)>{{ $match->name }} ({{ $match->match_date->format('d M Y') }})</option>
@@ -19,7 +19,7 @@
 
             <div>
                 <label for="source_type" class="block text-sm font-medium text-stone-700 mb-1">Source Type <span class="text-red-500">*</span></label>
-                <select name="source_type" id="source_type" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="source_type" id="source_type" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">Select source…</option>
                     <option value="csv" @selected(old('source_type') === 'csv')>CSV File</option>
                     <option value="practiscore" @selected(old('source_type') === 'practiscore')>PractiScore</option>

@@ -25,7 +25,7 @@
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Quick Filter</label>
                     <select name="period" onchange="this.form.submit()"
-                            class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">All Time</option>
                         <option value="month" @selected(request('period') === 'month')>This Month</option>
                         <option value="season" @selected(request('period') === 'season')>Season</option>
@@ -35,7 +35,7 @@
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Season</label>
                     <select name="season_year" onchange="this.form.submit()"
-                            class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         @foreach($seasons as $y)
                             <option value="{{ $y }}" @selected(request('season_year', now()->year) == $y)>{{ $y }}</option>
                         @endforeach
@@ -45,12 +45,12 @@
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">From</label>
                     <input type="date" name="from" value="{{ $from?->toDateString() }}"
-                           class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                           class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">To</label>
                     <input type="date" name="to" value="{{ $to?->toDateString() }}"
-                           class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                           class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <button type="submit"
                         class="rounded-lg bg-emerald-700 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">

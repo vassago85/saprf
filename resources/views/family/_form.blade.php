@@ -10,7 +10,7 @@
         <input type="text" name="name" id="name" required maxlength="120"
                value="{{ old('name', $isEdit ? $junior->name : '') }}"
                placeholder="e.g. Conner Britnell"
-               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
         @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
@@ -20,7 +20,7 @@
             <input type="date" name="date_of_birth" id="date_of_birth" required
                    value="{{ old('date_of_birth', $isEdit ? $junior->date_of_birth?->format('Y-m-d') : '') }}"
                    max="{{ now()->subYears(5)->format('Y-m-d') }}"
-                   class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             <p class="mt-1 text-xs text-stone-400">Used to determine junior eligibility (under 21 on 1 Jan).</p>
             @error('date_of_birth') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
@@ -28,7 +28,7 @@
         <div>
             <label for="province_id" class="block text-sm font-medium text-stone-700 mb-1">Home Province <span class="text-red-500">*</span></label>
             <select name="province_id" id="province_id" required
-                    class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">— Select —</option>
                 @foreach($provinces as $province)
                     <option value="{{ $province->id }}" @selected((string) old('province_id', $isEdit ? $junior->province_id : auth()->user()->province_id) === (string) $province->id)>{{ $province->name }}</option>
@@ -41,7 +41,7 @@
     <div>
         <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1">Default Division</label>
         <select name="division_id" id="division_id"
-                class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             <option value="">— None yet —</option>
             @foreach($divisions as $division)
                 <option value="{{ $division->id }}" @selected((string) old('division_id', $isEdit ? $junior->division_id : '') === (string) $division->id)>{{ $division->name }}</option>

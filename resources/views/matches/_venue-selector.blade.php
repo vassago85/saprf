@@ -8,7 +8,7 @@
 
     <label for="venue_select" class="block text-sm font-medium text-stone-700 mb-1">Venue</label>
     <div class="flex items-center gap-2 mb-3">
-        <select id="venue_select" x-model="selectedId" @change="applyVenue()" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+        <select id="venue_select" x-model="selectedId" @change="applyVenue()" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
             <option value="">— Select from address book —</option>
             <template x-for="v in venues" :key="v.id">
                 <option :value="v.id" x-text="v.name + (v.city ? ' — ' + v.city : '')"></option>
@@ -22,17 +22,17 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <label for="venue_name" class="block text-xs font-medium text-stone-500 mb-1">Venue Name</label>
-            <input type="text" name="venue_name" id="venue_name" x-model="venueName" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+            <input type="text" name="venue_name" id="venue_name" x-model="venueName" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
         <div>
             <label for="city" class="block text-xs font-medium text-stone-500 mb-1">City</label>
-            <input type="text" name="city" id="city" x-model="city" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+            <input type="text" name="city" id="city" x-model="city" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
     </div>
 
     <div class="mt-4">
         <label for="venue_location" class="block text-xs font-medium text-stone-500 mb-1">Venue Address / Directions</label>
-        <input type="text" name="venue_location" id="venue_location" x-model="location" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+        <input type="text" name="venue_location" id="venue_location" x-model="location" :readonly="locked" :class="locked ? 'bg-stone-50 text-stone-500' : ''" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
     </div>
 
     <template x-if="locked">

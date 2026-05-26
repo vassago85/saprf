@@ -26,25 +26,25 @@
                 <div class="sm:col-span-2">
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Tier Name</label>
                     <input type="text" name="name" id="name" value="{{ old('name', $sponsorTier->name) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="price_per_year" class="block text-sm font-medium text-stone-700 mb-1">Price per Year (ZAR)</label>
                     <input type="number" name="price_per_year" id="price_per_year" value="{{ old('price_per_year', $sponsorTier->price_per_year) }}" min="0" step="0.01" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="display_order" class="block text-sm font-medium text-stone-700 mb-1">Display Order</label>
                     <input type="number" name="display_order" id="display_order" value="{{ old('display_order', $sponsorTier->display_order) }}" min="0" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="logo_max_height" class="block text-sm font-medium text-stone-700 mb-1">Logo Max Height (px)</label>
                     <input type="number" name="logo_max_height" id="logo_max_height" value="{{ old('logo_max_height', $sponsorTier->logo_max_height) }}" min="16" max="200" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">

@@ -158,7 +158,7 @@
                             @csrf
                             <input type="email" name="handover_email" required
                                    placeholder="their.real.email@example.com"
-                                   class="flex-1 rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                                   class="flex-1 rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                             <button type="submit"
                                     class="rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 transition">
                                 Send invitation

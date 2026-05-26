@@ -131,7 +131,7 @@
             autocomplete="off"
             @if($required && !$dependsOn) required @endif
             @if($dependsOn) :disabled="!dependsValue" @endif
-            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-50 disabled:text-stone-400"
+            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-50 disabled:text-stone-400"
         >
 
         <div class="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none">

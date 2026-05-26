@@ -54,7 +54,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 <div>
                     <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email</label>
                     <input wire:model="email" id="email" type="email" required autofocus
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 

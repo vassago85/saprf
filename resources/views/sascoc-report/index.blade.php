@@ -10,7 +10,7 @@
                 <div>
                     <label for="year" class="block text-sm font-medium text-stone-700 mb-1">Reporting Year</label>
                     <select name="year" id="year"
-                        class="rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         @foreach ($years as $y)
                             <option value="{{ $y }}" @selected($y == $year)>{{ $y }}</option>
                         @endforeach

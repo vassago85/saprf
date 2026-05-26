@@ -160,7 +160,7 @@
                             <label for="revocation_reason" class="block text-sm font-medium text-stone-700 mb-1">Reason for revocation <span class="text-red-500">*</span></label>
                             <textarea name="revocation_reason" id="revocation_reason" rows="3" maxlength="1000" required
                                       placeholder="Describe why this membership is being revoked..."
-                                      class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">{{ old('revocation_reason') }}</textarea>
+                                      class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">{{ old('revocation_reason') }}</textarea>
                             @error('revocation_reason')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                             @enderror

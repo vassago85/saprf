@@ -286,10 +286,10 @@
                                                     @csrf @method('PUT')
                                                     <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
                                                         <div class="sm:col-span-2">
-                                                            <input type="text" name="description" value="{{ $expense->description }}" required placeholder="Description" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                                            <input type="text" name="description" value="{{ $expense->description }}" required placeholder="Description" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                                         </div>
                                                         <div>
-                                                            <select name="category" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                                            <select name="category" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
                                                                 <option value="">No category</option>
                                                                 @foreach(\App\Models\MatchExpense::CATEGORIES as $key => $label)
                                                                     <option value="{{ $key }}" {{ $expense->category === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -297,18 +297,18 @@
                                                             </select>
                                                         </div>
                                                         <div>
-                                                            <select name="cost_type" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                                            <select name="cost_type" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
                                                                 @foreach(\App\Models\MatchExpense::COST_TYPES as $key => $label)
                                                                     <option value="{{ $key }}" {{ $expense->cost_type === $key ? 'selected' : '' }}>{{ $label }}</option>
                                                                 @endforeach
                                                             </select>
                                                         </div>
                                                         <div>
-                                                            <input type="number" name="amount" value="{{ $expense->amount }}" step="0.01" min="0.01" required placeholder="Amount" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                                            <input type="number" name="amount" value="{{ $expense->amount }}" step="0.01" min="0.01" required placeholder="Amount" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <input type="text" name="notes" value="{{ $expense->notes }}" placeholder="Notes (optional)" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                                        <input type="text" name="notes" value="{{ $expense->notes }}" placeholder="Notes (optional)" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                                     </div>
                                                     <div class="flex items-center gap-2">
                                                         <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition">Save</button>
@@ -343,10 +343,10 @@
                             @csrf
                             <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
                                 <div class="sm:col-span-2">
-                                    <input type="text" name="description" required placeholder="e.g. Range fee, Catering, Venue hire" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                    <input type="text" name="description" required placeholder="e.g. Range fee, Catering, Venue hire" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                 </div>
                                 <div>
-                                    <select name="category" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                    <select name="category" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
                                         <option value="">Category</option>
                                         @foreach(\App\Models\MatchExpense::CATEGORIES as $key => $label)
                                             <option value="{{ $key }}">{{ $label }}</option>
@@ -354,18 +354,18 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <select name="cost_type" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                    <select name="cost_type" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500">
                                         @foreach(\App\Models\MatchExpense::COST_TYPES as $key => $label)
                                             <option value="{{ $key }}">{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div>
-                                    <input type="number" name="amount" step="0.01" min="0.01" required placeholder="R Amount" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                    <input type="number" name="amount" step="0.01" min="0.01" required placeholder="R Amount" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                                 </div>
                             </div>
                             <div>
-                                <input type="text" name="notes" placeholder="Notes (optional)" class="w-full rounded-lg border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                                <input type="text" name="notes" placeholder="Notes (optional)" class="w-full rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500" />
                             </div>
                             <div class="flex items-center gap-2">
                                 <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition">Add Expense</button>

@@ -6,7 +6,7 @@
     <div class="mt-6 flex flex-wrap gap-3">
         <form method="GET" action="{{ route('scores.index') }}" class="flex flex-wrap items-end gap-3">
             <div>
-                <select name="match_id" class="rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="match_id" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Matches</option>
                     @foreach ($matches as $match)
                         <option value="{{ $match->id }}" @selected(request('match_id') == $match->id)>{{ $match->name }}</option>
@@ -15,7 +15,7 @@
             </div>
 
             <div>
-                <select name="status" class="rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <select name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="valid" @selected(request('status') === 'valid')>Valid</option>
                     <option value="pending" @selected(request('status') === 'pending')>Pending</option>

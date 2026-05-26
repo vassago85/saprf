@@ -29,7 +29,7 @@
         <div class="space-y-2">
             <label class="block text-xs font-medium text-stone-500">Expected Shooters</label>
             <input type="number" x-model.number="shooters" min="1" max="500" placeholder="30"
-                   class="block w-32 rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                   class="block w-32 rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
 
         <template x-if="fee > 0">

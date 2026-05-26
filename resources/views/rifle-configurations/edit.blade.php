@@ -27,7 +27,7 @@
                 <div class="sm:col-span-2">
                     <label for="nickname" class="block text-sm font-medium text-stone-700 mb-1">Nickname</label>
                     <input type="text" name="nickname" id="nickname" value="{{ old('nickname', $rifleConfiguration->nickname) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
@@ -80,21 +80,21 @@
                     <label for="action_description" class="block text-sm font-medium text-stone-700 mb-1">Action</label>
                     <input type="text" name="action_description" id="action_description" value="{{ old('action_description', $rifleConfiguration->action_description) }}"
                         placeholder="e.g. Bighorn TL3, Defiance Tenacity"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="barrel_description" class="block text-sm font-medium text-stone-700 mb-1">Barrel</label>
                     <input type="text" name="barrel_description" id="barrel_description" value="{{ old('barrel_description', $rifleConfiguration->barrel_description) }}"
                         placeholder="e.g. Bartlein 6.5mm, Krieger"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="chassis_description" class="block text-sm font-medium text-stone-700 mb-1">Chassis / Stock</label>
                     <input type="text" name="chassis_description" id="chassis_description" value="{{ old('chassis_description', $rifleConfiguration->chassis_description) }}"
                         placeholder="e.g. MDT ACC Elite"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
@@ -131,20 +131,20 @@
                     <label for="barrel_length" class="block text-sm font-medium text-stone-700 mb-1">Barrel Length</label>
                     <input type="text" name="barrel_length" id="barrel_length" value="{{ old('barrel_length', $rifleConfiguration->barrel_length) }}"
                         placeholder='e.g. 26"'
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="twist_rate" class="block text-sm font-medium text-stone-700 mb-1">Twist Rate</label>
                     <input type="text" name="twist_rate" id="twist_rate" value="{{ old('twist_rate', $rifleConfiguration->twist_rate) }}"
                         placeholder="e.g. 1:10"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">
                     <label for="notes" class="block text-sm font-medium text-stone-700 mb-1">Notes</label>
                     <textarea name="notes" id="notes" rows="3"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes', $rifleConfiguration->notes) }}</textarea>
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes', $rifleConfiguration->notes) }}</textarea>
                 </div>
 
                 <div class="sm:col-span-2">

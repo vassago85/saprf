@@ -5,7 +5,7 @@
         <div>
             <label for="category" class="block text-sm font-medium text-stone-700 mb-1">Category <span class="text-red-500">*</span></label>
             <select name="category" id="category" required
-                    class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">— Select —</option>
                 @foreach($categories as $key => $label)
                     <option value="{{ $key }}" @selected(old('category', $isEdit ? $expense->category : '') === $key)>{{ $label }}</option>
@@ -18,7 +18,7 @@
             <label for="expense_date" class="block text-sm font-medium text-stone-700 mb-1">Date <span class="text-red-500">*</span></label>
             <input type="date" name="expense_date" id="expense_date" required
                    value="{{ old('expense_date', $isEdit ? $expense->expense_date->format('Y-m-d') : now()->format('Y-m-d')) }}"
-                   class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             @error('expense_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -28,7 +28,7 @@
         <input type="text" name="description" id="description" required maxlength="255"
                value="{{ old('description', $isEdit ? $expense->description : '') }}"
                placeholder="e.g. Annual insurance premium"
-               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
         @error('description') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
@@ -37,7 +37,7 @@
             <label for="amount" class="block text-sm font-medium text-stone-700 mb-1">Amount (ZAR) <span class="text-red-500">*</span></label>
             <input type="number" name="amount" id="amount" required step="0.01" min="0.01"
                    value="{{ old('amount', $isEdit ? $expense->amount : '') }}"
-                   class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             @error('amount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
@@ -46,7 +46,7 @@
             <input type="text" name="vendor" id="vendor" maxlength="150"
                    value="{{ old('vendor', $isEdit ? $expense->vendor : '') }}"
                    placeholder="e.g. ABSA, Takealot"
-                   class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
         </div>
     </div>
 
@@ -55,13 +55,13 @@
         <input type="text" name="reference" id="reference" maxlength="100"
                value="{{ old('reference', $isEdit ? $expense->reference : '') }}"
                placeholder="e.g. INV-2026-001"
-               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
     </div>
 
     <div>
         <label for="notes" class="block text-sm font-medium text-stone-700 mb-1">Notes</label>
         <textarea name="notes" id="notes" rows="3" maxlength="500"
-                  class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500"
+                  class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500"
                   placeholder="Optional details...">{{ old('notes', $isEdit ? $expense->notes : '') }}</textarea>
     </div>
 

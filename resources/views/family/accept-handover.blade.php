@@ -33,20 +33,20 @@
                     <div>
                         <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Choose a Password <span class="text-red-500">*</span></label>
                         <input type="password" name="password" id="password" required minlength="8" autocomplete="new-password"
-                               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <p class="mt-1 text-xs text-stone-400">At least 8 characters.</p>
                     </div>
 
                     <div>
                         <label for="password_confirmation" class="block text-sm font-medium text-stone-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
                         <input type="password" name="password_confirmation" id="password_confirmation" required minlength="8" autocomplete="new-password"
-                               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
 
                     <div>
                         <label for="phone" class="block text-sm font-medium text-stone-700 mb-1">Phone <span class="text-stone-400 font-normal">(optional)</span></label>
                         <input type="tel" name="phone" id="phone" maxlength="30" value="{{ old('phone', $junior->phone) }}"
-                               class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
 
                     <button type="submit"

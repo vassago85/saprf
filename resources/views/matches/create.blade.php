@@ -10,12 +10,12 @@
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2" x-data="{ matchType: '{{ old('match_type', '') }}' }">
                 <div class="sm:col-span-2">
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Match Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" id="name" value="{{ old('name') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="text" name="name" id="name" value="{{ old('name') }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div>
                     <label for="match_type" class="block text-sm font-medium text-stone-700 mb-1">Match Type <span class="text-red-500">*</span></label>
-                    <select name="match_type" id="match_type" required x-model="matchType" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="match_type" id="match_type" required x-model="matchType" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select type…</option>
                         <option value="PRS">PRS</option>
                         <option value="PR22">PR22</option>
@@ -24,7 +24,7 @@
 
                 <div>
                     <label for="series_level" class="block text-sm font-medium text-stone-700 mb-1">Series Level <span class="text-red-500">*</span></label>
-                    <select name="series_level" id="series_level" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="series_level" id="series_level" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select level…</option>
                         <option value="national" @selected(old('series_level') === 'national')>National</option>
                         <option value="provincial" @selected(old('series_level') === 'provincial')>Provincial</option>
@@ -51,7 +51,7 @@
 
                 <div>
                     <label for="province_id" class="block text-sm font-medium text-stone-700 mb-1">Province</label>
-                    <select name="province_id" id="province_id" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="province_id" id="province_id" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select province…</option>
                         @foreach ($provinces as $province)
                             <option value="{{ $province->id }}" @selected(old('province_id') == $province->id)>{{ $province->name }}</option>
@@ -61,12 +61,12 @@
 
                 <div>
                     <label for="match_date" class="block text-sm font-medium text-stone-700 mb-1">Start Date <span class="text-red-500">*</span></label>
-                    <input type="date" name="match_date" id="match_date" value="{{ old('match_date') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="date" name="match_date" id="match_date" value="{{ old('match_date') }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div>
                     <label for="match_end_date" class="block text-sm font-medium text-stone-700 mb-1">End Date <span class="text-stone-400 font-normal">(multi-day)</span></label>
-                    <input type="date" name="match_end_date" id="match_end_date" value="{{ old('match_end_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="date" name="match_end_date" id="match_end_date" value="{{ old('match_end_date') }}" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                     <p class="mt-1 text-xs text-stone-400">Leave blank for single-day matches.</p>
                 </div>
 
@@ -74,27 +74,27 @@
 
                 <div class="sm:col-span-2">
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
-                    <textarea name="description" id="description" rows="3" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
+                    <textarea name="description" id="description" rows="3" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
                 </div>
 
                 <div>
                     <label for="registration_open_date" class="block text-sm font-medium text-stone-700 mb-1">Registration Opens</label>
-                    <input type="date" name="registration_open_date" id="registration_open_date" value="{{ old('registration_open_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="date" name="registration_open_date" id="registration_open_date" value="{{ old('registration_open_date') }}" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div>
                     <label for="registration_close_date" class="block text-sm font-medium text-stone-700 mb-1">Registration Closes</label>
-                    <input type="date" name="registration_close_date" id="registration_close_date" value="{{ old('registration_close_date') }}" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="date" name="registration_close_date" id="registration_close_date" value="{{ old('registration_close_date') }}" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label for="active_member_fee" class="block text-sm font-medium text-stone-700 mb-1">Match Entry Fee (ZAR) <span class="text-red-500">*</span></label>
-                        <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee') }}" required class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                        <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee') }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                     </div>
                     <div>
                         <label for="estimated_shooters" class="block text-sm font-medium text-stone-700 mb-1">Estimated Shooters</label>
-                        <input type="number" name="estimated_shooters" id="estimated_shooters" min="1" max="999" value="{{ old('estimated_shooters') }}" placeholder="e.g. 30" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                        <input type="number" name="estimated_shooters" id="estimated_shooters" min="1" max="999" value="{{ old('estimated_shooters') }}" placeholder="e.g. 30" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                         <p class="mt-1 text-xs text-stone-400">Used for per-shooter expense calculations and revenue projections.</p>
                     </div>
                 </div>
@@ -106,7 +106,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label for="max_competitors" class="block text-sm font-medium text-stone-700 mb-1">Maximum Competitors</label>
-                            <input type="number" name="max_competitors" id="max_competitors" min="1" max="999" value="{{ old('max_competitors') }}" placeholder="No limit" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                            <input type="number" name="max_competitors" id="max_competitors" min="1" max="999" value="{{ old('max_competitors') }}" placeholder="No limit" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                             <p class="mt-1 text-xs text-stone-400">Leave blank for unlimited entries.</p>
                         </div>
                         <div class="flex items-end">
@@ -124,7 +124,7 @@
 
                 <div>
                     <label for="status" class="block text-sm font-medium text-stone-700 mb-1">Status</label>
-                    <select name="status" id="status" class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="status" id="status" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft (not visible publicly)</option>
                         <option value="open" @selected(old('status') === 'open')>Open (registration available)</option>
                     </select>
@@ -162,7 +162,7 @@
                             <label for="provincial_stage_columns" class="block text-sm font-medium text-stone-700 mb-1">Provincial Stage Columns</label>
                             <input type="text" name="provincial_stage_columns" id="provincial_stage_columns" value="{{ old('provincial_stage_columns') }}"
                                    placeholder="e.g. stage_1, stage_2, stage_3, stage_4, stage_5"
-                                   class="block w-full rounded-lg border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                                   class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                             <p class="mt-1.5 text-xs text-stone-400">Comma-separated CSV column names for the stages that count for provincial. These must match the column headers in the PractiScore/Impact export. The system will sum these values per shooter.</p>
                         </div>
                     </div>

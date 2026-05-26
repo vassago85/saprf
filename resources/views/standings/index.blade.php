@@ -28,7 +28,7 @@
                 <input type="hidden" name="series" value="{{ $series }}">
                 <input type="hidden" name="level" value="{{ $level }}">
                 <select name="season" onchange="this.form.submit()"
-                        class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     @foreach ($seasons as $s)
                         <option value="{{ $s }}" @selected($season == $s)>{{ $s }}</option>
                     @endforeach

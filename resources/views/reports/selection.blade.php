@@ -28,7 +28,7 @@
                 <div>
                     <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Season</label>
                     <select name="season" onchange="this.form.submit()"
-                            class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         @foreach($seasons as $s)
                             <option value="{{ $s }}" @selected((string) $season === $s)>{{ $s }}</option>
                         @endforeach

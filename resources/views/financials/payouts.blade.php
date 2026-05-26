@@ -111,17 +111,17 @@
                                         <label class="block text-xs font-medium text-stone-500 mb-1">Amount</label>
                                         <input type="number" name="paid_amount" step="0.01" min="0.01"
                                                value="{{ $payout->outstandingBalance() }}"
-                                               class="rounded-lg border-stone-300 text-sm py-2 px-3 w-36 focus:ring-emerald-500 focus:border-emerald-500">
+                                               class="rounded-lg border border-stone-300 text-sm py-2 px-3 w-36 focus:ring-emerald-500 focus:border-emerald-500">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-stone-500 mb-1">Reference</label>
                                         <input type="text" name="payment_reference" placeholder="EFT / bank ref"
-                                               class="rounded-lg border-stone-300 text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
+                                               class="rounded-lg border border-stone-300 text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-stone-500 mb-1">Notes</label>
                                         <input type="text" name="notes" placeholder="Optional"
-                                               class="rounded-lg border-stone-300 text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
+                                               class="rounded-lg border border-stone-300 text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
                                     </div>
                                     <button type="submit"
                                             class="rounded-lg bg-emerald-700 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">

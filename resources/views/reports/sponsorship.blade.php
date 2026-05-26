@@ -19,7 +19,7 @@
                 <div>
                     <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Period</label>
                     <select name="period" onchange="this.form.submit()"
-                            class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="" @selected(!request('period'))>All time</option>
                         <option value="this_year" @selected(request('period') === 'this_year')>This year</option>
                         <option value="last_year" @selected(request('period') === 'last_year')>Last year</option>
@@ -28,11 +28,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">From</label>
-                    <input type="date" name="from" value="{{ $from }}" class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="date" name="from" value="{{ $from }}" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">To</label>
-                    <input type="date" name="to" value="{{ $to }}" class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="date" name="to" value="{{ $to }}" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <button type="submit" class="rounded-lg bg-stone-900 text-white text-sm font-semibold px-4 py-2 hover:bg-stone-800">Apply</button>
                 @if(request()->query())

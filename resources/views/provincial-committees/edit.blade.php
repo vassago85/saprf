@@ -39,7 +39,7 @@
                 <div>
                     <label for="position" class="block text-sm font-medium text-stone-700 mb-1">Position</label>
                     <select name="position" id="position" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         @foreach ($positions as $pos)
                             <option value="{{ $pos }}" @selected(old('position', $appointment->position) === $pos)>{{ str_replace('_', ' ', ucfirst($pos)) }}</option>
                         @endforeach
@@ -50,7 +50,7 @@
                     <label for="appointed_at" class="block text-sm font-medium text-stone-700 mb-1">Appointed Date</label>
                     <input type="date" name="appointed_at" id="appointed_at"
                         value="{{ old('appointed_at', $appointment->appointed_at?->format('Y-m-d')) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">

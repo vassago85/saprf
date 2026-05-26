@@ -29,7 +29,7 @@
             <div>
                 <label for="nickname" class="block text-sm font-medium text-stone-700 mb-1">Load Name</label>
                 <input type="text" name="nickname" id="nickname" value="{{ old('nickname') }}" required placeholder="e.g. Match Load, Practice, 140 ELD-M Dev"
-                    class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             </div>
 
             {{-- Bullet --}}
@@ -39,22 +39,22 @@
                     <div>
                         <label for="bullet_make" class="block text-xs font-medium text-stone-500 mb-1">Make</label>
                         <input type="text" name="bullet_make" id="bullet_make" value="{{ old('bullet_make') }}" placeholder="e.g. Berger, Sierra, Hornady"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="bullet_model" class="block text-xs font-medium text-stone-500 mb-1">Model</label>
                         <input type="text" name="bullet_model" id="bullet_model" value="{{ old('bullet_model') }}" placeholder="e.g. Juggernaut, MatchKing, ELD-M"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="bullet_weight" class="block text-xs font-medium text-stone-500 mb-1">Weight</label>
                         <input type="text" name="bullet_weight" id="bullet_weight" value="{{ old('bullet_weight') }}" placeholder="e.g. 140gr, 185gr, 77gr"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="bullet_type" class="block text-xs font-medium text-stone-500 mb-1">Type</label>
                         <input type="text" name="bullet_type" id="bullet_type" value="{{ old('bullet_type') }}" placeholder="e.g. HPBT, OTM, Hybrid Target"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                 </div>
             </div>
@@ -66,12 +66,12 @@
                     <div>
                         <label for="brass" class="block text-xs font-medium text-stone-500 mb-1">Brass</label>
                         <input type="text" name="brass" id="brass" value="{{ old('brass') }}" placeholder="e.g. Lapua, Peterson, ADG"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="primer" class="block text-xs font-medium text-stone-500 mb-1">Primer</label>
                         <input type="text" name="primer" id="primer" value="{{ old('primer') }}" placeholder="e.g. CCI BR2, Federal 210M"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                 </div>
             </div>
@@ -83,12 +83,12 @@
                     <div>
                         <label for="powder" class="block text-xs font-medium text-stone-500 mb-1">Powder</label>
                         <input type="text" name="powder" id="powder" value="{{ old('powder') }}" placeholder="e.g. Vihtavuori N150, Hodgdon H4350"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="charge_weight" class="block text-xs font-medium text-stone-500 mb-1">Charge Weight</label>
                         <input type="text" name="charge_weight" id="charge_weight" value="{{ old('charge_weight') }}" placeholder="e.g. 42.5gr"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                 </div>
             </div>
@@ -100,17 +100,17 @@
                     <div>
                         <label for="coal" class="block text-xs font-medium text-stone-500 mb-1">COAL</label>
                         <input type="text" name="coal" id="coal" value="{{ old('coal') }}" placeholder='e.g. 2.810"'
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="cbto" class="block text-xs font-medium text-stone-500 mb-1">CBTO</label>
                         <input type="text" name="cbto" id="cbto" value="{{ old('cbto') }}" placeholder='e.g. 2.150"'
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                     <div>
                         <label for="velocity" class="block text-xs font-medium text-stone-500 mb-1">Velocity</label>
                         <input type="text" name="velocity" id="velocity" value="{{ old('velocity') }}" placeholder="e.g. 2750fps"
-                            class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     </div>
                 </div>
             </div>
@@ -119,7 +119,7 @@
             <div>
                 <label for="notes" class="block text-sm font-medium text-stone-700 mb-1">Notes</label>
                 <textarea name="notes" id="notes" rows="3" placeholder="Load development notes, SD/ES data, etc..."
-                    class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
             </div>
 
             <div class="flex items-center gap-4 pt-2">

@@ -16,11 +16,11 @@
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
                     <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Sponsor name..."
-                        class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Status</label>
-                    <select name="status" class="rounded-lg border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">All</option>
                         <option value="active" @selected(request('status') === 'active')>Active</option>
                         <option value="expired" @selected(request('status') === 'expired')>Expired / Inactive</option>

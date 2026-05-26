@@ -25,26 +25,26 @@
                 <div>
                     <label for="slug" class="block text-sm font-medium text-stone-700 mb-1">Slug</label>
                     <input type="text" name="slug" id="slug" value="{{ old('slug') }}" required placeholder="e.g. overall, ladies, junior"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <p class="mt-1 text-xs text-stone-400">Unique identifier. Letters, numbers, dashes, underscores only.</p>
                 </div>
 
                 <div>
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Name</label>
                     <input type="text" name="name" id="name" value="{{ old('name') }}" required placeholder="e.g. Junior, Veteran"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
                     <textarea name="description" id="description" rows="3" placeholder="Optional description of this category…"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
                 </div>
 
                 <div>
                     <label for="display_order" class="block text-sm font-medium text-stone-700 mb-1">Display Order</label>
                     <input type="number" name="display_order" id="display_order" value="{{ old('display_order', 0) }}" min="0" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <p class="mt-1 text-xs text-stone-400">Lower number = appears first.</p>
                 </div>
             </div>

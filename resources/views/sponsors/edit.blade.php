@@ -26,13 +26,13 @@
                 <div class="sm:col-span-2">
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Sponsor Name</label>
                     <input type="text" name="name" id="name" value="{{ old('name', $sponsor->name) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="sponsor_tier_id" class="block text-sm font-medium text-stone-700 mb-1">Tier</label>
                     <select name="sponsor_tier_id" id="sponsor_tier_id" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         @foreach ($tiers as $tier)
                             <option value="{{ $tier->id }}" @selected(old('sponsor_tier_id', $sponsor->sponsor_tier_id) == $tier->id)>
                                 {{ $tier->name }} (R{{ number_format($tier->price_per_year, 0) }}/yr)
@@ -44,7 +44,7 @@
                 <div>
                     <label for="website_url" class="block text-sm font-medium text-stone-700 mb-1">Website URL</label>
                     <input type="url" name="website_url" id="website_url" value="{{ old('website_url', $sponsor->website_url) }}" placeholder="https://..."
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">
@@ -56,38 +56,38 @@
                         </div>
                     @endif
                     <input type="file" name="logo" id="logo" accept="image/*"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2 px-3 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2 px-3 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                     <p class="mt-1 text-xs text-stone-400">Leave empty to keep current logo.</p>
                 </div>
 
                 <div>
                     <label for="starts_at" class="block text-sm font-medium text-stone-700 mb-1">Start Date</label>
                     <input type="date" name="starts_at" id="starts_at" value="{{ old('starts_at', $sponsor->starts_at->format('Y-m-d')) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="expires_at" class="block text-sm font-medium text-stone-700 mb-1">Expiry Date</label>
                     <input type="date" name="expires_at" id="expires_at" value="{{ old('expires_at', $sponsor->expires_at->format('Y-m-d')) }}" required
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="contact_name" class="block text-sm font-medium text-stone-700 mb-1">Contact Name</label>
                     <input type="text" name="contact_name" id="contact_name" value="{{ old('contact_name', $sponsor->contact_name) }}"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
                     <label for="contact_email" class="block text-sm font-medium text-stone-700 mb-1">Contact Email</label>
                     <input type="email" name="contact_email" id="contact_email" value="{{ old('contact_email', $sponsor->contact_email) }}"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div class="sm:col-span-2">
                     <label for="notes" class="block text-sm font-medium text-stone-700 mb-1">Notes</label>
                     <textarea name="notes" id="notes" rows="3"
-                        class="w-full rounded-lg border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes', $sponsor->notes) }}</textarea>
+                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes', $sponsor->notes) }}</textarea>
                 </div>
 
                 <div class="sm:col-span-2">
