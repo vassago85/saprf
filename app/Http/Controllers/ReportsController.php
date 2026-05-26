@@ -334,7 +334,6 @@ class ReportsController extends Controller
             })
             ->when($series, fn ($q) => $q->where('matches.match_type', $series))
             ->groupBy('users.province_id')
-            ->with('province')
             ->orderByDesc('shooter_count')
             ->get();
 
