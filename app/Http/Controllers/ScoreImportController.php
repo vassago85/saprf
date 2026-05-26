@@ -24,9 +24,16 @@ class ScoreImportController extends Controller
         return view('score-imports.index', compact('scoreImports'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        $matches = MatchEvent::orderBy('match_date', 'desc')->get(['id', 'name', 'match_date']);
+        $user = $request->user();
+        $query = MatchEvent::query()->orderBy('match_date', 'desc');
+
+        if ($user->hasRole('match_director') && ! $user->hasAnyRole(['developer', 'owner', 'admin'])) {
+            $query->where('created_by', $user->id);
+        }
+
+        $matches = $query->get(['id', 'name', 'match_date']);
 
         return view('score-imports.create', compact('matches'));
     }

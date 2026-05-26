@@ -146,9 +146,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
     Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
 
-    // Match Director + Admin + Owner
-    Route::middleware(['role:owner|admin|match_director'])->group(function (): void {
+    // Venues — managed by federation admins, not match directors
+    Route::middleware(['role:developer|owner|admin'])->group(function (): void {
         Route::resource('venues', VenueController::class)->except(['show']);
+    });
+
+    // Match Director + Admin + Owner (+ Developer)
+    Route::middleware(['role:developer|owner|admin|match_director'])->group(function (): void {
         Route::resource('matches', MatchController::class)->except(['destroy']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
@@ -161,8 +165,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/scores/{score}', [ScoreController::class, 'show'])->name('scores.show');
     });
 
-    // Provincial admin + Admin + Owner (read-only member view)
-    Route::middleware(['role:provincial_admin|owner|admin'])->group(function (): void {
+    // Provincial admin + Admin + Owner + Developer (read-only member view)
+    Route::middleware(['role:developer|provincial_admin|owner|admin'])->group(function (): void {
         Route::get('/provincial-members', [ProvincialMembersController::class, 'index'])
             ->name('provincial-members.index');
         Route::get('/provincial-members/csv', [ProvincialMembersController::class, 'downloadCsv'])
@@ -170,7 +174,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Reports (Admin + Owner)
-    Route::middleware(['role:owner|admin'])->prefix('reports')->name('reports.')->group(function (): void {
+    Route::middleware(['role:developer|owner|admin'])->prefix('reports')->name('reports.')->group(function (): void {
         Route::get('/', [ReportsController::class, 'index'])->name('index');
         Route::get('/sponsorship', [ReportsController::class, 'sponsorship'])->name('sponsorship');
         Route::get('/sponsorship/export', [ReportsController::class, 'sponsorshipExport'])->name('sponsorship.export');
@@ -181,7 +185,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Admin + Owner
-    Route::middleware(['role:owner|admin'])->group(function (): void {
+    Route::middleware(['role:developer|owner|admin'])->group(function (): void {
         Route::get('/admin/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
         Route::post('/admin/approvals/{type}/{id}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('/admin/approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
@@ -198,7 +202,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Financials (Admin + Owner)
-    Route::middleware(['role:owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
+    Route::middleware(['role:developer|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
         Route::get('/', [FinancialController::class, 'dashboard'])->name('dashboard');
         Route::get('/match/{match}', [FinancialController::class, 'matchReport'])->name('match-report');
         Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
@@ -228,7 +232,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Owner only
-    Route::middleware(['role:owner'])->group(function (): void {
+    Route::middleware(['role:developer|owner'])->group(function (): void {
         Route::get('/site-settings', [SiteSettingsController::class, 'index'])->name('site-settings.index');
         Route::put('/site-settings', [SiteSettingsController::class, 'update'])->name('site-settings.update');
 

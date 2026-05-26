@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
+        // Developers bypass every policy check — superuser role for sysadmin work.
+        Gate::before(function ($user, $ability) {
+            return $user->hasRole('developer') ? true : null;
+        });
+
         Gate::policy(MatchEvent::class, MatchPolicy::class);
         Gate::policy(Score::class, ScorePolicy::class);
         Gate::policy(MatchRegistration::class, RegistrationPolicy::class);
