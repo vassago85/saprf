@@ -26,7 +26,7 @@
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Email Address</label>
                         <input type="email" value="{{ $junior->handover_email }}" disabled
-                               class="w-full rounded-lg border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-600">
+                               class="w-full rounded-lg border border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-600">
                         <p class="mt-1 text-xs text-stone-400">This is the email you'll use to log in.</p>
                     </div>
 

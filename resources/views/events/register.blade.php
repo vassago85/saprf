@@ -85,7 +85,7 @@
                         <div>
                             <label for="rifle_configuration_id" class="block text-sm font-medium text-stone-700 mb-1.5">Rifle Configuration</label>
                             <select name="rifle_configuration_id" id="rifle_configuration_id"
-                                    class="w-full rounded-xl border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                                    class="w-full rounded-xl border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                                 <option value="">— Select rifle (optional)</option>
                                 @foreach($rifles as $rifle)
                                     <option value="{{ $rifle->id }}">
@@ -109,7 +109,7 @@
                         <label for="notes" class="block text-sm font-medium text-stone-700 mb-1.5">Notes <span class="text-stone-400 font-normal">(optional)</span></label>
                         <textarea name="notes" id="notes" rows="3" maxlength="500"
                                   placeholder="Any special requirements, dietary needs, etc."
-                                  class="w-full rounded-xl border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
+                                  class="w-full rounded-xl border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
                     </div>
 
                     {{-- Withdrawal Policy --}}

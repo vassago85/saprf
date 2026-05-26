@@ -89,7 +89,7 @@
         <label class="flex items-center gap-2 cursor-pointer">
             <input type="hidden" name="is_active" value="0">
             <input type="checkbox" name="is_active" value="1"
-                   class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                   class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                    @checked(old('is_active', $venue->is_active ?? true))>
             <span class="text-sm font-medium text-stone-700">Active</span>
         </label>

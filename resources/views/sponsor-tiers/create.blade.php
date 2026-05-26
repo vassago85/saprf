@@ -55,7 +55,7 @@
                         @foreach ($placements as $key => $label)
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" name="placement[]" value="{{ $key }}"
-                                    class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                                    class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                                     @checked(in_array($key, old('placement', [])))>
                                 <span class="text-sm text-stone-700">{{ $label }}</span>
                             </label>

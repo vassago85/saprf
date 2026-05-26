@@ -96,7 +96,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="division_single_select" value="0">
-                            <input type="checkbox" name="division_single_select" value="1" @checked(old('division_single_select', $settings['division_single_select'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="division_single_select" value="1" @checked(old('division_single_select', $settings['division_single_select'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">One division per match</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can only compete in one division per match.</p>
@@ -105,7 +105,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="category_multi_select" value="0">
-                            <input type="checkbox" name="category_multi_select" value="1" @checked(old('category_multi_select', $settings['category_multi_select'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="category_multi_select" value="1" @checked(old('category_multi_select', $settings['category_multi_select'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Allow multiple categories per shooter</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can be tagged with more than one category (e.g. Junior + Lady).</p>
@@ -114,7 +114,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="category_rankings_enabled" value="0">
-                            <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled', $settings['category_rankings_enabled'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled', $settings['category_rankings_enabled'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Enable category rankings</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Show standings and rankings grouped by category.</p>
@@ -123,7 +123,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="division_awards_enabled" value="0">
-                            <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $settings['division_awards_enabled'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $settings['division_awards_enabled'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Enable division awards</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Award placements per division.</p>
@@ -132,7 +132,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="category_awards_enabled" value="0">
-                            <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled', $settings['category_awards_enabled'] ?? '0') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled', $settings['category_awards_enabled'] ?? '0') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Enable category awards</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Award placements per category.</p>
@@ -150,7 +150,7 @@
                 <div>
                     <label class="flex items-center gap-2">
                         <input type="hidden" name="season_locked_age_categories" value="0">
-                        <input type="checkbox" name="season_locked_age_categories" value="1" @checked(old('season_locked_age_categories', $settings['season_locked_age_categories'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input type="checkbox" name="season_locked_age_categories" value="1" @checked(old('season_locked_age_categories', $settings['season_locked_age_categories'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm font-medium text-stone-700">Lock age categories for the full season</span>
                     </label>
                     <p class="mt-1 ml-6 text-xs text-stone-400">Once classified, a shooter stays in that age category until next season.</p>
@@ -296,7 +296,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="payfast_sandbox" value="0">
-                            <input type="checkbox" name="payfast_sandbox" value="1" @checked(old('payfast_sandbox', $settings['payfast_sandbox'] ?? '1') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="payfast_sandbox" value="1" @checked(old('payfast_sandbox', $settings['payfast_sandbox'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Sandbox / Test Mode</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Use PayFast sandbox for testing. Disable for live payments.</p>
@@ -305,7 +305,7 @@
                     <div>
                         <label class="flex items-center gap-2">
                             <input type="hidden" name="payments_enabled" value="0">
-                            <input type="checkbox" name="payments_enabled" value="1" @checked(old('payments_enabled', $settings['payments_enabled'] ?? '0') == '1') class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <input type="checkbox" name="payments_enabled" value="1" @checked(old('payments_enabled', $settings['payments_enabled'] ?? '0') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Enable Online Payments</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Master toggle. When off, all payment buttons are hidden and registrations are manual.</p>

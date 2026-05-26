@@ -57,12 +57,12 @@
             @foreach($categories as $category)
                 <label class="flex items-center gap-2">
                     @if($category->slug === 'junior')
-                        <input type="checkbox" disabled checked class="rounded border-stone-300 text-stone-400">
+                        <input type="checkbox" disabled checked class="rounded border border-stone-300 text-stone-400">
                         <span class="text-sm text-stone-500">{{ $category->name }} <span class="text-xs">(auto-applied if eligible)</span></span>
                     @else
                         <input type="checkbox" name="category_ids[]" value="{{ $category->id }}"
                                @checked(in_array($category->id, $selectedCategoryIds))
-                               class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                               class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm text-stone-700">{{ $category->name }}</span>
                     @endif
                 </label>
@@ -73,7 +73,7 @@
     @unless($isEdit)
         <label class="flex items-start gap-2 rounded-lg border border-stone-200 bg-white p-3">
             <input type="hidden" name="is_female" value="0">
-            <input type="checkbox" name="is_female" value="1" @checked(old('is_female')) class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+            <input type="checkbox" name="is_female" value="1" @checked(old('is_female')) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
             <div class="text-sm">
                 <span class="font-medium text-stone-700">Tag Ladies category</span>
                 <span class="block text-xs text-stone-500">Quick toggle — automatically adds the Ladies category to this junior.</span>

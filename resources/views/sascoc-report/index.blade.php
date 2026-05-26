@@ -18,7 +18,7 @@
                 </div>
                 <label class="flex items-center gap-2 cursor-pointer py-2.5">
                     <input type="checkbox" name="include_expired" value="1"
-                           class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                           class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                            @checked($includeExpired)>
                     <span class="text-sm font-medium text-stone-700">Include members who expired during {{ $year }}</span>
                 </label>

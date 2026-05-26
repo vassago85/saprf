@@ -57,7 +57,7 @@
         <h2 class="text-sm font-semibold text-stone-700 mb-4">Finals Weighting</h2>
         <label class="flex items-start gap-2">
             <input type="hidden" name="weighted_final_enabled" value="0">
-            <input type="checkbox" name="weighted_final_enabled" value="1" x-model="weighted" @checked(old('weighted_final_enabled', $rule?->weighted_final_enabled)) class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+            <input type="checkbox" name="weighted_final_enabled" value="1" x-model="weighted" @checked(old('weighted_final_enabled', $rule?->weighted_final_enabled)) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
             <span class="text-sm text-stone-700">
                 Apply a weighting multiplier to <strong>Final / Champs</strong> matches in season standings
                 <span class="block text-xs font-normal text-stone-400 mt-0.5">When enabled, scores at matches with series level "Final" are multiplied by the value below.</span>

@@ -27,13 +27,13 @@
                 <div>
                     <label class="block text-sm font-medium text-stone-700 mb-1">Province</label>
                     <input type="text" value="{{ $appointment->province->name ?? '—' }}" disabled
-                        class="w-full rounded-lg border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-500">
+                        class="w-full rounded-lg border border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-500">
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-stone-700 mb-1">Member</label>
                     <input type="text" value="{{ $appointment->user->name }}" disabled
-                        class="w-full rounded-lg border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-500">
+                        class="w-full rounded-lg border border-stone-200 bg-stone-50 text-sm py-2.5 px-3 text-stone-500">
                 </div>
 
                 <div>
@@ -58,7 +58,7 @@
                         <input type="hidden" name="is_active" value="0">
                         <input type="checkbox" name="is_active" value="1"
                             @checked(old('is_active', $appointment->is_active))
-                            class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm font-medium text-stone-700">Active appointment</span>
                     </label>
                     <p class="mt-1 ml-7 text-xs text-stone-400">Uncheck to deactivate this committee member without removing them.</p>

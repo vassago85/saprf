@@ -63,7 +63,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
 
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <input wire:model="remember" id="remember" type="checkbox" class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input wire:model="remember" id="remember" type="checkbox" class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <label for="remember" class="ml-2 text-sm text-stone-600">Remember me</label>
                     </div>
                     <a href="{{ route('password.request') }}" class="text-sm text-emerald-700 font-medium hover:text-emerald-800">Forgot password?</a>

@@ -72,7 +72,7 @@
                             @endphp
                             <label class="flex items-start gap-3 rounded-lg border border-stone-200 p-3 hover:bg-stone-50 transition cursor-pointer">
                                 <input type="checkbox" name="roles[]" value="{{ $role }}"
-                                    class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                                    class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                                     @checked(in_array($role, old('roles', $user->getRoleNames()->toArray())))>
                                 <div>
                                     <span class="text-sm font-semibold text-stone-900">{{ str_replace('_', ' ', ucfirst($role)) }}</span>

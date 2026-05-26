@@ -36,7 +36,7 @@
                     <input type="hidden" name="series" value="{{ $series }}">
                     <input type="hidden" name="level" value="{{ $level }}">
                     <select name="season" onchange="this.form.submit()"
-                            class="rounded-xl border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                            class="rounded-xl border border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                         @foreach($seasons as $s)
                             <option value="{{ $s }}" @selected($season === $s)>{{ $s }} Season</option>
                         @endforeach
@@ -110,7 +110,7 @@
                         <input type="hidden" name="category_id" value="{{ $categoryId }}">
                     @endif
                     <select name="province_id" onchange="this.form.submit()"
-                            class="rounded-xl border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                            class="rounded-xl border border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                         <option value="">All Provinces</option>
                         @foreach($provinces as $prov)
                             <option value="{{ $prov->id }}" @selected($provinceFilter === $prov->id)>{{ $prov->name }}</option>

@@ -52,7 +52,7 @@
                     <label class="inline-flex items-center gap-2">
                         <input type="hidden" name="is_active" value="0">
                         <input type="checkbox" name="is_active" value="1"
-                            class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                            class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                             @checked(old('is_active', $category->is_active))>
                         <span class="text-sm text-stone-700">Active</span>
                     </label>

@@ -68,7 +68,7 @@
     <label class="flex items-center gap-2 cursor-pointer">
         <input type="hidden" name="is_recurring" value="0">
         <input type="checkbox" name="is_recurring" value="1"
-               class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+               class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500"
                @checked(old('is_recurring', $isEdit ? $expense->is_recurring : false))>
         <span class="text-sm font-medium text-stone-700">This is a recurring expense</span>
     </label>

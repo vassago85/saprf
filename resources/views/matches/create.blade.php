@@ -42,7 +42,7 @@
                             <label class="flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 cursor-pointer">
                                 <input type="checkbox" name="divisions[]" value="{{ $division->id }}" 
                                     @checked(in_array($division->id, old('divisions', [])))
-                                    class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                                    class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                                 <span>{{ $division->name }}</span>
                             </label>
                         @endforeach
@@ -112,7 +112,7 @@
                         <div class="flex items-end">
                             <label class="inline-flex items-start gap-2 mb-1">
                                 <input type="hidden" name="waitlist_enabled" value="0">
-                                <input type="checkbox" name="waitlist_enabled" value="1" @checked(old('waitlist_enabled')) class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                                <input type="checkbox" name="waitlist_enabled" value="1" @checked(old('waitlist_enabled')) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                                 <span class="text-sm text-stone-700">
                                     Enable waitlist when full
                                     <span class="block text-xs font-normal text-stone-400 mt-0.5">Once capacity is reached, additional shooters can join a waitlist.</span>
@@ -133,17 +133,17 @@
                 <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <label class="flex items-center gap-2">
                         <input type="hidden" name="category_rankings_enabled" value="0">
-                        <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled')) class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled')) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm text-stone-700">Enable category rankings</span>
                     </label>
                     <label class="flex items-center gap-2">
                         <input type="hidden" name="division_awards_enabled" value="0">
-                        <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled')) class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled')) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm text-stone-700">Enable division awards</span>
                     </label>
                     <label class="flex items-center gap-2">
                         <input type="hidden" name="category_awards_enabled" value="0">
-                        <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled')) class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled')) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm text-stone-700">Enable category awards</span>
                     </label>
                 </div>
@@ -152,7 +152,7 @@
                 <div class="sm:col-span-2" x-data="{ dualCount: {{ old('also_counts_for_provincial') ? 'true' : 'false' }} }">
                     <label class="flex items-center gap-2 mb-2">
                         <input type="hidden" name="also_counts_for_provincial" value="0">
-                        <input type="checkbox" name="also_counts_for_provincial" value="1" x-model="dualCount" @checked(old('also_counts_for_provincial')) class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <input type="checkbox" name="also_counts_for_provincial" value="1" x-model="dualCount" @checked(old('also_counts_for_provincial')) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm font-medium text-stone-700">Day 1 stages also count as Provincial</span>
                     </label>
                     <p class="text-xs text-stone-400 mb-3">For 2-day nationals where Day 1 doubles as the provincial match. The full score counts for national standings; selected stages count for provincial.</p>

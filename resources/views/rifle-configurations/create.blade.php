@@ -135,7 +135,7 @@
                     <label class="flex items-center gap-3 cursor-pointer">
                         <input type="checkbox" name="is_primary" value="1"
                             @checked(old('is_primary'))
-                            class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm font-medium text-stone-700">Set as primary rifle</span>
                     </label>
                 </div>
