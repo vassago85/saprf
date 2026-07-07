@@ -35,7 +35,10 @@ services:
       MYSQL_PASSWORD: saprf_password
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3308:3306"
+      # Host port 3310 (3308 is taken by deadcenter-db on this shared host).
+      # Only needed for external SQL clients — the app/queue/scheduler reach
+      # MySQL internally over the saprf_default network on 3306.
+      - "3310:3306"
     volumes:
       - saprf_mysql_data:/var/lib/mysql
     healthcheck:
