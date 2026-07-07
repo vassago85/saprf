@@ -105,7 +105,7 @@ class ImportScrapedPr22Command extends Command
             }
 
             $this->info('Creating '.count($roster).' shooter accounts + memberships...');
-            $userIdByCanon = $this->createStubShooters($roster, $provinces);
+            $userIdByCanon = $this->createStubShooters($roster, $provinces, $divisions, $divisionsByName);
             $this->line('  '.count($userIdByCanon).' users ready.');
 
             $this->info('Creating '.count($matches).' matches + scores...');
@@ -222,6 +222,11 @@ class ImportScrapedPr22Command extends Command
         foreach ($roster as &$entry) {
             arsort($entry['provinces']);
             $entry['province'] = array_key_first($entry['provinces']);
+
+            // A shooter competes in a single division; pick the one they
+            // entered most often across the season as their canonical division.
+            arsort($entry['divisions']);
+            $entry['division'] = $entry['divisions'] !== [] ? array_key_first($entry['divisions']) : null;
         }
         unset($entry);
 
@@ -231,19 +236,27 @@ class ImportScrapedPr22Command extends Command
     /**
      * @return array<string, int> canonical-name => user_id
      */
-    private function createStubShooters(array $roster, $provinces): array
+    private function createStubShooters(array $roster, $provinces, $divisions, $divisionsByName): array
     {
         $userIdByCanon = [];
         $memberNumberSeq = 10001;
         $emailSeq = [];
 
         foreach ($roster as $entry) {
+            $divisionId = $entry['division'] !== null
+                ? ($divisions->get($entry['division'])?->id ?? $divisionsByName->get($entry['division'])?->id)
+                : null;
+
             $existing = User::query()
                 ->whereRaw('LOWER(name) = ?', [$entry['canon']])
                 ->first();
 
             if ($existing) {
                 $userIdByCanon[$entry['canon']] = $existing->id;
+                // Backfill the division on an existing stub if it's missing.
+                if ($divisionId && ! $existing->division_id) {
+                    $existing->update(['division_id' => $divisionId]);
+                }
                 if ($existing->membership) continue;
             }
 
@@ -262,6 +275,7 @@ class ImportScrapedPr22Command extends Command
                 'email' => $email,
                 'password' => Hash::make(Str::random(40)),
                 'province_id' => $provinces->get(strtolower($entry['province']))?->id,
+                'division_id' => $divisionId,
                 'is_active' => true,
                 'email_verified_at' => null,
                 'must_change_password' => false,
