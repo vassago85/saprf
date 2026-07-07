@@ -160,7 +160,6 @@ class ReportsController extends Controller
                 ->where('season', $season)
                 ->whereNull('province_id')
                 ->whereNull('division_id')
-                ->whereNull('category_id')
                 ->first();
 
             return [
@@ -233,7 +232,6 @@ class ReportsController extends Controller
                     ->where('season', $season)
                     ->whereNull('province_id')
                     ->whereNull('division_id')
-                    ->whereNull('category_id')
                     ->first();
 
                 return [

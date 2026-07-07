@@ -89,8 +89,11 @@
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
-                <h2 class="font-heading text-lg font-semibold text-stone-900">Divisions & Categories Rules</h2>
-                <p class="text-sm text-stone-500">Configure how divisions and categories behave across the platform.</p>
+                <h2 class="font-heading text-lg font-semibold text-stone-900">Division Rules</h2>
+                <p class="text-sm text-stone-500">
+                    Ladies, Junior, and Senior are divisions alongside Open, Factory, Limited, and Production.
+                    Every shooter picks exactly one division.
+                </p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
@@ -104,95 +107,12 @@
 
                     <div>
                         <label class="flex items-center gap-2">
-                            <input type="hidden" name="category_multi_select" value="0">
-                            <input type="checkbox" name="category_multi_select" value="1" @checked(old('category_multi_select', $settings['category_multi_select'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">Allow multiple categories per shooter</span>
-                        </label>
-                        <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can be tagged with more than one category (e.g. Junior + Lady).</p>
-                    </div>
-
-                    <div>
-                        <label class="flex items-center gap-2">
-                            <input type="hidden" name="category_rankings_enabled" value="0">
-                            <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled', $settings['category_rankings_enabled'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">Enable category rankings</span>
-                        </label>
-                        <p class="mt-1 ml-6 text-xs text-stone-400">Show standings and rankings grouped by category.</p>
-                    </div>
-
-                    <div>
-                        <label class="flex items-center gap-2">
                             <input type="hidden" name="division_awards_enabled" value="0">
                             <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $settings['division_awards_enabled'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                             <span class="text-sm font-medium text-stone-700">Enable division awards</span>
                         </label>
                         <p class="mt-1 ml-6 text-xs text-stone-400">Award placements per division.</p>
                     </div>
-
-                    <div>
-                        <label class="flex items-center gap-2">
-                            <input type="hidden" name="category_awards_enabled" value="0">
-                            <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled', $settings['category_awards_enabled'] ?? '0') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">Enable category awards</span>
-                        </label>
-                        <p class="mt-1 ml-6 text-xs text-stone-400">Award placements per category.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5" x-data="{ dateMode: '{{ old('age_classification_date_mode', $settings['age_classification_date_mode'] ?? 'first_day_of_calendar_year') }}' }">
-                <h2 class="font-heading text-lg font-semibold text-stone-900">Age Category Classification</h2>
-                <p class="text-sm text-stone-500">
-                    Age-based categories are determined once per season using a classification date.
-                    Shooters do not change categories mid-season because of a birthday.
-                </p>
-
-                <div>
-                    <label class="flex items-center gap-2">
-                        <input type="hidden" name="season_locked_age_categories" value="0">
-                        <input type="checkbox" name="season_locked_age_categories" value="1" @checked(old('season_locked_age_categories', $settings['season_locked_age_categories'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm font-medium text-stone-700">Lock age categories for the full season</span>
-                    </label>
-                    <p class="mt-1 ml-6 text-xs text-stone-400">Once classified, a shooter stays in that age category until next season.</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                        <label for="age_classification_date_mode" class="block text-sm font-medium text-stone-700">Classification Date Mode</label>
-                        <select name="age_classification_date_mode" id="age_classification_date_mode" x-model="dateMode" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <option value="first_day_of_calendar_year">1 January of season year</option>
-                            <option value="season_start_date">Season start date</option>
-                            <option value="custom_date">Custom date</option>
-                        </select>
-                    </div>
-
-                    <div x-show="dateMode === 'custom_date'" x-cloak>
-                        <label for="age_classification_custom_date" class="block text-sm font-medium text-stone-700">Custom Classification Date</label>
-                        <input type="date" name="age_classification_custom_date" id="age_classification_custom_date" value="{{ old('age_classification_custom_date', $settings['age_classification_custom_date'] ?? '') }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                </div>
-
-                <h3 class="font-heading text-sm font-semibold text-stone-700 pt-2">Age Thresholds</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div>
-                        <label for="prs_junior_max_age" class="block text-sm font-medium text-stone-700">PRS Junior Max Age</label>
-                        <p class="text-xs text-stone-400 mb-1">Centrefire</p>
-                        <input type="number" name="prs_junior_max_age" id="prs_junior_max_age" min="1" max="99" value="{{ old('prs_junior_max_age', $settings['prs_junior_max_age'] ?? '21') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label for="pr22_junior_max_age" class="block text-sm font-medium text-stone-700">PR22 Junior Max Age</label>
-                        <p class="text-xs text-stone-400 mb-1">Rimfire</p>
-                        <input type="number" name="pr22_junior_max_age" id="pr22_junior_max_age" min="1" max="99" value="{{ old('pr22_junior_max_age', $settings['pr22_junior_max_age'] ?? '18') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label for="senior_min_age" class="block text-sm font-medium text-stone-700">Senior Min Age</label>
-                        <p class="text-xs text-stone-400 mb-1">All series</p>
-                        <input type="number" name="senior_min_age" id="senior_min_age" min="1" max="99" value="{{ old('senior_min_age', $settings['senior_min_age'] ?? '55') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                </div>
-
-                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600">
-                    <p>Age-based categories are determined using the configured classification date and remain fixed for the full season. A shooter does not move categories mid-season because of a birthday.</p>
                 </div>
             </div>
 

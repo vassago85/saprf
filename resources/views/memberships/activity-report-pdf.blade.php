@@ -326,13 +326,6 @@
                         <td class="numeric">{{ number_format($standing['division_points'], 2) }}</td>
                     </tr>
                     @endif
-                    @foreach($standing['categories'] as $cat)
-                    <tr>
-                        <td>{{ $cat['name'] }}</td>
-                        <td class="numeric">{{ $cat['rank'] }}</td>
-                        <td class="numeric">{{ number_format($cat['points'], 2) }}</td>
-                    </tr>
-                    @endforeach
                 </tbody>
             </table>
         @endforeach

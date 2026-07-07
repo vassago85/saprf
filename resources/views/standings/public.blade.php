@@ -1,6 +1,6 @@
 <x-layouts.public title="Standings - SAPRF" current="standings" sponsor-placement="standings_pages">
     @php
-        $isOverall = !$divisionId && !$categoryId;
+        $isOverall = !$divisionId;
         $baseParams = array_filter([
             'season' => $season,
             'series' => $series,
@@ -11,7 +11,6 @@
             'series' => $series,
             'level' => $level,
             'division_id' => $divisionId,
-            'category_id' => $categoryId,
             'province_id' => $provinceFilter,
         ]);
     @endphp
@@ -68,46 +67,27 @@
                 </div>
             </div>
 
-            {{-- Row 2: Division + Category + Province --}}
+            {{-- Row 2: Division + Province --}}
             <div class="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
-                <div class="space-y-2">
-                    {{-- Division Pills --}}
-                    <div class="flex flex-wrap rounded-xl bg-white border border-stone-200 shadow-sm p-1 gap-0.5">
-                        <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['province_id' => $provinceFilter]))) }}"
-                           class="px-4 py-1.5 rounded-lg text-xs font-semibold transition {{ $isOverall ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50' }}">
-                            Overall
+                <div class="flex flex-wrap rounded-xl bg-white border border-stone-200 shadow-sm p-1 gap-0.5">
+                    <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['province_id' => $provinceFilter]))) }}"
+                       class="px-4 py-1.5 rounded-lg text-xs font-semibold transition {{ $isOverall ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50' }}">
+                        Overall
+                    </a>
+                    @foreach($divisions as $div)
+                        <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['division_id' => $div->id, 'province_id' => $provinceFilter]))) }}"
+                           class="px-4 py-1.5 rounded-lg text-xs font-semibold transition {{ $divisionId === $div->id ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50' }}">
+                            {{ $div->name }}
                         </a>
-                        @foreach($divisions as $div)
-                            <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['division_id' => $div->id, 'province_id' => $provinceFilter]))) }}"
-                               class="px-4 py-1.5 rounded-lg text-xs font-semibold transition {{ $divisionId === $div->id ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50' }}">
-                                {{ $div->name }}
-                            </a>
-                        @endforeach
-                    </div>
-
-                    {{-- Category Pills --}}
-                    @if($categories->isNotEmpty())
-                        <div class="flex flex-wrap rounded-xl bg-white border border-stone-200 shadow-sm p-1 gap-0.5">
-                            @foreach($categories as $cat)
-                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['category_id' => $cat->id, 'province_id' => $provinceFilter]))) }}"
-                                   class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $categoryId === $cat->id ? 'bg-sky-500 text-white shadow-sm' : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50' }}">
-                                    {{ $cat->name }}
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
+                    @endforeach
                 </div>
 
-                {{-- Province Filter --}}
                 <form method="GET" action="{{ url('/standings') }}" class="flex items-center gap-2">
                     <input type="hidden" name="season" value="{{ $season }}">
                     <input type="hidden" name="series" value="{{ $series }}">
                     <input type="hidden" name="level" value="{{ $level }}">
                     @if($divisionId)
                         <input type="hidden" name="division_id" value="{{ $divisionId }}">
-                    @endif
-                    @if($categoryId)
-                        <input type="hidden" name="category_id" value="{{ $categoryId }}">
                     @endif
                     <select name="province_id" onchange="this.form.submit()"
                             class="rounded-xl border border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
@@ -118,8 +98,7 @@
                     </select>
                 </form>
 
-                {{-- Active Filters --}}
-                @if($divisionId || $categoryId || $provinceFilter)
+                @if($divisionId || $provinceFilter)
                     <div class="flex items-center gap-2 flex-wrap">
                         @if($divisionId)
                             @php $activeDiv = $divisions->firstWhere('id', $divisionId); @endphp
@@ -129,19 +108,11 @@
                                    class="ml-0.5 hover:text-amber-900">&times;</a>
                             </span>
                         @endif
-                        @if($categoryId)
-                            @php $activeCat = $categories->firstWhere('id', $categoryId); @endphp
-                            <span class="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
-                                {{ $activeCat?->name ?? 'Category' }}
-                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['province_id' => $provinceFilter]))) }}"
-                                   class="ml-0.5 hover:text-sky-900">&times;</a>
-                            </span>
-                        @endif
                         @if($provinceFilter)
                             @php $activeProvince = $provinces->firstWhere('id', $provinceFilter); @endphp
                             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
                                 {{ $activeProvince?->name ?? 'Province' }}
-                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['division_id' => $divisionId, 'category_id' => $categoryId]))) }}"
+                                <a href="{{ url('/standings') . '?' . http_build_query(array_filter(array_merge($baseParams, ['division_id' => $divisionId]))) }}"
                                    class="ml-0.5 hover:text-emerald-900">&times;</a>
                             </span>
                         @endif

@@ -1,7 +1,6 @@
 @php
     $isEdit = isset($junior);
     $junior = $junior ?? null;
-    $selectedCategoryIds = old('category_ids', $isEdit ? $junior->categories->pluck('id')->toArray() : []);
 @endphp
 
 <div class="space-y-5 max-w-2xl">
@@ -39,47 +38,17 @@
     </div>
 
     <div>
-        <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1">Default Division</label>
-        <select name="division_id" id="division_id"
+        <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1">Division <span class="text-red-500">*</span></label>
+        <select name="division_id" id="division_id" required
                 class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-            <option value="">— None yet —</option>
+            <option value="">— Select —</option>
             @foreach($divisions as $division)
                 <option value="{{ $division->id }}" @selected((string) old('division_id', $isEdit ? $junior->division_id : '') === (string) $division->id)>{{ $division->name }}</option>
             @endforeach
         </select>
-        <p class="mt-1 text-xs text-stone-400">You can change this per match later.</p>
+        <p class="mt-1 text-xs text-stone-400">Pick one — Open, Factory, Limited, Production, Ladies, Junior, or Senior.</p>
+        @error('division_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
-
-    <div class="rounded-lg border border-stone-200 bg-stone-50/50 p-4">
-        <p class="text-sm font-medium text-stone-700 mb-2">Categories</p>
-        <p class="text-xs text-stone-500 mb-3">Junior is automatically applied based on age. Tick Ladies if applicable.</p>
-        <div class="space-y-2">
-            @foreach($categories as $category)
-                <label class="flex items-center gap-2">
-                    @if($category->slug === 'junior')
-                        <input type="checkbox" disabled checked class="rounded border border-stone-300 text-stone-400">
-                        <span class="text-sm text-stone-500">{{ $category->name }} <span class="text-xs">(auto-applied if eligible)</span></span>
-                    @else
-                        <input type="checkbox" name="category_ids[]" value="{{ $category->id }}"
-                               @checked(in_array($category->id, $selectedCategoryIds))
-                               class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm text-stone-700">{{ $category->name }}</span>
-                    @endif
-                </label>
-            @endforeach
-        </div>
-    </div>
-
-    @unless($isEdit)
-        <label class="flex items-start gap-2 rounded-lg border border-stone-200 bg-white p-3">
-            <input type="hidden" name="is_female" value="0">
-            <input type="checkbox" name="is_female" value="1" @checked(old('is_female')) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-            <div class="text-sm">
-                <span class="font-medium text-stone-700">Tag Ladies category</span>
-                <span class="block text-xs text-stone-500">Quick toggle — automatically adds the Ladies category to this junior.</span>
-            </div>
-        </label>
-    @endunless
 
     <div class="flex items-center gap-3 pt-2">
         <button type="submit"

@@ -60,7 +60,7 @@
                 <div>
                     <label for="date_of_birth" class="block text-sm font-medium text-stone-700">Date of Birth @if(session('profile_incomplete') && empty($user->date_of_birth))<span class="text-red-600">*</span>@endif</label>
                     <input type="date" name="date_of_birth" id="date_of_birth" value="{{ old('date_of_birth', $user->date_of_birth?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->date_of_birth)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
-                    <p class="mt-1 text-xs text-stone-400">Used for age category classification and SASCOC reporting.</p>
+                    <p class="mt-1 text-xs text-stone-400">Used for SASCOC reporting and eligibility checks.</p>
                 </div>
 
                 <div>

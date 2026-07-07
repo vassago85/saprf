@@ -120,7 +120,6 @@ class ScoreImportController extends Controller
                 'raw_score',
                 'placement',
                 'division',
-                'category',
                 'stage_1',
                 'stage_2',
                 'stage_3',
@@ -140,7 +139,6 @@ class ScoreImportController extends Controller
                 '58.4',
                 '1',
                 'open',
-                '',
                 '6.2', '5.8', '6.0', '5.9', '5.7', '5.9', '5.8', '5.7', '5.7', '5.7',
             ]);
             fputcsv($handle, [
@@ -148,7 +146,6 @@ class ScoreImportController extends Controller
                 'jane.doe@example.co.za',
                 '54.1',
                 '2',
-                'factory',
                 'ladies',
                 '5.5', '5.4', '5.3', '5.5', '5.4', '5.4', '5.3', '5.4', '5.4', '5.5',
             ]);

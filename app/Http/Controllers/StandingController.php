@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Province;
@@ -23,7 +22,6 @@ class StandingController extends Controller
         $series = $request->input('series', 'PRS');
         $level = $request->input('level', 'national');
         $divisionId = $request->filled('division_id') ? (int) $request->input('division_id') : null;
-        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
 
         if (! in_array($series, ['PRS', 'PR22'])) {
             $series = 'PRS';
@@ -40,19 +38,16 @@ class StandingController extends Controller
         }
 
         $divisions = Division::active()->ordered()->get();
-        $categories = Category::active()->ordered()->get();
 
-        $base = Standing::with(['user.division', 'user.categories', 'province', 'division', 'category'])
+        $base = Standing::with(['user.division', 'province', 'division'])
             ->where('season', $season)
             ->where('series', $series)
             ->orderBy('rank');
 
         if ($divisionId) {
-            $base->where('division_id', $divisionId)->whereNull('category_id');
-        } elseif ($categoryId) {
-            $base->whereNull('division_id')->where('category_id', $categoryId);
+            $base->where('division_id', $divisionId);
         } else {
-            $base->whereNull('division_id')->whereNull('category_id');
+            $base->whereNull('division_id');
         }
 
         if ($level === 'provincial') {
@@ -67,9 +62,7 @@ class StandingController extends Controller
             'series' => $series,
             'level' => $level,
             'divisionId' => $divisionId,
-            'categoryId' => $categoryId,
             'divisions' => $divisions,
-            'categories' => $categories,
             'provinces' => $provinces,
             'standings' => $standings,
         ]);
@@ -78,7 +71,7 @@ class StandingController extends Controller
     public function show(string $series, string $season): View
     {
         $standings = Standing::query()
-            ->with(['user.division', 'user.categories', 'province'])
+            ->with(['user.division', 'province'])
             ->where('series', $series)
             ->where('season', $season)
             ->orderBy('rank')
@@ -95,7 +88,6 @@ class StandingController extends Controller
         $series = $request->input('series', 'PRS');
         $level = $request->input('level', 'national');
         $divisionId = $request->filled('division_id') ? (int) $request->input('division_id') : null;
-        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
         $provinceFilter = $request->filled('province_id') ? (int) $request->input('province_id') : null;
 
         if (! in_array($series, ['PRS', 'PR22'])) {
@@ -112,19 +104,16 @@ class StandingController extends Controller
 
         $provinces = Province::orderBy('name')->get();
         $divisions = Division::active()->ordered()->get();
-        $categories = Category::active()->ordered()->get();
 
-        $base = Standing::with(['user.province', 'user.division', 'user.categories', 'province', 'division', 'category'])
+        $base = Standing::with(['user.province', 'user.division', 'province', 'division'])
             ->where('season', $season)
             ->where('series', $series)
             ->orderBy('rank');
 
         if ($divisionId) {
-            $base->where('division_id', $divisionId)->whereNull('category_id');
-        } elseif ($categoryId) {
-            $base->whereNull('division_id')->where('category_id', $categoryId);
+            $base->where('division_id', $divisionId);
         } else {
-            $base->whereNull('division_id')->whereNull('category_id');
+            $base->whereNull('division_id');
         }
 
         if ($level === 'provincial') {
@@ -142,7 +131,7 @@ class StandingController extends Controller
         }
 
         $rankedQuery = Standing::where('season', $season)->where('series', $series)
-            ->whereNull('division_id')->whereNull('category_id');
+            ->whereNull('division_id');
         $totalRanked = $rankedQuery->distinct('user_id')->count('user_id');
         $totalMatches = MatchEvent::where('season', $season)->where('match_type', $series)->published()->count();
         $completedMatches = MatchEvent::where('season', $season)->where('match_type', $series)->where('status', 'completed')->count();
@@ -156,9 +145,7 @@ class StandingController extends Controller
             'series' => $series,
             'level' => $level,
             'divisionId' => $divisionId,
-            'categoryId' => $categoryId,
             'divisions' => $divisions,
-            'categories' => $categories,
             'provinceFilter' => $provinceFilter,
             'provinces' => $provinces,
             'standings' => $standings->get(),
@@ -171,9 +158,9 @@ class StandingController extends Controller
 
     public function publicShooter(string $season, User $user): View
     {
-        $user->load('province');
+        $user->load('province', 'division');
 
-        $scores = Score::with(['match.province', 'division', 'categories'])
+        $scores = Score::with(['match.province', 'division'])
             ->where('user_id', $user->id)
             ->whereHas('match', fn ($q) => $q->where('season', $season)->where('status', 'completed'))
             ->where('status', 'valid')
@@ -187,7 +174,6 @@ class StandingController extends Controller
                 ->where('series', $series)
                 ->whereNull('province_id')
                 ->whereNull('division_id')
-                ->whereNull('category_id')
                 ->first();
 
             if ($overall) {
@@ -198,14 +184,6 @@ class StandingController extends Controller
                     ->whereNotNull('division_id')
                     ->with('division')
                     ->first();
-
-                $categoryStandings = Standing::where('user_id', $user->id)
-                    ->where('season', $season)
-                    ->where('series', $series)
-                    ->whereNull('province_id')
-                    ->whereNotNull('category_id')
-                    ->with('category')
-                    ->get();
 
                 $seriesRule = \App\Models\QualificationRule::where('season', $season)
                     ->where('series', $series)
@@ -220,11 +198,6 @@ class StandingController extends Controller
                     'division_name' => $divisionStanding?->division?->name,
                     'division_rank' => $divisionStanding?->rank,
                     'division_points' => $divisionStanding?->points,
-                    'categories' => $categoryStandings->map(fn ($s) => [
-                        'name' => $s->category?->name,
-                        'rank' => $s->rank,
-                        'points' => $s->points,
-                    ])->toArray(),
                 ];
             }
         }
@@ -252,10 +225,15 @@ class StandingController extends Controller
     public function apiIndex(Request $request): JsonResponse
     {
         $divisionId = $request->filled('division_id') ? (int) $request->input('division_id') : null;
-        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
 
         $query = Standing::query()
-            ->with(['user:id,name,province_id,division_id', 'user.province:id,abbreviation', 'user.division:id,name,slug', 'user.categories:id,name,slug', 'province:id,name', 'division:id,name,slug', 'category:id,name,slug'])
+            ->with([
+                'user:id,name,province_id,division_id',
+                'user.province:id,abbreviation',
+                'user.division:id,name,slug',
+                'province:id,name',
+                'division:id,name,slug',
+            ])
             ->when($request->filled('series'), fn ($q) => $q->where('series', $request->input('series')))
             ->when($request->filled('season'), fn ($q) => $q->where('season', $request->input('season')))
             ->when($request->filled('province_id'), fn ($q) => $q->where('province_id', $request->input('province_id')))
@@ -263,11 +241,9 @@ class StandingController extends Controller
             ->orderBy('rank');
 
         if ($divisionId) {
-            $query->where('division_id', $divisionId)->whereNull('category_id');
-        } elseif ($categoryId) {
-            $query->whereNull('division_id')->where('category_id', $categoryId);
+            $query->where('division_id', $divisionId);
         } else {
-            $query->whereNull('division_id')->whereNull('category_id');
+            $query->whereNull('division_id');
         }
 
         $query->limit($request->filled('limit') ? (int) $request->input('limit') : 100);

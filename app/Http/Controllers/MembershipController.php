@@ -242,7 +242,7 @@ class MembershipController extends Controller
         $season = $request->input('season', (string) now()->year);
         $includeStandings = $request->boolean('include_standings', false);
 
-        $scores = Score::with(['match.province', 'division', 'categories'])
+        $scores = Score::with(['match.province', 'division'])
             ->where('user_id', $user->id)
             ->whereHas('match', fn ($q) => $q->where('season', $season)->where('status', 'completed'))
             ->where('status', 'valid')
@@ -257,7 +257,6 @@ class MembershipController extends Controller
                     ->where('series', $series)
                     ->whereNull('province_id')
                     ->whereNull('division_id')
-                    ->whereNull('category_id')
                     ->first();
 
                 if ($overall) {
@@ -269,14 +268,6 @@ class MembershipController extends Controller
                         ->with('division')
                         ->first();
 
-                    $categoryStandings = Standing::where('user_id', $user->id)
-                        ->where('season', $season)
-                        ->where('series', $series)
-                        ->whereNull('province_id')
-                        ->whereNotNull('category_id')
-                        ->with('category')
-                        ->get();
-
                     $standingsSummary[] = [
                         'series' => $series,
                         'overall_rank' => $overall->rank,
@@ -284,11 +275,6 @@ class MembershipController extends Controller
                         'division_name' => $divisionStanding?->division?->name,
                         'division_rank' => $divisionStanding?->rank,
                         'division_points' => $divisionStanding?->points,
-                        'categories' => $categoryStandings->map(fn ($s) => [
-                            'name' => $s->category?->name,
-                            'rank' => $s->rank,
-                            'points' => $s->points,
-                        ])->toArray(),
                     ];
                 }
             }

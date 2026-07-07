@@ -7,6 +7,7 @@ use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\QualificationRule;
 use App\Models\Score;
+use App\Observers\MembershipObserver;
 use App\Policies\MatchPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\QualificationRulePolicy;
@@ -44,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MatchRegistration::class, RegistrationPolicy::class);
         Gate::policy(Membership::class, MembershipPolicy::class);
         Gate::policy(QualificationRule::class, QualificationRulePolicy::class);
+
+        Membership::observe(MembershipObserver::class);
 
         $this->applyMailgunSettings();
     }

@@ -81,9 +81,6 @@
                 <flux:button href="{{ route('divisions.index') }}" variant="filled" class="justify-start" icon="squares-2x2">
                     Divisions
                 </flux:button>
-                <flux:button href="{{ route('categories.index') }}" variant="filled" class="justify-start" icon="rectangle-stack">
-                    Categories
-                </flux:button>
             </div>
         </div>
     </div>

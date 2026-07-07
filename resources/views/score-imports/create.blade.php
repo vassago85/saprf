@@ -15,8 +15,7 @@
                 <ul class="list-disc pl-5 space-y-0.5 text-xs">
                     <li><code class="rounded bg-white px-1.5 py-0.5">email</code> — links the score to an existing user account (recommended)</li>
                     <li><code class="rounded bg-white px-1.5 py-0.5">placement</code> — overall finishing position</li>
-                    <li><code class="rounded bg-white px-1.5 py-0.5">division</code> — division name or slug (e.g. <code>open</code>, <code>factory</code>, <code>limited</code>)</li>
-                    <li><code class="rounded bg-white px-1.5 py-0.5">category</code> — comma-separated (e.g. <code>ladies,junior</code>)</li>
+                    <li><code class="rounded bg-white px-1.5 py-0.5">division</code> — division slug or name (e.g. <code>open</code>, <code>factory</code>, <code>limited</code>, <code>ladies</code>, <code>junior</code>, <code>senior</code>)</li>
                     <li><code class="rounded bg-white px-1.5 py-0.5">stage_1, stage_2, …</code> — per-stage points for provincial calculation</li>
                 </ul>
                 <p class="pt-2 text-xs text-sky-700">Column names are flexible — <code>Name</code>, <code>Shooter</code>, <code>Total Score</code>, <code>Points</code>, <code>Rank</code>, <code>Position</code>, <code>Class</code> etc. all map correctly.</p>

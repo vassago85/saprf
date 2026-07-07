@@ -71,7 +71,7 @@
                 <p>By participating in SAPRF-sanctioned events, you consent to the <strong>public display</strong> of your:</p>
                 <ul>
                     <li>Name and province</li>
-                    <li>Division and category classifications</li>
+                    <li>Division classification</li>
                     <li>Match scores, normalised scores, and rankings</li>
                     <li>Season standings and qualification status</li>
                 </ul>

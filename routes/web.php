@@ -20,7 +20,6 @@ use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\SponsorTierController;
 use App\Http\Controllers\DivisionController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
@@ -268,10 +267,6 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('divisions', DivisionController::class)
             ->except(['show', 'destroy'])
             ->names('divisions');
-
-        Route::resource('categories', CategoryController::class)
-            ->except(['show', 'destroy'])
-            ->names('categories');
 
         Route::get('/sascoc-report', [SascocReportController::class, 'index'])->name('sascoc-report.index');
         Route::get('/sascoc-report/excel', [SascocReportController::class, 'downloadExcel'])->name('sascoc-report.excel');

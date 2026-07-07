@@ -277,7 +277,7 @@ class MatchController extends Controller
         } else {
             $query = (clone $baseQuery)
                 ->past()
-                ->with(['scores' => fn ($q) => $q->where('status', 'valid')->orderBy('placement')->limit(3)])
+                ->with(['scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->orderBy('overall_rank')->limit(3)])
                 ->when($season, fn ($q) => $q->where('season', $season));
         }
 
@@ -323,7 +323,7 @@ class MatchController extends Controller
 
     public function publicShow(MatchEvent $match): View
     {
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->where('status', 'valid')->with(['division', 'categories'])->orderBy('overall_rank')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
         $match->loadCount(['registrations', 'scores']);
 
         $userRegistration = Auth::check()
@@ -331,9 +331,8 @@ class MatchController extends Controller
             : null;
 
         $divisions = $match->scores->pluck('division')->filter()->unique('id')->sortBy('display_order')->values();
-        $categories = $match->scores->flatMap->categories->unique('id')->where('slug', '!=', 'overall')->sortBy('display_order')->values();
 
-        return view('events.show', compact('match', 'userRegistration', 'divisions', 'categories'));
+        return view('events.show', compact('match', 'userRegistration', 'divisions'));
     }
 
     public function publicCalendarData(Request $request): JsonResponse

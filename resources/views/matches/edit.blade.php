@@ -137,19 +137,9 @@
 
                 <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <label class="flex items-center gap-2">
-                        <input type="hidden" name="category_rankings_enabled" value="0">
-                        <input type="checkbox" name="category_rankings_enabled" value="1" @checked(old('category_rankings_enabled', $match->category_rankings_enabled)) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm text-stone-700">Enable category rankings</span>
-                    </label>
-                    <label class="flex items-center gap-2">
                         <input type="hidden" name="division_awards_enabled" value="0">
                         <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $match->division_awards_enabled)) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                         <span class="text-sm text-stone-700">Enable division awards</span>
-                    </label>
-                    <label class="flex items-center gap-2">
-                        <input type="hidden" name="category_awards_enabled" value="0">
-                        <input type="checkbox" name="category_awards_enabled" value="1" @checked(old('category_awards_enabled', $match->category_awards_enabled)) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm text-stone-700">Enable category awards</span>
                     </label>
                 </div>
 

@@ -68,7 +68,7 @@ class ScoreImportService
                         continue;
                     }
 
-                    [$divisionId, $inferredCategories] = $this->resolveDivisionAndInferredCategories($row);
+                    $divisionId = $this->resolveDivision($row);
                     $userId = $this->resolveUserId($row);
                     $csvScore = (float) $row['raw_score'];
 
@@ -116,7 +116,6 @@ class ScoreImportService
                     $score->save();
 
                     $this->scoreValidationService->evaluateScoreStatus($score);
-                    $this->attachScoreCategories($score, $row, $inferredCategories);
                     $count++;
                 }
             });
@@ -299,100 +298,40 @@ class ScoreImportService
      * Resolve division from the CSV row, and infer categories from divisions
      * that Impact scoring uses as pseudo-divisions ("Seniors", "Juniors", "Ladies").
      *
-     * @return array{0: ?int, 1: array<int, int>}  [division_id, inferred_category_ids]
+     * Resolve the shooter's division from the CSV row.
+     *
+     * Impact scoring often labels its own "divisions" as Seniors / Juniors /
+     * Ladies. Under the federation's flat-division model these ARE divisions,
+     * so we accept them directly (plus a few common aliases). Anything else
+     * (Open, Factory, Limited, Production…) also resolves by slug or name.
      */
-    private function resolveDivisionAndInferredCategories(array $row): array
+    private function resolveDivision(array $row): ?int
     {
         $value = trim($row['division'] ?? '');
         if ($value === '') {
-            return [null, []];
+            return null;
         }
 
         $lower = Str::lower($value);
 
-        // Impact scoring uses "Seniors" / "Juniors" / "Ladies" as pseudo-divisions,
-        // but on our side these are categories, and shooters are still assigned
-        // to a real division (Open by default). Map them accordingly.
-        $pseudoDivisionMap = [
-            'seniors' => ['open', 'senior'],
-            'senior' => ['open', 'senior'],
-            'juniors' => ['open', 'junior'],
-            'junior' => ['open', 'junior'],
-            'ladies' => ['open', 'ladies'],
-            'lady' => ['open', 'ladies'],
+        // Alias plural forms → canonical slugs.
+        $aliases = [
+            'seniors' => 'senior',
+            'juniors' => 'junior',
+            'lady' => 'ladies',
+            'mens' => 'open',
+            'men' => 'open',
+            'male' => 'open',
+            'overall' => 'open',
         ];
+        $lookup = $aliases[$lower] ?? $lower;
 
-        if (isset($pseudoDivisionMap[$lower])) {
-            [$divisionSlug, $categorySlug] = $pseudoDivisionMap[$lower];
-            $divisionId = \App\Models\Division::query()
-                ->whereRaw('LOWER(slug) = ?', [$divisionSlug])
-                ->value('id');
-            $categoryId = \App\Models\Category::query()
-                ->whereRaw('LOWER(slug) = ?', [$categorySlug])
-                ->value('id');
-
-            return [$divisionId, $categoryId ? [$categoryId] : []];
-        }
-
-        // Otherwise look up by slug or name
-        $divisionId = \App\Models\Division::query()
-            ->where(function ($q) use ($lower) {
-                $q->whereRaw('LOWER(slug) = ?', [$lower])
-                    ->orWhereRaw('LOWER(name) = ?', [$lower]);
+        return \App\Models\Division::query()
+            ->where(function ($q) use ($lookup) {
+                $q->whereRaw('LOWER(slug) = ?', [$lookup])
+                    ->orWhereRaw('LOWER(name) = ?', [$lookup]);
             })
             ->value('id');
-
-        return [$divisionId, []];
-    }
-
-    /**
-     * Attach category tags to the score. Merges any explicitly-listed categories
-     * from the `category` column with any inferred from the division column
-     * (e.g. Impact's "Seniors" division adds the Senior category).
-     *
-     * @param  array<int, int>  $inferredCategoryIds
-     */
-    private function attachScoreCategories(Score $score, array $row, array $inferredCategoryIds = []): void
-    {
-        $categoryIds = $inferredCategoryIds;
-
-        $value = trim($row['category'] ?? '');
-        if ($value !== '') {
-            $labels = preg_split('/[|,\/]/', $value);
-
-            foreach ($labels as $label) {
-                $label = Str::lower(trim($label));
-                if ($label === '') {
-                    continue;
-                }
-
-                // Impact-scoring's "Mens" / "Male" / "Overall" are effectively
-                // no categories — skip them so we don't create empty slugs.
-                if (in_array($label, ['mens', 'men', 'male', 'overall', 'open'], true)) {
-                    continue;
-                }
-
-                // Map common Impact values to our slugs
-                $label = match ($label) {
-                    'lady' => 'ladies',
-                    default => $label,
-                };
-
-                $categoryId = \App\Models\Category::query()
-                    ->whereRaw('LOWER(slug) = ?', [$label])
-                    ->orWhereRaw('LOWER(name) = ?', [$label])
-                    ->value('id');
-
-                if ($categoryId) {
-                    $categoryIds[] = $categoryId;
-                }
-            }
-        }
-
-        $categoryIds = array_values(array_unique($categoryIds));
-        if (! empty($categoryIds)) {
-            $score->categories()->sync($categoryIds);
-        }
     }
 
     private function parseProvincialColumns(\App\Models\MatchEvent $match): array
@@ -449,11 +388,9 @@ class ScoreImportService
             // Placement / rank
             'place', 'rank', 'position' => 'placement',
 
-            // Division (Impact uses "Div"; some use "Class" for classification)
-            'div' => 'division',
-
-            // Category (Impact uses "Category")
-            'cat', 'categories' => 'category',
+            // Division (Impact uses "Div"; also accept "Class"/"Category" since
+            // under the flat-division model demographic classes are divisions too).
+            'div', 'class', 'category', 'categories', 'cat' => 'division',
 
             // Email variants
             'e_mail', 'email_address', 'e_mail_address' => 'email',

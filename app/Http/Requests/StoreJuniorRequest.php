@@ -18,10 +18,7 @@ class StoreJuniorRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'date_of_birth' => ['required', 'date', 'before:today', 'after:1995-01-01'],
             'province_id' => ['required', 'exists:provinces,id'],
-            'division_id' => ['nullable', 'exists:divisions,id'],
-            'category_ids' => ['nullable', 'array'],
-            'category_ids.*' => ['integer', 'exists:categories,id'],
-            'is_female' => ['boolean'],
+            'division_id' => ['required', 'exists:divisions,id'],
         ];
     }
 

@@ -116,13 +116,6 @@
                                     <p class="text-xs text-stone-500">{{ number_format($entry['division_points'] ?? 0, 1) }} pts</p>
                                 </div>
                             @endif
-                            @foreach($entry['categories'] as $cat)
-                                <div>
-                                    <p class="text-xs text-stone-400">{{ $cat['name'] }}</p>
-                                    <p class="text-xl font-bold text-sky-700">#{{ $cat['rank'] ?? '—' }}</p>
-                                    <p class="text-xs text-stone-500">{{ number_format($cat['points'] ?? 0, 1) }} pts</p>
-                                </div>
-                            @endforeach
                         </div>
                     </div>
 
@@ -202,9 +195,6 @@
                 </div>
             @endif
 
-            <div class="bg-stone-100 rounded-2xl border border-dashed border-stone-300 p-4 text-center text-sm text-stone-500">
-                Age-based categories are determined using the configured season classification date and remain fixed for the full season.
-            </div>
         </div>
     </div>
 

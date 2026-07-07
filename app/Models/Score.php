@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Score extends Model
@@ -108,11 +107,5 @@ class Score extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
-    }
-
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(Category::class, 'score_category')
-            ->withPivot('category_normalized_score', 'category_rank');
     }
 }

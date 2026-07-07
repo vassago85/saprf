@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Category;
 use App\Models\Division;
 use App\Models\User;
 
@@ -87,59 +86,26 @@ it('lists active divisions in display order', function () {
     expect($divisions->first()->slug)->toBe('a');
 });
 
-// ── Category CRUD ──
+// ── Demographic divisions ──
+// Under the flat-division model, Ladies/Junior/Senior sit alongside the
+// equipment classes as regular divisions. Every shooter picks exactly one.
 
-it('allows owner to create a category', function () {
-    $user = User::factory()->create();
-    $user->assignRole('owner');
+it('supports demographic divisions alongside equipment divisions', function () {
+    Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    Division::create(['slug' => 'ladies', 'name' => 'Ladies', 'display_order' => 5]);
+    Division::create(['slug' => 'junior', 'name' => 'Junior', 'display_order' => 6]);
+    Division::create(['slug' => 'senior', 'name' => 'Senior', 'display_order' => 7]);
 
-    $this->actingAs($user)
-        ->post(route('categories.store'), [
-            'slug' => 'junior',
-            'name' => 'Junior',
-            'display_order' => 1,
-        ])
-        ->assertRedirect(route('categories.index'));
-
-    $this->assertDatabaseHas('categories', ['slug' => 'junior', 'name' => 'Junior']);
-});
-
-it('validates category slug uniqueness', function () {
-    $user = User::factory()->create();
-    $user->assignRole('owner');
-
-    Category::create(['slug' => 'ladies', 'name' => 'Ladies']);
-
-    $this->actingAs($user)
-        ->post(route('categories.store'), [
-            'slug' => 'ladies',
-            'name' => 'Duplicate',
-            'display_order' => 0,
-        ])
-        ->assertSessionHasErrors('slug');
-});
-
-// ── User Division/Category assignment ──
-
-it('assigns a user to a division and categories', function () {
-    $division = Division::create(['slug' => 'open', 'name' => 'Open']);
-    $ladies = Category::create(['slug' => 'ladies', 'name' => 'Ladies', 'display_order' => 1]);
-    $senior = Category::create(['slug' => 'senior', 'name' => 'Senior', 'display_order' => 2]);
-
-    $user = User::factory()->create(['division_id' => $division->id]);
-    $user->categories()->sync([$ladies->id, $senior->id]);
-
-    expect($user->division->slug)->toBe('open');
-    expect($user->categories)->toHaveCount(2);
-    expect($user->categories->pluck('slug')->sort()->values()->toArray())->toBe(['ladies', 'senior']);
+    expect(Division::active()->ordered()->pluck('slug')->toArray())
+        ->toBe(['open', 'ladies', 'junior', 'senior']);
 });
 
 it('allows a user to belong to one division only', function () {
     $open = Division::create(['slug' => 'open', 'name' => 'Open']);
-    $factory = Division::create(['slug' => 'factory', 'name' => 'Factory']);
+    $ladies = Division::create(['slug' => 'ladies', 'name' => 'Ladies']);
 
     $user = User::factory()->create(['division_id' => $open->id]);
-    $user->update(['division_id' => $factory->id]);
+    $user->update(['division_id' => $ladies->id]);
 
-    expect($user->fresh()->division->slug)->toBe('factory');
+    expect($user->fresh()->division->slug)->toBe('ladies');
 });

@@ -60,9 +60,6 @@
                             @if($junior->division)
                                 <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">{{ $junior->division->name }}</span>
                             @endif
-                            @foreach($junior->categories as $cat)
-                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">{{ $cat->name }}</span>
-                            @endforeach
                             @if($membershipActive)
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Active member</span>
                             @else

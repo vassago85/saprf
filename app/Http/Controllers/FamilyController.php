@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreJuniorRequest;
-use App\Models\Category;
 use App\Models\Division;
 use App\Models\Province;
 use App\Models\User;
@@ -33,7 +32,7 @@ class FamilyController extends Controller
     {
         $juniors = $request->user()
             ->juniors()
-            ->with(['province', 'division', 'categories', 'membership'])
+            ->with(['province', 'division', 'membership'])
             ->orderBy('name')
             ->get();
 
@@ -43,10 +42,9 @@ class FamilyController extends Controller
     public function create(): View
     {
         $provinces = Province::orderBy('name')->get();
-        $divisions = Division::orderBy('name')->get();
-        $categories = Category::orderBy('name')->get();
+        $divisions = Division::active()->ordered()->get();
 
-        return view('family.create', compact('provinces', 'divisions', 'categories'));
+        return view('family.create', compact('provinces', 'divisions'));
     }
 
     public function store(StoreJuniorRequest $request): RedirectResponse
@@ -78,29 +76,6 @@ class FamilyController extends Controller
 
             $junior->assignRole('member');
 
-            // Build category list — auto-add Junior if eligible (under 21 on 1 Jan)
-            $categoryIds = collect($data['category_ids'] ?? [])->map(fn ($v) => (int) $v)->toArray();
-
-            $juniorCategory = Category::where('slug', 'junior')->first();
-            if ($juniorCategory) {
-                $age = $junior->getAgeOn(\Carbon\Carbon::parse(now()->year . '-01-01'));
-                if ($age !== null && $age < 21) {
-                    $categoryIds[] = $juniorCategory->id;
-                }
-            }
-
-            if (! empty($data['is_female'])) {
-                $ladiesCategory = Category::where('slug', 'ladies')->first();
-                if ($ladiesCategory) {
-                    $categoryIds[] = $ladiesCategory->id;
-                }
-            }
-
-            $categoryIds = array_values(array_unique($categoryIds));
-            if (! empty($categoryIds)) {
-                $junior->categories()->sync($categoryIds);
-            }
-
             return $junior;
         });
 
@@ -121,7 +96,7 @@ class FamilyController extends Controller
     {
         $this->authorizeJunior($request, $junior);
 
-        $junior->load(['province', 'division', 'categories', 'membership']);
+        $junior->load(['province', 'division', 'membership']);
 
         $upcomingRegistrations = $junior->matchRegistrations()
             ->with('match')
@@ -143,12 +118,10 @@ class FamilyController extends Controller
     {
         $this->authorizeJunior($request, $junior);
 
-        $junior->load(['categories']);
         $provinces = Province::orderBy('name')->get();
-        $divisions = Division::orderBy('name')->get();
-        $categories = Category::orderBy('name')->get();
+        $divisions = Division::active()->ordered()->get();
 
-        return view('family.edit', compact('junior', 'provinces', 'divisions', 'categories'));
+        return view('family.edit', compact('junior', 'provinces', 'divisions'));
     }
 
     public function update(Request $request, User $junior): RedirectResponse
@@ -159,9 +132,7 @@ class FamilyController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'date_of_birth' => ['required', 'date', 'before:today', 'after:1995-01-01'],
             'province_id' => ['required', 'exists:provinces,id'],
-            'division_id' => ['nullable', 'exists:divisions,id'],
-            'category_ids' => ['nullable', 'array'],
-            'category_ids.*' => ['integer', 'exists:categories,id'],
+            'division_id' => ['required', 'exists:divisions,id'],
         ]);
 
         $old = $junior->only(['name', 'date_of_birth', 'province_id', 'division_id']);
@@ -172,8 +143,6 @@ class FamilyController extends Controller
             'province_id' => $data['province_id'],
             'division_id' => $data['division_id'] ?? null,
         ]);
-
-        $junior->categories()->sync($data['category_ids'] ?? []);
 
         $this->auditLogService->log(
             $request->user(),

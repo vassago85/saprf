@@ -11,7 +11,7 @@
                 <th class="px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-16">Rank</th>
                 <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
                 @if($showDivision)
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division / Category</th>
+                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division</th>
                 @endif
                 @if($showProvince)
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Province</th>
@@ -23,7 +23,6 @@
             @forelse ($standings as $standing)
                 @php
                     $userDiv = $standing->user?->division;
-                    $userCats = $standing->user?->categories?->where('slug', '!=', 'overall') ?? collect();
                 @endphp
                 <tr class="border-b border-stone-100 transition hover:bg-stone-50 {{ $standing->rank <= 3 ? 'bg-emerald-50/40' : '' }}">
                     <td class="px-5 py-4 text-center">
@@ -42,9 +41,6 @@
                         @if($showDivision)
                             <span class="sm:hidden block text-xs text-stone-400 mt-0.5">
                                 {{ $userDiv?->name ?? '—' }}
-                                @foreach($userCats as $cat)
-                                    · {{ $cat->name }}
-                                @endforeach
                             </span>
                         @endif
                         @if($showProvince)
@@ -54,16 +50,9 @@
                     </td>
                     @if($showDivision)
                         <td class="px-5 py-4 hidden sm:table-cell">
-                            <div class="flex flex-wrap items-center gap-1">
-                                <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
-                                    {{ $userDiv?->name ?? '—' }}
-                                </span>
-                                @foreach($userCats as $cat)
-                                    <span class="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200">
-                                        {{ $cat->name }}
-                                    </span>
-                                @endforeach
-                            </div>
+                            <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                                {{ $userDiv?->name ?? '—' }}
+                            </span>
                         </td>
                     @endif
                     @if($showProvince)

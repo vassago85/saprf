@@ -122,7 +122,6 @@
                     @if($match->scores->isNotEmpty())
                         @php
                             $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) {
-                                $scoreCats = $score->categories->where('slug', '!=', 'overall');
                                 return [
                                     'id' => $score->id,
                                     'name' => $score->shooter_name,
@@ -133,22 +132,21 @@
                                     'div_rank' => $score->division_rank,
                                     'div_id' => $score->division_id,
                                     'div_name' => $score->division?->name ?? '—',
-                                    'cat_names' => $scoreCats->pluck('name')->values()->toArray(),
-                                    'cats' => $scoreCats->map(fn ($c) => [
-                                        'id' => $c->id,
-                                        'name' => $c->name,
-                                        'norm' => $c->pivot->category_normalized_score ? round((float) $c->pivot->category_normalized_score, 2) : null,
-                                        'rank' => $c->pivot->category_rank,
-                                    ])->values()->toArray(),
+                                    'status' => $score->status,
+                                    'badge' => match ($score->status) {
+                                        'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200'],
+                                        'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
+                                        'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
+                                        default      => null,
+                                    },
                                 ];
                             })->values()->toArray();
 
                             $divList = $divisions->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])->toArray();
-                            $catList = $categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->toArray();
                         @endphp
 
                         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
-                             x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }}, {{ Js::from($catList) }})">
+                             x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }})">
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex items-center justify-between mb-3">
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
@@ -158,21 +156,11 @@
                                     <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
                                         <button @click="setFilter('overall')" :class="mode === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>
                                         <button @click="setFilter('division')" :class="mode === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Division</button>
-                                        <button @click="setFilter('category')" :class="mode === 'category' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Category</button>
                                     </div>
-                                    {{-- Division sub-filter --}}
                                     <template x-if="mode === 'division' && divs.length > 1">
-                                        <div class="flex rounded-lg bg-amber-50 p-0.5 w-fit">
+                                        <div class="flex flex-wrap rounded-lg bg-amber-50 p-0.5 w-fit">
                                             <template x-for="d in divs" :key="d.id">
                                                 <button @click="subFilter = d.id" :class="subFilter === d.id ? 'bg-white shadow-sm text-amber-800' : 'text-amber-600 hover:text-amber-800'" class="px-2.5 py-1 rounded-md text-xs font-semibold transition" x-text="d.name"></button>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    {{-- Category sub-filter --}}
-                                    <template x-if="mode === 'category' && cats.length > 0">
-                                        <div class="flex rounded-lg bg-sky-50 p-0.5 w-fit">
-                                            <template x-for="c in cats" :key="c.id">
-                                                <button @click="subFilter = c.id" :class="subFilter === c.id ? 'bg-white shadow-sm text-sky-800' : 'text-sky-600 hover:text-sky-800'" class="px-2.5 py-1 rounded-md text-xs font-semibold transition" x-text="c.name"></button>
                                             </template>
                                         </div>
                                     </template>
@@ -185,7 +173,7 @@
                                         <tr>
                                             <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
-                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division / Category</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division</th>
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Impacts</th>
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">% Score</th>
                                         </tr>
@@ -211,14 +199,16 @@
                                                         <span class="text-sm text-stone-400" x-text="row._rank"></span>
                                                     </template>
                                                 </td>
-                                                <td class="px-5 py-3 text-sm font-medium text-stone-900" x-text="row.name"></td>
+                                                <td class="px-5 py-3 text-sm font-medium text-stone-900">
+                                                    <span x-text="row.name"></span>
+                                                    <template x-if="row.badge">
+                                                        <span class="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset uppercase tracking-wide"
+                                                              :class="row.badge.class"
+                                                              x-text="row.badge.label"></span>
+                                                    </template>
+                                                </td>
                                                 <td class="px-5 py-3">
-                                                    <div class="flex flex-wrap items-center gap-1">
-                                                        <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
-                                                        <template x-for="cat in row.cat_names" :key="cat">
-                                                            <span class="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200" x-text="cat"></span>
-                                                        </template>
-                                                    </div>
+                                                    <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
                                                 </td>
                                                 <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw.toFixed(1)"></td>
                                                 <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row._norm !== null ? row._norm.toFixed(2) : '—'"></td>
@@ -236,17 +226,15 @@
 
                         <script>
                         document.addEventListener('alpine:init', () => {
-                            Alpine.data('matchResults', (scores, divs, cats) => ({
+                            Alpine.data('matchResults', (scores, divs) => ({
                                 scores,
                                 divs,
-                                cats,
                                 mode: 'overall',
                                 subFilter: null,
 
                                 setFilter(m) {
                                     this.mode = m;
                                     if (m === 'division' && this.divs.length) this.subFilter = this.divs[0].id;
-                                    else if (m === 'category' && this.cats.length) this.subFilter = this.cats[0].id;
                                     else this.subFilter = null;
                                 },
 
@@ -256,15 +244,6 @@
                                         rows = this.scores
                                             .filter(s => s.div_id === this.subFilter)
                                             .map(s => ({...s, _norm: s.div_norm, _rank: s.div_rank }))
-                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
-                                    } else if (this.mode === 'category' && this.subFilter) {
-                                        const catId = this.subFilter;
-                                        rows = this.scores
-                                            .filter(s => s.cats.some(c => c.id === catId))
-                                            .map(s => {
-                                                const cat = s.cats.find(c => c.id === catId);
-                                                return {...s, _norm: cat?.norm ?? s.norm, _rank: cat?.rank ?? 999 };
-                                            })
                                             .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
                                     } else {
                                         rows = this.scores

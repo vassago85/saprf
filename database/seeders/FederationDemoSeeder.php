@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Membership;
@@ -23,7 +22,24 @@ class FederationDemoSeeder extends Seeder
         DB::transaction(function () {
             $provinces = Province::all()->keyBy('abbreviation');
             $divisions = Division::all()->keyBy('slug');
-            $categories = Category::all()->keyBy('slug');
+
+            // Under the flat-division model, Ladies/Junior/Senior are divisions.
+            // The old shooter data still carries `cats => ['junior','ladies'...]`
+            // — resolve each shooter into a single division. Demographic tags
+            // trump equipment class (a junior shoots in the Junior division
+            // rather than in Open).
+            $resolveDivision = function (string $equipmentDiv, array $cats): string {
+                if (in_array('junior', $cats, true)) {
+                    return 'junior';
+                }
+                if (in_array('ladies', $cats, true)) {
+                    return 'ladies';
+                }
+                if (in_array('senior', $cats, true)) {
+                    return 'senior';
+                }
+                return $equipmentDiv;
+            };
 
             $director = User::where('email', 'director@saprf.co.za')->first();
             $admin = User::where('email', 'admin@saprf.co.za')->first();
@@ -138,17 +154,9 @@ class FederationDemoSeeder extends Seeder
                 );
                 $user->assignRole('member');
 
-                $divisionId = $divisions[$data['div']]?->id;
+                $divCode = $resolveDivision($data['div'], $data['cats']);
+                $divisionId = $divisions[$divCode]?->id;
                 $user->update(['division_id' => $divisionId]);
-
-                $catIds = collect($data['cats'])
-                    ->map(fn ($code) => $categories[$code]?->id)
-                    ->filter()
-                    ->values()
-                    ->toArray();
-                if (! empty($catIds)) {
-                    $user->categories()->syncWithoutDetaching($catIds);
-                }
 
                 if ($data['member'] === true) {
                     $membership = Membership::firstOrCreate(
@@ -184,8 +192,7 @@ class FederationDemoSeeder extends Seeder
 
                 $allShooters[] = [
                     'user' => $user,
-                    'div_code' => $data['div'],
-                    'cat_codes' => $data['cats'],
+                    'div_code' => $divCode,
                     'is_member' => $data['member'] === true,
                 ];
             }
@@ -206,7 +213,6 @@ class FederationDemoSeeder extends Seeder
                 $allShooters[] = [
                     'user' => $existingMember,
                     'div_code' => 'open',
-                    'cat_codes' => [],
                     'is_member' => true,
                 ];
             }
@@ -275,7 +281,6 @@ class FederationDemoSeeder extends Seeder
                     'max_competitors' => $data['max'],
                     'waitlist_enabled' => $data['max'] <= 30,
                     'published' => true,
-                    'category_rankings_enabled' => true,
                     'division_awards_enabled' => true,
                 ];
 
@@ -336,20 +341,20 @@ class FederationDemoSeeder extends Seeder
             $seedIndex = 42;
 
             foreach ($completedPrsMatches as $match) {
-                $this->seedMatchScores($match, $prsShooters->values(), $divisions, $categories, $seedIndex);
+                $this->seedMatchScores($match, $prsShooters->values(), $divisions, $seedIndex);
                 $standingsService->recalculateForMatch($match);
                 $seedIndex += 7;
             }
 
             foreach ($completedPr22Matches as $match) {
-                $this->seedMatchScores($match, $pr22Shooters->values(), $divisions, $categories, $seedIndex);
+                $this->seedMatchScores($match, $pr22Shooters->values(), $divisions, $seedIndex);
                 $standingsService->recalculateForMatch($match);
                 $seedIndex += 7;
             }
         });
     }
 
-    private function seedMatchScores($match, $shooters, $divisions, $categories, int $seed): void
+    private function seedMatchScores($match, $shooters, $divisions, int $seed): void
     {
         $rng = mt_rand(0, 100);
         mt_srand($seed);
@@ -359,7 +364,6 @@ class FederationDemoSeeder extends Seeder
         foreach ($shooters as $idx => $shooter) {
             $user = $shooter['user'];
             $divCode = $shooter['div_code'];
-            $catCodes = $shooter['cat_codes'];
             $divisionId = $divisions[$divCode]?->id;
 
             $baseScore = 55 - ($idx * 0.8);
@@ -404,12 +408,6 @@ class FederationDemoSeeder extends Seeder
                     'match_date' => $match->match_date,
                     'counts_for_season' => true,
                 ]);
-            }
-
-            foreach ($catCodes as $catCode) {
-                if (isset($categories[$catCode])) {
-                    $score->categories()->attach($categories[$catCode]->id);
-                }
             }
         }
 

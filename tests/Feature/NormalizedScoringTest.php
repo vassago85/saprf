@@ -136,38 +136,35 @@ it('calculates division ranks and division-specific normalized scores', function
     expect(round($c->division_normalized_score, 2))->toBe(80.00);
 });
 
-it('calculates category-specific normalized scores on pivot', function () {
+it('calculates division-specific normalized scores for demographic divisions', function () {
+    // Under the flat-division model, Ladies is its own division. Confirm that
+    // per-division normalization treats Ladies exactly like any other division.
     $province = Province::create(['name' => 'GP', 'abbreviation' => 'GP']);
-    $division = Division::create(['slug' => 'open', 'name' => 'Open']);
-    $ladies = \App\Models\Category::create(['slug' => 'ladies', 'name' => 'Ladies']);
+    $open = Division::create(['slug' => 'open', 'name' => 'Open']);
+    $ladies = Division::create(['slug' => 'ladies', 'name' => 'Ladies']);
 
     $match = MatchEvent::create([
-        'name' => 'Cat Test', 'match_type' => 'PRS', 'series_level' => 'national',
+        'name' => 'Div Test', 'match_type' => 'PRS', 'series_level' => 'national',
         'series' => 'PRS', 'season' => '2026', 'province_id' => $province->id,
         'match_date' => '2026-06-15', 'status' => 'completed', 'created_by' => User::factory()->create()->id,
         'active_member_fee' => 500, 'published' => true,
     ]);
 
-    $scoreA = Score::create(['match_id' => $match->id, 'shooter_name' => 'Lady A', 'user_id' => User::factory()->create()->id, 'raw_score' => 40, 'division_id' => $division->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
-    $scoreB = Score::create(['match_id' => $match->id, 'shooter_name' => 'Lady B', 'user_id' => User::factory()->create()->id, 'raw_score' => 30, 'division_id' => $division->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
-    $scoreC = Score::create(['match_id' => $match->id, 'shooter_name' => 'Man A', 'user_id' => User::factory()->create()->id, 'raw_score' => 50, 'division_id' => $division->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
-
-    $scoreA->categories()->attach($ladies->id);
-    $scoreB->categories()->attach($ladies->id);
+    // 40 (Ladies), 30 (Ladies), 50 (Open) — top overall is 50.
+    $scoreA = Score::create(['match_id' => $match->id, 'shooter_name' => 'Lady A', 'user_id' => User::factory()->create()->id, 'raw_score' => 40, 'division_id' => $ladies->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
+    $scoreB = Score::create(['match_id' => $match->id, 'shooter_name' => 'Lady B', 'user_id' => User::factory()->create()->id, 'raw_score' => 30, 'division_id' => $ladies->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
+    Score::create(['match_id' => $match->id, 'shooter_name' => 'Man A', 'user_id' => User::factory()->create()->id, 'raw_score' => 50, 'division_id' => $open->id, 'status' => 'valid', 'match_date' => '2026-06-15']);
 
     app(StandingsCalculationService::class)->calculateMatchRankings($match);
 
-    // Overall normalized: all relative to top overall (50)
     $scoreA->refresh();
     $scoreB->refresh();
-    expect(round($scoreA->normalized_score, 2))->toBe(80.00);
-    expect(round($scoreB->normalized_score, 2))->toBe(60.00);
 
-    // Category normalized: Ladies relative to top Ladies (40)
-    $ladyA = $scoreA->categories->firstWhere('id', $ladies->id);
-    $ladyB = $scoreB->categories->firstWhere('id', $ladies->id);
-    expect(round($ladyA->pivot->category_normalized_score, 2))->toBe(100.00); // 40/40
-    expect(round($ladyB->pivot->category_normalized_score, 2))->toBe(75.00);  // 30/40
-    expect($ladyA->pivot->category_rank)->toBe(1);
-    expect($ladyB->pivot->category_rank)->toBe(2);
+    expect(round($scoreA->normalized_score, 2))->toBe(80.00);   // 40/50
+    expect(round($scoreB->normalized_score, 2))->toBe(60.00);   // 30/50
+
+    expect(round($scoreA->division_normalized_score, 2))->toBe(100.00); // 40/40 within Ladies
+    expect(round($scoreB->division_normalized_score, 2))->toBe(75.00);  // 30/40 within Ladies
+    expect($scoreA->division_rank)->toBe(1);
+    expect($scoreB->division_rank)->toBe(2);
 });

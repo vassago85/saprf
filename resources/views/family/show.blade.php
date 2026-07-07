@@ -59,12 +59,6 @@
                 <p class="mt-1 text-lg font-semibold text-stone-900">{{ $junior->division?->name ?? '—' }}</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white p-4">
-                <p class="text-xs font-medium text-stone-500 uppercase">Categories</p>
-                <p class="mt-1 text-sm font-medium text-stone-700 truncate">
-                    {{ $junior->categories->pluck('name')->join(', ') ?: '—' }}
-                </p>
-            </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4">
                 <p class="text-xs font-medium text-stone-500 uppercase">Recent Scores</p>
                 <p class="mt-1 text-lg font-semibold text-stone-900">{{ $recentScores->count() }}</p>
                 <p class="text-xs text-stone-400">Last 5 valid scores</p>

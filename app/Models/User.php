@@ -2,11 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\SeasonShooterClassification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -107,11 +105,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Division::class);
     }
 
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(Category::class, 'user_category');
-    }
-
     public function membership(): HasOne
     {
         return $this->hasOne(Membership::class);
@@ -160,11 +153,6 @@ class User extends Authenticatable implements MustVerifyEmail
             ->unique()
             ->values()
             ->toArray();
-    }
-
-    public function seasonClassifications(): HasMany
-    {
-        return $this->hasMany(SeasonShooterClassification::class);
     }
 
     public function getAgeOn(Carbon $date): ?int

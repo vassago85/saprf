@@ -54,7 +54,7 @@
                 <ul>
                     <li>Match registrations and attendance</li>
                     <li>Scores, rankings, and standings</li>
-                    <li>Division and category classifications</li>
+                    <li>Division classification</li>
                     <li>Rifle configurations and ammunition load data</li>
                 </ul>
 
@@ -78,7 +78,6 @@
                     <li>Register and manage your SAPRF membership</li>
                     <li>Process match registrations and record competition results</li>
                     <li>Calculate and publish rankings, standings, and season results</li>
-                    <li>Determine age-based category classifications for competition</li>
                     <li>Send transactional emails (registration confirmations, membership notices, match updates)</li>
                     <li>Generate reports required by sports governance bodies</li>
                     <li>Maintain audit trails for administrative actions</li>
@@ -88,7 +87,7 @@
                 <h2>6. Public Display of Information</h2>
                 <p>The following information is publicly visible on the Platform to all visitors without authentication:</p>
                 <ul>
-                    <li>Your <strong>name</strong>, <strong>province</strong>, <strong>division</strong>, and <strong>category</strong> in match results and season standings</li>
+                    <li>Your <strong>name</strong>, <strong>province</strong>, and <strong>division</strong> in match results and season standings</li>
                     <li>Your <strong>match scores</strong>, <strong>rankings</strong>, and <strong>normalised season points</strong></li>
                 </ul>
                 <p>This public display is integral to the operation of a competitive sports federation and is based on legitimate interest. Your email address, SA ID number, date of birth, and contact details are <strong>never</strong> publicly displayed.</p>

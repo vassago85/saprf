@@ -1,15 +1,18 @@
 <?php
 
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\Province;
 use App\Models\Score;
+use App\Models\Standing;
 use App\Models\User;
 use App\Services\ScoreValidationService;
 use Carbon\Carbon;
 
 beforeEach(function () {
     Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    Division::firstOrCreate(['slug' => 'open'], ['name' => 'Open', 'display_order' => 1]);
     $province = Province::where('abbreviation', 'GP')->first();
 
     $this->service = app(ScoreValidationService::class);
@@ -30,7 +33,21 @@ beforeEach(function () {
     ]);
 });
 
-test('valid member score gets valid status', function () {
+function makeScore($match, $user, string $status = 'pending', ?Carbon $date = null, float $raw = 100.0): Score
+{
+    return Score::create([
+        'match_id' => $match->id,
+        'user_id' => $user?->id,
+        'shooter_name' => $user?->name ?? 'Unknown',
+        'raw_score' => $raw,
+        'placement' => 1,
+        'division_id' => Division::where('slug', 'open')->value('id'),
+        'match_date' => $date ?? Carbon::today(),
+        'status' => $status,
+    ]);
+}
+
+test('active + paid member on match date → status=valid', function () {
     $user = User::factory()->create();
     Membership::create([
         'user_id' => $user->id,
@@ -40,168 +57,156 @@ test('valid member score gets valid status', function () {
         'expiry_date' => Carbon::today()->addYear(),
     ]);
 
-    $score = Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => $user->id,
-        'shooter_name' => $user->name,
-        'raw_score' => 95.500,
-        'placement' => 1,
-        'division' => 'Open',
-        'match_date' => Carbon::today(),
-        'status' => 'pending',
-    ]);
-
-    $this->actingAs($user);
-    $result = $this->service->evaluateScoreStatus($score);
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user));
 
     expect($result->status)->toBe('valid')
-        ->and($result->is_member)->toBeTrue()
-        ->and($result->validation_reason)->toBe('Valid paid member.');
+        ->and($result->is_member)->toBeTrue();
 });
 
-test('non-member score beyond grace window gets invalid status', function () {
-    $matchDate = Carbon::today()->subDays(10);
+test('shooter with NO membership record → status=non_member (no grace)', function () {
     $user = User::factory()->create();
 
-    $score = Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => $user->id,
-        'shooter_name' => $user->name,
-        'raw_score' => 80.000,
-        'placement' => 5,
-        'division' => 'Open',
-        'match_date' => $matchDate,
-        'status' => 'pending',
-    ]);
+    $withinGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', Carbon::today()->subDays(2)));
+    $pastGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', Carbon::today()->subDays(30)));
 
-    $this->actingAs($user);
-    $result = $this->service->evaluateScoreStatus($score);
-
-    expect($result->status)->toBe('invalid')
-        ->and($result->is_member)->toBeFalse()
-        ->and($result->validation_reason)->toBe('Membership not valid on match date.');
+    expect($withinGrace->status)->toBe('non_member')
+        ->and($pastGrace->status)->toBe('non_member')
+        ->and($withinGrace->is_member)->toBeFalse();
 });
 
-test('lapsed member within 7-day grace window gets pending status', function () {
+test('shooter WITH a membership but lapsed at match, within 7-day grace → status=pending', function () {
     $matchDate = Carbon::today()->subDays(3);
     $user = User::factory()->create();
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-SCORE-002',
-        'status' => 'expired',
-        'payment_status' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
         'expiry_date' => $matchDate->copy()->subDay(),
     ]);
 
-    $score = Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => $user->id,
-        'shooter_name' => $user->name,
-        'raw_score' => 88.000,
-        'placement' => 3,
-        'division' => 'Open',
-        'match_date' => $matchDate,
-        'status' => 'pending',
-    ]);
-
-    $this->actingAs($user);
-    $result = $this->service->evaluateScoreStatus($score);
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
 
     expect($result->status)->toBe('pending')
-        ->and($result->is_member)->toBeFalse()
-        ->and($result->validation_reason)->toBe('Within 7-day regularisation window.');
+        ->and($result->is_member)->toBeFalse();
 });
 
-test('lapsed member beyond 7-day grace window gets invalid status', function () {
+test('shooter WITH a membership but lapsed, past 7-day grace → status=lapsed (not invalid)', function () {
     $matchDate = Carbon::today()->subDays(10);
     $user = User::factory()->create();
     Membership::create([
         'user_id' => $user->id,
         'saprf_number' => 'SAPRF-SCORE-003',
-        'status' => 'expired',
-        'payment_status' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
         'expiry_date' => $matchDate->copy()->subDay(),
     ]);
 
-    $score = Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => $user->id,
-        'shooter_name' => $user->name,
-        'raw_score' => 72.000,
-        'placement' => 8,
-        'division' => 'Open',
-        'match_date' => $matchDate,
-        'status' => 'pending',
-    ]);
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
 
-    $this->actingAs($user);
-    $result = $this->service->evaluateScoreStatus($score);
-
-    expect($result->status)->toBe('invalid')
-        ->and($result->is_member)->toBeFalse()
-        ->and($result->validation_reason)->toBe('Membership not valid on match date.');
+    expect($result->status)->toBe('lapsed')
+        ->and($result->is_member)->toBeFalse();
 });
 
-test('score without user_id gets invalid status', function () {
-    $score = Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => null,
-        'shooter_name' => 'Unknown Shooter',
-        'raw_score' => 60.000,
-        'placement' => 10,
-        'division' => 'Open',
-        'match_date' => Carbon::today(),
-        'status' => 'pending',
-    ]);
-
-    $this->actingAs(User::factory()->create());
-    $result = $this->service->evaluateScoreStatus($score);
+test('score without user_id → status=invalid (orphan)', function () {
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, null));
 
     expect($result->status)->toBe('invalid')
-        ->and($result->is_member)->toBeFalse()
         ->and($result->validation_reason)->toBe('No linked member account.');
 });
 
-test('resolvePendingScores processes all pending scores', function () {
-    $validUser = User::factory()->create();
+test('resolvePendingScoresForUser reclassifies pending scores in isolation', function () {
+    $user = User::factory()->create();
     Membership::create([
-        'user_id' => $validUser->id,
+        'user_id' => $user->id,
         'saprf_number' => 'SAPRF-SCORE-004',
         'status' => 'active',
         'payment_status' => 'paid',
         'expiry_date' => Carbon::today()->addYear(),
     ]);
 
-    $invalidUser = User::factory()->create();
+    $score = makeScore($this->match, $user, 'pending', Carbon::today());
 
-    Score::create([
-        'match_id' => $this->match->id,
+    $affectedMatchIds = $this->service->resolvePendingScoresForUser($user->id);
+
+    expect($affectedMatchIds)->toContain($this->match->id)
+        ->and($score->fresh()->status)->toBe('valid');
+
+    $noopIds = $this->service->resolvePendingScoresForUser($user->id);
+    expect($noopIds)->toBe([]);
+});
+
+test('MembershipObserver auto-promotes pending scores when membership becomes valid', function () {
+    $matchDate = Carbon::today()->subDays(2);
+    $user = User::factory()->create();
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-SCORE-005',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+        'expiry_date' => $matchDate->copy()->subDay(),
+    ]);
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('pending');
+
+    $mship->update([
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+
+    expect($score->fresh()->status)->toBe('valid');
+});
+
+test('non_member scores never get promoted, even inside grace window', function () {
+    $matchDate = Carbon::today()->subDays(2);
+    $user = User::factory()->create();
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('non_member');
+
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-SCORE-006',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+
+    expect($score->fresh()->status)->toBe('non_member');
+});
+
+test('resolvePendingScores classifies each pending score correctly', function () {
+    $validUser = User::factory()->create();
+    Membership::create([
         'user_id' => $validUser->id,
-        'shooter_name' => $validUser->name,
-        'raw_score' => 90.000,
-        'placement' => 2,
-        'division' => 'Open',
-        'match_date' => Carbon::today(),
-        'status' => 'pending',
+        'saprf_number' => 'SAPRF-SCORE-100',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
     ]);
 
-    Score::create([
-        'match_id' => $this->match->id,
-        'user_id' => $invalidUser->id,
-        'shooter_name' => $invalidUser->name,
-        'raw_score' => 70.000,
-        'placement' => 7,
-        'division' => 'Open',
-        'match_date' => Carbon::today()->subDays(10),
-        'status' => 'pending',
+    $nonMemberUser = User::factory()->create();
+
+    $lapsedUser = User::factory()->create();
+    Membership::create([
+        'user_id' => $lapsedUser->id,
+        'saprf_number' => 'SAPRF-SCORE-101',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+        'expiry_date' => Carbon::today()->subDays(30),
     ]);
 
-    $this->actingAs(User::factory()->create());
+    makeScore($this->match, $validUser, 'pending', Carbon::today());
+    makeScore($this->match, $nonMemberUser, 'pending', Carbon::today()->subDays(30));
+    makeScore($this->match, $lapsedUser, 'pending', Carbon::today()->subDays(30));
+
     $count = $this->service->resolvePendingScores();
 
-    expect($count)->toBe(2);
+    expect($count)->toBe(3);
 
-    $scores = Score::orderBy('id')->get();
-    expect($scores[0]->status)->toBe('valid')
-        ->and($scores[1]->status)->toBe('invalid');
+    $statuses = Score::orderBy('id')->pluck('status')->toArray();
+    expect($statuses)->toBe(['valid', 'non_member', 'lapsed']);
 });

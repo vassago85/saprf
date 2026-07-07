@@ -59,7 +59,7 @@ class ScoreController extends Controller
     {
         $this->authorize('update', $match);
 
-        $match->load(['registrations.user.division', 'registrations.user.categories']);
+        $match->load(['registrations.user.division']);
 
         // Pull all existing scores for this match keyed by user_id so we can
         // pre-populate the form. Also include "orphan" scores (imported CSV rows
@@ -161,12 +161,6 @@ class ScoreController extends Controller
                 ]);
                 // raw_score + provincial_raw_score are auto-computed via the model booted() hook.
                 $score->save();
-
-                // Attach shooter's active categories (idempotent — sync replaces).
-                $categoryIds = $user->categories->pluck('id')->all();
-                if (! empty($categoryIds)) {
-                    $score->categories()->syncWithoutDetaching($categoryIds);
-                }
 
                 $touched++;
             }

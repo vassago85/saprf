@@ -181,8 +181,6 @@ class UserManagementController extends Controller
         });
         $user->ammoLoads()->delete();
         $user->membership()?->delete();
-        $user->seasonClassifications()->delete();
-        $user->categories()->detach();
         $user->committeePositions()->delete();
 
         $user->forceDelete();

@@ -13,7 +13,6 @@ class Standing extends Model
         'season',
         'province_id',
         'division_id',
-        'category_id',
         'points',
         'rank',
         'pool_breakdown',
@@ -40,10 +39,5 @@ class Standing extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
     }
 }
