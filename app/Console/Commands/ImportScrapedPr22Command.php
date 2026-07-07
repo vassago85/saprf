@@ -119,7 +119,7 @@ class ImportScrapedPr22Command extends Command
         });
 
         $this->info('Recalculating match rankings + season standings...');
-        MatchEvent::where('match_type', 'pr22')->where('season', '2026')
+        MatchEvent::where('match_type', 'PR22')->where('season', '2026')
             ->orderBy('match_date')
             ->get()
             ->each(function ($match) use ($standings) {
@@ -127,9 +127,9 @@ class ImportScrapedPr22Command extends Command
                 $standings->calculateProvincialNormalizedScores($match);
             });
 
-        $standings->recalculateSeasonStandings('pr22', '2026', null);
+        $standings->recalculateSeasonStandings('PR22', '2026', null);
         foreach (Province::all() as $prov) {
-            $standings->recalculateSeasonStandings('pr22', '2026', $prov->id);
+            $standings->recalculateSeasonStandings('PR22', '2026', $prov->id);
         }
 
         $this->printSummary();
@@ -298,8 +298,8 @@ class ImportScrapedPr22Command extends Command
 
         return MatchEvent::create([
             'name' => $m['name'],
-            'match_type' => 'pr22',
-            'series' => 'pr22',
+            'match_type' => 'PR22',
+            'series' => 'PR22',
             'series_level' => $m['series_level'],
             'season' => '2026',
             'province_id' => $provinceId,
@@ -366,9 +366,9 @@ class ImportScrapedPr22Command extends Command
     {
         $userCount = User::query()->count();
         $importUsers = User::where('email', 'like', '%@import.saprf.local')->count();
-        $matchCount = MatchEvent::where('match_type', 'pr22')->where('season', '2026')->count();
-        $scoreCount = Score::whereHas('match', fn ($q) => $q->where('match_type', 'pr22')->where('season', '2026'))->count();
-        $standingCount = Standing::where('series', 'pr22')->where('season', '2026')->count();
+        $matchCount = MatchEvent::where('match_type', 'PR22')->where('season', '2026')->count();
+        $scoreCount = Score::whereHas('match', fn ($q) => $q->where('match_type', 'PR22')->where('season', '2026'))->count();
+        $standingCount = Standing::where('series', 'PR22')->where('season', '2026')->count();
 
         $this->newLine();
         $this->info('--- Summary ---');
