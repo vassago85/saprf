@@ -98,6 +98,73 @@
             </div>
         </form>
 
+        @php
+            $m = $user->membership;
+            $typeOptions = collect(['paid', 'free']);
+            if ($m && $m->membership_type && ! $typeOptions->contains($m->membership_type)) {
+                $typeOptions->push($m->membership_type);
+            }
+        @endphp
+        <form method="POST" action="{{ route('user-management.update-membership', $user) }}" class="space-y-6">
+            @csrf
+            @method('PUT')
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-heading text-base font-semibold text-stone-900">Membership</h2>
+                    @if($m && $m->membership_type === 'free')
+                        <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">Free registrant — non-member</span>
+                    @endif
+                </div>
+                <p class="text-xs text-stone-400 -mt-3">A <strong>Free</strong> registrant (someone who registered only to shoot one provincial) is treated as a non-member: their scores show in the match but never count in the season log.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Type</label>
+                        <select name="membership_type" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            @foreach($typeOptions as $opt)
+                                <option value="{{ $opt }}" @selected(old('membership_type', $m?->membership_type) === $opt)>{{ ucfirst($opt) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">SAPRF Number</label>
+                        <input type="text" name="saprf_number" value="{{ old('saprf_number', $m?->saprf_number) }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
+                        <select name="status" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            @foreach(['active', 'pending', 'lapsed', 'expired', 'revoked'] as $opt)
+                                <option value="{{ $opt }}" @selected(old('status', $m?->status ?? 'active') === $opt)>{{ ucfirst($opt) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Payment</label>
+                        <select name="payment_status" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            @foreach(['paid', 'unpaid', 'waived'] as $opt)
+                                <option value="{{ $opt }}" @selected(old('payment_status', $m?->payment_status ?? 'unpaid') === $opt)>{{ ucfirst($opt) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Start Date</label>
+                        <input type="date" name="start_date" value="{{ old('start_date', $m?->start_date?->format('Y-m-d')) }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Expiry Date</label>
+                        <input type="date" name="expiry_date" value="{{ old('expiry_date', $m?->expiry_date?->format('Y-m-d')) }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" class="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        Save Membership
+                    </button>
+                </div>
+            </div>
+        </form>
+
         @if(!$user->hasRole('owner') && $user->id !== auth()->id())
             <div class="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-base font-semibold text-red-800 mb-2">Danger Zone</h2>

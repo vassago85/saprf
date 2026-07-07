@@ -50,12 +50,16 @@ class ScoreValidationService
 
         $user = User::query()->with('membership')->find($score->user_id);
         $isValid = $this->membershipValidationService->isUserValidForOfficialPurposes($user, $matchDate);
+        $isFreeRegistrant = ($user?->membership?->membership_type ?? null) === 'free';
 
         if ($isValid) {
             $score->status = 'valid';
             $score->is_member = true;
             $score->validation_reason = 'Valid paid member.';
-        } elseif (! $user?->membership) {
+        } elseif (! $user?->membership || $isFreeRegistrant) {
+            // No membership record, or a "free" registration (someone who was
+            // forced to register to shoot a single provincial). Either way they
+            // shot as a non-member: visible in the match, excluded from the log.
             $score->status = 'non_member';
             $score->is_member = false;
             $score->validation_reason = 'Shot as a non-member — score visible in match, excluded from season log.';

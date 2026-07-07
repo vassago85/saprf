@@ -400,10 +400,24 @@ class ImportMembersCommand extends Command
         if (!empty($row['status'])) $attrs['status'] = strtolower($row['status']);
         if (!empty($row['payment_status'])) $attrs['payment_status'] = strtolower($row['payment_status']);
 
+        // "free" registrants are not paid-up members (they were forced to register
+        // to shoot one provincial). Never let the legacy "paid" flag stick to them
+        // so the UI + score validation treat them as non-members.
+        if (($attrs['membership_type'] ?? $mship?->membership_type) === 'free') {
+            $attrs['payment_status'] = 'unpaid';
+        }
+
         $start = $this->parseDate($row['start_date'] ?? null);
         $expiry = $this->parseDate($row['expiry_date'] ?? null);
         if ($start) $attrs['start_date'] = $start;
         if ($expiry) $attrs['expiry_date'] = $expiry;
+
+        // A membership whose expiry has already passed is not "active" — reconcile
+        // the legacy "active" flag against the real expiry date so the roster does
+        // not show lapsed people as current members.
+        if ($expiry && $expiry->lt(Carbon::now()->startOfDay())) {
+            $attrs['status'] = 'expired';
+        }
 
         if (!$mship) {
             if (empty($attrs['saprf_number'])) {

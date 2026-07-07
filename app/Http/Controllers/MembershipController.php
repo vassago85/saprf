@@ -40,7 +40,7 @@ class MembershipController extends Controller
     {
         $user = $request->user();
 
-        $memberships = $user->hasAnyRole(['owner', 'admin'])
+        $memberships = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
             ? Membership::query()->with('user')->latest()->paginate(20)
             : Membership::query()->where('user_id', $user->id)->paginate(20);
 

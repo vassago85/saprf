@@ -224,7 +224,11 @@ foreach ($eligible as $id => $r) {
     $name    = trim($first.' '.$surname);
     if ($name === '') { continue; }
 
-    $type = selectedText($xp, 'MembershipTypeId') ?: $r['type'];
+    $type = strtolower(trim(selectedText($xp, 'MembershipTypeId') ?: $r['type']));
+
+    // "free" registrants only signed up to shoot one provincial — they are not
+    // paid-up members, so never stamp them as paid.
+    $isFree = $type === 'free';
 
     $members[] = [
         'name'           => $name,
@@ -234,9 +238,9 @@ foreach ($eligible as $id => $r) {
         'date_of_birth'  => inputVal($xp, 'DateOfBirth'),
         'province'       => selectedText($xp, 'HomeProvinceId'),
         'saprf_number'   => inputVal($xp, 'MembershipNo') ?: $r['saprf'],
-        'membership_type'=> strtolower(trim($type)),
+        'membership_type'=> $type,
         'status'         => 'active',
-        'payment_status' => 'paid',
+        'payment_status' => $isFree ? 'unpaid' : 'paid',
         'start_date'     => '',
         'expiry_date'    => inputVal($xp, 'MembershipExpiryDate') ?: $r['expiry'],
         'division'       => '',                       // legacy system has no division

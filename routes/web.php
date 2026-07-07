@@ -251,6 +251,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
         Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
         Route::put('/user-management/{user}/role', [UserManagementController::class, 'updateRole'])->name('user-management.update-role');
+        Route::put('/user-management/{user}/membership', [UserManagementController::class, 'updateMembership'])->name('user-management.update-membership');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::post('/user-management/{id}/restore', [UserManagementController::class, 'restore'])->name('user-management.restore');
         Route::get('/user-management/{id}/confirm-delete', [UserManagementController::class, 'confirmForceDelete'])->name('user-management.confirm-force-delete');

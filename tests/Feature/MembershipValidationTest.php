@@ -51,6 +51,51 @@ test('null membership returns false', function () {
     expect($this->service->isMembershipValidOnDate(null, Carbon::today()))->toBeFalse();
 });
 
+test('expired-status membership is still valid for a date inside its old paid window', function () {
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-WINDOW',
+        'membership_type' => 'paid',
+        'status' => 'expired', // lapsed since, but was valid earlier
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subMonths(8),
+        'expiry_date' => Carbon::today()->subMonths(1),
+    ]);
+
+    // A match two months ago fell inside the paid window -> valid.
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::today()->subMonths(2)))->toBeTrue()
+        // But today, past expiry, it is not valid.
+        ->and($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
+});
+
+test('revoked membership is never valid, even inside its window', function () {
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-REVOKED',
+        'membership_type' => 'paid',
+        'status' => 'revoked',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subMonths(2),
+        'expiry_date' => Carbon::today()->addMonths(6),
+    ]);
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
+});
+
+test('free membership is never valid, even when active + paid + unexpired', function () {
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-FREE',
+        'membership_type' => 'free',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
+});
+
 test('classifyRegistrationCategory returns active_member for valid member', function () {
     $user = User::factory()->create();
     Membership::create([

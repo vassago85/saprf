@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Membership;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\ScoreValidationService;
+use App\Services\StandingsCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,10 +42,82 @@ class UserManagementController extends Controller
 
     public function edit(User $user): View
     {
-        $user->load('roles');
+        $user->load('roles', 'membership');
         $assignableRoles = ['member', 'match_director', 'admin'];
 
         return view('user-management.edit', compact('user', 'assignableRoles'));
+    }
+
+    public function updateMembership(
+        Request $request,
+        User $user,
+        ScoreValidationService $scoreValidation,
+        StandingsCalculationService $standings,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'membership_type' => ['nullable', 'string', 'max:50'],
+            'status' => ['required', 'in:active,pending,lapsed,expired,revoked'],
+            'payment_status' => ['required', 'in:paid,unpaid,waived'],
+            'saprf_number' => ['nullable', 'string', 'max:100'],
+            'start_date' => ['nullable', 'date'],
+            'expiry_date' => ['nullable', 'date'],
+        ]);
+
+        // A "free" registrant is a non-member by definition — never let it be
+        // saved as paid, whatever the form said.
+        if (($validated['membership_type'] ?? null) === 'free') {
+            $validated['payment_status'] = 'unpaid';
+        }
+
+        $membership = $user->membership;
+        $old = $membership
+            ? $membership->only(['membership_type', 'status', 'payment_status', 'saprf_number', 'start_date', 'expiry_date'])
+            : null;
+
+        if (! $membership) {
+            $saprf = $validated['saprf_number'] ?: 'SAPRF-IMPORT-'.strtoupper(\Illuminate\Support\Str::random(6));
+            $membership = new Membership(['user_id' => $user->id, 'saprf_number' => $saprf]);
+        }
+
+        $membership->fill([
+            'membership_type' => $validated['membership_type'] ?: $membership->membership_type,
+            'status' => $validated['status'],
+            'payment_status' => $validated['payment_status'],
+            'start_date' => $validated['start_date'] ?: null,
+            'expiry_date' => $validated['expiry_date'] ?: null,
+        ]);
+        if (! empty($validated['saprf_number'])) {
+            $membership->saprf_number = $validated['saprf_number'];
+        }
+        $membership->save();
+
+        // The change may flip this shooter's scores between valid/non_member/
+        // lapsed, so re-evaluate them and rebuild the affected standings.
+        $affectedMatchIds = [];
+        $user->load('membership');
+        foreach ($user->scores()->with('match')->get() as $score) {
+            $before = $score->status;
+            $scoreValidation->evaluateScoreStatus($score);
+            if ($score->status !== $before && $score->match) {
+                $affectedMatchIds[$score->match_id] = $score->match;
+            }
+        }
+        foreach ($affectedMatchIds as $match) {
+            $standings->recalculateForMatch($match);
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'membership.updated',
+            'Membership',
+            $membership->id,
+            $old,
+            $membership->only(['membership_type', 'status', 'payment_status', 'saprf_number', 'start_date', 'expiry_date']),
+            'Membership updated via user management.',
+        );
+
+        return redirect()->route('user-management.edit', $user)
+            ->with('success', "{$user->name}'s membership updated.");
     }
 
     public function updateRole(Request $request, User $user): RedirectResponse

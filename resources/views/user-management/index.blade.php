@@ -82,6 +82,11 @@
                             @if(! $showTrashed)
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                                     @if($user->membership)
+                                        <div class="flex flex-col gap-1">
+                                        <div class="flex items-center gap-1.5">
+                                        @if($user->membership->membership_type === 'free')
+                                            <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-500/20" title="Registered to shoot a provincial — not a paid-up member">Non-member (free)</span>
+                                        @else
                                         @switch($user->membership->status)
                                             @case('active')
                                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
@@ -101,6 +106,16 @@
                                             @default
                                                 <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($user->membership->status) }}</span>
                                         @endswitch
+                                        @endif
+                                        </div>
+                                        <span class="text-[11px] text-stone-400">
+                                            @if($user->membership->expiry_date)
+                                                Expires {{ $user->membership->expiry_date->format('d M Y') }}
+                                            @else
+                                                No expiry date
+                                            @endif
+                                        </span>
+                                        </div>
                                     @else
                                         <span class="text-xs text-stone-400">None</span>
                                     @endif

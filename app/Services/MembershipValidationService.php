@@ -14,11 +14,35 @@ class MembershipValidationService
             return false;
         }
 
-        $isActive = $membership->status === 'active';
-        $isPaid = in_array($membership->payment_status, ['paid', 'waived'], true);
-        $isNotExpired = $membership->expiry_date && $membership->expiry_date->gte($date->copy()->startOfDay());
+        // "free" registrants are people who were forced to register just to shoot
+        // a single provincial — they are NOT paid-up federation members and must
+        // never count for official/standings purposes, regardless of the active/
+        // paid flags the legacy import stamped on them.
+        if ($membership->membership_type === 'free') {
+            return false;
+        }
 
-        return $isActive && $isPaid && $isNotExpired;
+        // Revoked memberships never count, even for dates inside their old window.
+        if ($membership->status === 'revoked') {
+            return false;
+        }
+
+        $isPaid = in_array($membership->payment_status, ['paid', 'waived'], true);
+        if (! $isPaid) {
+            return false;
+        }
+
+        // Validity is a HISTORICAL fact tied to the date being checked, not the
+        // membership's current lifecycle label. A membership that has since
+        // expired (status = expired/lapsed today) was still valid for a match
+        // that fell inside its paid window, so we intentionally do NOT require
+        // status === 'active' here — we check the window itself. This keeps a
+        // shooter's earlier-season scores intact after their membership expires.
+        $day = $date->copy()->startOfDay();
+        $startedInTime = ! $membership->start_date || $membership->start_date->lte($day);
+        $notYetExpired = $membership->expiry_date && $membership->expiry_date->gte($day);
+
+        return $startedInTime && $notYetExpired;
     }
 
     public function isUserValidForOfficialPurposes(?User $user, CarbonInterface $date): bool

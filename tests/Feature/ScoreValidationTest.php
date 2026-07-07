@@ -74,6 +74,42 @@ test('shooter with NO membership record → status=non_member (no grace)', funct
         ->and($withinGrace->is_member)->toBeFalse();
 });
 
+test('free registrant (forced to register for one provincial) → status=non_member even if flagged active/paid', function () {
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-SCORE-FREE',
+        'membership_type' => 'free',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user));
+
+    expect($result->status)->toBe('non_member')
+        ->and($result->is_member)->toBeFalse();
+});
+
+test('a score earned inside the paid window stays valid even after the membership later expires', function () {
+    $matchDate = Carbon::today()->subMonths(2);
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-SCORE-EXPIRED',
+        'membership_type' => 'paid',
+        'status' => 'expired', // has since lapsed
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subMonths(8),
+        'expiry_date' => Carbon::today()->subMonths(1), // covered the match date
+    ]);
+
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
+
+    expect($result->status)->toBe('valid')
+        ->and($result->is_member)->toBeTrue();
+});
+
 test('shooter WITH a membership but lapsed at match, within 7-day grace → status=pending', function () {
     $matchDate = Carbon::today()->subDays(3);
     $user = User::factory()->create();
