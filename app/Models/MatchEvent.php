@@ -27,6 +27,8 @@ class MatchEvent extends Model
         'venue_name',
         'venue_location',
         'city',
+        'match_director',
+        'match_director_contact',
         'description',
         'match_date',
         'match_end_date',
@@ -120,6 +122,15 @@ class MatchEvent extends Model
     }
 
     // ── Computed Accessors ──
+
+    /**
+     * Display name for the match director: the scraped/entered MD name when
+     * present, otherwise the account that owns the match.
+     */
+    protected function directorName(): Attribute
+    {
+        return Attribute::get(fn () => $this->match_director ?: $this->creator?->name);
+    }
 
     protected function registrationStatus(): Attribute
     {

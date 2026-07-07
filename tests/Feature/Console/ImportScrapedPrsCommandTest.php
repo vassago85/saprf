@@ -124,6 +124,32 @@ it('imports completed PRS matches, scores, shooters and the annual log', functio
     expect((float) $aliceStanding->pool_breakdown['champs_pct'])->toBe(80.00);
 });
 
+it('sets the match director from the scrape and exposes it via director_name', function () {
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
+
+    $m = MatchEvent::where('name', 'PRS Nat 1')->first();
+    expect($m->match_director)->toBe('MD')
+        ->and($m->match_director_contact)->toBe('c')
+        ->and($m->director_name)->toBe('MD');
+});
+
+it('backfills the match director onto a pre-existing PRS match without touching scores', function () {
+    // A match imported before the match_director field existed (creator only).
+    $pre = MatchEvent::create([
+        'name' => 'PRS Nat 1', 'match_type' => 'PRS', 'series' => 'PRS', 'series_level' => 'national',
+        'season' => '2026', 'match_date' => '2026-02-01', 'status' => 'completed',
+        'created_by' => $this->creator->id, 'published' => true, 'match_director' => null,
+    ]);
+    expect($pre->director_name)->toBe('Dev Owner'); // falls back to the owning account
+
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
+
+    $pre->refresh();
+    expect($pre->match_director)->toBe('MD')
+        ->and($pre->director_name)->toBe('MD')
+        ->and($pre->scores()->count())->toBe(0); // existing match: scores left alone
+});
+
 it('creates upcoming matches as published, score-less events', function () {
     $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
 

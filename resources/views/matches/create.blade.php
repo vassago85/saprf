@@ -72,6 +72,18 @@
 
                 @include('matches._venue-selector', ['currentVenueName' => old('venue_name'), 'currentCity' => old('city'), 'currentLocation' => old('venue_location'), 'currentProvinceId' => old('province_id')])
 
+                <div>
+                    <label for="match_director" class="block text-sm font-medium text-stone-700 mb-1">Match Director</label>
+                    <input type="text" name="match_director" id="match_director" value="{{ old('match_director') }}" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    @error('match_director') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="match_director_contact" class="block text-sm font-medium text-stone-700 mb-1">MD Contact <span class="text-stone-400">(optional)</span></label>
+                    <input type="text" name="match_director_contact" id="match_director_contact" value="{{ old('match_director_contact') }}" placeholder="Phone or email" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    @error('match_director_contact') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
                 <div class="sm:col-span-2">
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
                     <textarea name="description" id="description" rows="3" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>

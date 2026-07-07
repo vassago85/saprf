@@ -45,10 +45,10 @@
                             {{ $match->location_display }}
                         </span>
                     @endif
-                    @if($match->creator)
+                    @if($match->director_name)
                         <span class="inline-flex items-center gap-1.5">
                             <svg class="size-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
-                            MD: {{ $match->creator->name }}
+                            MD: {{ $match->director_name }}
                         </span>
                     @endif
                 </div>
@@ -98,10 +98,13 @@
                                 <dt class="text-xs text-stone-400">Match Level</dt>
                                 <dd class="mt-1"><x-level-chip :level="$match->series_level" /></dd>
                             </div>
-                            @if($match->creator)
+                            @if($match->director_name)
                                 <div>
                                     <dt class="text-xs text-stone-400">Match Director</dt>
-                                    <dd class="mt-0.5 text-sm text-stone-700">{{ $match->creator->name }}</dd>
+                                    <dd class="mt-0.5 text-sm text-stone-700">{{ $match->director_name }}</dd>
+                                    @if($match->match_director_contact)
+                                        <dd class="text-xs text-stone-400">{{ $match->match_director_contact }}</dd>
+                                    @endif
                                 </div>
                             @endif
                             @if($match->season)

@@ -318,6 +318,8 @@ class ImportScrapedPr22Command extends Command
             'season' => '2026',
             'province_id' => $provinceId,
             'venue_name' => $m['venue_name'] ?: null,
+            'match_director' => ($m['match_director'] ?? '') ?: null,
+            'match_director_contact' => ($m['contact'] ?? '') ?: null,
             'match_date' => $m['match_date'],
             'match_end_date' => $endDate,
             'status' => 'completed',

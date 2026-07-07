@@ -284,11 +284,21 @@ class ImportScrapedPrsCommand extends Command
      */
     private function firstOrCreateMatch(array $m, $provinces, int $creatorId, string $status): array
     {
+        $director = ($m['match_director'] ?? '') ?: null;
+        $contact = ($m['contact'] ?? '') ?: null;
+
         $existing = MatchEvent::where('match_type', 'PRS')
             ->where('season', '2026')
             ->where('name', $m['name'])
             ->first();
         if ($existing) {
+            // Backfill the match director on matches imported before this field
+            // existed, without touching their scores.
+            if ($director && $existing->match_director !== $director) {
+                $existing->match_director = $director;
+                $existing->match_director_contact = $contact;
+                $existing->save();
+            }
             return [$existing, false];
         }
 
@@ -302,6 +312,8 @@ class ImportScrapedPrsCommand extends Command
             'season' => '2026',
             'province_id' => $provinces->get(strtolower($m['province']))?->id,
             'venue_name' => ($m['venue_name'] ?? '') ?: null,
+            'match_director' => $director,
+            'match_director_contact' => $contact,
             'match_date' => $m['match_date'],
             'match_end_date' => $endDate,
             'status' => $status,

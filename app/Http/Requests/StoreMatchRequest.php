@@ -25,6 +25,8 @@ class StoreMatchRequest extends FormRequest
             'venue_name' => ['nullable', 'string', 'max:255'],
             'venue_location' => ['nullable', 'string'],
             'city' => ['nullable', 'string', 'max:255'],
+            'match_director' => ['nullable', 'string', 'max:255'],
+            'match_director_contact' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
