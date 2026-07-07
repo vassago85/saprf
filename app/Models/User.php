@@ -30,14 +30,30 @@ class User extends Authenticatable implements MustVerifyEmail
         'must_change_password',
         'province_id',
         'division_id',
+        'club_id',
         'email_otp',
         'email_otp_expires_at',
         'email_verified_at',
         'parent_id',
         'is_managed_account',
+        'managed_relationship',
         'handover_email',
         'handover_token',
         'handover_expires_at',
+    ];
+
+    /**
+     * Relationship options for a managed (no-login) family account, keyed by the
+     * value stored in `managed_relationship` => human label.
+     *
+     * @var array<string, string>
+     */
+    public const MANAGED_RELATIONSHIPS = [
+        'junior' => 'Junior',
+        'spouse' => 'Spouse / Partner',
+        'parent' => 'Parent',
+        'sibling' => 'Sibling',
+        'other' => 'Other family',
     ];
 
     protected $hidden = [
@@ -103,6 +119,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    public function club(): BelongsTo
+    {
+        return $this->belongsTo(Club::class);
     }
 
     public function membership(): HasOne
@@ -173,6 +194,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(User::class, 'parent_id');
     }
 
+    /**
+     * All family members this user manages (juniors, spouse, etc.).
+     */
+    public function managedAccounts(): HasMany
+    {
+        return $this->hasMany(User::class, 'parent_id');
+    }
+
+    /**
+     * Backwards-compatible alias — historically all managed accounts were juniors.
+     */
     public function juniors(): HasMany
     {
         return $this->hasMany(User::class, 'parent_id');
@@ -181,6 +213,23 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isManaged(): bool
     {
         return (bool) $this->is_managed_account && $this->parent_id !== null;
+    }
+
+    public function isJuniorAccount(): bool
+    {
+        return $this->isManaged() && $this->managed_relationship === 'junior';
+    }
+
+    /**
+     * Human label for the managed relationship, e.g. "Spouse / Partner".
+     */
+    public function managedRelationshipLabel(): ?string
+    {
+        if (! $this->managed_relationship) {
+            return null;
+        }
+
+        return self::MANAGED_RELATIONSHIPS[$this->managed_relationship] ?? ucfirst($this->managed_relationship);
     }
 
     public function hasPendingHandover(): bool

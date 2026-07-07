@@ -8,7 +8,7 @@
                     <span class="font-heading text-2xl font-bold text-stone-900 tracking-tight">SAPRF</span>
                 </a>
                 <h1 class="font-heading text-2xl font-bold text-stone-900">Welcome, {{ $junior->name }}</h1>
-                <p class="mt-2 text-sm text-stone-500">{{ $junior->parent?->name ?? 'Your parent' }} has handed your shooting account over to you. Set a password to activate it.</p>
+                <p class="mt-2 text-sm text-stone-500">{{ $junior->parent?->name ?? 'A family member' }} has handed your shooting account over to you. Set a password to activate it.</p>
             </div>
 
             <div class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
@@ -59,7 +59,7 @@
                     <p class="font-medium text-stone-700">What happens next?</p>
                     <ul class="list-disc pl-4 space-y-0.5">
                         <li>Your existing scores, registrations, and standings stay attached to your account.</li>
-                        <li>Your parent will no longer have access to manage this account.</li>
+                        <li>The person who managed it will no longer have access to this account.</li>
                         <li>You can register for matches and manage your membership directly.</li>
                     </ul>
                 </div>

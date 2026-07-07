@@ -14,7 +14,12 @@
                         <span class="text-lg font-bold text-emerald-700">{{ Str::of($junior->name)->explode(' ')->take(2)->map(fn($p) => Str::substr($p, 0, 1))->implode('') }}</span>
                     </div>
                     <div>
-                        <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $junior->name }}</h1>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $junior->name }}</h1>
+                            @if($junior->managedRelationshipLabel())
+                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-sky-100">{{ $junior->managedRelationshipLabel() }}</span>
+                            @endif
+                        </div>
                         <p class="text-sm text-stone-500">
                             {{ $junior->province?->name ?? '—' }}
                             @if($age !== null) &middot; {{ $age }} years old @endif

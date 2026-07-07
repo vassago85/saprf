@@ -31,7 +31,7 @@ class FamilyController extends Controller
     public function index(Request $request): View
     {
         $juniors = $request->user()
-            ->juniors()
+            ->managedAccounts()
             ->with(['province', 'division', 'membership'])
             ->orderBy('name')
             ->get();
@@ -54,10 +54,10 @@ class FamilyController extends Controller
 
         $junior = DB::transaction(function () use ($parent, $data) {
             // Auto-generate placeholder email — managed accounts don't log in directly.
-            // Format: junior-{slug}-{rand}@managed.saprf.co.za
+            // Format: managed-{slug}-{rand}@managed.saprf.co.za
             $slug = Str::slug($data['name']);
             $placeholderEmail = sprintf(
-                'junior-%s-%s@managed.saprf.co.za',
+                'managed-%s-%s@managed.saprf.co.za',
                 $slug ?: 'shooter',
                 Str::lower(Str::random(6)),
             );
@@ -65,10 +65,11 @@ class FamilyController extends Controller
             $junior = User::create([
                 'parent_id' => $parent->id,
                 'is_managed_account' => true,
+                'managed_relationship' => $data['relationship'],
                 'name' => $data['name'],
                 'email' => $placeholderEmail,
                 'password' => Hash::make(Str::random(40)), // unusable password
-                'date_of_birth' => $data['date_of_birth'],
+                'date_of_birth' => $data['date_of_birth'] ?? null,
                 'province_id' => $data['province_id'],
                 'division_id' => $data['division_id'] ?? null,
                 'email_verified_at' => now(), // managed accounts don't need OTP verification
@@ -81,15 +82,15 @@ class FamilyController extends Controller
 
         $this->auditLogService->log(
             $parent,
-            'family.junior.created',
+            'family.member.created',
             'User',
             $junior->id,
             null,
-            ['name' => $junior->name, 'parent_id' => $parent->id],
+            ['name' => $junior->name, 'relationship' => $junior->managed_relationship, 'parent_id' => $parent->id],
         );
 
         return redirect()->route('family.index')
-            ->with('success', $junior->name . ' has been added to your family. You can now register them for matches.');
+            ->with('success', $junior->name . ' has been added to your family. You can now register them for matches and pay from your account.');
     }
 
     public function show(Request $request, User $junior): View
@@ -130,27 +131,34 @@ class FamilyController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'date_of_birth' => ['required', 'date', 'before:today', 'after:1995-01-01'],
+            'relationship' => ['required', \Illuminate\Validation\Rule::in(array_keys(User::MANAGED_RELATIONSHIPS))],
+            'date_of_birth' => [
+                \Illuminate\Validation\Rule::requiredIf(fn () => $request->input('relationship') === 'junior'),
+                'nullable', 'date', 'before:today',
+            ],
             'province_id' => ['required', 'exists:provinces,id'],
             'division_id' => ['required', 'exists:divisions,id'],
+        ], [
+            'date_of_birth.required' => 'Date of birth is required for junior accounts.',
         ]);
 
-        $old = $junior->only(['name', 'date_of_birth', 'province_id', 'division_id']);
+        $old = $junior->only(['name', 'managed_relationship', 'date_of_birth', 'province_id', 'division_id']);
 
         $junior->update([
             'name' => $data['name'],
-            'date_of_birth' => $data['date_of_birth'],
+            'managed_relationship' => $data['relationship'],
+            'date_of_birth' => $data['date_of_birth'] ?? null,
             'province_id' => $data['province_id'],
             'division_id' => $data['division_id'] ?? null,
         ]);
 
         $this->auditLogService->log(
             $request->user(),
-            'family.junior.updated',
+            'family.member.updated',
             'User',
             $junior->id,
             $old,
-            $junior->only(['name', 'date_of_birth', 'province_id', 'division_id']),
+            $junior->only(['name', 'managed_relationship', 'date_of_birth', 'province_id', 'division_id']),
         );
 
         return redirect()->route('family.show', $junior)
@@ -168,7 +176,7 @@ class FamilyController extends Controller
         $data = $request->validate([
             'handover_email' => ['required', 'email', 'max:120', 'unique:users,email'],
         ], [
-            'handover_email.unique' => 'A user with this email already exists. The junior must use a fresh email address.',
+            'handover_email.unique' => 'A user with this email already exists. They must use a fresh email address.',
         ]);
 
         $plainToken = Str::random(60);
@@ -192,7 +200,7 @@ class FamilyController extends Controller
 
         $this->auditLogService->log(
             $request->user(),
-            'family.junior.handover.started',
+            'family.member.handover.started',
             'User',
             $junior->id,
             null,
@@ -217,7 +225,7 @@ class FamilyController extends Controller
 
         $this->auditLogService->log(
             $request->user(),
-            'family.junior.handover.cancelled',
+            'family.member.handover.cancelled',
             'User',
             $junior->id,
             $old,
@@ -264,7 +272,7 @@ class FamilyController extends Controller
 
         $this->auditLogService->log(
             $junior,
-            'family.junior.handover.completed',
+            'family.member.handover.completed',
             'User',
             $junior->id,
             ['old_email' => $oldEmail, 'parent_id' => $junior->getOriginal('parent_id')],
@@ -298,7 +306,7 @@ class FamilyController extends Controller
             ->first();
 
         if (! $junior) {
-            abort(404, 'This handover invitation is invalid or has expired. Please ask your parent to send a new one.');
+            abort(404, 'This handover invitation is invalid or has expired. Please ask the person managing your account to send a new one.');
         }
 
         return $junior;

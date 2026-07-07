@@ -430,7 +430,7 @@ class MatchController extends Controller
             ->orderByDesc('is_primary')
             ->get();
 
-        $juniors = $parent->juniors()->orderBy('name')->get();
+        $juniors = $parent->managedAccounts()->orderBy('name')->get();
 
         return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors'));
     }

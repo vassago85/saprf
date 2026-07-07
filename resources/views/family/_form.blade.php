@@ -1,26 +1,44 @@
 @php
     $isEdit = isset($junior);
     $junior = $junior ?? null;
+    $currentRelationship = old('relationship', $isEdit ? ($junior->managed_relationship ?? 'junior') : 'junior');
 @endphp
 
-<div class="space-y-5 max-w-2xl">
-    <div>
-        <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Junior's Full Name <span class="text-red-500">*</span></label>
-        <input type="text" name="name" id="name" required maxlength="120"
-               value="{{ old('name', $isEdit ? $junior->name : '') }}"
-               placeholder="e.g. Conner Britnell"
-               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-        @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+<div class="space-y-5 max-w-2xl" x-data="{ rel: '{{ $currentRelationship }}' }">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+            <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+            <input type="text" name="name" id="name" required maxlength="120"
+                   value="{{ old('name', $isEdit ? $junior->name : '') }}"
+                   placeholder="e.g. Sarah Britnell"
+                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+            @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label for="relationship" class="block text-sm font-medium text-stone-700 mb-1">Relationship to you <span class="text-red-500">*</span></label>
+            <select name="relationship" id="relationship" required x-model="rel"
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                @foreach(\App\Models\User::MANAGED_RELATIONSHIPS as $value => $label)
+                    <option value="{{ $value }}" @selected((string) $currentRelationship === (string) $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('relationship') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-            <label for="date_of_birth" class="block text-sm font-medium text-stone-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-            <input type="date" name="date_of_birth" id="date_of_birth" required
+            <label for="date_of_birth" class="block text-sm font-medium text-stone-700 mb-1">
+                Date of Birth <span class="text-red-500" x-show="rel === 'junior'">*</span>
+                <span class="text-stone-400 font-normal" x-show="rel !== 'junior'" x-cloak>(optional)</span>
+            </label>
+            <input type="date" name="date_of_birth" id="date_of_birth"
+                   x-bind:required="rel === 'junior'"
                    value="{{ old('date_of_birth', $isEdit ? $junior->date_of_birth?->format('Y-m-d') : '') }}"
-                   max="{{ now()->subYears(5)->format('Y-m-d') }}"
+                   max="{{ now()->format('Y-m-d') }}"
                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-            <p class="mt-1 text-xs text-stone-400">Used to determine junior eligibility (under 21 on 1 Jan).</p>
+            <p class="mt-1 text-xs text-stone-400" x-show="rel === 'junior'">Used to determine junior age category.</p>
             @error('date_of_birth') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
@@ -53,7 +71,7 @@
     <div class="flex items-center gap-3 pt-2">
         <button type="submit"
                 class="rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-            {{ $isEdit ? 'Save Changes' : 'Add Junior' }}
+            {{ $isEdit ? 'Save Changes' : 'Add Family Member' }}
         </button>
         <a href="{{ $isEdit ? route('family.show', $junior) : route('family.index') }}"
            class="text-sm text-stone-500 hover:text-stone-700">Cancel</a>

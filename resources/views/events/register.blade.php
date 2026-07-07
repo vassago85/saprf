@@ -32,7 +32,7 @@
                 <form method="POST" action="{{ url('/events/' . $match->id . '/register') }}" class="p-6 space-y-6">
                     @csrf
 
-                    {{-- Register-as Selector (only shown when parent has juniors) --}}
+                    {{-- Register-as Selector (only shown when the user manages family members) --}}
                     @if(isset($juniors) && $juniors->isNotEmpty())
                         @php $registerUrl = url('/events/' . $match->id . '/register'); @endphp
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
@@ -44,19 +44,19 @@
                                 <option value="" @selected(!request('for_user') && $shooter->id === auth()->id())>Myself ({{ auth()->user()->name }})</option>
                                 @foreach($juniors as $j)
                                     <option value="{{ $j->id }}" @selected((string) request('for_user') === (string) $j->id)>
-                                        {{ $j->name }} (junior)
+                                        {{ $j->name }}@if($j->managed_relationship) ({{ $j->managed_relationship }})@endif
                                     </option>
                                 @endforeach
                             </select>
                             {{-- Carry the selected for_user through to POST submission --}}
                             <input type="hidden" name="for_user" value="{{ request('for_user') }}">
-                            <p class="mt-1.5 text-xs text-stone-500">You're a parent — choose whether this entry is for yourself or one of your juniors.</p>
+                            <p class="mt-1.5 text-xs text-stone-500">Choose whether this entry is for yourself or a family member you manage — you'll pay for it from your account.</p>
                         </div>
                     @endif
 
                     {{-- Pricing Display --}}
                     <div class="rounded-xl border border-stone-200 p-4 space-y-3">
-                        <h3 class="text-sm font-semibold text-stone-700">{{ isset($shooter) && $shooter->id !== auth()->id() ? 'Junior Registration' : 'Your Registration' }}</h3>
+                        <h3 class="text-sm font-semibold text-stone-700">{{ isset($shooter) && $shooter->id !== auth()->id() ? 'Family Member Registration' : 'Your Registration' }}</h3>
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-stone-600">{{ ($shooter ?? auth()->user())->name }}</p>
