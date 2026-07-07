@@ -160,12 +160,17 @@ class StandingController extends Controller
     {
         $user->load('province', 'division');
 
+        // Every match the shooter attended in the season, across BOTH series.
+        // Include all publicly visible statuses (not just 'valid') so matches
+        // shot as a non-member / lapsed / pending still appear here — they just
+        // won't have contributed to the season log.
         $scores = Score::with(['match.province', 'division'])
             ->where('user_id', $user->id)
             ->whereHas('match', fn ($q) => $q->where('season', $season)->where('status', 'completed'))
-            ->where('status', 'valid')
-            ->orderByDesc('normalized_score')
-            ->get();
+            ->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)
+            ->get()
+            ->sortByDesc(fn ($s) => optional($s->match?->match_date)->timestamp ?? 0)
+            ->values();
 
         $standingsSummary = [];
         foreach (['PRS', 'PR22'] as $series) {
@@ -205,6 +210,15 @@ class StandingController extends Controller
         $rule = \App\Models\QualificationRule::where('season', $season)->first();
         $bestOf = $rule?->best_of_count;
 
+        // Group attended matches by series and key the ranking summary by series
+        // so the view can render a card per series the shooter took part in —
+        // even one where they have scores but no ranking (e.g. all non-member).
+        $scoresBySeries = $scores->groupBy(fn ($s) => $s->match?->series);
+        $summaryBySeries = collect($standingsSummary)->keyBy('series');
+        $seriesOrder = collect(['PRS', 'PR22'])
+            ->filter(fn ($s) => $scoresBySeries->has($s) || $summaryBySeries->has($s))
+            ->values();
+
         $matchesShot = $scores->count();
         $bestNormalized = $scores->max('normalized_score');
 
@@ -212,6 +226,9 @@ class StandingController extends Controller
             'shooter' => $user,
             'season' => $season,
             'scores' => $scores,
+            'scoresBySeries' => $scoresBySeries,
+            'summaryBySeries' => $summaryBySeries,
+            'seriesOrder' => $seriesOrder,
             'standingsSummary' => $standingsSummary,
             'matchesShot' => $matchesShot,
             'bestNormalized' => $bestNormalized ? round($bestNormalized, 2) : null,

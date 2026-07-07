@@ -302,14 +302,16 @@ class FederationDemoSeeder extends Seeder
             }
 
             // ── Qualification Rules ──
-            // PRS keeps the classic best-of-N model for now.
+            // PRS annual "national log": best 3 regular (national) match %s plus
+            // a fixed, non-droppable SA Champs (final) %. Max = 400. Only
+            // national + final matches count; no provincial dimension.
             QualificationRule::firstOrCreate(
                 ['series' => 'PRS', 'season' => '2026'],
                 [
-                    'scoring_mode' => 'best_of_n',
-                    'min_out_of_province_matches' => 2,
-                    'best_of_count' => 5,
-                    'total_qualifying_matches' => 7,
+                    'scoring_mode' => 'best_n_plus_champs',
+                    'min_out_of_province_matches' => 0,
+                    'best_of_count' => 3,
+                    'total_qualifying_matches' => 4,
                     'created_by' => $admin->id,
                 ],
             );

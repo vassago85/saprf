@@ -22,6 +22,15 @@ class StandingsCalculationService
         $rule = QualificationRule::where('series', $match->series)->where('season', $season)->first();
         $pooled = $rule && $rule->isPooledScoring();
 
+        // PRS annual log: only national (regular) + final (champs) matches count,
+        // and there is no provincial variant — one recalc of the overall +
+        // per-division tables covers it regardless of the match's level.
+        if ($rule && $rule->isAnnualLogWithChamps()) {
+            $this->recalculateSeasonStandings($match->series, $season);
+
+            return;
+        }
+
         if (in_array($match->series_level, ['national', 'final'], true)) {
             // Any 2-day national flagged as dual-count feeds the PR22 provincial pool
             // via day-1 provincial_normalized_score. Compute those regardless of
@@ -135,6 +144,17 @@ class StandingsCalculationService
         // scoring is on, so we can widen the score filter to include provincial
         // matches in the national standings pool.
         $rule = QualificationRule::where('series', $series)->where('season', $season)->first();
+
+        // PRS annual log has no provincial standings — only the national/overall
+        // and per-division tables. Bail out for any province-scoped call.
+        if ($rule && $rule->isAnnualLogWithChamps()) {
+            if (! $isProvincial) {
+                $this->recalculateAnnualLogStandings($series, $season, $rule);
+            }
+
+            return;
+        }
+
         $usePooled = ! $isProvincial && $rule && $rule->isPooledScoring();
 
         // status='valid' is set by ScoreValidationService when the shooter was
@@ -223,12 +243,213 @@ class StandingsCalculationService
     }
 
     /**
+     * PRS annual "national log" standings.
+     *
+     * Only national (regular) and final (champs) matches count — provincial PRS
+     * matches are ignored, and there is no province dimension. Computes the
+     * overall table (match-wide normalisation) plus one independent table per
+     * division (per-division normalisation).
+     */
+    public function recalculateAnnualLogStandings(string $series, string $season, QualificationRule $rule): void
+    {
+        $scores = Score::query()
+            ->with(['match'])
+            ->where('status', 'valid')
+            ->where('counts_for_season', true)
+            ->whereNotNull('user_id')
+            ->get()
+            ->filter(function (Score $score) use ($series, $season): bool {
+                $match = $score->match;
+                if (! $match) {
+                    return false;
+                }
+                $matchSeason = $match->season ?: (string) $match->match_date->year;
+
+                return $match->series === $series
+                    && $matchSeason === $season
+                    && in_array($match->series_level, ['national', 'final'], true);
+            });
+
+        $regularBestOf = $rule->regularBestOf();
+
+        // Wipe the whole (province-null) set for this series/season, overall +
+        // every division, then rebuild.
+        Standing::where('series', $series)
+            ->where('season', $season)
+            ->whereNull('province_id')
+            ->delete();
+
+        $overall = $this->aggregatePrsAnnualLog($scores, 'overall', $regularBestOf);
+        $this->persistCompetitionRankedStandings($overall, $series, $season, null, null);
+
+        $divisionIds = $scores->pluck('division_id')->filter()->unique();
+        foreach ($divisionIds as $divisionId) {
+            $divScores = $scores->where('division_id', $divisionId);
+            $divTotals = $this->aggregatePrsAnnualLog($divScores, 'division', $regularBestOf);
+            $this->persistCompetitionRankedStandings($divTotals, $series, $season, null, $divisionId);
+        }
+    }
+
+    /**
+     * Annual-log aggregation for a single scope (overall or one division).
+     *
+     * total = (sum of BEST $regularBestOf regular/national match %s)
+     *         + (championship/final match %, non-droppable, 0 if not shot)
+     *
+     * The champs component can never be replaced by an extra regular match, so
+     * a shooter with four 100% regulars and no champs tops out at 300, not 400.
+     *
+     * @return \Illuminate\Support\Collection<int, array{user_id:int, points:float, pool_breakdown:array}>
+     */
+    private function aggregatePrsAnnualLog(Collection $scores, string $context, int $regularBestOf): Collection
+    {
+        return $scores
+            ->groupBy('user_id')
+            ->map(function (Collection $userScores, int $userId) use ($context, $regularBestOf): array {
+                $regular = $userScores
+                    ->filter(fn (Score $s) => $s->match?->series_level === 'national')
+                    ->map(fn (Score $s) => [
+                        'match_id' => $s->match_id,
+                        'match_name' => $s->match?->name,
+                        'pct' => round($this->normalizedScoreForContext($s, $context), 2),
+                    ])
+                    ->sortByDesc('pct')
+                    ->values();
+
+                $counted = $regular->take($regularBestOf)->values();
+                $regularTotal = round((float) $counted->sum('pct'), 2);
+
+                // Championship = the single best final-level score (usually only
+                // one champs match exists). 0 if the shooter didn't shoot it.
+                $champsScores = $userScores
+                    ->filter(fn (Score $s) => $s->match?->series_level === 'final')
+                    ->map(fn (Score $s) => [
+                        'match_id' => $s->match_id,
+                        'match_name' => $s->match?->name,
+                        'pct' => round($this->normalizedScoreForContext($s, $context), 2),
+                    ])
+                    ->sortByDesc('pct')
+                    ->values();
+
+                $champs = $champsScores->first();
+                $champsPct = $champs ? (float) $champs['pct'] : 0.0;
+
+                $total = round($regularTotal + $champsPct, 2);
+
+                return [
+                    'user_id' => $userId,
+                    'points' => $total,
+                    'pool_breakdown' => [
+                        'mode' => 'annual_log',
+                        'regular' => $counted->all(),
+                        'regular_counted' => $counted->count(),
+                        'regular_best_of' => $regularBestOf,
+                        'regular_total' => $regularTotal,
+                        'champs' => $champs,
+                        'champs_pct' => round($champsPct, 2),
+                        'max' => $regularBestOf * 100 + 100,
+                        'total' => $total,
+                    ],
+                ];
+            })
+            ->sortByDesc('points')
+            ->values();
+    }
+
+    /**
+     * Persist standings using standard competition ranking: shooters tied on
+     * points share a rank and the following rank(s) are skipped (1, 2, 2, 4).
+     * Ties are decided on points rounded to 2 decimals.
+     *
+     * @param \Illuminate\Support\Collection<int, array{user_id:int, points:float, pool_breakdown?:array}> $totals
+     */
+    public function persistCompetitionRankedStandings(
+        Collection $totals,
+        string $series,
+        string $season,
+        ?int $provinceId,
+        ?int $divisionId,
+    ): void {
+        $ordered = $totals->sortByDesc(fn (array $row) => round((float) $row['points'], 2))->values();
+
+        $rank = 0;
+        $position = 0;
+        $previousPoints = null;
+
+        foreach ($ordered as $row) {
+            $position++;
+            $points = round((float) $row['points'], 2);
+
+            if ($previousPoints === null || $points !== $previousPoints) {
+                $rank = $position;
+                $previousPoints = $points;
+            }
+
+            Standing::create([
+                'user_id' => (int) $row['user_id'],
+                'series' => $series,
+                'season' => $season,
+                'province_id' => $provinceId,
+                'division_id' => $divisionId,
+                'points' => (float) $row['points'],
+                'rank' => $rank,
+                'pool_breakdown' => $row['pool_breakdown'] ?? null,
+            ]);
+        }
+    }
+
+    /**
+     * Ranked annual-log output for a given season + division (or overall when
+     * $divisionId is null). Reads the persisted standings and shapes them for
+     * display / export.
+     *
+     * @return \Illuminate\Support\Collection<int, array{
+     *     rank:int, user_id:int, shooter:string, regular:array, champs_pct:float,
+     *     total:float, max:int
+     * }>
+     */
+    public function annualLog(string $series, string $season, ?int $divisionId = null): Collection
+    {
+        return Standing::query()
+            ->with('user:id,name')
+            ->where('series', $series)
+            ->where('season', $season)
+            ->whereNull('province_id')
+            ->where('division_id', $divisionId)
+            ->orderBy('rank')
+            ->orderByDesc('points')
+            ->get()
+            ->map(function (Standing $s) {
+                $b = $s->pool_breakdown ?? [];
+
+                return [
+                    'rank' => (int) $s->rank,
+                    'user_id' => (int) $s->user_id,
+                    'shooter' => $s->user?->name ?? '—',
+                    'regular' => $b['regular'] ?? [],
+                    'regular_total' => (float) ($b['regular_total'] ?? 0),
+                    'champs' => $b['champs'] ?? null,
+                    'champs_pct' => (float) ($b['champs_pct'] ?? 0),
+                    'total' => (float) $s->points,
+                    'max' => (int) ($b['max'] ?? 400),
+                ];
+            })
+            ->values();
+    }
+
+    /**
      * Weighted-pool aggregation: scores are grouped by pool (provincial /
      * national / champs) based on their match's series_level. Each pool has
      * a "best of N" and a weight (%). The season total is a weighted average
      * out of 100.
      *
-     * Missing matches count as 0 (strict interpretation — rewards attendance).
+     * Pool divisor rules:
+     *   - provincial / champs: STRICT — sum of best-N ÷ N (fixed), so missing
+     *     matches effectively count as 0 (rewards attendance).
+     *   - national: DROP-ONE — a shooter's worst national is always dropped, so
+     *     the number of counting scores = (nationals shot − 1), capped at the
+     *     pool's best-of (2). The pool result is the AVERAGE of those counting
+     *     scores. Practically: 1 shot → 0, 2 shot → best 1, 3+ shot → best 2.
      *
      * @return \Illuminate\Support\Collection<int, array{user_id: int, points: float, pool_breakdown: array}>
      */
@@ -254,12 +475,21 @@ class StandingsCalculationService
                         ->values();
 
                     $sorted = $normalized->sortDesc()->values();
-                    $counted = $sorted->take($config['best_of']);
-                    $sum = $counted->sum();
 
-                    // Strict: divide by best_of even when the shooter has fewer scores.
-                    // Missing matches count as 0.
-                    $poolAverage = $sum / $config['best_of'];
+                    if ($poolKey === 'national') {
+                        // Drop-one: you must shoot one extra national to unlock each
+                        // counting score. The divisor is the number that actually
+                        // count, so a single counting score is worth its full value.
+                        $countN = max(0, min($config['best_of'], $sorted->count() - 1));
+                        $counted = $sorted->take($countN);
+                        $poolAverage = $countN > 0 ? $counted->sum() / $countN : 0.0;
+                    } else {
+                        // Strict: divide by best_of even when the shooter has fewer
+                        // scores. Missing matches count as 0.
+                        $counted = $sorted->take($config['best_of']);
+                        $poolAverage = $counted->sum() / $config['best_of'];
+                    }
+
                     $contribution = ($poolAverage * $config['weight']) / 100.0;
 
                     $breakdown[$poolKey] = [

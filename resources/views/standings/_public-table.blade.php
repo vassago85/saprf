@@ -78,7 +78,13 @@
                             @endif
                             <td class="px-4 sm:px-5 py-4 text-right">
                                 <span class="text-sm font-mono font-bold text-stone-900">{{ number_format($standing->points, 1) }}</span>
-                                @if(!empty($standing->pool_breakdown))
+                                @if(($standing->pool_breakdown['mode'] ?? null) === 'annual_log')
+                                    <span class="block text-[10px] text-stone-400 mt-0.5">/ {{ $standing->pool_breakdown['max'] ?? 400 }}</span>
+                                    <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
+                                        <span class="rounded bg-emerald-50 text-emerald-700 px-1 py-0.5" title="Best {{ $standing->pool_breakdown['regular_best_of'] ?? 3 }} regular (national) matches: {{ $standing->pool_breakdown['regular_counted'] ?? 0 }} counted">R {{ number_format($standing->pool_breakdown['regular_total'] ?? 0, 1) }}</span>
+                                        <span class="rounded bg-amber-50 text-amber-700 px-1 py-0.5" title="SA Champs (fixed, not droppable)">C {{ number_format($standing->pool_breakdown['champs_pct'] ?? 0, 1) }}</span>
+                                    </div>
+                                @elseif(!empty($standing->pool_breakdown))
                                     <span class="block text-[10px] text-stone-400 mt-0.5">/ 100</span>
                                     <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
                                         @if(isset($standing->pool_breakdown['provincial']))

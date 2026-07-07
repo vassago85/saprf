@@ -33,22 +33,83 @@
         </div>
 
         <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-            @foreach($standingsSummary as $entry)
+            @php
+                $statusBadges = [
+                    'valid' => ['label' => 'Counts', 'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
+                    'pending' => ['label' => 'Pending', 'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
+                    'lapsed' => ['label' => 'Lapsed', 'class' => 'bg-orange-50 text-orange-700 ring-orange-200'],
+                    'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-500 ring-stone-200'],
+                ];
+            @endphp
+            @foreach($seriesOrder as $series)
+                @php
+                    $entry = $summaryBySeries[$series] ?? null;
+                    $seriesScores = ($scoresBySeries[$series] ?? collect())->values();
+                @endphp
                 <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <h2 class="text-lg font-semibold text-stone-900">{{ $entry['series'] }} Rankings</h2>
-                            <x-discipline-chip :discipline="$entry['series']" />
+                            <h2 class="text-lg font-semibold text-stone-900">{{ $series }} @if($entry) Rankings @else Matches @endif</h2>
+                            <x-discipline-chip :discipline="$series" />
                         </div>
-                        @if(($entry['scoring_mode'] ?? null) === 'weighted_pools')
+                        @if($entry && ($entry['scoring_mode'] ?? null) === 'weighted_pools')
                             <span class="text-xs text-stone-400">Weighted pool total (out of 100)</span>
-                        @elseif($bestOf)
+                        @elseif($entry && ($entry['pool_breakdown']['mode'] ?? null) === 'annual_log')
+                            <span class="text-xs text-stone-400">Best 3 nationals + SA Champs (out of 400)</span>
+                        @elseif($entry && $bestOf)
                             <span class="text-xs text-stone-400">Best {{ $bestOf }} scores count</span>
+                        @elseif(! $entry)
+                            <span class="text-xs text-stone-400">{{ $seriesScores->count() }} match{{ $seriesScores->count() === 1 ? '' : 'es' }} attended — not ranked</span>
                         @endif
                     </div>
 
+                    @if($entry)
+
+                    {{-- Annual "national log" breakdown card (best-N regular + fixed champs, e.g. PRS) --}}
+                    @if(($entry['pool_breakdown']['mode'] ?? null) === 'annual_log')
+                        @php $pb = $entry['pool_breakdown']; @endphp
+                        <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-white">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Annual Log Breakdown</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                                    <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Best {{ $pb['regular_best_of'] ?? 3 }} Regular</span>
+                                    <div class="mt-2 flex items-baseline gap-1">
+                                        <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format($pb['regular_total'] ?? 0, 2) }}</span>
+                                        <span class="text-xs text-stone-400">/ {{ ($pb['regular_best_of'] ?? 3) * 100 }}</span>
+                                    </div>
+                                    <div class="mt-2 space-y-1 text-[11px] text-stone-500">
+                                        @forelse($pb['regular'] ?? [] as $reg)
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="truncate">{{ $reg['match_name'] ?? ('Match #'.$reg['match_id']) }}</span>
+                                                <span class="font-mono">{{ number_format($reg['pct'], 2) }}%</span>
+                                            </div>
+                                        @empty
+                                            <div class="text-stone-400">No regular matches counted.</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                                    <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">SA Champs</span>
+                                    <div class="mt-2 flex items-baseline gap-1">
+                                        <span class="text-2xl font-bold text-amber-800 tabular-nums">{{ number_format($pb['champs_pct'] ?? 0, 2) }}</span>
+                                        <span class="text-xs text-stone-400">/ 100</span>
+                                    </div>
+                                    <div class="mt-2 text-[11px] text-stone-500">
+                                        @if(!empty($pb['champs']))
+                                            <span class="truncate">{{ $pb['champs']['match_name'] ?? ('Match #'.$pb['champs']['match_id']) }}</span>
+                                        @else
+                                            <span class="text-stone-400">Champs not shot — fixed at 0 (cannot be replaced by a regular match).</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Annual Total</span>
+                                <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 2) }} / {{ $pb['max'] ?? 400 }}</span>
+                            </div>
+                        </div>
                     {{-- Pool breakdown card (weighted-pools mode, e.g. PR22) --}}
-                    @if(!empty($entry['pool_breakdown']))
+                    @elseif(!empty($entry['pool_breakdown']))
                         @php
                             $pb = $entry['pool_breakdown'];
                             $poolMeta = [
@@ -118,12 +179,7 @@
                             @endif
                         </div>
                     </div>
-
-                    @php
-                        $seriesScores = $scores->filter(fn ($s) => $s->match?->series === $entry['series'])->values();
-                        $countedScores = $bestOf ? $seriesScores->take($bestOf) : $seriesScores;
-                        $droppedScores = $bestOf ? $seriesScores->slice($bestOf) : collect();
-                    @endphp
+                    @endif
 
                     <div class="overflow-x-auto">
                         <table class="w-full">
@@ -131,6 +187,7 @@
                                 <tr class="border-b border-stone-200 bg-stone-50/50">
                                     <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
                                     <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
+                                    <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden md:table-cell">Level</th>
                                     <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division</th>
                                     <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">#</th>
                                     <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
@@ -139,17 +196,25 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($seriesScores as $idx => $score)
+                                @forelse($seriesScores as $score)
                                     @php
-                                        $isCounted = !$bestOf || $idx < $bestOf;
+                                        $badge = $statusBadges[$score->status] ?? $statusBadges['non_member'];
+                                        $levelLabel = match($score->match?->series_level) {
+                                            'national' => 'National',
+                                            'provincial' => 'Provincial',
+                                            'final' => 'SA Champs',
+                                            default => ucfirst((string) $score->match?->series_level),
+                                        };
                                     @endphp
-                                    <tr class="border-b border-stone-50 {{ $isCounted ? 'hover:bg-stone-50/50' : 'opacity-50 bg-stone-50/30' }}">
+                                    <tr class="border-b border-stone-50 hover:bg-stone-50/50">
                                         <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ $score->match?->match_date?->format('j M') }}</td>
                                         <td class="px-5 py-3">
                                             <a href="{{ url('/events/' . $score->match_id) }}" class="text-sm font-medium text-stone-900 hover:text-emerald-700 transition">
                                                 {{ $score->match?->name ?? 'Unknown' }}
                                             </a>
+                                            <span class="md:hidden block text-[11px] text-stone-400">{{ $levelLabel }}</span>
                                         </td>
+                                        <td class="px-5 py-3 hidden md:table-cell text-sm text-stone-500">{{ $levelLabel }}</td>
                                         <td class="px-5 py-3 hidden sm:table-cell text-sm text-stone-500">{{ $score->division?->name ?? '—' }}</td>
                                         <td class="px-5 py-3 text-center">
                                             @if($score->overall_rank && $score->overall_rank <= 3)
@@ -160,25 +225,24 @@
                                             @endif
                                         </td>
                                         <td class="px-5 py-3 text-right text-sm text-stone-700 tabular-nums">{{ number_format($score->raw_score, 1) }}</td>
-                                        <td class="px-5 py-3 text-right text-sm font-bold {{ $isCounted ? 'text-emerald-700' : 'text-stone-400' }} tabular-nums">{{ number_format($score->normalized_score, 2) }}</td>
+                                        <td class="px-5 py-3 text-right text-sm font-bold text-stone-700 tabular-nums">{{ number_format($score->normalized_score, 2) }}</td>
                                         <td class="px-5 py-3 text-center">
-                                            @if($isCounted)
-                                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">COUNTED</span>
-                                            @else
-                                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-400 ring-1 ring-inset ring-stone-200">DROPPED</span>
-                                            @endif
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset {{ $badge['class'] }}">{{ strtoupper($badge['label']) }}</span>
                                         </td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="px-5 py-8 text-center text-sm text-stone-400">No matches attended in this series.</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
-                            @if($countedScores->isNotEmpty())
+                            @if($seriesScores->isNotEmpty())
                                 <tfoot class="border-t-2 border-stone-200 bg-stone-50/50">
                                     <tr>
-                                        <td colspan="4" class="px-5 py-3 text-sm font-semibold text-stone-700">
-                                            Season Total ({{ $countedScores->count() }} counted{{ $bestOf ? ' of ' . $seriesScores->count() : '' }})
+                                        <td colspan="6" class="px-5 py-3 text-sm font-semibold text-stone-700">
+                                            {{ $seriesScores->count() }} match{{ $seriesScores->count() === 1 ? '' : 'es' }} attended
                                         </td>
-                                        <td class="px-5 py-3 text-right text-sm text-stone-600 tabular-nums">{{ number_format($countedScores->sum('raw_score'), 1) }}</td>
-                                        <td class="px-5 py-3 text-right text-sm font-bold text-emerald-700 tabular-nums">{{ number_format($countedScores->sum('normalized_score'), 2) }}</td>
+                                        <td class="px-5 py-3 text-right text-sm font-bold text-emerald-700 tabular-nums" title="Best % score">{{ number_format($seriesScores->max('normalized_score'), 2) }}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -188,10 +252,10 @@
                 </div>
             @endforeach
 
-            @if(empty($standingsSummary))
+            @if($seriesOrder->isEmpty())
                 <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
-                    <h3 class="text-lg font-semibold text-stone-700">No rankings yet</h3>
-                    <p class="mt-1 text-sm text-stone-400">This shooter has no scored matches in the {{ $season }} season.</p>
+                    <h3 class="text-lg font-semibold text-stone-700">No matches yet</h3>
+                    <p class="mt-1 text-sm text-stone-400">This shooter has no recorded matches in the {{ $season }} season.</p>
                 </div>
             @endif
 

@@ -41,6 +41,25 @@ class QualificationRule extends Model
         return $this->scoring_mode === 'weighted_pools';
     }
 
+    /**
+     * PRS annual "national log": the shooter's best N regular (national) match
+     * percentages PLUS a fixed, non-droppable championship (final) percentage.
+     * Max = (best_of_count * 100) + 100.
+     */
+    public function isAnnualLogWithChamps(): bool
+    {
+        return $this->scoring_mode === 'best_n_plus_champs';
+    }
+
+    /**
+     * How many regular (national) matches count toward the annual log.
+     * Defaults to 3 per the PRS rules.
+     */
+    public function regularBestOf(): int
+    {
+        return (int) ($this->best_of_count ?: 3);
+    }
+
     public function totalPoolWeight(): float
     {
         return (float) $this->provincial_pool_weight_pct
