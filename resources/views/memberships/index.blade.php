@@ -1,25 +1,110 @@
 <x-layouts.app :title="'Memberships'">
+    @php
+        $sortLink = function (string $col) use ($filters, $sort, $dir) {
+            $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+            $params = array_merge($filters, ['sort' => $col, 'dir' => $nextDir]);
+            $arrow = $sort === $col ? ($dir === 'asc' ? '▲' : '▼') : '';
+            return [route('memberships.index', $params), $arrow];
+        };
+    @endphp
+
     <div class="flex items-center justify-between">
         <h1 class="font-heading text-3xl font-bold text-stone-900">Memberships</h1>
 
-        @role('owner|admin')
-            <a href="{{ route('memberships.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                Create Membership
-            </a>
-        @endrole
+        <div class="flex items-center gap-2">
+            @if($isAdmin)
+                <a href="{{ route('memberships.csv', array_merge($filters, ['sort' => $sort, 'dir' => $dir])) }}" class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Download CSV
+                </a>
+            @endif
+            @role('owner|admin')
+                <a href="{{ route('memberships.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    Create Membership
+                </a>
+            @endrole
+        </div>
     </div>
 
-    <div class="mt-8 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    @if($isAdmin)
+        <form method="GET" action="{{ route('memberships.index') }}" class="mt-6 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="sort" value="{{ $sort }}">
+            <input type="hidden" name="dir" value="{{ $dir }}">
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Search</label>
+                <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Name, email or SAPRF number" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Province</label>
+                <select name="province_id" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <option value="">All</option>
+                    @foreach($provinces as $p)
+                        <option value="{{ $p->id }}" @selected(($filters['province_id'] ?? '') == $p->id)>{{ $p->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
+                <select name="status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <option value="">All</option>
+                    @foreach(['active', 'pending', 'lapsed', 'expired', 'revoked'] as $opt)
+                        <option value="{{ $opt }}" @selected(($filters['status'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Payment</label>
+                <select name="payment_status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <option value="">All</option>
+                    @foreach(['paid', 'unpaid', 'waived'] as $opt)
+                        <option value="{{ $opt }}" @selected(($filters['payment_status'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Type</label>
+                <select name="membership_type" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <option value="">All</option>
+                    @foreach(['paid', 'free'] as $opt)
+                        <option value="{{ $opt }}" @selected(($filters['membership_type'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Filter</button>
+                @if(array_filter($filters))
+                    <a href="{{ route('memberships.index') }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
+                @endif
+            </div>
+        </form>
+    @endif
+
+    <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Member</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">SAPRF Number</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Type</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Payment</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Expiry</th>
+                    @php
+                        $cols = [
+                            'name' => 'Member',
+                            'saprf_number' => 'SAPRF Number',
+                            'type' => 'Type',
+                            'status' => 'Status',
+                            'payment' => 'Payment',
+                            'province' => 'Province',
+                            'expiry' => 'Expiry',
+                        ];
+                    @endphp
+                    @foreach($cols as $key => $label)
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">
+                            @if($isAdmin)
+                                @php [$url, $arrow] = $sortLink($key); @endphp
+                                <a href="{{ $url }}" class="inline-flex items-center gap-1 hover:text-stone-800">{{ $label }} <span class="text-emerald-600">{{ $arrow }}</span></a>
+                            @else
+                                {{ $label }}
+                            @endif
+                        </th>
+                    @endforeach
                     <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                 </tr>
             </thead>
@@ -38,14 +123,16 @@
                                     <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
                                     @break
                                 @case('lapsed')
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Lapsed</span>
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Lapsed</span>
                                     @break
-                                @case('suspended')
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Suspended</span>
+                                @case('expired')
+                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span>
                                     @break
                                 @case('revoked')
                                     <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
                                     @break
+                                @default
+                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($membership->status) }}</span>
                             @endswitch
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
@@ -53,31 +140,34 @@
                                 @case('paid')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Paid</span>
                                     @break
-                                @case('pending')
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
+                                @case('waived')
+                                    <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Waived</span>
                                     @break
-                                @case('overdue')
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Overdue</span>
+                                @case('unpaid')
+                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Unpaid</span>
                                     @break
                                 @default
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($membership->payment_status ?? 'N/A') }}</span>
                             @endswitch
                         </td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->user->province?->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <div class="flex items-center justify-end gap-2">
                                 <a href="{{ route('memberships.show', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
                                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                 </a>
-                                <a href="{{ route('memberships.edit', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
-                                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                                </a>
+                                @role('owner|admin')
+                                    <a href="{{ route('memberships.edit', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
+                                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                                    </a>
+                                @endrole
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-sm text-stone-400">No memberships found.</td>
+                        <td colspan="8" class="px-5 py-12 text-center text-sm text-stone-400">No memberships found.</td>
                     </tr>
                 @endforelse
             </tbody>

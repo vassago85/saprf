@@ -17,7 +17,7 @@ class ProvincialMembersController extends Controller
 
         $users = $query->paginate(25)->withQueryString();
         $provinces = Province::orderBy('name')->get();
-        $showSaId = $actor->hasRole(['owner', 'admin']);
+        $showSaId = $actor->hasRole(['developer', 'exco', 'owner', 'admin']);
         $search = $request->input('search');
 
         return view('provincial-members.index', compact('users', 'provinces', 'search', 'showSaId'));
@@ -26,7 +26,7 @@ class ProvincialMembersController extends Controller
     public function downloadCsv(Request $request): StreamedResponse
     {
         $actor = $request->user();
-        $showSaId = $actor->hasRole(['owner', 'admin']);
+        $showSaId = $actor->hasRole(['developer', 'exco', 'owner', 'admin']);
         $query = $this->buildQuery($request);
         $users = $query->get();
 
@@ -76,7 +76,9 @@ class ProvincialMembersController extends Controller
         $actor = $request->user();
         $provinceIds = $actor->getAdminProvinceIds();
 
-        if ($actor->hasRole(['owner', 'admin'])) {
+        // Federation-wide roles see every province; only provincial admins are
+        // scoped to the provinces they sit on a committee for.
+        if ($actor->hasRole(['developer', 'exco', 'owner', 'admin'])) {
             $provinceIds = null;
         }
 

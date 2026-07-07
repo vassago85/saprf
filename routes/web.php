@@ -203,6 +203,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/admin/approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
 
         Route::post('/scores/{score}/override', [ScoreController::class, 'override'])->name('scores.override');
+        Route::get('/memberships/export/csv', [MembershipController::class, 'downloadCsv'])->name('memberships.csv');
         Route::resource('memberships', MembershipController::class)->except(['destroy']);
         Route::post('/memberships/{membership}/revoke', [MembershipController::class, 'revoke'])->name('memberships.revoke');
         Route::post('/memberships/{membership}/reinstate', [MembershipController::class, 'reinstate'])->name('memberships.reinstate');

@@ -36,15 +36,119 @@ class MembershipController extends Controller
         return view('memberships.my-membership', compact('membership', 'user', 'fee', 'paymentsEnabled', 'seasons'));
     }
 
+    private const SORTABLE = [
+        'name' => 'users.name',
+        'saprf_number' => 'memberships.saprf_number',
+        'type' => 'memberships.membership_type',
+        'status' => 'memberships.status',
+        'payment' => 'memberships.payment_status',
+        'province' => 'provinces.name',
+        'expiry' => 'memberships.expiry_date',
+    ];
+
     public function index(Request $request): View
     {
         $user = $request->user();
+        $isAdmin = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin']);
 
-        $memberships = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
-            ? Membership::query()->with('user')->latest()->paginate(20)
-            : Membership::query()->where('user_id', $user->id)->paginate(20);
+        if (! $isAdmin) {
+            $memberships = Membership::query()->where('user_id', $user->id)->with('user')->paginate(20);
 
-        return view('memberships.index', compact('memberships'));
+            return view('memberships.index', [
+                'memberships' => $memberships,
+                'isAdmin' => false,
+                'provinces' => collect(),
+                'filters' => [],
+                'sort' => 'name',
+                'dir' => 'asc',
+            ]);
+        }
+
+        $memberships = $this->buildIndexQuery($request)->paginate(25)->withQueryString();
+
+        return view('memberships.index', [
+            'memberships' => $memberships,
+            'isAdmin' => true,
+            'provinces' => \App\Models\Province::orderBy('name')->get(),
+            'filters' => $request->only(['search', 'status', 'payment_status', 'membership_type', 'province_id']),
+            'sort' => $this->resolveSort($request),
+            'dir' => $this->resolveDir($request),
+        ]);
+    }
+
+    public function downloadCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        abort_unless($request->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin']), 403);
+
+        $memberships = $this->buildIndexQuery($request)->get();
+        $filename = 'Memberships_'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($memberships) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Member', 'Email', 'Phone', 'SAPRF Number', 'Type', 'Status', 'Payment', 'Province', 'Start Date', 'Expiry Date']);
+            foreach ($memberships as $m) {
+                fputcsv($handle, [
+                    $m->user?->name ?? '',
+                    $m->user?->email ?? '',
+                    $m->user?->phone ?? '',
+                    $m->saprf_number ?? '',
+                    ucfirst((string) $m->membership_type),
+                    ucfirst((string) $m->status),
+                    ucfirst((string) $m->payment_status),
+                    $m->user?->province?->name ?? '',
+                    $m->start_date?->format('Y-m-d') ?? '',
+                    $m->expiry_date?->format('Y-m-d') ?? '',
+                ]);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    private function buildIndexQuery(Request $request)
+    {
+        $query = Membership::query()
+            ->with(['user.province'])
+            ->join('users', 'users.id', '=', 'memberships.user_id')
+            ->leftJoin('provinces', 'provinces.id', '=', 'users.province_id')
+            ->select('memberships.*');
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.email', 'like', "%{$search}%")
+                    ->orWhere('memberships.saprf_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->input('status')) {
+            $query->where('memberships.status', $status);
+        }
+        if ($payment = $request->input('payment_status')) {
+            $query->where('memberships.payment_status', $payment);
+        }
+        if ($type = $request->input('membership_type')) {
+            $query->where('memberships.membership_type', $type);
+        }
+        if ($provinceId = $request->input('province_id')) {
+            $query->where('users.province_id', $provinceId);
+        }
+
+        return $query->orderBy(self::SORTABLE[$this->resolveSort($request)], $this->resolveDir($request));
+    }
+
+    private function resolveSort(Request $request): string
+    {
+        $sort = (string) $request->input('sort', 'name');
+
+        return array_key_exists($sort, self::SORTABLE) ? $sort : 'name';
+    }
+
+    private function resolveDir(Request $request): string
+    {
+        return strtolower((string) $request->input('dir')) === 'desc' ? 'desc' : 'asc';
     }
 
     public function show(Membership $membership): View
