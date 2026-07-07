@@ -102,6 +102,27 @@ CSV);
         ->and($stub->membership->payment_status)->toBe('paid');
 });
 
+it('keeps two distinct real members with the same name as separate accounts', function () {
+    // Two different people share a name but have different SAPRF numbers. The
+    // second (blank email -> placeholder) must NOT merge onto the first.
+    $csv = writeMembersCsv(<<<CSV
+name,email,phone,province,saprf_number,membership_type
+Hubert Wentzel,hubert@example.com,+27 82 000 0001,Gauteng,1841,full
+Hubert Wentzel,,+27 82 000 0002,Western Cape,1842,free
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    expect(User::where('name', 'Hubert Wentzel')->count())->toBe(2)
+        ->and(Membership::whereIn('saprf_number', ['1841', '1842'])->count())->toBe(2);
+
+    $first = Membership::where('saprf_number', '1841')->first()->user;
+    $second = Membership::where('saprf_number', '1842')->first()->user;
+    expect($first->id)->not->toBe($second->id)
+        ->and($first->email)->toBe('hubert@example.com')
+        ->and($second->email)->toEndWith('@import.saprf.local');
+});
+
 it('protects @saprf.co.za staff emails from being overwritten', function () {
     $staff = User::create([
         'name' => 'Admin Person',

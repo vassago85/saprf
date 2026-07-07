@@ -177,21 +177,60 @@ class ImportMembersCommand extends Command
 
     private function findExistingUser(array $row): ?User
     {
-        if (!empty($row['saprf_number'])) {
-            $viaSaprf = Membership::where('saprf_number', $row['saprf_number'])->first();
+        $rowSaprf = trim((string) ($row['saprf_number'] ?? ''));
+
+        if ($rowSaprf !== '') {
+            $viaSaprf = Membership::where('saprf_number', $rowSaprf)->first();
             if ($viaSaprf) return $viaSaprf->user;
         }
 
+        // Weaker fallbacks (email / placeholder / name). These must not hijack a
+        // user who already belongs to a *different real* SAPRF number — that would
+        // silently merge two distinct people who happen to share a name or email.
+        // Stubs (SAPRF-IMPORT-… numbers) stay mergeable so legacy member data can
+        // still enrich the pr22/prs stub accounts.
+        $candidate = null;
+
         if (!empty($row['email'])) {
-            $viaEmail = User::where('email', $row['email'])->first();
-            if ($viaEmail) return $viaEmail;
+            $candidate = User::where('email', $row['email'])->first();
+        }
+        if (!$candidate) {
+            $placeholder = $this->placeholderEmailFor($row['name']);
+            $candidate = User::where('email', $placeholder)->first();
+        }
+        if (!$candidate) {
+            $candidate = User::whereRaw('LOWER(name) = ?', [strtolower($row['name'])])->first();
         }
 
-        $placeholder = $this->placeholderEmailFor($row['name']);
-        $viaPlaceholder = User::where('email', $placeholder)->first();
-        if ($viaPlaceholder) return $viaPlaceholder;
+        if ($candidate && $rowSaprf !== '' && $this->belongsToDifferentRealMember($candidate, $rowSaprf)) {
+            return null;
+        }
 
-        return User::whereRaw('LOWER(name) = ?', [strtolower($row['name'])])->first();
+        return $candidate;
+    }
+
+    /**
+     * True when a fallback (name/email) match would hijack a genuine, already
+     * populated account that carries a *different real* SAPRF number. Stub
+     * accounts (placeholder @import.saprf.local email, or a SAPRF-IMPORT-…
+     * membership number) stay mergeable so scraper stubs can still be enriched.
+     */
+    private function belongsToDifferentRealMember(User $user, string $rowSaprf): bool
+    {
+        if ($this->isMergeableStub($user)) {
+            return false;
+        }
+        $existing = trim((string) ($user->membership?->saprf_number ?? ''));
+        return $existing !== '' && $existing !== $rowSaprf;
+    }
+
+    private function isMergeableStub(User $user): bool
+    {
+        if (str_ends_with(strtolower((string) $user->email), '@import.saprf.local')) {
+            return true;
+        }
+        $saprf = trim((string) ($user->membership?->saprf_number ?? ''));
+        return $saprf === '' || str_starts_with($saprf, 'SAPRF-IMPORT-');
     }
 
     private function applyUserChanges(?User $existing, array $row, $provinces, $divisions, ?string $bulkRole): array
