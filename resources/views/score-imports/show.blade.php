@@ -60,6 +60,24 @@
         </dl>
     </div>
 
+    @if ($scoreImport->notes)
+        <div class="mt-6 rounded-xl border {{ $scoreImport->import_status === 'failed' ? 'border-red-200 bg-red-50' : 'border-stone-200 bg-stone-50' }} p-4">
+            <h3 class="text-sm font-semibold text-stone-900 mb-2">Import Log</h3>
+            <pre class="whitespace-pre-wrap text-xs {{ $scoreImport->import_status === 'failed' ? 'text-red-800' : 'text-stone-700' }} font-mono">{{ $scoreImport->notes }}</pre>
+        </div>
+    @endif
+
+    @if ($scoreImport->import_status === 'processing' || $scoreImport->import_status === 'queued' || $scoreImport->import_status === 'pending')
+        <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+            <div class="flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span class="font-medium">Processing in the background…</span>
+            </div>
+            <p class="mt-1 text-xs text-sky-700">Refresh this page in a few seconds to see progress. Standings will be recalculated automatically once the import completes.</p>
+            <script>setTimeout(() => window.location.reload(), 4000);</script>
+        </div>
+    @endif
+
     @if ($scores->count())
         <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div class="px-6 pt-6 pb-4">

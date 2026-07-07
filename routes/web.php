@@ -168,11 +168,14 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
         Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');
+        Route::get('/score-imports/template', [ScoreImportController::class, 'template'])->name('score-imports.template');
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');
         Route::get('/scores', [ScoreController::class, 'index'])->name('scores.index');
         Route::get('/scores/{score}', [ScoreController::class, 'show'])->name('scores.show');
+        Route::get('/matches/{match}/scores/entry', [ScoreController::class, 'entry'])->name('scores.entry');
+        Route::post('/matches/{match}/scores/entry', [ScoreController::class, 'storeEntry'])->name('scores.entry.store');
     });
 
     // Provincial admin + Admin + Owner + Developer (read-only member view)

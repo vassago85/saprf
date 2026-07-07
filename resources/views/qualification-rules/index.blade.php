@@ -17,10 +17,9 @@
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Series</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Season</th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Scoring Model</th>
                     <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Min Out-of-Province</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Best-Of</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Total Matches</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Finals Weight</th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Configuration</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Created By</th>
                     <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                 </tr>
@@ -36,14 +35,28 @@
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $rule->season }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->min_out_of_province_matches }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->best_of_count ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->total_qualifying_matches ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @if ($rule->weighted_final_enabled)
-                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">{{ number_format($rule->weighted_final_multiplier, 2) }}x</span>
+                            @if ($rule->isPooledScoring())
+                                <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20">Weighted Pools</span>
                             @else
-                                <span class="text-xs text-stone-400">Off</span>
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700 ring-1 ring-inset ring-stone-600/20">Best-of-N</span>
+                            @endif
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">{{ $rule->min_out_of_province_matches }}</td>
+                        <td class="px-5 py-3.5 text-sm text-stone-600">
+                            @if ($rule->isPooledScoring())
+                                <div class="text-xs">
+                                    <span class="font-mono">P:{{ $rule->provincial_pool_best_of ?? '—' }}</span>@ <span class="text-blue-600">{{ (int) $rule->provincial_pool_weight_pct }}%</span>
+                                    · <span class="font-mono">N:{{ $rule->national_pool_best_of ?? '—' }}</span>@ <span class="text-emerald-600">{{ (int) $rule->national_pool_weight_pct }}%</span>
+                                    · <span class="font-mono">C:{{ $rule->champs_pool_best_of ?? '—' }}</span>@ <span class="text-amber-600">{{ (int) $rule->champs_pool_weight_pct }}%</span>
+                                </div>
+                            @else
+                                <div class="text-xs">
+                                    Best of <span class="font-mono">{{ $rule->best_of_count ?? 'all' }}</span>
+                                    @if ($rule->weighted_final_enabled)
+                                        · Finals <span class="text-emerald-600 font-semibold">{{ number_format($rule->weighted_final_multiplier, 2) }}x</span>
+                                    @endif
+                                </div>
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $rule->creator?->name ?? '—' }}</td>
@@ -55,7 +68,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-5 py-12 text-center text-sm text-stone-400">No qualification rules defined.</td>
+                        <td colspan="7" class="px-5 py-12 text-center text-sm text-stone-400">No qualification rules defined.</td>
                     </tr>
                 @endforelse
             </tbody>

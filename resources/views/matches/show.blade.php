@@ -434,9 +434,16 @@
                         Export for Impact Scoring
                         <span class="ml-auto text-[10px] font-medium text-stone-400">CSV</span>
                     </a>
+                    <a href="{{ route('scores.entry', $match) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition">
+                        <flux:icon.pencil-square class="size-5 text-emerald-600" />
+                        Enter Scores
+                        @if($match->isMultiDay())
+                            <span class="ml-auto inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">2-day</span>
+                        @endif
+                    </a>
                     <a href="{{ route('scores.index', ['match_id' => $match->id]) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
                         <flux:icon.chart-bar class="size-5 text-stone-400" />
-                        Scores
+                        View Scores
                         <span class="ml-auto inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">{{ $match->scores_count ?? $match->scores->count() }}</span>
                     </a>
                     <a href="{{ route('score-imports.index', ['match_id' => $match->id]) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">

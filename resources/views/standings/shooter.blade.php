@@ -40,10 +40,67 @@
                             <h2 class="text-lg font-semibold text-stone-900">{{ $entry['series'] }} Rankings</h2>
                             <x-discipline-chip :discipline="$entry['series']" />
                         </div>
-                        @if($bestOf)
+                        @if(($entry['scoring_mode'] ?? null) === 'weighted_pools')
+                            <span class="text-xs text-stone-400">Weighted pool total (out of 100)</span>
+                        @elseif($bestOf)
                             <span class="text-xs text-stone-400">Best {{ $bestOf }} scores count</span>
                         @endif
                     </div>
+
+                    {{-- Pool breakdown card (weighted-pools mode, e.g. PR22) --}}
+                    @if(!empty($entry['pool_breakdown']))
+                        @php
+                            $pb = $entry['pool_breakdown'];
+                            $poolMeta = [
+                                'provincial' => [
+                                    'label' => 'Provincial',
+                                    'card' => 'border-blue-200 bg-blue-50/50',
+                                    'chip' => 'text-blue-700',
+                                    'value' => 'text-blue-800',
+                                ],
+                                'national' => [
+                                    'label' => 'National',
+                                    'card' => 'border-emerald-200 bg-emerald-50/50',
+                                    'chip' => 'text-emerald-700',
+                                    'value' => 'text-emerald-800',
+                                ],
+                                'champs' => [
+                                    'label' => 'SA Champs',
+                                    'card' => 'border-amber-200 bg-amber-50/50',
+                                    'chip' => 'text-amber-700',
+                                    'value' => 'text-amber-800',
+                                ],
+                            ];
+                        @endphp
+                        <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-white">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Season Score Breakdown</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                @foreach($poolMeta as $key => $meta)
+                                    @if(isset($pb[$key]))
+                                        @php $pool = $pb[$key]; @endphp
+                                        <div class="rounded-xl border {{ $meta['card'] }} p-4">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs font-semibold {{ $meta['chip'] }} uppercase tracking-wider">{{ $meta['label'] }}</span>
+                                                <span class="text-[10px] font-mono text-stone-500">×{{ (int) $pool['weight_pct'] }}%</span>
+                                            </div>
+                                            <div class="mt-2 flex items-baseline gap-1">
+                                                <span class="text-2xl font-bold {{ $meta['value'] }} tabular-nums">{{ number_format($pool['contribution'], 1) }}</span>
+                                                <span class="text-xs text-stone-400">/ {{ (int) $pool['weight_pct'] }}</span>
+                                            </div>
+                                            <div class="mt-1 text-[11px] text-stone-500">
+                                                Best {{ $pool['best_of'] }} avg: <span class="font-mono">{{ number_format($pool['pool_average'], 1) }}%</span>
+                                                <span class="text-stone-400">({{ $pool['scores_counted'] }}/{{ $pool['best_of'] }} counted)</span>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                            <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Season Total</span>
+                                <span class="text-2xl font-bold tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 1) }} / 100</span>
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="px-6 py-4 border-b border-stone-50 bg-stone-50/30">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">

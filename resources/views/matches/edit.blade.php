@@ -158,9 +158,9 @@
                     <label class="flex items-center gap-2 mb-2">
                         <input type="hidden" name="also_counts_for_provincial" value="0">
                         <input type="checkbox" name="also_counts_for_provincial" value="1" x-model="dualCount" @checked(old('also_counts_for_provincial', $match->also_counts_for_provincial)) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm font-medium text-stone-700">Day 1 stages also count as Provincial</span>
+                        <span class="text-sm font-medium text-stone-700">Day 1 also counts as a Provincial score</span>
                     </label>
-                    <p class="text-xs text-stone-400 mb-3">For 2-day nationals where Day 1 doubles as the provincial match. The full score counts for national standings; selected stages count for provincial.</p>
+                    <p class="text-xs text-stone-400 mb-3">Recommended for all 2-day nationals. Under PR22 pooled scoring, each shooter's <strong>Day 1 total</strong> is used as a provincial-pool contribution (in addition to counting Day 1 + Day 2 for the national pool). MDs enter Day 1 and Day 2 separately when scoring.</p>
 
                     <div x-show="dualCount" x-cloak class="mt-3 p-4 rounded-lg bg-stone-50 border border-stone-200 space-y-3">
                         <div>

@@ -207,10 +207,16 @@ class StandingController extends Controller
                     ->with('category')
                     ->get();
 
+                $seriesRule = \App\Models\QualificationRule::where('season', $season)
+                    ->where('series', $series)
+                    ->first();
+
                 $standingsSummary[] = [
                     'series' => $series,
                     'overall_rank' => $overall->rank,
                     'overall_points' => $overall->points,
+                    'pool_breakdown' => $overall->pool_breakdown,
+                    'scoring_mode' => $seriesRule?->scoring_mode ?? 'best_of_n',
                     'division_name' => $divisionStanding?->division?->name,
                     'division_rank' => $divisionStanding?->rank,
                     'division_points' => $divisionStanding?->points,

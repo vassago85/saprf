@@ -220,8 +220,8 @@ class FederationDemoSeeder extends Seeder
                 ['name' => 'Centrefire FS 2-Day National',           'type' => 'PRS', 'level' => 'national', 'prov' => 'FS', 'date' => '2026-05-02', 'end' => '2026-05-03', 'status' => 'completed', 'venue' => 'Bloemfontein Range',        'city' => 'Bloemfontein', 'max' => 36, 'dual_provincial' => true],
 
                 // ─────────── PAST PR22 Nationals (completed) ───────────
-                ['name' => 'Rimfire PR22 GP 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek',              'city' => 'Gauteng',      'max' => 30],
-                ['name' => 'Rimfire PR22 WC 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'WC', 'date' => '2026-04-04', 'end' => '2026-04-05', 'status' => 'completed', 'venue' => 'Atlantis Shooting Range',  'city' => 'Atlantis',     'max' => 30],
+                ['name' => 'Rimfire PR22 GP 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'GP', 'date' => '2026-02-28', 'end' => '2026-03-01', 'status' => 'completed', 'venue' => 'Hippo Creek',              'city' => 'Gauteng',      'max' => 30, 'dual_provincial' => true],
+                ['name' => 'Rimfire PR22 WC 2-Day National',         'type' => 'PR22','level' => 'national', 'prov' => 'WC', 'date' => '2026-04-04', 'end' => '2026-04-05', 'status' => 'completed', 'venue' => 'Atlantis Shooting Range',  'city' => 'Atlantis',     'max' => 30, 'dual_provincial' => true],
 
                 // ─────────── PAST Provincial (completed) ───────────
                 ['name' => 'Centrefire MP Provincial',               'type' => 'PRS', 'level' => 'provincial', 'prov' => 'MP', 'date' => '2026-03-21', 'end' => null,        'status' => 'completed', 'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 25],
@@ -237,7 +237,7 @@ class FederationDemoSeeder extends Seeder
                 // ─────────── UPCOMING — Draft (announced, not open) ───────────
                 ['name' => 'Centrefire LP 2-Day National',           'type' => 'PRS', 'level' => 'national',   'prov' => 'LP', 'date' => '2026-08-08', 'end' => '2026-08-09','status' => 'draft',     'venue' => 'Marble Hall Range',        'city' => 'Marble Hall',  'max' => 40, 'dual_provincial' => true],
                 ['name' => 'Rimfire PR22 GP Provincial — Aug',       'type' => 'PR22','level' => 'provincial', 'prov' => 'GP', 'date' => '2026-08-15', 'end' => null,        'status' => 'draft',     'venue' => 'Legends Adventure Farm',  'city' => 'Gauteng',      'max' => 20],
-                ['name' => 'Rimfire PR22 MP 2-Day National',         'type' => 'PR22','level' => 'national',   'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30','status' => 'draft',     'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 30],
+                ['name' => 'Rimfire PR22 MP 2-Day National',         'type' => 'PR22','level' => 'national',   'prov' => 'MP', 'date' => '2026-08-29', 'end' => '2026-08-30','status' => 'draft',     'venue' => 'Lydenburg Range',          'city' => 'Lydenburg',    'max' => 30, 'dual_provincial' => true],
                 ['name' => 'Centrefire WC Provincial',               'type' => 'PRS', 'level' => 'provincial', 'prov' => 'WC', 'date' => '2026-09-05', 'end' => null,        'status' => 'draft',     'venue' => 'Romansrivier Wolseley',    'city' => 'Wolseley',     'max' => 25],
                 ['name' => 'Centrefire WC 2-Day National — Darling', 'type' => 'PRS', 'level' => 'national',   'prov' => 'WC', 'date' => '2026-10-24', 'end' => '2026-10-25','status' => 'draft',     'venue' => 'Darling Steel Valley',     'city' => 'Darling',      'max' => 40],
                 ['name' => 'Rimfire PR22 GP Championship',           'type' => 'PR22','level' => 'final',      'prov' => 'GP', 'date' => '2026-11-07', 'end' => '2026-11-08','status' => 'draft',     'venue' => 'Hippo Creek',              'city' => 'Gauteng',      'max' => 24],
@@ -297,13 +297,35 @@ class FederationDemoSeeder extends Seeder
             }
 
             // ── Qualification Rules ──
+            // PRS keeps the classic best-of-N model for now.
             QualificationRule::firstOrCreate(
                 ['series' => 'PRS', 'season' => '2026'],
-                ['min_out_of_province_matches' => 2, 'best_of_count' => 5, 'total_qualifying_matches' => 7, 'created_by' => $admin->id],
+                [
+                    'scoring_mode' => 'best_of_n',
+                    'min_out_of_province_matches' => 2,
+                    'best_of_count' => 5,
+                    'total_qualifying_matches' => 7,
+                    'created_by' => $admin->id,
+                ],
             );
+
+            // PR22 uses the weighted 3-pool model as decided by the chair:
+            //   Best 3 provincial (30%) + Best 2 of 3 nationals (40%) + SA Champs (30%) = /100
             QualificationRule::firstOrCreate(
                 ['series' => 'PR22', 'season' => '2026'],
-                ['min_out_of_province_matches' => 1, 'best_of_count' => 4, 'total_qualifying_matches' => 6, 'created_by' => $admin->id],
+                [
+                    'scoring_mode' => 'weighted_pools',
+                    'min_out_of_province_matches' => 1,
+                    'best_of_count' => null,
+                    'total_qualifying_matches' => 6,
+                    'provincial_pool_best_of' => 3,
+                    'provincial_pool_weight_pct' => 30.00,
+                    'national_pool_best_of' => 2,
+                    'national_pool_weight_pct' => 40.00,
+                    'champs_pool_best_of' => 1,
+                    'champs_pool_weight_pct' => 30.00,
+                    'created_by' => $admin->id,
+                ],
             );
 
             // ── Generate Scores for Completed Matches ──
@@ -332,6 +354,8 @@ class FederationDemoSeeder extends Seeder
         $rng = mt_rand(0, 100);
         mt_srand($seed);
 
+        $isTwoDay = $match->isMultiDay();
+
         foreach ($shooters as $idx => $shooter) {
             $user = $shooter['user'];
             $divCode = $shooter['div_code'];
@@ -339,27 +363,48 @@ class FederationDemoSeeder extends Seeder
             $divisionId = $divisions[$divCode]?->id;
 
             $baseScore = 55 - ($idx * 0.8);
-            $variance = (mt_rand(-30, 30)) / 10;
-            $rawScore = max(5, min(60, round($baseScore + $variance, 1)));
 
-            $provincialRawScore = null;
-            if ($match->also_counts_for_provincial) {
-                $provincialRawScore = round($rawScore * (0.45 + (mt_rand(0, 20) / 100)), 1);
+            // For 2-day matches, generate independent day 1 + day 2 totals so
+            // seeded data exercises the new day1/day2 columns and the
+            // provincial-credit-from-day-1 logic under PR22 pooled scoring.
+            if ($isTwoDay) {
+                $variance1 = (mt_rand(-20, 20)) / 10;
+                $variance2 = (mt_rand(-20, 20)) / 10;
+                $day1 = max(2.5, min(30, round(($baseScore / 2) + $variance1, 1)));
+                $day2 = max(2.5, min(30, round(($baseScore / 2) + $variance2, 1)));
+
+                $score = Score::create([
+                    'match_id' => $match->id,
+                    'shooter_name' => $user->name,
+                    'user_id' => $user->id,
+                    'day1_raw_score' => $day1,
+                    'day2_raw_score' => $day2,
+                    // raw_score + provincial_raw_score auto-computed by the Score booted() hook.
+                    'placement' => null,
+                    'division_id' => $divisionId,
+                    'is_member' => $shooter['is_member'],
+                    'status' => 'valid',
+                    'match_date' => $match->match_date,
+                    'counts_for_season' => true,
+                ]);
+            } else {
+                $variance = (mt_rand(-30, 30)) / 10;
+                $rawScore = max(5, min(60, round($baseScore + $variance, 1)));
+
+                $score = Score::create([
+                    'match_id' => $match->id,
+                    'shooter_name' => $user->name,
+                    'user_id' => $user->id,
+                    'day1_raw_score' => $rawScore,
+                    // 1-day match: only day1, so raw_score = day1 via the hook.
+                    'placement' => null,
+                    'division_id' => $divisionId,
+                    'is_member' => $shooter['is_member'],
+                    'status' => 'valid',
+                    'match_date' => $match->match_date,
+                    'counts_for_season' => true,
+                ]);
             }
-
-            $score = Score::create([
-                'match_id' => $match->id,
-                'shooter_name' => $user->name,
-                'user_id' => $user->id,
-                'raw_score' => $rawScore,
-                'provincial_raw_score' => $provincialRawScore,
-                'placement' => null,
-                'division_id' => $divisionId,
-                'is_member' => $shooter['is_member'],
-                'status' => 'valid',
-                'match_date' => $match->match_date,
-                'counts_for_season' => true,
-            ]);
 
             foreach ($catCodes as $catCode) {
                 if (isset($categories[$catCode])) {

@@ -15,6 +15,8 @@ class Score extends Model
         'shooter_name',
         'user_id',
         'raw_score',
+        'day1_raw_score',
+        'day2_raw_score',
         'provincial_raw_score',
         'placement',
         'division_id',
@@ -38,6 +40,8 @@ class Score extends Model
     {
         return [
             'raw_score' => 'decimal:3',
+            'day1_raw_score' => 'decimal:3',
+            'day2_raw_score' => 'decimal:3',
             'hit_percentage' => 'decimal:3',
             'provincial_raw_score' => 'decimal:3',
             'normalized_score' => 'decimal:4',
@@ -49,6 +53,36 @@ class Score extends Model
             'match_date' => 'date',
             'raw_meta' => 'array',
         ];
+    }
+
+    /**
+     * Whenever day1_raw_score or day2_raw_score is set/updated, recompute the
+     * derived aggregates:
+     *   - raw_score = day1 + day2 (or just day1 if day2 is null)
+     *   - provincial_raw_score = day1 (when the parent match "also counts for provincial")
+     *
+     * The match relation is loaded lazily on save if not already present.
+     * Boot-time observer keeps this centralised so controllers, imports,
+     * seeders and manual entry all get consistent results.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Score $score): void {
+            if ($score->isDirty(['day1_raw_score', 'day2_raw_score'])) {
+                $day1 = $score->day1_raw_score !== null ? (float) $score->day1_raw_score : null;
+                $day2 = $score->day2_raw_score !== null ? (float) $score->day2_raw_score : null;
+
+                if ($day1 !== null || $day2 !== null) {
+                    $score->raw_score = ($day1 ?? 0) + ($day2 ?? 0);
+                }
+
+                // Provincial credit = day 1 only, for matches flagged as dual-count.
+                $match = $score->match; // triggers lazy load if needed
+                if ($match && $match->also_counts_for_provincial && $day1 !== null) {
+                    $score->provincial_raw_score = $day1;
+                }
+            }
+        });
     }
 
     public function match(): BelongsTo

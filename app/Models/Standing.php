@@ -16,12 +16,14 @@ class Standing extends Model
         'category_id',
         'points',
         'rank',
+        'pool_breakdown',
     ];
 
     protected function casts(): array
     {
         return [
             'points' => 'decimal:3',
+            'pool_breakdown' => 'array',
         ];
     }
 

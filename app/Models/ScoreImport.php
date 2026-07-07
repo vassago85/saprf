@@ -12,6 +12,7 @@ class ScoreImport extends Model
         'match_id',
         'uploaded_by',
         'source_type',
+        'day',
         'original_filename',
         'import_status',
         'notes',
