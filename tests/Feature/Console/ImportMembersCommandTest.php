@@ -123,6 +123,20 @@ CSV);
         ->and($second->email)->toEndWith('@import.saprf.local');
 });
 
+it('scrubs junk id numbers (GUIDs) and placeholder phones from legacy data', function () {
+    $csv = writeMembersCsv(<<<CSV
+name,email,phone,sa_id_number,province,saprf_number
+Adriaan Barkhuizen,adri@example.com,NO PHONE,859079C3-7F35-4E69-8E18-08BD9F588644,Gauteng,1900
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    $u = User::where('name', 'Adriaan Barkhuizen')->first();
+    expect($u)->not->toBeNull()
+        ->and($u->sa_id_number)->toBeNull()   // GUID dropped
+        ->and($u->phone)->toBeNull();          // "NO PHONE" dropped
+});
+
 it('protects @saprf.co.za staff emails from being overwritten', function () {
     $staff = User::create([
         'name' => 'Admin Person',
