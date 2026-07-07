@@ -1,7 +1,7 @@
 # SAPRF PRS (Centrefire) 2026 — Scraped Match Data
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-07-07 16:12:12
+Scraped: 2026-07-07 19:09:29
 
 PRS = the Centrefire program (leagues 'SAPRF National Series' / 'SAPRF Provincial Series').
 Per-match score CSV columns: `shooter_name,division,raw_score,placement`

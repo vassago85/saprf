@@ -144,16 +144,33 @@ foreach ([$pastHtml, $upHtml] as $listHtml) {
     if ($listHtml === '') continue;
     $doc = loadDom($listHtml);
     $xp = new DOMXPath($doc);
-    $rows = $xp->query('//table//tbody/tr');
-    foreach ($rows as $tr) {
-        $tds = $xp->query('./td', $tr);
-        if ($tds->length < 5) continue;
 
-        $dateText   = textOf($tds->item(0));
-        $eventCell  = $tds->item(1);
-        $venueText  = textOf($tds->item(2));
-        $provText   = textOf($tds->item(3));
-        $leagueText = textOf($tds->item(4));
+    // The past list is a <table> (Date|Event|Venue|Province|League tds); the
+    // upcoming "listbymonth" partial is a Bootstrap grid of <div class="row">
+    // with <div class="col-*"> cells. Parse each event link and read the sibling
+    // columns from whichever structure wraps it.
+    foreach ($xp->query('//a[starts-with(@href, "/events/")]') as $link) {
+        $href = $link->getAttribute('href');
+        // Only the event *name* link (…/events/123), not ENTER (…/match/entry).
+        if (!preg_match('#^/events/(\d+)$#', $href, $mm)) continue;
+        $eventId = (int) $mm[1];
+        if (isset($candidates[$eventId])) continue;
+
+        $row = $xp->query('ancestor::tr[1]', $link)->item(0)
+            ?? $xp->query('ancestor::div[contains(concat(" ", normalize-space(@class), " "), " row ")][1]', $link)->item(0);
+        if (!$row) continue;
+
+        $cells = $xp->query('./td', $row);
+        if ($cells->length === 0) {
+            $cells = $xp->query('./div', $row);
+        }
+        if ($cells->length < 5) continue;
+
+        // Column order for both layouts: Date | Event | Venue | Province | League
+        $dateText   = textOf($cells->item(0));
+        $venueText  = textOf($cells->item(2));
+        $provText   = textOf($cells->item(3));
+        $leagueText = textOf($cells->item(4));
 
         if (strpos($leagueText, $targetYear) === false) continue;
 
@@ -165,13 +182,6 @@ foreach ([$pastHtml, $upHtml] as $listHtml) {
             }
         }
         if ($level === null) continue;
-
-        $link = $xp->query('.//a[contains(@href, "/events/")]', $eventCell)->item(0);
-        if (!$link) continue;
-
-        $href = $link->getAttribute('href');
-        if (!preg_match('#/events/(\d+)#', $href, $m)) continue;
-        $eventId = (int) $m[1];
 
         $name = textOf($link);
 
@@ -199,6 +209,7 @@ usort($candidates, fn($a, $b) => strcmp($a['date_iso'], $b['date_iso']));
 echo count($candidates)." PR22 2026 match(es) discovered.\n";
 
 $scraped = [];
+$upcoming = [];   // no results table yet (future / unpublished)
 $skipped = [];
 
 foreach ($candidates as $ev) {
@@ -242,8 +253,8 @@ foreach ($candidates as $ev) {
     }
 
     if (!$resultsTable) {
-        echo "NO RESULTS TABLE\n";
-        $skipped[] = ['ev' => $ev, 'reason' => 'no results table on event page (probably not yet published)'];
+        echo "no results (upcoming)\n";
+        $upcoming[] = $ev;
         continue;
     }
 
@@ -256,8 +267,10 @@ foreach ($candidates as $ev) {
     $idxDivision = array_search('division', $headers, true);
     $idxScore    = array_search('score', $headers, true);
     if ($idxEntrant === false || $idxScore === false) {
-        echo "HEADERS MISMATCH: ".implode('|', $headers)."\n";
-        $skipped[] = ['ev' => $ev, 'reason' => 'header layout unrecognised: '.implode('|', $headers)];
+        // No score column yet — this is an entry/registration list for a match
+        // whose results have not been posted. Treat it as upcoming.
+        echo "no score column (upcoming): ".implode('|', $headers)."\n";
+        $upcoming[] = $ev;
         continue;
     }
 
@@ -274,8 +287,8 @@ foreach ($candidates as $ev) {
     }
 
     if (!$rows) {
-        echo "0 ROWS\n";
-        $skipped[] = ['ev' => $ev, 'reason' => 'results table present but empty'];
+        echo "0 rows (upcoming)\n";
+        $upcoming[] = $ev;
         continue;
     }
 
@@ -316,6 +329,25 @@ foreach ($scraped as $s) {
 }
 fclose($ch);
 
+// ── Catalog of upcoming matches (no scores) ──
+$upcomingPath = $outDir.'/upcoming.csv';
+$uh = fopen($upcomingPath, 'w');
+fwrite($uh, "\xEF\xBB\xBF");
+fputcsv($uh, [
+    'source_id','name','match_type','series','season','series_level',
+    'match_date','match_end_date','province','venue_name',
+    'match_director','contact','source_url',
+]);
+foreach ($upcoming as $ev) {
+    fputcsv($uh, [
+        $ev['id'], $ev['name'], $ev['match_type'], $ev['series'], $ev['season'], $ev['level'],
+        $ev['date_iso'], $ev['end_iso'] ?? '',
+        $ev['province'], $ev['venue'],
+        $ev['match_director'] ?? '', $ev['contact'] ?? '', $ev['source_url'],
+    ]);
+}
+fclose($uh);
+
 $indexPath = $outDir.'/INDEX.md';
 $md  = "# SAPRF PR22 2026 — Scraped Match Results\n\n";
 $md .= "Source: https://www.precisionrifle.co.za/events (past + upcoming listings)\n";
@@ -345,6 +377,16 @@ foreach ($scraped as $s) {
         $s['csvPath'],
     );
 }
+$md .= "\n## Upcoming / no results yet\n\n";
+$md .= "| Date | End | Level | Match | Venue | Province | Src |\n";
+$md .= "|---|---|---|---|---|---|---|\n";
+foreach ($upcoming as $ev) {
+    $md .= sprintf(
+        "| %s | %s | %s | %s | %s | %s | [#%d](%s) |\n",
+        $ev['date_iso'], $ev['end_iso'] ?? '—', $ev['level'], $ev['name'],
+        $ev['venue'], $ev['province'], $ev['id'], $ev['source_url'],
+    );
+}
 if ($skipped) {
     $md .= "\n## Skipped\n\n";
     foreach ($skipped as $sk) {
@@ -357,5 +399,5 @@ if ($skipped) {
 file_put_contents($indexPath, $md);
 
 $totalRows = array_sum(array_column($scraped, 'rows'));
-echo "\nDone. Matches scraped: ".count($scraped)."  Total shooter rows: $totalRows  Skipped: ".count($skipped)."\n";
+echo "\nDone. Completed matches: ".count($scraped)."  Total shooter rows: $totalRows  Upcoming: ".count($upcoming)."  Skipped: ".count($skipped)."\n";
 echo "INDEX: $indexPath\n";

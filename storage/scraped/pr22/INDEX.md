@@ -1,7 +1,7 @@
 # SAPRF PR22 2026 — Scraped Match Results
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-07-07 13:30:40
+Scraped: 2026-07-07 19:09:11
 
 Series in scope:
 
@@ -24,3 +24,17 @@ Match catalog: `matches.csv` (one row per match, ready to import as `MatchEvent`
 | 2026-04-25 | — | provincial | Rimfire PR22 WC Provincial | Atlantis Shooting Range | Western Cape | Handre van Niekerk | 16 | — | [#239](https://www.precisionrifle.co.za/events/239) | `storage/scraped/pr22/provincial/2026-04-25_rimfire-pr22-wc-provincial.csv` |
 | 2026-05-23 | — | provincial | Rimfire PR22 GP Provincial | Leopard's Valley | Gauteng | Warren Britnell | 45 | — | [#227](https://www.precisionrifle.co.za/events/227) | `storage/scraped/pr22/provincial/2026-05-23_rimfire-pr22-gp-provincial.csv` |
 | 2026-06-06 | 2026-06-07 | national | Rimfire PR22 GP 2-Day National | Legends Adventure Farm | Gauteng | Eddie Kinnear | 53 | yes | [#233](https://www.precisionrifle.co.za/events/233) | `storage/scraped/pr22/national/2026-06-06_rimfire-pr22-gp-2-day-national.csv` |
+
+## Upcoming / no results yet
+
+| Date | End | Level | Match | Venue | Province | Src |
+|---|---|---|---|---|---|---|
+| 2026-07-18 | — | national | Rimfire PR22 LP Provincial | Risla Range | Limpopo | [#228](https://www.precisionrifle.co.za/events/228) |
+| 2026-07-26 | — | provincial | Rimfire PR22 WC Provincial | Lourensford | Western Cape | [#253](https://www.precisionrifle.co.za/events/253) |
+| 2026-08-15 | — | provincial | Rimfire PR22 GP Provincial | Hippo Creek | Gauteng | [#229](https://www.precisionrifle.co.za/events/229) |
+| 2026-08-22 | — | provincial | Rimfire PR22 WC Provincial | TBC - Western Cape | Western Cape | [#240](https://www.precisionrifle.co.za/events/240) |
+| 2026-08-29 | 2026-08-30 | provincial | Rimfire PR22 MP 2-Day National | TBC - Mpumalanga | Mpumalanga | [#234](https://www.precisionrifle.co.za/events/234) |
+| 2026-09-05 | — | provincial | Rimfire PR22 GP Provincial | Ezemvulo Game Park | Gauteng | [#230](https://www.precisionrifle.co.za/events/230) |
+| 2026-10-10 | — | provincial | Rimfire PR22 GP Provincial | Papaburg | Gauteng | [#242](https://www.precisionrifle.co.za/events/242) |
+| 2026-10-31 | — | provincial | Rimfire PR22 WC Provincial | TBC - Western Cape | Western Cape | [#241](https://www.precisionrifle.co.za/events/241) |
+| 2026-11-07 | 2026-11-08 | national | Rimfire PR22 GP 2-Day National Championship Match | TBC - Gauteng | Gauteng | [#235](https://www.precisionrifle.co.za/events/235) |

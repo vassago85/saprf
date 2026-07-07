@@ -17,28 +17,34 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * One-shot importer that turns the CSVs produced by scripts/scrape_pr22.php
+ * Importer that turns the CSVs produced by scripts/scrape_pr22.php
  * (in storage/scraped/pr22/) into real MatchEvent, User, Membership and
  * Score records, then runs the season standings recalculation.
  *
- * Defaults to WIPING non-staff shooter data first so the imported dataset
- * replaces any fabricated demo shooters. Staff accounts on @saprf.co.za
- * are preserved.
+ * ADDITIVE by default: existing matches (matched by name + type + season) are
+ * left untouched (scores preserved), new ones are added, and upcoming.csv is
+ * imported as published, score-less events. Re-running is safe and idempotent.
+ *
+ * Pass --wipe to first destroy all non-staff shooter data (users, memberships,
+ * matches, scores) and rebuild from scratch. Only use --wipe on a throwaway
+ * dataset — it will delete imported real members.
  */
 class ImportScrapedPr22Command extends Command
 {
     protected $signature = 'pr22:import-scraped
-        {--dir=storage/scraped/pr22 : Directory containing matches.csv and per-match CSVs}
+        {--dir=storage/scraped/pr22 : Directory containing matches.csv, upcoming.csv and per-match CSVs}
         {--skip-source-ids=250 : Comma-separated source event IDs to skip (defaults to WC provincial mirror)}
         {--dry-run : Parse everything and print counts, but write nothing}
-        {--no-wipe : Skip the wipe step (import additively on top of existing data)}';
+        {--skip-upcoming : Do not create the upcoming (score-less) matches}
+        {--wipe : DESTRUCTIVE: wipe all non-staff shooter data first, then rebuild}';
 
-    protected $description = 'Import scraped SAPRF PR22 2026 match results (scores + stub users) into the DB';
+    protected $description = 'Import scraped SAPRF PR22 2026 match results additively (scores + stub users); --wipe to reset';
 
     public function handle(StandingsCalculationService $standings): int
     {
         $dir = base_path((string) $this->option('dir'));
         $catalog = $dir.DIRECTORY_SEPARATOR.'matches.csv';
+        $upcomingCatalog = $dir.DIRECTORY_SEPARATOR.'upcoming.csv';
 
         if (!is_file($catalog)) {
             $this->error("matches.csv not found at {$catalog}. Run scripts/scrape_pr22.php first.");
@@ -47,19 +53,25 @@ class ImportScrapedPr22Command extends Command
 
         $skipIds = array_filter(array_map('trim', explode(',', (string) $this->option('skip-source-ids'))));
         $dryRun = (bool) $this->option('dry-run');
-        $doWipe = !$this->option('no-wipe');
+        $doWipe = (bool) $this->option('wipe');
+        $doUpcoming = !$this->option('skip-upcoming');
 
-        $this->info('=== SAPRF PR22 2026 Scraped Import ===');
+        $this->info('=== SAPRF PR22 2026 Scraped Import ('.($doWipe ? 'WIPE + rebuild' : 'additive').') ===');
         $this->line("Source dir: {$dir}");
         $this->line('Skip source IDs: '.implode(', ', $skipIds ?: ['<none>']));
-        $this->line('Wipe first: '.($doWipe ? 'yes' : 'no'));
+        $this->line('Wipe first: '.($doWipe ? 'YES (destroys non-staff data)' : 'no (additive)'));
+        $this->line('Import upcoming: '.($doUpcoming ? 'yes' : 'no'));
         $this->line('Dry run: '.($dryRun ? 'YES (nothing will be written)' : 'no'));
         $this->newLine();
 
         $matches = $this->readCsv($catalog);
         $matches = array_values(array_filter($matches, fn ($m) => !in_array($m['source_id'], $skipIds, true)));
 
-        $this->info(count($matches).' match(es) after skip filter.');
+        $upcoming = ($doUpcoming && is_file($upcomingCatalog))
+            ? array_values(array_filter($this->readCsv($upcomingCatalog), fn ($m) => !in_array($m['source_id'], $skipIds, true)))
+            : [];
+
+        $this->info(count($matches).' completed match(es), '.count($upcoming).' upcoming match(es) after skip filter.');
 
         $roster = $this->buildRoster($dir, $matches);
         $this->info(count($roster).' unique shooters across all matches.');
@@ -83,8 +95,9 @@ class ImportScrapedPr22Command extends Command
 
         if ($dryRun) {
             $this->line('[dry-run] Would wipe: '.($doWipe ? 'yes' : 'no'));
-            $this->line('[dry-run] Would create '.count($roster).' users + memberships');
-            $this->line('[dry-run] Would create '.count($matches).' matches');
+            $this->line('[dry-run] Would create up to '.count($roster).' users + memberships');
+            $this->line('[dry-run] Would create up to '.count($matches).' completed matches (skipping any already present)');
+            $this->line('[dry-run] Would create up to '.count($upcoming).' upcoming matches');
             $totalRows = 0;
             foreach ($matches as $m) {
                 $totalRows += count($this->readCsv(base_path($m['scores_csv'])));
@@ -97,25 +110,43 @@ class ImportScrapedPr22Command extends Command
             $this->wipeNonStaffData();
         }
 
-        DB::transaction(function () use ($roster, $matches, $provinces, $divisions, $divisionsByName) {
+        DB::transaction(function () use ($roster, $matches, $upcoming, $provinces, $divisions, $divisionsByName) {
             $creator = User::whereHas('roles', fn ($q) => $q->where('name', 'developer'))->first()
                 ?? User::first();
             if (!$creator) {
                 throw new \RuntimeException('No user available to own imported matches. Seed RolesAndUsersSeeder first.');
             }
 
-            $this->info('Creating '.count($roster).' shooter accounts + memberships...');
+            $this->info('Ensuring '.count($roster).' shooter accounts + memberships...');
             $userIdByCanon = $this->createStubShooters($roster, $provinces, $divisions, $divisionsByName);
             $this->line('  '.count($userIdByCanon).' users ready.');
 
-            $this->info('Creating '.count($matches).' matches + scores...');
+            $this->info('Importing completed matches + scores...');
+            $newMatches = 0;
             $totalScores = 0;
             foreach ($matches as $m) {
-                $match = $this->createMatch($m, $provinces, $creator->id);
+                [$match, $created] = $this->firstOrCreateMatch($m, $provinces, $creator->id, 'completed');
+                if (!$created) {
+                    $this->line("  = exists, skipping scores: {$m['name']}");
+                    continue;
+                }
+                $newMatches++;
                 $rows = $this->readCsv(base_path($m['scores_csv']));
                 $totalScores += $this->createScores($match, $rows, $userIdByCanon, $divisions, $divisionsByName);
             }
-            $this->line("  {$totalScores} score rows imported.");
+            $this->line("  {$newMatches} new completed match(es), {$totalScores} score rows imported.");
+
+            if ($upcoming !== []) {
+                $this->info('Creating upcoming matches...');
+                $newUpcoming = 0;
+                foreach ($upcoming as $m) {
+                    [, $created] = $this->firstOrCreateMatch($m, $provinces, $creator->id, 'open');
+                    if ($created) {
+                        $newUpcoming++;
+                    }
+                }
+                $this->line("  {$newUpcoming} upcoming match(es) created.");
+            }
         });
 
         $this->info('Recalculating match rankings + season standings...');
@@ -305,33 +336,56 @@ class ImportScrapedPr22Command extends Command
         return $userIdByCanon;
     }
 
-    private function createMatch(array $m, $provinces, int $creatorId): MatchEvent
+    /**
+     * @return array{0:MatchEvent,1:bool} [match, wasCreated]
+     */
+    private function firstOrCreateMatch(array $m, $provinces, int $creatorId, string $status): array
     {
-        $provinceId = $provinces->get(strtolower($m['province']))?->id;
-        $endDate = $m['match_end_date'] !== '' ? $m['match_end_date'] : null;
+        $director = ($m['match_director'] ?? '') ?: null;
+        $contact = ($m['contact'] ?? '') ?: null;
 
-        return MatchEvent::create([
+        $existing = MatchEvent::where('match_type', 'PR22')
+            ->where('season', '2026')
+            ->where('name', $m['name'])
+            ->first();
+        if ($existing) {
+            // Backfill the match director on matches imported before this field
+            // existed, without touching their scores.
+            if ($director && $existing->match_director !== $director) {
+                $existing->match_director = $director;
+                $existing->match_director_contact = $contact;
+                $existing->save();
+            }
+            return [$existing, false];
+        }
+
+        $provinceId = $provinces->get(strtolower($m['province']))?->id;
+        $endDate = ($m['match_end_date'] ?? '') !== '' ? $m['match_end_date'] : null;
+
+        $match = MatchEvent::create([
             'name' => $m['name'],
             'match_type' => 'PR22',
             'series' => 'PR22',
             'series_level' => $m['series_level'],
             'season' => '2026',
             'province_id' => $provinceId,
-            'venue_name' => $m['venue_name'] ?: null,
-            'match_director' => ($m['match_director'] ?? '') ?: null,
-            'match_director_contact' => ($m['contact'] ?? '') ?: null,
+            'venue_name' => ($m['venue_name'] ?? '') ?: null,
+            'match_director' => $director,
+            'match_director_contact' => $contact,
             'match_date' => $m['match_date'],
             'match_end_date' => $endDate,
-            'status' => 'completed',
+            'status' => $status,
             'created_by' => $creatorId,
             'published' => true,
             'division_awards_enabled' => true,
             'also_counts_for_provincial' => (bool) (int) ($m['also_counts_for_provincial'] ?? 0),
             'description' => trim(sprintf(
                 "Imported from precisionrifle.co.za event #%s\nMatch Director: %s\nContact: %s",
-                $m['source_id'], $m['match_director'] ?: '—', $m['contact'] ?: '—'
+                $m['source_id'] ?? '?', $director ?: '—', $contact ?: '—'
             )),
         ]);
+
+        return [$match, true];
     }
 
     private function createScores(MatchEvent $match, array $rows, array $userIdByCanon, $divisions, $divisionsByName): int
