@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Club;
 use App\Models\Division;
 use App\Models\Membership;
 use App\Models\Province;
@@ -45,7 +46,7 @@ class ImportMembersCommand extends Command
         'name', 'email', 'phone', 'sa_id_number', 'date_of_birth',
         'province', 'saprf_number', 'membership_type', 'status',
         'payment_status', 'start_date', 'expiry_date', 'division',
-        'role', 'is_active',
+        'club', 'role', 'is_active',
     ];
 
     private const HEADER_ALIASES = [
@@ -64,6 +65,7 @@ class ImportMembersCommand extends Command
         'join_date' => 'start_date', 'joined_at' => 'start_date',
         'renewal_date' => 'expiry_date', 'renew_by' => 'expiry_date', 'expires' => 'expiry_date', 'expires_at' => 'expiry_date',
         'default_division' => 'division',
+        'shooting_club' => 'club', 'primary_shooting_club' => 'club', 'club_name' => 'club', 'home_club' => 'club',
         'roles' => 'role',
         'active' => 'is_active',
     ];
@@ -199,6 +201,7 @@ class ImportMembersCommand extends Command
 
         $provinceId = $this->resolveProvinceId($row['province'] ?? null, $provinces);
         $divisionId = $this->resolveDivisionId($row['division'] ?? null, $divisions);
+        $clubId = $this->resolveClubId($row['club'] ?? null);
 
         if (!$existing) {
             $email = $row['email'] ?: $this->placeholderEmailFor($row['name']);
@@ -214,6 +217,7 @@ class ImportMembersCommand extends Command
                 'date_of_birth' => $this->parseDate($row['date_of_birth'] ?? null),
                 'province_id' => $provinceId,
                 'division_id' => $divisionId,
+                'club_id' => $clubId,
                 'is_active' => $this->parseBool($row['is_active'] ?? '1', true),
                 'email_verified_at' => null,
                 'must_change_password' => true,
@@ -255,6 +259,9 @@ class ImportMembersCommand extends Command
             }
             if ($divisionId && $existing->division_id !== $divisionId) {
                 $userUpdates['division_id'] = $divisionId;
+            }
+            if ($clubId && $existing->club_id !== $clubId) {
+                $userUpdates['club_id'] = $clubId;
             }
 
             if (!empty($row['is_active']) || $row['is_active'] === '0') {
@@ -320,6 +327,16 @@ class ImportMembersCommand extends Command
         $provinceId = $this->resolveProvinceId($row['province'] ?? null, $provinces);
         if ($provinceId && $existing->province_id !== $provinceId) {
             $changes[] = "province -> {$provinces->firstWhere('id', $provinceId)?->name}";
+        }
+
+        $clubName = trim((string) ($row['club'] ?? ''));
+        if ($clubName !== '') {
+            $existingClub = Club::whereRaw('LOWER(name) = ?', [strtolower($clubName)])->first();
+            if (!$existingClub) {
+                $changes[] = "club -> {$clubName} (new)";
+            } elseif ($existing->club_id !== $existingClub->id) {
+                $changes[] = "club -> {$existingClub->name}";
+            }
         }
 
         if (!empty($row['saprf_number']) && (!$existing->membership || $existing->membership->saprf_number !== $row['saprf_number'])) {
@@ -430,6 +447,11 @@ class ImportMembersCommand extends Command
         return $divisions->firstWhere(fn ($d) => strtolower($d->slug) === $v || strtolower($d->name) === $v)?->id;
     }
 
+    private function resolveClubId(?string $name): ?int
+    {
+        return Club::findOrCreateByName($name)?->id;
+    }
+
     private function parseDate(?string $s): ?Carbon
     {
         if (!$s || trim($s) === '') return null;
@@ -504,12 +526,12 @@ class ImportMembersCommand extends Command
             [
                 'Jane Doe', 'jane@example.com', '+27 82 555 1234', '8501015001080',
                 '1985-01-01', 'Gauteng', 'SAPRF-2026-00042', 'paid', 'active', 'paid',
-                '2026-01-01', '2026-12-31', 'Ladies', 'member', '1',
+                '2026-01-01', '2026-12-31', 'Ladies', 'Pretoria Precision Rifle Club (PPRC)', 'member', '1',
             ],
             [
                 'John Smith', 'john@example.com', '', '', '30/06/1978', 'WC', '',
                 'paid', 'active', 'paid', '', '2026-12-31', 'Open',
-                'match_director,member', '1',
+                'Krokodilspruit Skietklub', 'match_director,member', '1',
             ],
         ];
         foreach ($rows as $r) $this->line($this->csvLine($r));

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Club;
 use App\Models\Division;
 use App\Models\Membership;
 use App\Models\Province;
@@ -201,4 +202,51 @@ CSV);
         ->and($u->hasRole('member'))->toBeTrue()
         ->and($u->hasRole('match_director'))->toBeTrue()
         ->and($u->membership->saprf_number)->toBe('SAPRF-2026-11111');
+});
+
+it('creates clubs from the club column and links members to them', function () {
+    $csv = writeMembersCsv(<<<CSV
+name,email,province,club
+Club One,one@example.com,Gauteng,Pretoria Precision Rifle Club (PPRC)
+Club Two,two@example.com,Gauteng,Pretoria Precision Rifle Club (PPRC)
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    // Both members share one newly-created club (no duplicate).
+    expect(Club::count())->toBe(1);
+
+    $club = Club::first();
+    expect($club->name)->toBe('Pretoria Precision Rifle Club (PPRC)')
+        ->and($club->abbreviation)->toBe('PPRC')
+        ->and($club->slug)->toBe('pretoria-precision-rifle-club-pprc');
+
+    expect(User::where('email', 'one@example.com')->first()->club_id)->toBe($club->id)
+        ->and(User::where('email', 'two@example.com')->first()->club_id)->toBe($club->id);
+});
+
+it('links to an existing club case-insensitively via the primary_shooting_club alias', function () {
+    $club = Club::create(['name' => 'Bloemfontein Precision Rifle Club', 'slug' => 'bfn-prc']);
+
+    $csv = writeMembersCsv(<<<CSV
+name,email,primary_shooting_club
+Case Insensitive,ci@example.com,BLOEMFONTEIN PRECISION RIFLE CLUB
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    expect(Club::count())->toBe(1)
+        ->and(User::where('email', 'ci@example.com')->first()->club_id)->toBe($club->id);
+});
+
+it('treats placeholder club values as no club', function () {
+    $csv = writeMembersCsv(<<<CSV
+name,email,club
+No Club,noclub@example.com,Still need to join a club
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    expect(Club::count())->toBe(0)
+        ->and(User::where('email', 'noclub@example.com')->first()->club_id)->toBeNull();
 });

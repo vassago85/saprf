@@ -1,0 +1,4 @@
+# Member data is PII (emails, ID numbers, DOB) and this folder may hold a live
+# session cookie. Never commit anything here except this ignore file.
+*
+!.gitignore
