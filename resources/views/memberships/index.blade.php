@@ -48,26 +48,8 @@
                 <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
                 <select name="status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     <option value="">All</option>
-                    @foreach(['active', 'pending', 'lapsed', 'expired', 'revoked'] as $opt)
-                        <option value="{{ $opt }}" @selected(($filters['status'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Payment</label>
-                <select name="payment_status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <option value="">All</option>
-                    @foreach(['paid', 'unpaid', 'waived'] as $opt)
-                        <option value="{{ $opt }}" @selected(($filters['payment_status'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Type</label>
-                <select name="membership_type" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <option value="">All</option>
-                    @foreach(['paid', 'free'] as $opt)
-                        <option value="{{ $opt }}" @selected(($filters['membership_type'] ?? '') === $opt)>{{ ucfirst($opt) }}</option>
+                    @foreach(['active' => 'Active', 'expired' => 'Expired', 'non_member' => 'Non-member', 'revoked' => 'Revoked'] as $val => $label)
+                        <option value="{{ $val }}" @selected(($filters['status'] ?? '') === $val)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
@@ -85,19 +67,19 @@
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
                     @php
+                        // key => [label, sortable?]
                         $cols = [
-                            'name' => 'Member',
-                            'saprf_number' => 'SAPRF Number',
-                            'type' => 'Type',
-                            'status' => 'Status',
-                            'payment' => 'Payment',
-                            'province' => 'Province',
-                            'expiry' => 'Expiry',
+                            'name' => ['Member', true],
+                            'saprf_number' => ['SAPRF Number', true],
+                            'type' => ['Type', true],
+                            'status' => ['Status', false],
+                            'province' => ['Province', true],
+                            'expiry' => ['Expiry', true],
                         ];
                     @endphp
-                    @foreach($cols as $key => $label)
+                    @foreach($cols as $key => [$label, $sortable])
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">
-                            @if($isAdmin)
+                            @if($isAdmin && $sortable)
                                 @php [$url, $arrow] = $sortLink($key); @endphp
                                 <a href="{{ $url }}" class="inline-flex items-center gap-1 hover:text-stone-800">{{ $label }} <span class="text-emerald-600">{{ $arrow }}</span></a>
                             @else
@@ -115,39 +97,21 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">{{ $membership->saprf_number ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ $membership->membership_type }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($membership->status)
+                            @switch($membership->effective_status)
                                 @case('active')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
                                     @break
-                                @case('pending')
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
-                                    @break
-                                @case('lapsed')
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Lapsed</span>
-                                    @break
                                 @case('expired')
                                     <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span>
+                                    @break
+                                @case('pending')
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
                                     @break
                                 @case('revoked')
                                     <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
                                     @break
                                 @default
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($membership->status) }}</span>
-                            @endswitch
-                        </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($membership->payment_status)
-                                @case('paid')
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Paid</span>
-                                    @break
-                                @case('waived')
-                                    <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Waived</span>
-                                    @break
-                                @case('unpaid')
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Unpaid</span>
-                                    @break
-                                @default
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($membership->payment_status ?? 'N/A') }}</span>
+                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">Non-member</span>
                             @endswitch
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->user->province?->name ?? '—' }}</td>
@@ -167,7 +131,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-5 py-12 text-center text-sm text-stone-400">No memberships found.</td>
+                        <td colspan="7" class="px-5 py-12 text-center text-sm text-stone-400">No memberships found.</td>
                     </tr>
                 @endforelse
             </tbody>

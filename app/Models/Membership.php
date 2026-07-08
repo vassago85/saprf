@@ -36,6 +36,47 @@ class Membership extends Model
         return $this->status === 'revoked' && $this->revoked_at !== null;
     }
 
+    /**
+     * A single, human-friendly status derived from the facts we trust — the
+     * expiry date and the membership type — rather than the messy legacy
+     * "status"/"payment_status" flags. This is what should be shown to users:
+     * a membership is simply Active (paid up, not yet expired) or Expired.
+     *
+     * Returns one of: non_member | revoked | pending | expired | active
+     */
+    public function getEffectiveStatusAttribute(): string
+    {
+        if ($this->membership_type === 'free') {
+            return 'non_member';
+        }
+
+        if ($this->status === 'revoked') {
+            return 'revoked';
+        }
+
+        // Awaiting first payment/approval and no window opened yet.
+        if ($this->status === 'pending' && ! $this->expiry_date) {
+            return 'pending';
+        }
+
+        if ($this->expiry_date && $this->expiry_date->lt(now()->startOfDay())) {
+            return 'expired';
+        }
+
+        return 'active';
+    }
+
+    public function getEffectiveStatusLabelAttribute(): string
+    {
+        return match ($this->effective_status) {
+            'non_member' => 'Non-member',
+            'revoked' => 'Revoked',
+            'pending' => 'Pending',
+            'expired' => 'Expired',
+            default => 'Active',
+        };
+    }
+
     public function revokedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'revoked_by');

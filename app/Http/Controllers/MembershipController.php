@@ -40,8 +40,6 @@ class MembershipController extends Controller
         'name' => 'users.name',
         'saprf_number' => 'memberships.saprf_number',
         'type' => 'memberships.membership_type',
-        'status' => 'memberships.status',
-        'payment' => 'memberships.payment_status',
         'province' => 'provinces.name',
         'expiry' => 'memberships.expiry_date',
     ];
@@ -70,7 +68,7 @@ class MembershipController extends Controller
             'memberships' => $memberships,
             'isAdmin' => true,
             'provinces' => \App\Models\Province::orderBy('name')->get(),
-            'filters' => $request->only(['search', 'status', 'payment_status', 'membership_type', 'province_id']),
+            'filters' => $request->only(['search', 'status', 'province_id']),
             'sort' => $this->resolveSort($request),
             'dir' => $this->resolveDir($request),
         ]);
@@ -85,7 +83,7 @@ class MembershipController extends Controller
 
         return response()->streamDownload(function () use ($memberships) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Member', 'Email', 'Phone', 'SAPRF Number', 'Type', 'Status', 'Payment', 'Province', 'Start Date', 'Expiry Date']);
+            fputcsv($handle, ['Member', 'Email', 'Phone', 'SAPRF Number', 'Type', 'Status', 'Province', 'Start Date', 'Expiry Date']);
             foreach ($memberships as $m) {
                 fputcsv($handle, [
                     $m->user?->name ?? '',
@@ -93,8 +91,7 @@ class MembershipController extends Controller
                     $m->user?->phone ?? '',
                     $m->saprf_number ?? '',
                     ucfirst((string) $m->membership_type),
-                    ucfirst((string) $m->status),
-                    ucfirst((string) $m->payment_status),
+                    $m->effective_status_label,
                     $m->user?->province?->name ?? '',
                     $m->start_date?->format('Y-m-d') ?? '',
                     $m->expiry_date?->format('Y-m-d') ?? '',
@@ -123,15 +120,25 @@ class MembershipController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('memberships.status', $status);
-        }
-        if ($payment = $request->input('payment_status')) {
-            $query->where('memberships.payment_status', $payment);
-        }
-        if ($type = $request->input('membership_type')) {
-            $query->where('memberships.membership_type', $type);
-        }
+        // Filter by the same simplified status we display: active vs expired,
+        // plus the non-member / revoked overrides — all derived from the
+        // expiry date and type, not the noisy legacy status flags.
+        $today = now()->startOfDay()->toDateString();
+        match ($request->input('status')) {
+            'active' => $query->where('memberships.membership_type', '!=', 'free')
+                ->where('memberships.status', '!=', 'revoked')
+                ->where(function ($q) use ($today) {
+                    $q->whereNull('memberships.expiry_date')
+                        ->orWhereDate('memberships.expiry_date', '>=', $today);
+                }),
+            'expired' => $query->where('memberships.membership_type', '!=', 'free')
+                ->where('memberships.status', '!=', 'revoked')
+                ->whereDate('memberships.expiry_date', '<', $today),
+            'non_member' => $query->where('memberships.membership_type', 'free'),
+            'revoked' => $query->where('memberships.status', 'revoked'),
+            default => null,
+        };
+
         if ($provinceId = $request->input('province_id')) {
             $query->where('users.province_id', $provinceId);
         }
