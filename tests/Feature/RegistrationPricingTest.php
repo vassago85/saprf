@@ -47,13 +47,13 @@ test('active member gets active_member_fee', function () {
         ->and($result['fee'])->toBe(250.00);
 });
 
-test('non-member gets non_member_fee', function () {
+test('non-member pays base fee only (no surcharge)', function () {
     $user = User::factory()->create();
 
     $result = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today());
 
     expect($result['category'])->toBe('non_member')
-        ->and($result['fee'])->toBe(500.00);
+        ->and($result['fee'])->toBe(250.00);
 });
 
 test('lapsed member gets lapsed_member_fee', function () {
@@ -71,14 +71,14 @@ test('lapsed member gets lapsed_member_fee', function () {
     $result = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today());
 
     expect($result['category'])->toBe('lapsed_member')
-        ->and($result['fee'])->toBe(400.00);
+        ->and($result['fee'])->toBe(250.00);
 });
 
-test('null user gets non_member_fee', function () {
+test('null user pays base fee only (no surcharge)', function () {
     $result = $this->service->determineCategoryAndFee($this->match, null, Carbon::today());
 
     expect($result['category'])->toBe('non_member')
-        ->and($result['fee'])->toBe(500.00);
+        ->and($result['fee'])->toBe(250.00);
 });
 
 test('calculateBreakdown returns full fee structure for active member', function () {
@@ -99,26 +99,26 @@ test('calculateBreakdown returns full fee structure for active member', function
         ->and($result['base_fee'])->toBe(250.00)
         ->and($result['surcharge'])->toBe(0.0)
         ->and($result['total_fee'])->toBe(250.00)
-        ->and($result['saprf_fee'])->toBe(12.50)
-        ->and($result['platform_fee'])->toBe(12.50)
+        ->and($result['saprf_fee'])->toBe(50.00)
+        ->and($result['platform_fee'])->toBe(0.0)
         ->and($result['gateway_fee'])->toBe(10.75)
-        ->and($result['md_net'])->toBe(214.25)
-        ->and($result['rates'])->toHaveKeys(['saprf_pct', 'platform_pct', 'gateway_pct', 'gateway_flat']);
+        ->and($result['md_net'])->toBe(189.25)
+        ->and($result['rates'])->toHaveKeys(['saprf_type', 'saprf_value', 'platform_type', 'platform_value', 'gateway_pct', 'gateway_flat']);
 });
 
-test('calculateBreakdown adds surcharge for non-member to SAPRF', function () {
+test('calculateBreakdown for non-member is the flat R50 SAPRF fee, no surcharge', function () {
     $user = User::factory()->create();
 
     $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
 
     expect($result['category'])->toBe('non_member')
         ->and($result['base_fee'])->toBe(250.00)
-        ->and($result['surcharge'])->toBe(250.00)
-        ->and($result['total_fee'])->toBe(500.00)
-        ->and($result['saprf_fee'])->toBe(12.50)
-        ->and($result['platform_fee'])->toBe(12.50)
-        ->and($result['gateway_fee'])->toBe(19.50)
-        ->and($result['md_net'])->toBe(205.50);
+        ->and($result['surcharge'])->toBe(0.0)
+        ->and($result['total_fee'])->toBe(250.00)
+        ->and($result['saprf_fee'])->toBe(50.00)
+        ->and($result['platform_fee'])->toBe(0.0)
+        ->and($result['gateway_fee'])->toBe(10.75)
+        ->and($result['md_net'])->toBe(189.25);
 });
 
 test('calculateBreakdown md_net equals total minus all deductions', function () {

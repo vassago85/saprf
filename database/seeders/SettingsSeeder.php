@@ -16,12 +16,12 @@ class SettingsSeeder extends Seeder
 
         Setting::firstOrCreate(
             ['key' => 'non_member_surcharge'],
-            ['value' => '250.00', 'description' => 'Extra fee for non-members per match (ZAR)'],
+            ['value' => '0', 'description' => 'Extra fee for non-members per match (ZAR)'],
         );
 
         Setting::firstOrCreate(
             ['key' => 'lapsed_member_surcharge'],
-            ['value' => '150.00', 'description' => 'Extra fee for lapsed members per match (ZAR)'],
+            ['value' => '0', 'description' => 'Extra fee for lapsed members per match (ZAR)'],
         );
 
         // Division Rules
@@ -39,20 +39,20 @@ class SettingsSeeder extends Seeder
         // match fee OR a fixed rand amount per shooter.
         Setting::firstOrCreate(
             ['key' => 'saprf_fee_type'],
-            ['value' => 'percentage', 'description' => 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter'],
+            ['value' => 'fixed', 'description' => 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter'],
         );
         Setting::firstOrCreate(
             ['key' => 'saprf_fee_value'],
-            ['value' => '5', 'description' => 'SAPRF fee value (interpreted by saprf_fee_type)'],
+            ['value' => '50', 'description' => 'SAPRF fee value (interpreted by saprf_fee_type)'],
         );
 
         Setting::firstOrCreate(
             ['key' => 'platform_fee_type'],
-            ['value' => 'percentage', 'description' => 'Platform fee type: percentage of match fee or fixed rand amount per shooter'],
+            ['value' => 'fixed', 'description' => 'Platform fee type: percentage of match fee or fixed rand amount per shooter'],
         );
         Setting::firstOrCreate(
             ['key' => 'platform_fee_value'],
-            ['value' => '5', 'description' => 'Platform fee value (interpreted by platform_fee_type)'],
+            ['value' => '0', 'description' => 'Platform fee value (interpreted by platform_fee_type)'],
         );
 
         // Legacy keys kept for backward compatibility; fee resolution falls back to these

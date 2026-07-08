@@ -21,8 +21,8 @@ class RegistrationPricingService
 
         $fee = match ($category) {
             'active_member' => $baseFee,
-            'lapsed_member' => $baseFee + (float) $this->settingsService->get('lapsed_member_surcharge', 150),
-            default => $baseFee + (float) $this->settingsService->get('non_member_surcharge', 250),
+            'lapsed_member' => $baseFee + (float) $this->settingsService->get('lapsed_member_surcharge', 0),
+            default => $baseFee + (float) $this->settingsService->get('non_member_surcharge', 0),
         };
 
         return [
@@ -49,10 +49,10 @@ class RegistrationPricingService
 
         $surcharge = $totalFee - $baseFee;
 
-        $saprfType = (string) $this->settingsService->get('saprf_fee_type', 'percentage');
-        $saprfValue = (float) $this->settingsService->get('saprf_fee_value', $this->settingsService->get('saprf_fee_percentage', 5));
-        $platformType = (string) $this->settingsService->get('platform_fee_type', 'percentage');
-        $platformValue = (float) $this->settingsService->get('platform_fee_value', $this->settingsService->get('platform_fee_percentage', 5));
+        $saprfType = (string) $this->settingsService->get('saprf_fee_type', 'fixed');
+        $saprfValue = (float) $this->settingsService->get('saprf_fee_value', 50);
+        $platformType = (string) $this->settingsService->get('platform_fee_type', 'fixed');
+        $platformValue = (float) $this->settingsService->get('platform_fee_value', 0);
         $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5);
         $gatewayFlat = (float) $this->settingsService->get('estimated_gateway_flat_fee', 2.00);
 
