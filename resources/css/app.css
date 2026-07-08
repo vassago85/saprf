@@ -3,6 +3,13 @@
 
 [x-cloak] { display: none !important; }
 
+/* Guard against accidental horizontal overflow on small screens. Applied to
+   <html> (not <body>) so that `position: sticky` navs keep working — putting
+   overflow-x on <body> would turn it into a scroll container and break sticky. */
+html {
+    overflow-x: hidden;
+}
+
 /* Force light mode on public/guest pages */
 .force-light, .force-light * {
     color-scheme: light !important;

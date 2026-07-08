@@ -194,8 +194,8 @@
                                                 <template x-if="index >= 3">
                                                     <span class="text-[11px] font-semibold text-stone-400 w-5 text-center" x-text="index + 1"></span>
                                                 </template>
-                                                <span class="flex-1 text-[13px] font-semibold text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
-                                                <span class="text-[10px] text-stone-500 font-medium w-8 text-center" x-text="entry.user?.province?.abbreviation || ''"></span>
+                                                <span class="flex-1 min-w-0 text-[13px] font-semibold text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
+                                                <span class="text-[10px] text-stone-500 font-medium w-8 text-center shrink-0" x-text="entry.user?.province?.abbreviation || ''"></span>
                                                 <span class="text-[13px] font-mono font-bold w-11 text-right"
                                                       :class="activeTab === 'PRS' ? 'text-emerald-600' : 'text-sky-600'"
                                                       x-text="parseFloat(entry.points).toFixed(0)"></span>
@@ -259,9 +259,9 @@
                                 </template>
                             </div>
                             <h3 class="font-semibold text-stone-900 group-hover:text-emerald-800 transition leading-snug line-clamp-2 mb-2" x-text="match.name"></h3>
-                            <p class="flex items-center gap-1.5 text-sm text-stone-500 mb-3">
+                            <p class="flex items-center gap-1.5 text-sm text-stone-500 mb-3 min-w-0">
                                 <svg class="size-3.5 text-stone-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
-                                <span class="truncate" x-text="(match.city || match.venue_location || match.venue_name || 'TBC') + (match.province?.name ? ', ' + match.province.name : '')"></span>
+                                <span class="truncate min-w-0" x-text="(match.city || match.venue_location || match.venue_name || 'TBC') + (match.province?.name ? ', ' + match.province.name : '')"></span>
                             </p>
                             <div class="mt-auto flex flex-wrap gap-1.5">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset"
@@ -337,9 +337,9 @@
                                         <template x-if="index >= 3">
                                             <span class="text-sm font-medium text-stone-400 w-7 text-center" x-text="index + 1"></span>
                                         </template>
-                                        <span class="flex-1 text-sm font-medium text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
-                                        <span class="text-xs text-stone-400 font-medium" x-text="entry.user?.province?.abbreviation || ''"></span>
-                                        <span class="text-sm font-mono font-bold text-stone-900 w-14 text-right" x-text="parseFloat(entry.points).toFixed(0)"></span>
+                                        <span class="flex-1 min-w-0 text-sm font-medium text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
+                                        <span class="text-xs text-stone-400 font-medium shrink-0" x-text="entry.user?.province?.abbreviation || ''"></span>
+                                        <span class="text-sm font-mono font-bold text-stone-900 w-14 text-right shrink-0" x-text="parseFloat(entry.points).toFixed(0)"></span>
                                     </div>
                                 </template>
                             </div>
@@ -370,9 +370,9 @@
                                         <template x-if="index >= 3">
                                             <span class="text-sm font-medium text-stone-400 w-7 text-center" x-text="index + 1"></span>
                                         </template>
-                                        <span class="flex-1 text-sm font-medium text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
-                                        <span class="text-xs text-stone-400 font-medium" x-text="entry.user?.province?.abbreviation || ''"></span>
-                                        <span class="text-sm font-mono font-bold text-stone-900 w-14 text-right" x-text="parseFloat(entry.points).toFixed(0)"></span>
+                                        <span class="flex-1 min-w-0 text-sm font-medium text-stone-900 truncate" x-text="entry.user?.name || 'Unknown'"></span>
+                                        <span class="text-xs text-stone-400 font-medium shrink-0" x-text="entry.user?.province?.abbreviation || ''"></span>
+                                        <span class="text-sm font-mono font-bold text-stone-900 w-14 text-right shrink-0" x-text="parseFloat(entry.points).toFixed(0)"></span>
                                     </div>
                                 </template>
                             </div>

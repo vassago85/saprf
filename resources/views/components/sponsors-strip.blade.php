@@ -19,13 +19,13 @@
                         @if ($sponsor->logoUrl())
                             @if ($sponsor->website_url)
                                 <a href="{{ $sponsor->website_url }}" target="_blank" rel="noopener noreferrer"
-                                    class="opacity-80 hover:opacity-100 transition" title="{{ $sponsor->name }}">
+                                    class="max-w-full opacity-80 hover:opacity-100 transition" title="{{ $sponsor->name }}">
                                     <img src="{{ $sponsor->logoUrl() }}" alt="{{ $sponsor->name }}"
-                                        style="max-height: {{ $maxHeight }}px" class="w-auto">
+                                        style="max-height: {{ $maxHeight }}px" class="h-auto max-w-full w-auto">
                                 </a>
                             @else
                                 <img src="{{ $sponsor->logoUrl() }}" alt="{{ $sponsor->name }}"
-                                    style="max-height: {{ $maxHeight }}px" class="w-auto opacity-80" title="{{ $sponsor->name }}">
+                                    style="max-height: {{ $maxHeight }}px" class="h-auto max-w-full w-auto opacity-80" title="{{ $sponsor->name }}">
                             @endif
                         @endif
                     @endforeach
