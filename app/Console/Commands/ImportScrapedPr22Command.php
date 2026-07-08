@@ -344,9 +344,14 @@ class ImportScrapedPr22Command extends Command
         $director = ($m['match_director'] ?? '') ?: null;
         $contact = ($m['contact'] ?? '') ?: null;
 
+        // Key on the DATE as well as the name: the source reuses event names all
+        // season (e.g. several "Rimfire PR22 GP Provincial" on different dates),
+        // so matching by name alone collapses distinct events into one and drops
+        // their scores / upcoming entries.
         $existing = MatchEvent::where('match_type', 'PR22')
             ->where('season', '2026')
             ->where('name', $m['name'])
+            ->whereDate('match_date', $m['match_date'])
             ->first();
         if ($existing) {
             // Backfill the match director on matches imported before this field
