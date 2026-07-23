@@ -33,12 +33,12 @@
             position: relative;
             z-index: 1;
             /* Top/side clear of mil-frame; bottom clears fixed footer + QR */
-            padding: 15mm 18mm 28mm;
+            padding: 14mm 18mm 24mm;
         }
         .title {
             font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
             font-weight: 700;
-            font-size: 22pt;
+            font-size: 20pt;
             color: #006838;
             letter-spacing: 0.05em;
             text-align: center;
@@ -107,7 +107,7 @@
         .center-wrap {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 3.2mm;
+            margin-top: 2.6mm;
         }
         .center-wrap td {
             text-align: center;
@@ -121,8 +121,8 @@
         }
         .qr-chip img {
             display: block;
-            width: 18mm;
-            height: 18mm;
+            width: 16mm;
+            height: 16mm;
         }
         .verify-label {
             margin-top: 1.8mm;
@@ -168,7 +168,7 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="text-align: center;">
-                        <img src="{{ $logoBase64 }}" alt="SAPRF" style="width: 78mm; display: block; margin: 0 auto;">
+                        <img src="{{ $logoBase64 }}" alt="SAPRF" style="width: 72mm; display: block; margin: 0 auto;">
                     </td>
                 </tr>
             </table>
@@ -240,12 +240,12 @@
                 </tr>
             </table>
 
-            <table class="center-wrap" style="margin-top: 3mm;">
+            <table class="center-wrap" style="margin-top: 2.4mm;">
                 <tr>
                     <td align="center">
                         <table class="card" style="width: 84mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
                             <tr>
-                                <td style="padding: 3mm; text-align: center;">
+                                <td style="padding: 2.5mm; text-align: center;">
                                     <div class="qr-chip">
                                         <img src="{{ $qrBase64 }}" alt="QR">
                                     </div>

@@ -365,7 +365,6 @@ class MembershipController extends Controller
             'recordRows' => [
                 ['label' => 'SAPRF NO', 'value' => $membership->saprf_number ?: '—'],
                 ['label' => 'MEMBERSHIP', 'value' => ucfirst((string) ($membership->membership_type ?? 'Standard'))],
-                ['label' => 'MEMBER SINCE', 'value' => $membership->start_date?->format('d M Y') ?? '—'],
                 ['label' => 'VALID UNTIL', 'value' => $membership->expiry_date?->format('d M Y') ?? '—'],
                 ['label' => 'PROVINCE', 'value' => $user->province?->name ?? '—'],
             ],
