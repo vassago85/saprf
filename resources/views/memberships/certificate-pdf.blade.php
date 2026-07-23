@@ -64,9 +64,8 @@
             background: #FFFFFF;
         }
         .card-certify {
-            width: 170mm;
-            margin: 6mm auto 0;
-            padding: 8mm;
+            width: 120mm;
+            padding: 6mm 7mm;
             text-align: center;
         }
         .eyebrow {
@@ -106,7 +105,6 @@
         }
         .card-record {
             width: 110mm;
-            margin: 6mm auto 0;
             overflow: hidden;
         }
         .record-header {
@@ -127,9 +125,17 @@
         }
         .card-verify {
             width: 90mm;
-            margin: 6mm auto 0;
             padding: 5mm;
             text-align: center;
+        }
+        .center-wrap {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6mm;
+        }
+        .center-wrap td {
+            text-align: center;
+            vertical-align: top;
         }
         .qr-chip {
             display: inline-block;
@@ -191,52 +197,90 @@
                 </tr>
             </table>
 
-            <table style="width: 80mm; margin: 5mm auto 0; border-collapse: collapse;">
+            <table class="center-wrap" style="margin-top: 5mm;">
                 <tr>
-                    <td style="width: 36mm; border-bottom: 0.3mm solid #C9971C;"></td>
-                    <td style="width: 8mm; text-align: center; vertical-align: middle;">
-                        <div style="width: 3mm; height: 3mm; background: #C9971C; margin: 0 auto;"></div>
+                    <td>
+                        <table style="width: 80mm; margin: 0 auto; border-collapse: collapse;">
+                            <tr>
+                                <td style="width: 36mm; border-bottom: 0.3mm solid #C9971C;"></td>
+                                <td style="width: 8mm; text-align: center; vertical-align: middle;">
+                                    <div style="width: 3mm; height: 3mm; background: #C9971C; margin: 0 auto;"></div>
+                                </td>
+                                <td style="width: 36mm; border-bottom: 0.3mm solid #C9971C;"></td>
+                            </tr>
+                        </table>
                     </td>
-                    <td style="width: 36mm; border-bottom: 0.3mm solid #C9971C;"></td>
                 </tr>
             </table>
 
             <div class="title">Membership Certificate</div>
             <div class="subtitle">Official Membership Documentation</div>
 
-            <div class="card card-certify">
-                <div class="eyebrow">This is to certify that</div>
-                <div class="member-name">{{ $user->name }}</div>
-                <div class="status-chip {{ $chipMuted ? 'is-muted' : '' }}">{{ $statusLabel }}</div>
-            </div>
-
-            <div class="card card-record">
-                <div class="record-header"><span>Member Record</span></div>
-                <div class="record-body">
-                    <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
-                        @foreach ($recordRows as $row)
+            <table class="center-wrap">
+                <tr>
+                    <td align="center">
+                        <table class="card card-certify" style="width: 120mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
                             <tr>
-                                <td style="width: 32mm; white-space: nowrap; text-align: left;
-                                           font: 400 7pt 'IBM Plex Mono', DejaVu Sans Mono, monospace; color: #6C756E;
-                                           text-transform: uppercase; letter-spacing: .15em;
-                                           padding: 2.3mm 2.5mm 2.3mm 0; vertical-align: bottom;">{{ $row['label'] }}</td>
-                                <td style="border-bottom: 0.3mm dotted #9aa39d; vertical-align: bottom;"></td>
-                                <td style="width: 36mm; white-space: nowrap; text-align: right;
-                                           font: 600 9pt 'IBM Plex Mono', DejaVu Sans Mono, monospace; color: #171B17;
-                                           padding: 2.3mm 0 2.3mm 2.5mm; vertical-align: bottom;">{{ $row['value'] }}</td>
+                                <td style="padding: 6mm 7mm; text-align: center;">
+                                    <div class="eyebrow">This is to certify that</div>
+                                    <div class="member-name">{{ $user->name }}</div>
+                                    <div class="status-chip {{ $chipMuted ? 'is-muted' : '' }}">{{ $statusLabel }}</div>
+                                </td>
                             </tr>
-                        @endforeach
-                    </table>
-                </div>
-            </div>
+                        </table>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="card card-verify">
-                <div class="qr-chip">
-                    <img src="{{ $qrBase64 }}" alt="QR">
-                </div>
-                <div class="verify-label">Scan to verify membership</div>
-                <div class="verify-url">{{ $verifyUrl }}</div>
-            </div>
+            <table class="center-wrap">
+                <tr>
+                    <td align="center">
+                        <table class="card card-record" style="width: 110mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
+                            <tr>
+                                <td class="record-header" style="padding: 1.6mm 4mm; text-align: center; background: #006838;">
+                                    <span>Member Record</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="record-body" style="padding: 3mm 5mm 3.5mm;">
+                                    <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+                                        @foreach ($recordRows as $row)
+                                            <tr>
+                                                <td style="width: 32mm; white-space: nowrap; text-align: left;
+                                                           font: 400 7pt 'IBM Plex Mono', DejaVu Sans Mono, monospace; color: #6C756E;
+                                                           text-transform: uppercase; letter-spacing: .15em;
+                                                           padding: 2.3mm 2.5mm 2.3mm 0; vertical-align: bottom;">{{ $row['label'] }}</td>
+                                                <td style="border-bottom: 0.3mm dotted #9aa39d; vertical-align: bottom;"></td>
+                                                <td style="width: 36mm; white-space: nowrap; text-align: right;
+                                                           font: 600 9pt 'IBM Plex Mono', DejaVu Sans Mono, monospace; color: #171B17;
+                                                           padding: 2.3mm 0 2.3mm 2.5mm; vertical-align: bottom;">{{ $row['value'] }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="center-wrap">
+                <tr>
+                    <td align="center">
+                        <table class="card card-verify" style="width: 90mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
+                            <tr>
+                                <td style="padding: 5mm; text-align: center;">
+                                    <div class="qr-chip">
+                                        <img src="{{ $qrBase64 }}" alt="QR">
+                                    </div>
+                                    <div class="verify-label">Scan to verify membership</div>
+                                    <div class="verify-url">{{ $verifyUrl }}</div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <div class="footer">
