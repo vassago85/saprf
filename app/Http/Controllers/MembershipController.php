@@ -340,11 +340,12 @@ class MembershipController extends Controller
             || str_contains(strtolower((string) $membership->status), 'suspend');
 
         $nameLen = mb_strlen((string) $user->name);
+        // Sized to keep the certify card + QR on a single A4 page under DomPDF.
         $memberNameSize = match (true) {
-            $nameLen >= 28 => '22pt',
-            $nameLen >= 22 => '26pt',
-            $nameLen >= 18 => '29pt',
-            default => '32pt',
+            $nameLen >= 28 => '16pt',
+            $nameLen >= 22 => '18pt',
+            $nameLen >= 16 => '20pt',
+            default => '22pt',
         };
 
         $generatedAt = now()->timezone('Africa/Johannesburg');
