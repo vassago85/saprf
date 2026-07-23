@@ -61,7 +61,7 @@
         .card {
             border: 1px solid #E4E2DC;
             border-radius: 2mm;
-            background: #FFFFFF;
+            background: rgba(255, 255, 255, 0.75);
         }
         .card-prepared {
             width: 170mm;

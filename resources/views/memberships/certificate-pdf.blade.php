@@ -58,7 +58,7 @@
         }
         .card {
             border: 1px solid #E4E2DC;
-            background: #FFFFFF;
+            background: rgba(255, 255, 255, 0.75);
         }
         .eyebrow {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
@@ -83,7 +83,7 @@
             padding: 1mm 3.5mm;
             border: 0.4mm solid #C9971C;
             border-radius: 8mm;
-            background: #FBF6EA;
+            background: rgba(251, 246, 234, 0.75);
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
             font-weight: 400;
             font-size: 6.4pt;
@@ -94,7 +94,7 @@
         .status-chip.is-muted {
             border-color: #6C756E;
             color: #6C756E;
-            background: #FFFFFF;
+            background: rgba(255, 255, 255, 0.75);
         }
         .record-header span {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
@@ -117,7 +117,7 @@
             display: inline-block;
             padding: 2mm;
             border: 0.45mm solid #C9971C;
-            background: #FFFFFF;
+            background: rgba(255, 255, 255, 0.75);
         }
         .qr-chip img {
             display: block;
