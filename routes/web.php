@@ -176,9 +176,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::delete('/venues/{venue}', [VenueController::class, 'destroy'])->name('venues.destroy');
     });
 
+    // Match detail: members are redirected to the public event page; MDs/admins get the management view.
+    Route::get('/matches/{match}', [MatchController::class, 'show'])->name('matches.show');
+
     // Match Director + Admin + Owner (+ Developer)
     Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
-        Route::resource('matches', MatchController::class)->except(['destroy']);
+        Route::resource('matches', MatchController::class)->except(['destroy', 'show']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');

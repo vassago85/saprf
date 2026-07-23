@@ -86,17 +86,23 @@ class MatchController extends Controller
             ->with('success', 'Match created successfully.');
     }
 
-    public function show(MatchEvent $match): View
+    public function show(MatchEvent $match): View|RedirectResponse
     {
+        $user = Auth::user();
+
+        // Regular members don't manage matches — send them to the public event page.
+        if (! $user || ! $user->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director'])) {
+            return redirect()->route('events.show', $match);
+        }
+
         $this->authorize('view', $match);
 
         $match->load(['province', 'creator', 'registrations', 'scoreImports', 'expenses.creator']);
 
         $financeBreakdown = null;
         $planningEstimate = null;
-        $user = Auth::user();
 
-        if ($user && ($user->hasAnyRole(['owner', 'admin']) || $match->created_by === $user->id)) {
+        if ($user->hasAnyRole(['owner', 'admin', 'developer', 'exco']) || $match->created_by === $user->id) {
             $paidRegistrations = $match->registrations
                 ->where('registration_status', '!=', 'cancelled');
 

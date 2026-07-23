@@ -165,7 +165,13 @@
                             @foreach($recentMatches as $score)
                                 <tr class="hover:bg-stone-50">
                                     <td class="px-5 py-3 text-stone-600 whitespace-nowrap">{{ $score->match?->match_date?->format('d M Y') }}</td>
-                                    <td class="px-5 py-3 font-medium text-stone-900">{{ $score->match?->name ?? '—' }}</td>
+                                    <td class="px-5 py-3 font-medium text-stone-900">
+                                        @if($score->match)
+                                            <a href="{{ route('events.show', $score->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $score->match->name }}</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
                                     <td class="px-5 py-3 text-stone-600">{{ $score->match?->province?->abbreviation ?? '—' }}</td>
                                     <td class="px-5 py-3 text-right font-mono font-bold {{ $score->placement && $score->placement <= 3 ? 'text-amber-600' : 'text-stone-900' }}">
                                         {{ $score->placement ? '#'.$score->placement : '—' }}
@@ -217,7 +223,7 @@
                         <h3 class="font-heading text-xl font-bold text-emerald-900 mt-1">{{ $nextMatch->name }}</h3>
                         <p class="text-sm text-emerald-700 mt-1">{{ $nextMatch->match_date->format('d M Y') }} &middot; {{ $nextMatch->province?->name ?? 'TBA' }}</p>
                     </div>
-                    <a href="{{ route('registrations.store') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Register</a>
+                    <a href="{{ route('events.show', $nextMatch) }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">View / Register</a>
                 </div>
             </div>
         @endif

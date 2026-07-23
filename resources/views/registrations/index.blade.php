@@ -19,7 +19,7 @@
                 @forelse ($registrations as $registration)
                     <tr class="hover:bg-stone-50 transition-colors">
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
-                            <a href="{{ route('matches.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
+                            <a href="{{ route('events.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $registration->user->name }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</td>
