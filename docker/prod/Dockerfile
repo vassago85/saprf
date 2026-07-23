@@ -114,6 +114,7 @@ RUN mkdir -p \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
+    storage/fonts \
     bootstrap/cache \
     /var/log/supervisor \
     /var/run/supervisor \

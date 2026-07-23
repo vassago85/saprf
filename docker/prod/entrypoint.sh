@@ -16,6 +16,7 @@ echo "Creating storage link..."
 php artisan storage:link 2>/dev/null || true
 
 echo "Setting permissions..."
+mkdir -p storage/fonts storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 

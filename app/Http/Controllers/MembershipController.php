@@ -487,15 +487,27 @@ class MembershipController extends Controller
     {
         $chrome = app(ChromePdfRenderer::class);
         if ($chrome->available()) {
-            return response($chrome->render($html), 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            ]);
+            try {
+                return response($chrome->render($html), 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // DomPDF fallback: ensure font cache dir exists (remote Google Fonts need it).
+        $fontDir = storage_path('fonts');
+        if (! is_dir($fontDir)) {
+            mkdir($fontDir, 0775, true);
         }
 
         $pdf = Pdf::loadHTML($html)
             ->setPaper('A4', 'portrait')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('fontDir', $fontDir)
+            ->setOption('fontCache', $fontDir);
 
         return $pdf->download($filename);
     }

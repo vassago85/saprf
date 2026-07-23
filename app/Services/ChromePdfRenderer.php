@@ -31,18 +31,33 @@ class ChromePdfRenderer
                 @unlink($pdfPath);
             }
 
-            $result = Process::timeout(60)->run([
+            $userDataDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'saprf-chrome-'.getmypid();
+            if (! is_dir($userDataDir)) {
+                mkdir($userDataDir, 0700, true);
+            }
+
+            $args = [
                 $binary,
                 '--headless=new',
                 '--disable-gpu',
                 '--no-sandbox',
                 '--disable-dev-shm-usage',
+                '--disable-software-rasterizer',
                 '--hide-scrollbars',
                 '--no-pdf-header-footer',
                 '--virtual-time-budget=10000',
+                '--user-data-dir='.$userDataDir,
                 '--print-to-pdf='.$pdfPath,
                 $this->toFileUri($htmlPath),
-            ]);
+            ];
+
+            $result = Process::timeout(60)->run($args);
+
+            // Older Chromium builds (Alpine) may not accept --headless=new.
+            if ((! $result->successful() || ! is_file($pdfPath)) && str_contains($result->errorOutput().$result->output(), 'headless')) {
+                $args[1] = '--headless';
+                $result = Process::timeout(60)->run($args);
+            }
 
             if (! $result->successful() || ! is_file($pdfPath) || filesize($pdfPath) < 100) {
                 throw new RuntimeException(
