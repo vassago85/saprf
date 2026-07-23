@@ -362,12 +362,11 @@ class MembershipController extends Controller
             'memberNameSize' => $memberNameSize,
             'generatedDate' => $generatedAt->format('d M Y'),
             'generatedTime' => $generatedAt->format('H:i'),
-            'certBuild' => '20260723g',
+            'certBuild' => '20260723h',
             'recordRows' => [
                 ['label' => 'SAPRF NO', 'value' => $membership->saprf_number ?: '—'],
                 ['label' => 'MEMBERSHIP', 'value' => ucfirst((string) ($membership->membership_type ?? 'Standard'))],
                 ['label' => 'VALID UNTIL', 'value' => $membership->expiry_date?->format('d M Y') ?? '—'],
-                ['label' => 'PROVINCE', 'value' => $user->province?->name ?? '—'],
             ],
         ];
 

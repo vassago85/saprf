@@ -60,7 +60,8 @@
         }
         .card {
             border: 1px solid #E4E2DC;
-            background-color: rgba(255, 255, 255, 0.75);
+            border-radius: 2.5mm;
+            background-color: rgba(255, 255, 255, 0.80);
             margin-left: auto;
             margin-right: auto;
         }
@@ -193,7 +194,7 @@
                 </table>
 
                 {{-- Certify card --}}
-                <table class="center" style="margin-top: 8mm;">
+                <table class="center" style="margin-top: 13mm;">
                     <tr>
                         <td align="center">
                             <table class="card" style="width: 120mm; border-collapse: separate; border-spacing: 0;">
@@ -215,7 +216,7 @@
                         <td align="center">
                             <table class="card" style="width: 120mm; border-collapse: separate; border-spacing: 0;">
                                 <tr>
-                                    <td style="padding: 1.6mm 4mm; text-align: center; background: #006838;">
+                                    <td style="padding: 1.6mm 4mm; text-align: center; background: #006838; border-radius: 2.4mm 2.4mm 0 0;">
                                         <span class="record-header-text">Member Record</span>
                                     </td>
                                 </tr>
