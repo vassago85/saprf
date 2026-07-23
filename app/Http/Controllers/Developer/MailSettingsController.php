@@ -76,21 +76,26 @@ class MailSettingsController extends Controller
 
     public function test(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        $validated = $request->validate([
+            'to' => ['required', 'email', 'max:255'],
+        ]);
+
+        $to = $validated['to'];
 
         try {
             Mail::raw(
                 "This is a test email from SAPRF.\n\nIf you received this, mail is configured correctly.\n\nSent at: " . now()->toDateTimeString(),
-                function ($message) use ($user) {
-                    $message->to($user->email)
+                function ($message) use ($to) {
+                    $message->to($to)
                         ->subject('SAPRF mail test');
                 },
             );
 
             return redirect()->route('developer.mail.index')
-                ->with('success', "Test email sent to {$user->email}. Check your inbox.");
+                ->with('success', "Test email sent to {$to}. Check your inbox.");
         } catch (\Throwable $e) {
             return redirect()->route('developer.mail.index')
+                ->withInput()
                 ->with('error', 'Test email failed: ' . $e->getMessage());
         }
     }

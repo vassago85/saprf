@@ -36,13 +36,22 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('developer.mail.test') }}">
+            <form method="POST" action="{{ route('developer.mail.test') }}" class="flex flex-col sm:flex-row sm:items-end gap-3">
                 @csrf
+                <div class="flex-1 min-w-0">
+                    <label for="test_to" class="block text-sm font-medium text-stone-700">Send test to</label>
+                    <input type="email" name="to" id="test_to" required
+                           value="{{ old('to') }}"
+                           placeholder="you@example.com"
+                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                           @disabled(! $status['configured'])>
+                    @error('to')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
                 <flux:button type="submit" variant="primary" icon="paper-airplane" :disabled="! $status['configured']">
-                    Send test email to me
+                    Send test email
                 </flux:button>
                 @unless($status['configured'])
-                    <p class="text-xs text-stone-500 mt-2">Configure Mailgun below before testing.</p>
+                    <p class="text-xs text-stone-500 sm:basis-full">Configure Mailgun below before testing.</p>
                 @endunless
             </form>
         </div>
