@@ -107,6 +107,15 @@ class PayFastService
         return md5($getString);
     }
 
+    /**
+     * Validate an Instant Transaction Notification (ITN) from PayFast.
+     *
+     * ITN signatures are built differently from checkout signatures: every posted
+     * field up to (but not including) `signature` is included — even blanks —
+     * and parameter order is the order PayFast posted them.
+     *
+     * @see https://developers.payfast.co.za/docs#step_3_confirm_payment
+     */
     public function validateItnRequest(array $data, string $requestIp): array
     {
         $errors = [];
@@ -115,15 +124,40 @@ class PayFastService
             $errors[] = 'Invalid source IP: '.$requestIp;
         }
 
-        $signatureData = $data;
-        unset($signatureData['signature']);
-
-        $expectedSignature = $this->generateSignature($signatureData);
-        if ($expectedSignature !== ($data['signature'] ?? '')) {
+        $expectedSignature = $this->generateItnSignature($data);
+        if (! hash_equals($expectedSignature, (string) ($data['signature'] ?? ''))) {
             $errors[] = 'Signature mismatch';
         }
 
         return $errors;
+    }
+
+    /**
+     * Build + hash the ITN parameter string exactly as PayFast documents.
+     */
+    public function generateItnSignature(array $pfData, ?string $passphrase = null): string
+    {
+        $passphrase ??= $this->getPassphrase();
+
+        $normalized = [];
+        foreach ($pfData as $key => $val) {
+            $normalized[$key] = stripslashes((string) $val);
+        }
+
+        $pfParamString = '';
+        foreach ($normalized as $key => $val) {
+            if ($key === 'signature') {
+                break;
+            }
+            $pfParamString .= $key.'='.urlencode($val).'&';
+        }
+        $pfParamString = rtrim($pfParamString, '&');
+
+        if ($passphrase !== null && $passphrase !== '') {
+            $pfParamString .= '&passphrase='.urlencode($passphrase);
+        }
+
+        return md5($pfParamString);
     }
 
     public function validateItnServerIp(string $ip): bool

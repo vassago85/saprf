@@ -48,7 +48,26 @@ class PaymentController extends Controller
         $mPaymentId = $request->query('m_payment_id');
         $payment = $mPaymentId ? Payment::where('m_payment_id', $mPaymentId)->first() : null;
 
+        // Return URL is not authoritative (ITN is), but poll the success page so
+        // the UI flips to Paid as soon as the webhook lands.
         return view('payments.success', compact('payment'));
+    }
+
+    public function status(Payment $payment): \Illuminate\Http\JsonResponse
+    {
+        $user = request()->user();
+        if (! $user || ($payment->user_id !== $user->id && ! $user->hasAnyRole(['developer', 'exco', 'owner', 'admin']))) {
+            abort(403);
+        }
+
+        $payment->refresh();
+
+        return response()->json([
+            'm_payment_id' => $payment->m_payment_id,
+            'status' => $payment->status,
+            'completed' => $payment->isCompleted(),
+            'paid_at' => $payment->paid_at?->toIso8601String(),
+        ]);
     }
 
     public function cancel(Request $request): View
@@ -65,7 +84,8 @@ class PaymentController extends Controller
 
     public function notify(Request $request): \Illuminate\Http\Response
     {
-        $data = $request->all();
+        // Only POST body — query-string keys would corrupt the ITN signature string.
+        $data = $request->post();
 
         Log::info('PayFast ITN received', ['data' => $data, 'ip' => $request->ip()]);
 

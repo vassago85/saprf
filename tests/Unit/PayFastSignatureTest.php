@@ -84,3 +84,39 @@ it('does not append passphrase when it is empty', function () {
     // Empty passphrase must not add "&passphrase=" (would break the hash).
     expect($withEmpty)->toBe(md5('merchant_id=10000100&amount=10.00&item_name=Test'));
 });
+
+it('builds ITN signatures including blank fields up to signature', function () {
+    $service = payFastService();
+
+    // PayFast ITN includes empty values (unlike checkout) and stops at `signature`.
+    $itn = [
+        'm_payment_id' => 'REG-1',
+        'pf_payment_id' => '123',
+        'payment_status' => 'COMPLETE',
+        'item_name' => 'Test',
+        'amount_gross' => '50.00',
+        'amount_fee' => '1.00',
+        'amount_net' => '49.00',
+        'custom_str1' => '',
+        'name_first' => 'Jane',
+        'name_last' => '',
+        'email_address' => 'jane@example.com',
+        'signature' => 'will-be-replaced',
+        'ignored_after_signature' => 'x',
+    ];
+
+    $param = 'm_payment_id=REG-1'
+        .'&pf_payment_id=123'
+        .'&payment_status=COMPLETE'
+        .'&item_name=Test'
+        .'&amount_gross=50.00'
+        .'&amount_fee=1.00'
+        .'&amount_net=49.00'
+        .'&custom_str1='
+        .'&name_first=Jane'
+        .'&name_last='
+        .'&email_address=jane%40example.com'
+        .'&passphrase='.urlencode('jt7NOE43FZPn');
+
+    expect($service->generateItnSignature($itn, 'jt7NOE43FZPn'))->toBe(md5($param));
+});

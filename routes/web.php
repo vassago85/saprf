@@ -123,6 +123,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     // Payments
     Route::get('/payments/{payment}/redirect', [PaymentController::class, 'redirect'])->name('payments.redirect');
+    Route::get('/payments/{payment}/status', [PaymentController::class, 'status'])->name('payments.status');
     Route::get('/payments/return', [PaymentController::class, 'returnFromGateway'])->name('payments.return');
     Route::get('/payments/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
     Route::post('/payments/membership/{membership}', [PaymentController::class, 'payMembership'])->name('payments.membership');
