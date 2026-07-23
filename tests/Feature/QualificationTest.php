@@ -226,3 +226,47 @@ test('provincial matches do not count for qualification', function () {
     expect($result['completed'])->toBe(0)
         ->and($result['qualified'])->toBeFalse();
 });
+
+test('dashboard progress always includes both PRS and PR22', function () {
+    $user = User::factory()->create([
+        'province_id' => Province::where('abbreviation', 'GP')->first()->id,
+    ]);
+    $creator = User::factory()->create();
+
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'min_out_of_province_matches' => 0,
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 4,
+        'created_by' => $creator->id,
+    ]);
+
+    QualificationRule::create([
+        'series' => 'PR22',
+        'season' => '2026',
+        'scoring_mode' => 'weighted_pools',
+        'min_out_of_province_matches' => 1,
+        'total_qualifying_matches' => 6,
+        'provincial_pool_best_of' => 3,
+        'provincial_pool_weight_pct' => 30,
+        'national_pool_best_of' => 2,
+        'national_pool_weight_pct' => 40,
+        'champs_pool_best_of' => 1,
+        'champs_pool_weight_pct' => 30,
+        'created_by' => $creator->id,
+    ]);
+
+    $progress = $this->service->getDashboardProgress($user, '2026');
+
+    expect($progress)->toHaveKeys(['PRS', 'PR22'])
+        ->and($progress['PRS']['has_rule'])->toBeTrue()
+        ->and($progress['PRS']['matches_required'])->toBe(4)
+        ->and($progress['PRS']['steps'])->toHaveCount(2)
+        ->and($progress['PRS']['oop']['required'])->toBe(0)
+        ->and($progress['PR22']['has_rule'])->toBeTrue()
+        ->and($progress['PR22']['matches_required'])->toBe(6)
+        ->and($progress['PR22']['steps'])->toHaveCount(3)
+        ->and($progress['PR22']['oop']['required'])->toBe(1);
+});

@@ -174,13 +174,7 @@ class DashboardController extends Controller
             ->orderBy('points', 'desc')
             ->value('rank');
 
-        $qualificationProgress = [];
-        foreach (['PRS', 'PR22'] as $series) {
-            $status = $this->qualificationService->getQualificationStatus($user, $series, $season);
-            if ($status['required'] > 0) {
-                $qualificationProgress[$series] = $status;
-            }
-        }
+        $qualificationProgress = $this->qualificationService->getDashboardProgress($user, $season);
 
         $seasonScores = $user->scores()
             ->whereHas('match', fn ($q) => $q->whereYear('match_date', $season))
@@ -217,7 +211,7 @@ class DashboardController extends Controller
             'nextMatch' => $nextMatch,
             'scoresCount' => $user->scores()->count(),
             'standingsPosition' => $standingsPosition,
-            'qualificationProgress' => $qualificationProgress ?: null,
+            'qualificationProgress' => $qualificationProgress,
             'matchesShot' => $matchesShot,
             'bestPlacement' => $bestPlacement,
             'avgPlacement' => $avgPlacement ? round($avgPlacement, 1) : null,

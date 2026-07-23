@@ -52,7 +52,16 @@ RUN apk add --no-cache \
     libzip \
     icu-libs \
     oniguruma \
-    curl
+    curl \
+    chromium \
+    nss \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Alpine packages expose `chromium`; some images also ship chromium-browser.
+ENV CHROME_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN apk add --no-cache --virtual .build-deps \
     libpng-dev \

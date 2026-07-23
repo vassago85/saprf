@@ -7,13 +7,14 @@ use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\ChromePdfRenderer;
+use App\Services\GreenQrCodePng;
 use App\Services\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class MembershipController extends Controller
 {
@@ -325,19 +326,57 @@ class MembershipController extends Controller
             ->firstOrFail();
 
         $verifyUrl = url("/verify/{$membership->saprf_number}");
-        $qrCodeSvg = QrCode::format('svg')->size(150)->margin(0)->generate($verifyUrl);
-        $qrBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+        $qrBase64 = app(GreenQrCodePng::class)->toDataUri($verifyUrl, 240);
 
-        $pdf = Pdf::loadView('memberships.certificate-pdf', [
+        $logoPath = public_path('saprf-logo-black-text.png');
+        $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
+
+        $status = $membership->effective_status;
+        $statusLabel = match ($status) {
+            'active' => 'ACTIVE MEMBER',
+            'expired' => 'EXPIRED MEMBER',
+            'revoked' => 'REVOKED',
+            'pending' => 'PENDING',
+            'non_member' => 'NON-MEMBER',
+            default => strtoupper($membership->effective_status_label),
+        };
+        $chipMuted = in_array($status, ['expired', 'revoked', 'pending', 'non_member'], true)
+            || str_contains(strtolower((string) $membership->status), 'suspend');
+
+        $nameLen = mb_strlen((string) $user->name);
+        $memberNameSize = match (true) {
+            $nameLen >= 28 => '22pt',
+            $nameLen >= 22 => '26pt',
+            $nameLen >= 18 => '29pt',
+            default => '32pt',
+        };
+
+        $generatedAt = now()->timezone('Africa/Johannesburg');
+
+        $viewData = [
             'user' => $user,
             'membership' => $membership,
             'qrBase64' => $qrBase64,
+            'logoBase64' => $logoBase64,
             'verifyUrl' => $verifyUrl,
-        ]);
+            'statusLabel' => $statusLabel,
+            'chipMuted' => $chipMuted,
+            'memberNameSize' => $memberNameSize,
+            'generatedDate' => $generatedAt->format('d M Y'),
+            'generatedTime' => $generatedAt->format('H:i'),
+            'recordRows' => [
+                ['label' => 'SAPRF NO', 'value' => $membership->saprf_number ?: '—'],
+                ['label' => 'MEMBERSHIP', 'value' => ucfirst((string) ($membership->membership_type ?? 'Standard'))],
+                ['label' => 'MEMBER SINCE', 'value' => $membership->start_date?->format('d M Y') ?? '—'],
+                ['label' => 'VALID UNTIL', 'value' => $membership->expiry_date?->format('d M Y') ?? '—'],
+                ['label' => 'PROVINCE', 'value' => $user->province?->name ?? '—'],
+            ],
+        ];
 
-        $pdf->setPaper('A4', 'portrait');
+        $filename = "SAPRF-Certificate-{$membership->saprf_number}.pdf";
+        $html = view('memberships.certificate-pdf', $viewData)->render();
 
-        return $pdf->download("SAPRF-Certificate-{$membership->saprf_number}.pdf");
+        return $this->downloadHtmlAsPdf($html, $filename);
     }
 
     // ── Activity Report PDF ──
@@ -392,10 +431,32 @@ class MembershipController extends Controller
         }
 
         $verifyUrl = url("/verify/{$membership->saprf_number}");
-        $qrCodeSvg = QrCode::format('svg')->size(120)->margin(0)->generate($verifyUrl);
-        $qrBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+        $qrBase64 = app(GreenQrCodePng::class)->toDataUri($verifyUrl, 200);
+        $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents(public_path('saprf-logo-black-text.png')));
 
-        $pdf = Pdf::loadView('memberships.activity-report-pdf', [
+        $status = $membership->effective_status;
+        $statusLabel = match ($status) {
+            'active' => 'ACTIVE MEMBER',
+            'expired' => 'EXPIRED MEMBER',
+            'revoked' => 'REVOKED',
+            'pending' => 'PENDING',
+            'non_member' => 'NON-MEMBER',
+            default => strtoupper($membership->effective_status_label),
+        };
+        $chipMuted = in_array($status, ['expired', 'revoked', 'pending', 'non_member'], true)
+            || str_contains(strtolower((string) $membership->status), 'suspend');
+
+        $nameLen = mb_strlen((string) $user->name);
+        $memberNameSize = match (true) {
+            $nameLen >= 28 => '18pt',
+            $nameLen >= 22 => '20pt',
+            $nameLen >= 18 => '22pt',
+            default => '24pt',
+        };
+
+        $generatedAt = now()->timezone('Africa/Johannesburg');
+
+        $html = view('memberships.activity-report-pdf', [
             'user' => $user,
             'membership' => $membership,
             'season' => $season,
@@ -403,11 +464,39 @@ class MembershipController extends Controller
             'includeStandings' => $includeStandings,
             'standingsSummary' => $standingsSummary,
             'qrBase64' => $qrBase64,
+            'logoBase64' => $logoBase64,
             'verifyUrl' => $verifyUrl,
-        ]);
+            'statusLabel' => $statusLabel,
+            'chipMuted' => $chipMuted,
+            'memberNameSize' => $memberNameSize,
+            'generatedDate' => $generatedAt->format('d M Y'),
+            'generatedTime' => $generatedAt->format('H:i'),
+            'stats' => [
+                'total' => $scores->count(),
+                'prs' => $scores->filter(fn ($s) => in_array($s->match?->series ?? $s->match?->match_type, ['PRS'], true))->count(),
+                'pr22' => $scores->filter(fn ($s) => in_array($s->match?->series ?? $s->match?->match_type, ['PR22'], true))->count(),
+            ],
+        ])->render();
 
-        $pdf->setPaper('A4', 'portrait');
+        $filename = "SAPRF-Activity-Report-{$membership->saprf_number}-{$season}.pdf";
 
-        return $pdf->download("SAPRF-Activity-Report-{$membership->saprf_number}-{$season}.pdf");
+        return $this->downloadHtmlAsPdf($html, $filename);
+    }
+
+    private function downloadHtmlAsPdf(string $html, string $filename): Response
+    {
+        $chrome = app(ChromePdfRenderer::class);
+        if ($chrome->available()) {
+            return response($chrome->render($html), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            ]);
+        }
+
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('A4', 'portrait')
+            ->setOption('isRemoteEnabled', true);
+
+        return $pdf->download($filename);
     }
 }

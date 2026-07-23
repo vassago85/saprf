@@ -185,29 +185,94 @@
             </div>
         @endif
 
-        {{-- Qualification Progress --}}
-        @if($qualificationProgress ?? null)
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
-                <h2 class="font-heading text-xl font-bold text-stone-900">Qualification Progress</h2>
-                <p class="text-sm text-stone-500">Out-of-province national matches required to qualify for finals.</p>
-                <div class="space-y-3">
+        {{-- Qualification Progress — PRS + PR22 --}}
+        @if(!empty($qualificationProgress))
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
+                <div>
+                    <h2 class="font-heading text-xl font-bold text-stone-900">Qualification Progress</h2>
+                    <p class="text-sm text-stone-500 mt-1">Season match process for both PRS and PR22. Out-of-province nationals are shown when required for finals selection.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     @foreach($qualificationProgress as $series => $progress)
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-semibold text-stone-900">{{ $series }}</span>
-                                <span class="text-xs font-medium text-stone-500">
-                                    {{ $progress['completed'] }}/{{ $progress['required'] }} matches
-                                    @if($progress['completed'] >= $progress['required'])
-                                        <span class="text-emerald-600 ml-1">Qualified</span>
-                                    @endif
-                                </span>
+                        @php
+                            $matchPct = $progress['matches_required'] > 0
+                                ? min(100, ($progress['matches_completed'] / $progress['matches_required']) * 100)
+                                : 0;
+                            $oop = $progress['oop'] ?? ['required' => 0, 'completed' => 0, 'qualified' => false];
+                            $oopPct = ($oop['required'] ?? 0) > 0
+                                ? min(100, (($oop['completed'] ?? 0) / $oop['required']) * 100)
+                                : 0;
+                        @endphp
+                        <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-5 space-y-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-bold text-stone-900">{{ $progress['label'] ?? $series }}</p>
+                                    <p class="text-xs text-stone-500 mt-1 leading-relaxed">{{ $progress['description'] }}</p>
+                                </div>
+                                @if(($oop['required'] ?? 0) > 0 && ($oop['qualified'] ?? false))
+                                    <span class="shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-800">Finals eligible</span>
+                                @elseif(!($progress['has_rule'] ?? false))
+                                    <span class="shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-stone-200 text-stone-600">No rules</span>
+                                @endif
                             </div>
-                            <div class="h-2.5 bg-stone-200 rounded-full overflow-hidden">
-                                <div
-                                    class="h-full rounded-full transition-all {{ $progress['completed'] >= $progress['required'] ? 'bg-emerald-500' : 'bg-emerald-600' }}"
-                                    style="width: {{ min(100, ($progress['required'] > 0 ? ($progress['completed'] / $progress['required']) * 100 : 0)) }}%"
-                                ></div>
-                            </div>
+
+                            @if(($progress['has_rule'] ?? false) && ($progress['matches_required'] ?? 0) > 0)
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Qualifying matches</span>
+                                        <span class="text-xs font-medium text-stone-700">{{ $progress['matches_completed'] }}/{{ $progress['matches_required'] }}</span>
+                                    </div>
+                                    <div class="h-2 bg-stone-200 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full bg-emerald-600 transition-all" style="width: {{ $matchPct }}%"></div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if(!empty($progress['steps']))
+                                <ul class="space-y-2">
+                                    @foreach($progress['steps'] as $step)
+                                        @php
+                                            $stepDone = ($step['required'] ?? 0) > 0 && ($step['completed'] ?? 0) >= $step['required'];
+                                        @endphp
+                                        <li class="flex items-start gap-2.5 text-sm">
+                                            <span class="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full {{ $stepDone ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-500' }}">
+                                                @if($stepDone)
+                                                    <svg class="size-2.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" /></svg>
+                                                @else
+                                                    <span class="size-1.5 rounded-full bg-current"></span>
+                                                @endif
+                                            </span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="flex items-baseline justify-between gap-2">
+                                                    <span class="font-medium text-stone-800">{{ $step['label'] }}</span>
+                                                    <span class="shrink-0 text-xs tabular-nums text-stone-500">{{ $step['completed'] }}/{{ $step['required'] }}</span>
+                                                </span>
+                                                @if(!empty($step['detail']))
+                                                    <span class="block text-xs text-stone-400 mt-0.5">{{ $step['detail'] }}</span>
+                                                @endif
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+
+                            @if(($oop['required'] ?? 0) > 0)
+                                <div class="pt-3 border-t border-stone-200">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Out-of-province nationals</span>
+                                        <span class="text-xs font-medium text-stone-700">
+                                            {{ $oop['completed'] }}/{{ $oop['required'] }}
+                                            @if($oop['qualified'] ?? false)
+                                                <span class="text-emerald-600 ml-1">Met</span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="h-2 bg-stone-200 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full {{ ($oop['qualified'] ?? false) ? 'bg-emerald-500' : 'bg-amber-500' }} transition-all" style="width: {{ $oopPct }}%"></div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
