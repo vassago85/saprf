@@ -129,15 +129,6 @@
             font-size: 5.2pt;
             color: #6C756E;
         }
-        /* Pin QR + footer to page 1 — DomPDF will not flow them onto page 2 */
-        .verify-fixed {
-            position: fixed;
-            bottom: 22mm;
-            left: 0;
-            width: 210mm;
-            z-index: 3;
-            text-align: center;
-        }
         .footer {
             position: fixed;
             bottom: 11mm;
@@ -235,10 +226,7 @@
                     </td>
                 </tr>
             </table>
-        </div>
-
-        <div class="verify-fixed">
-            <table style="width: 100%; border-collapse: collapse;">
+            <table class="block" style="margin-top: 3.5mm;">
                 <tr>
                     <td align="center">
                         <table class="card" style="width: 84mm; border-collapse: separate; border-spacing: 0;">
