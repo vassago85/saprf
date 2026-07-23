@@ -353,6 +353,8 @@ class MembershipController extends Controller
             'user' => $user,
             'membership' => $membership,
             'qrBase64' => $qrBase64,
+            'logoBase64' => $this->certificateAssetDataUri(public_path('saprf-logo-black-text.png')),
+            'frameBase64' => $this->certificateAssetDataUri(public_path('images/certificates/saprf-frame-a4.png')),
             'verifyUrl' => $verifyUrl,
             'statusLabel' => $statusLabel,
             'chipMuted' => $chipMuted,
@@ -458,6 +460,8 @@ class MembershipController extends Controller
             'includeStandings' => $includeStandings,
             'standingsSummary' => $standingsSummary,
             'qrBase64' => $qrBase64,
+            'logoBase64' => $this->certificateAssetDataUri(public_path('saprf-logo-black-text.png')),
+            'frameBase64' => $this->certificateAssetDataUri(public_path('images/certificates/saprf-frame-a4.png')),
             'verifyUrl' => $verifyUrl,
             'statusLabel' => $statusLabel,
             'chipMuted' => $chipMuted,
@@ -478,22 +482,65 @@ class MembershipController extends Controller
 
     private function downloadHtmlAsPdf(string $html, string $filename): Response
     {
-        // Source TTFs live in resources/ (deployable). DomPDF cache stays in storage/.
-        $fontDir = resource_path('fonts/certificates');
-        $fontCache = storage_path('fonts');
-        if (! is_dir($fontCache)) {
-            mkdir($fontCache, 0775, true);
-        }
+        $fontDir = $this->prepareCertificateFontDirectory();
 
         $pdf = Pdf::loadHTML($html)
             ->setPaper('A4', 'portrait')
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isFontSubsettingEnabled', true)
+            ->setOption('isFontSubsettingEnabled', false)
             ->setOption('chroot', base_path())
             ->setOption('fontDir', $fontDir)
-            ->setOption('fontCache', $fontCache);
+            ->setOption('fontCache', $fontDir);
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * DomPDF must read TTFs and write .ufm metrics in the same writable directory.
+     * Source fonts live in resources/; we sync copies into storage/fonts at render time.
+     */
+    private function prepareCertificateFontDirectory(): string
+    {
+        $sourceDir = resource_path('fonts/certificates');
+        $fontDir = storage_path('fonts');
+
+        if (! is_dir($fontDir) && ! mkdir($fontDir, 0775, true) && ! is_dir($fontDir)) {
+            throw new \RuntimeException('Unable to create DomPDF font directory: '.$fontDir);
+        }
+
+        if (! is_writable($fontDir)) {
+            @chmod($fontDir, 0775);
+        }
+
+        foreach (glob($sourceDir.DIRECTORY_SEPARATOR.'*.ttf') ?: [] as $sourceFont) {
+            $destination = $fontDir.DIRECTORY_SEPARATOR.basename($sourceFont);
+            if (! is_file($destination) || filemtime($sourceFont) > filemtime($destination)) {
+                if (! @copy($sourceFont, $destination)) {
+                    throw new \RuntimeException('Unable to sync certificate font: '.basename($sourceFont));
+                }
+                @chmod($destination, 0664);
+            }
+        }
+
+        return $fontDir;
+    }
+
+    private function certificateAssetDataUri(string $absolutePath): string
+    {
+        $binary = @file_get_contents($absolutePath);
+        if ($binary === false || $binary === '') {
+            throw new \RuntimeException('Missing certificate asset: '.$absolutePath);
+        }
+
+        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            default => 'image/png',
+        };
+
+        return 'data:'.$mime.';base64,'.base64_encode($binary);
     }
 }

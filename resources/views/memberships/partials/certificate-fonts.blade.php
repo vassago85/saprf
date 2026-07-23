@@ -1,5 +1,6 @@
 @php
-    $font = fn (string $file) => str_replace('\\', '/', resource_path('fonts/certificates/'.$file));
+    // Fonts are synced into storage/fonts (writable DomPDF cache + fontDir) before render.
+    $font = fn (string $file) => str_replace('\\', '/', storage_path('fonts/'.$file));
 @endphp
 <style>
     @font-face {

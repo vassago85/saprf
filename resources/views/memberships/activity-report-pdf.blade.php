@@ -309,15 +309,13 @@
 </head>
 <body>
 @php
-    $frameSrc = str_replace('\\', '/', public_path('images/certificates/saprf-frame-a4.png'));
-    $logoSrc = str_replace('\\', '/', public_path('saprf-logo-black-text.png'));
     $matchRows = $scores->take(12);
 @endphp
     <div class="page">
-        <img class="frame" src="{{ $frameSrc }}" alt="">
+        <img class="frame" src="{{ $frameBase64 }}" alt="">
 
         <div class="content">
-            <img class="logo" src="{{ $logoSrc }}" alt="SAPRF">
+            <img class="logo" src="{{ $logoBase64 }}" alt="SAPRF">
 
             <table style="width: 70mm; margin: 3.5mm auto 0; border-collapse: collapse;">
                 <tr>
