@@ -339,6 +339,9 @@ class MembershipController extends Controller
         $chipMuted = in_array($status, ['expired', 'revoked', 'pending', 'non_member'], true)
             || str_contains(strtolower((string) $membership->status), 'suspend');
 
+        // Article for the "is a/an …" certify sentence.
+        $statusArticle = in_array(strtoupper(substr($statusLabel, 0, 1)), ['A', 'E', 'I', 'O', 'U'], true) ? 'is an' : 'is a';
+
         $nameLen = mb_strlen((string) $user->name);
         // Sized to keep the certify card + QR on a single A4 page under DomPDF.
         $memberNameSize = match (true) {
@@ -358,11 +361,12 @@ class MembershipController extends Controller
             'frameBase64' => $this->certificateAssetDataUri(public_path('images/certificates/saprf-frame-a4.png')),
             'verifyUrl' => $verifyUrl,
             'statusLabel' => $statusLabel,
+            'statusArticle' => $statusArticle,
             'chipMuted' => $chipMuted,
             'memberNameSize' => $memberNameSize,
             'generatedDate' => $generatedAt->format('d M Y'),
             'generatedTime' => $generatedAt->format('H:i'),
-            'certBuild' => '20260723h',
+            'certBuild' => '20260723i',
             'recordRows' => [
                 ['label' => 'SAPRF NO', 'value' => $membership->saprf_number ?: '—'],
                 ['label' => 'MEMBERSHIP', 'value' => ucfirst((string) ($membership->membership_type ?? 'Standard'))],

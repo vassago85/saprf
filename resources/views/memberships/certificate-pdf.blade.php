@@ -61,7 +61,7 @@
         .card {
             border: 1px solid #E4E2DC;
             border-radius: 2.5mm;
-            background-color: rgba(255, 255, 255, 0.80);
+            background-color: rgba(255, 255, 255, 0.50);
             margin-left: auto;
             margin-right: auto;
         }
@@ -86,9 +86,17 @@
             white-space: nowrap;
             line-height: 1.1;
         }
+        .connector {
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6.6pt;
+            color: #6C756E;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-top: 2.5mm;
+        }
         .status-chip {
             display: inline-block;
-            margin-top: 3mm;
+            margin-top: 2mm;
             padding: 1.2mm 4mm;
             border: 0.4mm solid #C9971C;
             border-radius: 8mm;
@@ -202,6 +210,7 @@
                                     <td style="padding: 5mm 6mm; text-align: center;">
                                         <div class="eyebrow">This is to certify that</div>
                                         <div class="member-name">{{ $user->name }}</div>
+                                        <div class="connector">{{ $statusArticle }}</div>
                                         <div class="status-chip {{ $chipMuted ? 'is-muted' : '' }}">{{ $statusLabel }}</div>
                                     </td>
                                 </tr>
