@@ -43,8 +43,17 @@ Route::get('/standings', [StandingController::class, 'publicIndex'])->name('stan
 Route::get('/standings/{season}/shooter/{user}', [StandingController::class, 'publicShooter'])->name('standings.shooter');
 Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->name('membership.verify');
 
-// ── PayFast ITN Webhook (CSRF-exempt, no auth) ──
-Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])->name('payments.notify');
+// ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
+Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
+    ->name('payments.notify')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \App\Http\Middleware\ForcePasswordChange::class,
+    ]);
 
 // ── Public Account Handover (junior accepts their account from parent) ──
 Route::get('/family/handover/{token}', [FamilyController::class, 'acceptHandover'])->name('family.handover.accept');

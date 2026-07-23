@@ -124,12 +124,33 @@ class PayFastService
             $errors[] = 'Invalid source IP: '.$requestIp;
         }
 
-        $expectedSignature = $this->generateItnSignature($data);
-        if (! hash_equals($expectedSignature, (string) ($data['signature'] ?? ''))) {
+        if (! $this->itnSignatureIsValid($data)) {
             $errors[] = 'Signature mismatch';
         }
 
         return $errors;
+    }
+
+    /**
+     * Accept either the official ITN signature (includes blanks) or the
+     * checkout-style signature (skips blanks) — PayFast/sandbox has been
+     * observed to vary.
+     */
+    public function itnSignatureIsValid(array $data): bool
+    {
+        $provided = (string) ($data['signature'] ?? '');
+        if ($provided === '') {
+            return false;
+        }
+
+        if (hash_equals($this->generateItnSignature($data), $provided)) {
+            return true;
+        }
+
+        $withoutSignature = $data;
+        unset($withoutSignature['signature']);
+
+        return hash_equals($this->generateSignature($withoutSignature), $provided);
     }
 
     /**
