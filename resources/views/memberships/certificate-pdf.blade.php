@@ -37,7 +37,6 @@
         .logo {
             display: block;
             width: 102mm;
-            margin: 0 auto;
         }
         .title {
             font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
@@ -184,7 +183,13 @@
         <img class="frame" src="{{ $frameBase64 }}" alt="">
 
         <div class="content">
-            <img class="logo" src="{{ $logoBase64 }}" alt="SAPRF">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="text-align: center;">
+                        <img class="logo" src="{{ $logoBase64 }}" alt="SAPRF" style="width: 102mm;">
+                    </td>
+                </tr>
+            </table>
 
             <table style="width: 80mm; margin: 5mm auto 0; border-collapse: collapse;">
                 <tr>

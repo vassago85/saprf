@@ -493,6 +493,10 @@ class MembershipController extends Controller
             ->setOption('fontDir', $fontDir)
             ->setOption('fontCache', $fontDir);
 
+        // Pre-register TTFs into the writable cache so DomPDF never tries to
+        // write .ufm metrics under resources/fonts (not writable by www-data).
+        $this->registerCertificateFonts($pdf, $fontDir);
+
         return $pdf->download($filename);
     }
 
@@ -523,7 +527,44 @@ class MembershipController extends Controller
             }
         }
 
+        // Remove any stale metrics DomPDF may have tried to write under resources/.
+        foreach (glob($sourceDir.DIRECTORY_SEPARATOR.'*.{ufm,json}', GLOB_BRACE) ?: [] as $stale) {
+            @unlink($stale);
+        }
+
         return $fontDir;
+    }
+
+    private function registerCertificateFonts(\Barryvdh\DomPDF\PDF $pdf, string $fontDir): void
+    {
+        $dompdf = $pdf->getDomPDF();
+        $metrics = $dompdf->getFontMetrics();
+
+        $fonts = [
+            ['family' => 'Saira Condensed', 'weight' => '600', 'style' => 'normal', 'file' => 'SairaCondensed-SemiBold.ttf'],
+            ['family' => 'Saira Condensed', 'weight' => '700', 'style' => 'normal', 'file' => 'SairaCondensed-Bold.ttf'],
+            ['family' => 'Saira Condensed', 'weight' => 'bold', 'style' => 'normal', 'file' => 'SairaCondensed-Bold.ttf'],
+            ['family' => 'Saira', 'weight' => '600', 'style' => 'normal', 'file' => 'Saira-SemiBold.ttf'],
+            ['family' => 'Saira', 'weight' => 'bold', 'style' => 'normal', 'file' => 'Saira-SemiBold.ttf'],
+            ['family' => 'IBM Plex Mono', 'weight' => '400', 'style' => 'normal', 'file' => 'IBMPlexMono-Regular.ttf'],
+            ['family' => 'IBM Plex Mono', 'weight' => 'normal', 'style' => 'normal', 'file' => 'IBMPlexMono-Regular.ttf'],
+            ['family' => 'IBM Plex Mono', 'weight' => '500', 'style' => 'normal', 'file' => 'IBMPlexMono-Medium.ttf'],
+            ['family' => 'IBM Plex Mono', 'weight' => '600', 'style' => 'normal', 'file' => 'IBMPlexMono-SemiBold.ttf'],
+            ['family' => 'IBM Plex Mono', 'weight' => 'bold', 'style' => 'normal', 'file' => 'IBMPlexMono-SemiBold.ttf'],
+        ];
+
+        foreach ($fonts as $font) {
+            $path = $fontDir.DIRECTORY_SEPARATOR.$font['file'];
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $metrics->registerFont([
+                'family' => $font['family'],
+                'weight' => $font['weight'],
+                'style' => $font['style'],
+            ], $path);
+        }
     }
 
     private function certificateAssetDataUri(string $absolutePath): string
