@@ -81,7 +81,9 @@ new #[Layout('components.layouts.guest')] class extends Component {
 
             <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1 text-center">Verify Your Email</h2>
             <p class="text-sm text-stone-500 mb-6 text-center">
-                Enter the 6-digit code sent to <strong class="text-stone-700">{{ Auth::user()->email }}</strong>
+                We sent a verification email to <strong class="text-stone-700">{{ Auth::user()->email }}</strong>.
+                Tap <strong>Verify Email Address</strong> in that email — it works on any phone or computer.
+                Or enter the 6-digit code below.
             </p>
 
             @if($status)

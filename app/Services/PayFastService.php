@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
 
 class PayFastService
 {
@@ -30,8 +29,8 @@ class PayFastService
     {
         $setting = $this->settingsService->get('payfast_sandbox');
 
-        if ($setting !== null) {
-            return (bool) $setting;
+        if ($setting !== null && $setting !== '') {
+            return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
         }
 
         return (bool) config('payfast.sandbox', true);
@@ -44,43 +43,65 @@ class PayFastService
             : config('payfast.urls.live');
     }
 
+    /**
+     * Build the PayFast checkout payload (non-blank fields only) + signature.
+     *
+     * Empty fields are omitted entirely — PayFast regenerates the signature from
+     * submitted fields and blank inputs cause "signature does not match" errors.
+     */
     public function buildPaymentData(Payment $payment, User $user): array
     {
+        $firstName = $this->extractFirstName($user->name);
+        $lastName = $this->extractLastName($user->name);
+
+        // PayFast buyer fields: if only one name part exists, put it in name_first
+        // and leave name_last out (blank fields must not be posted).
         $data = [
             'merchant_id' => $this->getMerchantId(),
             'merchant_key' => $this->getMerchantKey(),
             'return_url' => route('payments.return', ['m_payment_id' => $payment->m_payment_id]),
             'cancel_url' => route('payments.cancel', ['m_payment_id' => $payment->m_payment_id]),
             'notify_url' => route('payments.notify'),
-            'name_first' => $this->extractFirstName($user->name),
-            'name_last' => $this->extractLastName($user->name),
-            'email_address' => $user->email,
+            'name_first' => $firstName !== '' ? $firstName : 'Shooter',
+            'name_last' => $lastName,
+            'email_address' => (string) $user->email,
             'm_payment_id' => $payment->m_payment_id,
-            'amount' => number_format($payment->amount, 2, '.', ''),
+            'amount' => number_format((float) $payment->amount, 2, '.', ''),
             'item_name' => $this->buildItemName($payment),
             'item_description' => $this->buildItemDescription($payment),
         ];
+
+        // Drop blanks before signing and before the form is rendered.
+        $data = array_filter($data, fn ($val) => $val !== null && trim((string) $val) !== '');
 
         $data['signature'] = $this->generateSignature($data);
 
         return $data;
     }
 
+    /**
+     * PayFast custom-integration signature (attribute order, not alphabetical).
+     *
+     * @see https://developers.payfast.co.za/docs#step_2_signature
+     */
     public function generateSignature(array $data, ?string $passphrase = null): string
     {
         $passphrase = $passphrase ?? $this->getPassphrase();
 
+        unset($data['signature']);
+
         $pfOutput = '';
         foreach ($data as $key => $val) {
+            $val = trim(stripslashes((string) $val));
             if ($val !== '') {
-                $pfOutput .= $key . '=' . urlencode(trim((string) $val)) . '&';
+                $pfOutput .= $key.'='.urlencode($val).'&';
             }
         }
 
-        $getString = substr($pfOutput, 0, -1);
+        $getString = rtrim($pfOutput, '&');
 
-        if (! empty($passphrase)) {
-            $getString .= '&passphrase=' . urlencode(trim($passphrase));
+        if ($passphrase !== null && trim($passphrase) !== '') {
+            $getString .= '&passphrase='.urlencode(trim(stripslashes($passphrase)));
         }
 
         return md5($getString);
@@ -91,7 +112,7 @@ class PayFastService
         $errors = [];
 
         if (! $this->validateItnServerIp($requestIp)) {
-            $errors[] = 'Invalid source IP: ' . $requestIp;
+            $errors[] = 'Invalid source IP: '.$requestIp;
         }
 
         $signatureData = $data;
@@ -126,32 +147,32 @@ class PayFastService
 
     private function getMerchantId(): string
     {
-        return (string) ($this->settingsService->get('payfast_merchant_id')
-            ?: config('payfast.merchant_id', ''));
+        return trim((string) ($this->settingsService->get('payfast_merchant_id')
+            ?: config('payfast.merchant_id', '')));
     }
 
     private function getMerchantKey(): string
     {
-        return (string) ($this->settingsService->get('payfast_merchant_key')
-            ?: config('payfast.merchant_key', ''));
+        return trim((string) ($this->settingsService->get('payfast_merchant_key')
+            ?: config('payfast.merchant_key', '')));
     }
 
     private function getPassphrase(): string
     {
-        return (string) ($this->settingsService->get('payfast_passphrase')
-            ?: config('payfast.passphrase', ''));
+        return trim((string) ($this->settingsService->get('payfast_passphrase')
+            ?: config('payfast.passphrase', '')));
     }
 
     private function extractFirstName(string $fullName): string
     {
-        $parts = explode(' ', trim($fullName), 2);
+        $parts = preg_split('/\s+/', trim($fullName), 2) ?: [];
 
         return $parts[0] ?? '';
     }
 
     private function extractLastName(string $fullName): string
     {
-        $parts = explode(' ', trim($fullName), 2);
+        $parts = preg_split('/\s+/', trim($fullName), 2) ?: [];
 
         return $parts[1] ?? '';
     }
@@ -161,11 +182,11 @@ class PayFastService
         $payable = $payment->payable;
 
         if ($payable instanceof \App\Models\MatchRegistration) {
-            return 'Match Registration: ' . ($payable->match?->name ?? 'Match #' . $payable->match_id);
+            return 'Match Registration: '.($payable->match?->name ?? 'Match #'.$payable->match_id);
         }
 
         if ($payable instanceof \App\Models\Membership) {
-            return 'SAPRF Membership ' . ($payable->saprf_number ?? '');
+            return 'SAPRF Membership '.($payable->saprf_number ?? '');
         }
 
         return 'SAPRF Payment';
@@ -176,7 +197,7 @@ class PayFastService
         $payable = $payment->payable;
 
         if ($payable instanceof \App\Models\MatchRegistration) {
-            return 'Entry fee for ' . ($payable->match?->name ?? 'match');
+            return 'Entry fee for '.($payable->match?->name ?? 'match');
         }
 
         if ($payable instanceof \App\Models\Membership) {

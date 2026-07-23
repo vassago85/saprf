@@ -21,6 +21,8 @@
                 <p class="text-xs text-stone-400">If you are not redirected automatically, click the button below.</p>
 
                 <form id="payfast-form" method="POST" action="{{ $actionUrl }}">
+                    {{-- Only non-blank fields are included (see PayFastService) so the
+                         posted payload matches the signed parameter string exactly. --}}
                     @foreach($formData as $key => $value)
                         <input type="hidden" name="{{ $key }}" value="{{ $value }}">
                     @endforeach

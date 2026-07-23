@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\MatchController;
@@ -65,7 +66,12 @@ Route::post('/logout', function () {
     return redirect('/');
 })->name('logout')->middleware('auth');
 
-// ── Email Verification (OTP) ──
+// ── Email Verification ──
+// Signed link works on ANY device (no session required). OTP form remains as fallback.
+
+Route::get('/email/verify/{id}/{hash}', EmailVerificationController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 Route::middleware('auth')->group(function (): void {
     Volt::route('/verify-email', 'pages.auth.verify-email')->name('verification.notice');

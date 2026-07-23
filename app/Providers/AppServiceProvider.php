@@ -31,6 +31,11 @@ class AppServiceProvider extends ServiceProvider
     {
         if (app()->environment('production')) {
             URL::forceScheme('https');
+            // Ensure password-reset / verification links in emails always use APP_URL
+            // (works when opened on a different device than the one that requested them).
+            if ($root = config('app.url')) {
+                URL::forceRootUrl($root);
+            }
         }
 
         // Developers + EXCO bypass every policy check — developer is the sysadmin

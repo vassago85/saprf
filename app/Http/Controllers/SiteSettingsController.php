@@ -76,13 +76,21 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('estimated_gateway_flat_fee', $validated['estimated_gateway_flat_fee'], 'Estimated PayFast flat fee per transaction in ZAR (for reporting only)');
 
         $this->settingsService->set('payfast_merchant_id', $validated['payfast_merchant_id'] ?? '', 'PayFast Merchant ID');
-        $this->settingsService->set('payfast_merchant_key', $validated['payfast_merchant_key'] ?? '', 'PayFast Merchant Key');
-        $this->settingsService->set('payfast_passphrase', $validated['payfast_passphrase'] ?? '', 'PayFast Passphrase');
+        // Secrets: only overwrite when a new value was typed. An empty password
+        // field on save used to wipe the passphrase and break PayFast signatures.
+        if (filled($validated['payfast_merchant_key'] ?? null)) {
+            $this->settingsService->set('payfast_merchant_key', $validated['payfast_merchant_key'], 'PayFast Merchant Key');
+        }
+        if (filled($validated['payfast_passphrase'] ?? null)) {
+            $this->settingsService->set('payfast_passphrase', $validated['payfast_passphrase'], 'PayFast Passphrase');
+        }
         $this->settingsService->set('payfast_sandbox', $validated['payfast_sandbox'], 'PayFast sandbox mode (1=sandbox, 0=live)');
         $this->settingsService->set('payments_enabled', $validated['payments_enabled'], 'Enable online payments (1=yes, 0=no)');
 
         $this->settingsService->set('mailgun_domain', $validated['mailgun_domain'] ?? '', 'Mailgun sending domain');
-        $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'] ?? '', 'Mailgun API key');
+        if (filled($validated['mailgun_secret'] ?? null)) {
+            $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'], 'Mailgun API key');
+        }
         $this->settingsService->set('mailgun_endpoint', $validated['mailgun_endpoint'] ?? 'api.eu.mailgun.net', 'Mailgun API endpoint (EU or US)');
         $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');

@@ -251,13 +251,14 @@
 
                     <div>
                         <label for="payfast_merchant_key" class="block text-sm font-medium text-stone-700">Merchant Key</label>
-                        <input type="text" name="payfast_merchant_key" id="payfast_merchant_key" value="{{ old('payfast_merchant_key', $settings['payfast_merchant_key'] ?? '') }}" placeholder="e.g. 46f0cd694581a" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <input type="password" name="payfast_merchant_key" id="payfast_merchant_key" value="" autocomplete="off" placeholder="{{ !empty($settings['payfast_merchant_key'] ?? '') ? '••••••••  (leave blank to keep)' : 'e.g. 46f0cd694581a' }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Leave blank to keep the current key.</p>
                     </div>
 
                     <div>
                         <label for="payfast_passphrase" class="block text-sm font-medium text-stone-700">Passphrase</label>
-                        <input type="password" name="payfast_passphrase" id="payfast_passphrase" value="{{ old('payfast_passphrase', $settings['payfast_passphrase'] ?? '') }}" placeholder="Your PayFast passphrase" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Set in your PayFast dashboard under Settings &gt; Integration.</p>
+                        <input type="password" name="payfast_passphrase" id="payfast_passphrase" value="" autocomplete="off" placeholder="{{ !empty($settings['payfast_passphrase'] ?? '') ? '••••••••  (leave blank to keep)' : 'Your PayFast salt passphrase' }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Must match the Salt Passphrase in your PayFast dashboard (sandbox or live). Leave blank to keep current. Sandbox defaults use <code class="text-stone-500">jt7NOE43FZPn</code>.</p>
                     </div>
                 </div>
 

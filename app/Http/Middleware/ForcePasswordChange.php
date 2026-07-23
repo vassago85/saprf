@@ -13,6 +13,9 @@ class ForcePasswordChange
         'password.force.update',
         'logout',
         'verification.notice',
+        'verification.verify',
+        'password.reset',
+        'password.request',
     ];
 
     public function handle(Request $request, Closure $next): Response
