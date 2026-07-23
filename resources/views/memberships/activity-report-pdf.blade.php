@@ -2,506 +2,403 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAPRF Activity Report — {{ $membership->saprf_number }} — {{ $season }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Saira+Condensed:wght@600;700&family=Saira:wght@600&display=swap" rel="stylesheet">
+    @include('memberships.partials.certificate-fonts')
     <style>
-        :root {
-            --green: #006838;
-            --gold: #C9971C;
-            --gold-deep: #A57B12;
-            --ink: #171B17;
-            --slate: #6C756E;
-            --line: #E4E2DC;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        @page {
-            size: A4;
-            margin: 12mm 14mm 14mm;
-        }
-
-        html, body {
-            background: #FFFFFF;
-            color: var(--ink);
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
+        @page { margin: 0; size: A4 portrait; }
+        * { margin: 0; padding: 0; }
         body {
-            font-family: 'IBM Plex Mono', monospace;
-        }
-
-        .sheet {
-            position: relative;
-            width: 100%;
-            min-height: 273mm;
-            padding: 8mm 6mm 6mm;
-            border: 0.55mm solid var(--gold);
-            outline: 0.35mm solid color-mix(in srgb, var(--green) 50%, transparent);
-            outline-offset: -2.2mm;
+            margin: 0;
+            padding: 0;
             background: #FFFFFF;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            color: #171B17;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
         }
-
-        /* Fallback outline colour for engines without color-mix */
-        @supports not (outline-color: color-mix(in srgb, red 50%, transparent)) {
-            .sheet {
-                box-shadow: inset 0 0 0 2.2mm #FFFFFF, inset 0 0 0 2.55mm rgba(0, 104, 56, 0.45);
-            }
+        .page {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            overflow: hidden;
+            background: #FFFFFF;
         }
-
-        .corner {
-            position: absolute;
-            width: 7mm;
-            height: 7mm;
-            border-color: var(--gold);
-            border-style: solid;
-            border-width: 0;
-            z-index: 2;
-            pointer-events: none;
+        .frame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
+            z-index: 0;
         }
-        .corner--tl { top: -0.2mm; left: -0.2mm; border-top-width: 0.9mm; border-left-width: 0.9mm; }
-        .corner--tr { top: -0.2mm; right: -0.2mm; border-top-width: 0.9mm; border-right-width: 0.9mm; }
-        .corner--bl { bottom: -0.2mm; left: -0.2mm; border-bottom-width: 0.9mm; border-left-width: 0.9mm; }
-        .corner--br { bottom: -0.2mm; right: -0.2mm; border-bottom-width: 0.9mm; border-right-width: 0.9mm; }
-
         .content {
             position: relative;
             z-index: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5mm;
+            padding: 16mm 16mm 22mm;
         }
-
         .logo {
-            width: 78mm;
-            height: auto;
             display: block;
+            width: 70mm;
+            margin: 0 auto;
         }
-
-        .ornament {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3mm;
-        }
-
-        .ornament-rule {
-            width: 22mm;
-            height: 0.35mm;
-            background: var(--gold);
-        }
-
-        .ornament-diamond {
-            width: 2mm;
-            height: 2mm;
-            background: var(--gold);
-            transform: rotate(45deg);
-            flex-shrink: 0;
-        }
-
         .title {
-            font-family: 'Saira Condensed', sans-serif;
+            font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
             font-weight: 700;
-            font-size: 26pt;
-            line-height: 1;
-            color: var(--green);
-            letter-spacing: .06em;
+            font-size: 24pt;
+            color: #006838;
+            letter-spacing: 0.06em;
             text-align: center;
             text-transform: uppercase;
+            margin-top: 3.5mm;
         }
-
         .subtitle {
-            margin-top: -2mm;
-            font-size: 6.4pt;
-            color: var(--gold-deep);
-            letter-spacing: .32em;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-weight: 400;
+            font-size: 6.2pt;
+            color: #A57B12;
+            letter-spacing: 0.2em;
             text-align: center;
             text-transform: uppercase;
+            margin-top: 1.8mm;
         }
-
         .card {
-            width: 100%;
-            border: 1px solid var(--line);
+            border: 1px solid #E4E2DC;
             border-radius: 2mm;
             background: #FFFFFF;
-            overflow: hidden;
-            page-break-inside: avoid;
         }
-
-        .card-pad {
-            padding: 4.5mm 5mm;
-        }
-
-        .card-header {
-            height: 4.2mm;
-            background: var(--green);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card-header span,
-        .card-header-gold span {
-            font-size: 6.2pt;
-            color: #FFFFFF;
-            letter-spacing: .32em;
-            text-transform: uppercase;
-        }
-
-        .card-header-gold {
-            height: 4.2mm;
-            background: var(--gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .identity {
+        .card-prepared {
+            width: 170mm;
+            margin: 4.5mm auto 0;
+            padding: 5mm 6mm;
             text-align: center;
-            padding: 5mm 5mm 4mm;
         }
-
         .eyebrow {
-            font-size: 6.8pt;
-            color: var(--slate);
-            letter-spacing: .3em;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-weight: 400;
+            font-size: 6.6pt;
+            color: #6C756E;
+            letter-spacing: 0.18em;
             text-transform: uppercase;
         }
-
         .member-name {
-            margin-top: 2.5mm;
-            font-family: 'Saira', sans-serif;
+            font-family: 'Saira', DejaVu Sans, sans-serif;
             font-weight: 600;
             font-size: {{ $memberNameSize }};
-            line-height: 1.1;
-            color: var(--ink);
+            color: #171B17;
+            margin-top: 2mm;
             white-space: nowrap;
-            overflow: hidden;
         }
-
         .status-chip {
             display: inline-block;
-            margin-top: 3mm;
-            padding: 1.4mm 4mm;
-            border-radius: 999px;
-            border: 0.45mm solid var(--gold);
-            background: rgba(201, 151, 28, .06);
-            font-size: 6.8pt;
-            color: var(--green);
-            letter-spacing: .28em;
+            margin-top: 2.5mm;
+            padding: 1.2mm 3.8mm;
+            border: 0.45mm solid #C9971C;
+            border-radius: 10mm;
+            background: #FBF6EA;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6.6pt;
+            color: #006838;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
         }
-
         .status-chip.is-muted {
-            border-color: var(--slate);
-            color: var(--slate);
-            background: transparent;
-        }
-
-        .meta-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2.5mm 6mm;
-            padding: 4mm 5mm 4.5mm;
-            border-top: 1px solid var(--line);
-        }
-
-        .meta-item .label {
-            font-size: 6pt;
-            color: var(--slate);
-            letter-spacing: .28em;
-            text-transform: uppercase;
-        }
-
-        .meta-item .value {
-            margin-top: 1mm;
-            font-size: 8.5pt;
-            font-weight: 600;
-            color: var(--ink);
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 3mm;
-            width: 100%;
-        }
-
-        .stat {
-            border: 1px solid var(--line);
-            border-radius: 2mm;
-            padding: 3.5mm 3mm;
-            text-align: center;
+            border-color: #6C756E;
+            color: #6C756E;
             background: #FFFFFF;
-            page-break-inside: avoid;
         }
-
-        .stat-value {
-            font-family: 'Saira Condensed', sans-serif;
-            font-weight: 700;
-            font-size: 20pt;
-            line-height: 1;
-            color: var(--green);
-            letter-spacing: .02em;
+        .summary-table {
+            width: 170mm;
+            margin: 4mm auto 0;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
-
-        .stat-label {
-            margin-top: 1.8mm;
-            font-size: 6pt;
-            color: var(--slate);
-            letter-spacing: .28em;
+        .summary-table td {
+            width: 25%;
+            border: 1px solid #E4E2DC;
+            padding: 3mm 2mm;
+            text-align: center;
+            vertical-align: top;
+        }
+        .summary-label {
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 5.8pt;
+            color: #6C756E;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
         }
-
+        .summary-value {
+            margin-top: 1.2mm;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-weight: 600;
+            font-size: 8pt;
+            color: #171B17;
+        }
+        .stats-table {
+            width: 170mm;
+            margin: 4mm auto 0;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .stats-table td {
+            width: 33.33%;
+            border: 1px solid #E4E2DC;
+            padding: 4mm 2mm;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .stat-value {
+            font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
+            font-weight: 700;
+            font-size: 22pt;
+            color: #006838;
+            line-height: 1;
+        }
+        .stat-label {
+            margin-top: 1.5mm;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6pt;
+            color: #6C756E;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        .card-history {
+            width: 170mm;
+            margin: 4mm auto 0;
+            overflow: hidden;
+        }
+        .section-header {
+            background: #006838;
+            padding: 1.6mm 4mm;
+            text-align: center;
+        }
+        .section-header span {
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6.2pt;
+            color: #FFFFFF;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        .section-header-gold {
+            background: #C9971C;
+            padding: 1.6mm 4mm;
+            text-align: center;
+        }
+        .section-header-gold span {
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6.2pt;
+            color: #FFFFFF;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        .empty {
+            padding: 6mm 4mm;
+            text-align: center;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 7pt;
+            color: #6C756E;
+        }
         .match-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
-
         .match-table th {
-            font-size: 6pt;
+            background: #F4F3EF;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
             font-weight: 400;
-            color: var(--slate);
-            letter-spacing: .22em;
+            font-size: 6pt;
+            color: #6C756E;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             text-align: left;
-            padding: 2.8mm 2.2mm;
-            border-bottom: 1px solid var(--line);
-            background: #FAFAF8;
+            padding: 2mm 1.8mm;
+            border-bottom: 0.2mm solid #E4E2DC;
         }
-
         .match-table th.num,
         .match-table td.num {
             text-align: right;
         }
-
         .match-table td {
-            font-size: 7.4pt;
-            font-weight: 400;
-            color: var(--ink);
-            padding: 2.4mm 2.2mm;
-            border-bottom: 1px solid var(--line);
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 7pt;
+            color: #171B17;
+            padding: 1.8mm;
+            border-bottom: 0.2mm solid #E4E2DC;
             vertical-align: top;
         }
-
-        .match-table tr:last-child td {
-            border-bottom: none;
+        .standings-table {
+            width: 170mm;
+            margin: 4mm auto 0;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
-
-        .match-table .name {
-            font-weight: 600;
-            max-width: 42mm;
+        .standings-table td {
+            width: 50%;
+            border: 1px solid #E4E2DC;
+            padding: 3mm;
+            vertical-align: top;
         }
-
-        .match-table .mono {
-            font-weight: 600;
-        }
-
-        .empty {
-            padding: 8mm 5mm;
-            text-align: center;
-            font-size: 7.5pt;
-            color: var(--slate);
-            letter-spacing: .04em;
-        }
-
-        .standings-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3mm;
-            padding: 4mm 4mm 4.5mm;
-        }
-
-        .standing-block {
-            border: 1px solid var(--line);
-            border-radius: 1.5mm;
-            padding: 3.5mm;
-        }
-
         .standing-series {
-            font-family: 'Saira Condensed', sans-serif;
+            font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
             font-weight: 700;
-            font-size: 12pt;
-            color: var(--green);
-            letter-spacing: .06em;
+            font-size: 11pt;
+            color: #006838;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
         }
-
-        .standing-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-top: 2.2mm;
-            font-size: 7pt;
+        .standing-line {
+            margin-top: 1.8mm;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6.8pt;
+            color: #171B17;
         }
-
-        .standing-row .label {
-            color: var(--slate);
-            letter-spacing: .18em;
+        .standing-line span {
+            color: #6C756E;
             text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 6pt;
         }
-
-        .standing-row .value {
-            font-weight: 600;
-            color: var(--ink);
+        .card-verify {
+            width: 90mm;
+            margin: 4mm auto 0;
+            padding: 4mm;
+            text-align: center;
         }
-
-        .footer {
-            width: 100%;
-            margin-top: 2mm;
-            padding-top: 3.5mm;
-            border-top: 0.25mm solid var(--line);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 4mm;
-            page-break-inside: avoid;
-        }
-
-        .footer-copy {
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-
-        .footer-line {
-            font-size: 5.6pt;
-            color: var(--slate);
-            letter-spacing: .03em;
-            line-height: 1.55;
-        }
-
-        .footer-line + .footer-line {
-            margin-top: 1mm;
-        }
-
         .qr-chip {
-            position: relative;
-            width: 26mm;
-            height: 26mm;
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: inline-block;
+            padding: 2.5mm;
+            border: 0.5mm solid #C9971C;
             background: #FFFFFF;
         }
-
         .qr-chip img {
+            display: block;
             width: 20mm;
             height: 20mm;
-            display: block;
         }
-
-        .qr-corner {
-            position: absolute;
-            width: 3.8mm;
-            height: 3.8mm;
-            border-color: var(--gold);
-            border-style: solid;
-            border-width: 0;
+        .verify-label {
+            margin-top: 2.5mm;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 6pt;
+            color: #006838;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
         }
-
-        .qr-corner--tl { top: 0; left: 0; border-top-width: 0.45mm; border-left-width: 0.45mm; }
-        .qr-corner--tr { top: 0; right: 0; border-top-width: 0.45mm; border-right-width: 0.45mm; }
-        .qr-corner--bl { bottom: 0; left: 0; border-bottom-width: 0.45mm; border-left-width: 0.45mm; }
-        .qr-corner--br { bottom: 0; right: 0; border-bottom-width: 0.45mm; border-right-width: 0.45mm; }
+        .verify-url {
+            margin-top: 1.2mm;
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-size: 5.8pt;
+            color: #6C756E;
+            word-wrap: break-word;
+        }
+        .footer {
+            position: fixed;
+            bottom: 12mm;
+            left: 30mm;
+            right: 30mm;
+            border-top: 0.25mm solid #E4E2DC;
+            padding-top: 2.5mm;
+            text-align: center;
+            z-index: 2;
+        }
+        .footer-line {
+            font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
+            font-weight: 400;
+            font-size: 5.8pt;
+            color: #6C756E;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
-    <div class="sheet">
-        <span class="corner corner--tl"></span>
-        <span class="corner corner--tr"></span>
-        <span class="corner corner--bl"></span>
-        <span class="corner corner--br"></span>
+@php
+    $frameSrc = str_replace('\\', '/', public_path('images/certificates/saprf-frame-a4.png'));
+    $logoSrc = str_replace('\\', '/', public_path('saprf-logo-black-text.png'));
+    $matchRows = $scores->take(12);
+@endphp
+    <div class="page">
+        <img class="frame" src="{{ $frameSrc }}" alt="">
 
         <div class="content">
-            <img class="logo" src="{{ $logoBase64 }}" alt="South African Precision Rifle Federation">
+            <img class="logo" src="{{ $logoSrc }}" alt="SAPRF">
 
-            <div class="ornament" aria-hidden="true">
-                <span class="ornament-rule"></span>
-                <span class="ornament-diamond"></span>
-                <span class="ornament-rule"></span>
+            <table style="width: 70mm; margin: 3.5mm auto 0; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 31mm; border-bottom: 0.3mm solid #C9971C;"></td>
+                    <td style="width: 8mm; text-align: center; vertical-align: middle;">
+                        <div style="width: 3mm; height: 3mm; background: #C9971C; margin: 0 auto;"></div>
+                    </td>
+                    <td style="width: 31mm; border-bottom: 0.3mm solid #C9971C;"></td>
+                </tr>
+            </table>
+
+            <div class="title">Activity Report</div>
+            <div class="subtitle">{{ $season }} Season · Official Activity Record</div>
+
+            <div class="card card-prepared">
+                <div class="eyebrow">Prepared for</div>
+                <div class="member-name">{{ $user->name }}</div>
+                <div class="status-chip {{ $chipMuted ? 'is-muted' : '' }}">{{ $statusLabel }}</div>
             </div>
 
-            <h1 class="title">Activity Report</h1>
-            <p class="subtitle">{{ $season }} Season · Official Activity Record</p>
+            <table class="summary-table">
+                <tr>
+                    <td>
+                        <div class="summary-label">SAPRF No</div>
+                        <div class="summary-value">{{ $membership->saprf_number ?: '—' }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Province</div>
+                        <div class="summary-value">{{ $user->province?->name ?? '—' }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Valid Until</div>
+                        <div class="summary-value">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Season</div>
+                        <div class="summary-value">{{ $season }}</div>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="card">
-                <div class="identity">
-                    <p class="eyebrow">Prepared for</p>
-                    <p class="member-name">{{ $user->name }}</p>
-                    <span class="status-chip {{ $chipMuted ? 'is-muted' : '' }}">{{ $statusLabel }}</span>
-                </div>
-                <div class="meta-grid">
-                    <div class="meta-item">
-                        <div class="label">SAPRF No</div>
-                        <div class="value">{{ $membership->saprf_number ?: '—' }}</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="label">Province</div>
-                        <div class="value">{{ $user->province?->name ?? '—' }}</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="label">Valid Until</div>
-                        <div class="value">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="label">Season</div>
-                        <div class="value">{{ $season }}</div>
-                    </div>
-                </div>
-            </div>
+            <table class="stats-table">
+                <tr>
+                    <td>
+                        <div class="stat-value">{{ $stats['total'] }}</div>
+                        <div class="stat-label">Matches</div>
+                    </td>
+                    <td>
+                        <div class="stat-value">{{ $stats['prs'] }}</div>
+                        <div class="stat-label">PRS</div>
+                    </td>
+                    <td>
+                        <div class="stat-value">{{ $stats['pr22'] }}</div>
+                        <div class="stat-label">PR22</div>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value">{{ $stats['total'] }}</div>
-                    <div class="stat-label">Matches</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">{{ $stats['prs'] }}</div>
-                    <div class="stat-label">PRS</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">{{ $stats['pr22'] }}</div>
-                    <div class="stat-label">PR22</div>
-                </div>
-            </div>
-
-            <div class="card" style="page-break-inside: auto;">
-                <div class="card-header"><span>Match History</span></div>
+            <div class="card card-history">
+                <div class="section-header"><span>Match History</span></div>
                 @if($scores->isEmpty())
                     <div class="empty">No completed matches found for the {{ $season }} season.</div>
                 @else
                     <table class="match-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Match</th>
-                                <th>Series</th>
-                                <th>Level</th>
-                                <th>Division</th>
-                                <th class="num">Impacts</th>
-                                <th class="num">%</th>
-                                <th class="num">Rank</th>
+                                <th style="width: 22mm;">Date</th>
+                                <th style="width: 58mm;">Match</th>
+                                <th style="width: 28mm;">Division</th>
+                                <th class="num" style="width: 22mm;">Score</th>
+                                <th class="num" style="width: 20mm;">%</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($scores as $score)
+                            @foreach($matchRows as $score)
                                 <tr>
                                     <td>{{ $score->match_date?->format('d M Y') ?? '—' }}</td>
-                                    <td class="name">{{ \Illuminate\Support\Str::limit($score->match->name ?? '—', 28) }}</td>
-                                    <td>{{ $score->match->match_type ?? $score->match->series ?? '—' }}</td>
-                                    <td>{{ ucfirst($score->match->series_level ?? '—') }}</td>
+                                    <td>{{ \Illuminate\Support\Str::limit($score->match->name ?? '—', 26) }}</td>
                                     <td>{{ $score->division->name ?? 'Open' }}</td>
-                                    <td class="num mono">{{ number_format((float) $score->raw_score, 0) }}</td>
-                                    <td class="num mono">{{ number_format((float) $score->normalized_score, 2) }}</td>
-                                    <td class="num mono">{{ $score->overall_rank ?? '—' }}</td>
+                                    <td class="num">{{ number_format((float) $score->raw_score, 0) }}</td>
+                                    <td class="num">{{ number_format((float) $score->normalized_score, 1) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -510,46 +407,40 @@
             </div>
 
             @if($includeStandings && count($standingsSummary) > 0)
-                <div class="card">
-                    <div class="card-header-gold"><span>Season Standings</span></div>
-                    <div class="standings-grid">
-                        @foreach($standingsSummary as $standing)
-                            <div class="standing-block">
-                                <div class="standing-series">{{ $standing['series'] }}</div>
-                                <div class="standing-row">
-                                    <span class="label">Overall rank</span>
-                                    <span class="value">#{{ $standing['overall_rank'] }}</span>
-                                </div>
-                                <div class="standing-row">
-                                    <span class="label">Overall points</span>
-                                    <span class="value">{{ number_format((float) $standing['overall_points'], 2) }}</span>
-                                </div>
-                                @if($standing['division_name'])
-                                    <div class="standing-row">
-                                        <span class="label">{{ $standing['division_name'] }}</span>
-                                        <span class="value">#{{ $standing['division_rank'] }} · {{ number_format((float) $standing['division_points'], 2) }}</span>
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
+                <div class="card" style="width: 170mm; margin: 4mm auto 0; overflow: hidden;">
+                    <div class="section-header-gold"><span>Season Standings</span></div>
+                    <table class="standings-table" style="width: 100%; margin: 0;">
+                        <tr>
+                            @foreach($standingsSummary as $standing)
+                                <td>
+                                    <div class="standing-series">{{ $standing['series'] }}</div>
+                                    <div class="standing-line"><span>Overall rank</span> #{{ $standing['overall_rank'] }}</div>
+                                    <div class="standing-line"><span>Points</span> {{ number_format((float) $standing['overall_points'], 2) }}</div>
+                                    @if($standing['division_name'])
+                                        <div class="standing-line"><span>{{ $standing['division_name'] }}</span> #{{ $standing['division_rank'] }}</div>
+                                    @endif
+                                </td>
+                            @endforeach
+                            @if(count($standingsSummary) === 1)
+                                <td></td>
+                            @endif
+                        </tr>
+                    </table>
                 </div>
             @endif
 
-            <div class="footer">
-                <div class="footer-copy">
-                    <p class="footer-line">This activity report is electronically generated and verifiable via the QR code. It may be submitted in support of dedicated status or firearm licence applications.</p>
-                    <p class="footer-line">{{ $verifyUrl }}</p>
-                    <p class="footer-line">Generated {{ $generatedDate }} · {{ $generatedTime }} SAST</p>
-                </div>
+            <div class="card card-verify">
                 <div class="qr-chip">
-                    <span class="qr-corner qr-corner--tl"></span>
-                    <span class="qr-corner qr-corner--tr"></span>
-                    <span class="qr-corner qr-corner--bl"></span>
-                    <span class="qr-corner qr-corner--br"></span>
-                    <img src="{{ $qrBase64 }}" alt="Membership verification QR code">
+                    <img src="{{ $qrBase64 }}" alt="QR">
                 </div>
+                <div class="verify-label">Scan to verify membership</div>
+                <div class="verify-url">{{ $verifyUrl }}</div>
             </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-line">This activity report is electronically generated and verifiable via the QR code. It may be submitted in support of dedicated status or firearm licence applications.</div>
+            <div class="footer-line">Generated {{ $generatedDate }} · {{ $generatedTime }} SAST</div>
         </div>
     </div>
 </body>

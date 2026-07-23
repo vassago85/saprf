@@ -7,7 +7,6 @@ use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
 use App\Services\AuditLogService;
-use App\Services\ChromePdfRenderer;
 use App\Services\GreenQrCodePng;
 use App\Services\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -328,9 +327,6 @@ class MembershipController extends Controller
         $verifyUrl = url("/verify/{$membership->saprf_number}");
         $qrBase64 = app(GreenQrCodePng::class)->toDataUri($verifyUrl, 240);
 
-        $logoPath = public_path('saprf-logo-black-text.png');
-        $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
-
         $status = $membership->effective_status;
         $statusLabel = match ($status) {
             'active' => 'ACTIVE MEMBER',
@@ -357,7 +353,6 @@ class MembershipController extends Controller
             'user' => $user,
             'membership' => $membership,
             'qrBase64' => $qrBase64,
-            'logoBase64' => $logoBase64,
             'verifyUrl' => $verifyUrl,
             'statusLabel' => $statusLabel,
             'chipMuted' => $chipMuted,
@@ -432,7 +427,6 @@ class MembershipController extends Controller
 
         $verifyUrl = url("/verify/{$membership->saprf_number}");
         $qrBase64 = app(GreenQrCodePng::class)->toDataUri($verifyUrl, 200);
-        $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents(public_path('saprf-logo-black-text.png')));
 
         $status = $membership->effective_status;
         $statusLabel = match ($status) {
@@ -464,7 +458,6 @@ class MembershipController extends Controller
             'includeStandings' => $includeStandings,
             'standingsSummary' => $standingsSummary,
             'qrBase64' => $qrBase64,
-            'logoBase64' => $logoBase64,
             'verifyUrl' => $verifyUrl,
             'statusLabel' => $statusLabel,
             'chipMuted' => $chipMuted,
@@ -485,27 +478,18 @@ class MembershipController extends Controller
 
     private function downloadHtmlAsPdf(string $html, string $filename): Response
     {
-        $chrome = app(ChromePdfRenderer::class);
-        if ($chrome->available()) {
-            try {
-                return response($chrome->render($html), 200, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                ]);
-            } catch (\Throwable $e) {
-                report($e);
-            }
-        }
-
-        // DomPDF fallback: ensure font cache dir exists (remote Google Fonts need it).
         $fontDir = storage_path('fonts');
         if (! is_dir($fontDir)) {
             mkdir($fontDir, 0775, true);
         }
 
+        // Certificate views are authored for DomPDF (tables + local TTFs + PNG frame).
         $pdf = Pdf::loadHTML($html)
             ->setPaper('A4', 'portrait')
-            ->setOption('isRemoteEnabled', true)
+            ->setOption('isRemoteEnabled', false)
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isFontSubsettingEnabled', true)
+            ->setOption('chroot', base_path())
             ->setOption('fontDir', $fontDir)
             ->setOption('fontCache', $fontDir);
 
