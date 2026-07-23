@@ -18,7 +18,6 @@
             position: relative;
             width: 210mm;
             height: 297mm;
-            overflow: hidden;
             background: #FFFFFF;
         }
         .frame {
@@ -32,23 +31,21 @@
         .content {
             position: relative;
             z-index: 1;
-            /* Top/side clear of mil-frame; bottom clears fixed footer + QR */
-            padding: 14mm 18mm 24mm;
+            padding: 16mm 18mm 0;
         }
         .title {
             font-family: 'Saira Condensed', DejaVu Sans, sans-serif;
             font-weight: 700;
-            font-size: 20pt;
+            font-size: 22pt;
             color: #006838;
             letter-spacing: 0.05em;
             text-align: center;
             text-transform: uppercase;
-            margin-top: 2mm;
+            margin-top: 2.5mm;
             line-height: 1.05;
         }
         .subtitle {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 5.8pt;
             color: #A57B12;
             letter-spacing: 0.18em;
@@ -58,11 +55,11 @@
         }
         .card {
             border: 1px solid #E4E2DC;
-            background: rgba(255, 255, 255, 0.75);
+            /* DomPDF-safe translucent white (75% opaque) */
+            background-color: rgba(255, 255, 255, 0.75);
         }
         .eyebrow {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 6.4pt;
             color: #6C756E;
             letter-spacing: 0.16em;
@@ -83,9 +80,8 @@
             padding: 1mm 3.5mm;
             border: 0.4mm solid #C9971C;
             border-radius: 8mm;
-            background: rgba(251, 246, 234, 0.75);
+            background-color: rgba(251, 246, 234, 0.75);
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 6.4pt;
             color: #006838;
             letter-spacing: 0.14em;
@@ -94,30 +90,25 @@
         .status-chip.is-muted {
             border-color: #6C756E;
             color: #6C756E;
-            background: rgba(255, 255, 255, 0.75);
+            background-color: rgba(255, 255, 255, 0.75);
         }
-        .record-header span {
+        .record-header-text {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 5.8pt;
             color: #FFFFFF;
             letter-spacing: 0.18em;
             text-transform: uppercase;
         }
-        .center-wrap {
+        .block {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 2.6mm;
-        }
-        .center-wrap td {
-            text-align: center;
-            vertical-align: top;
+            margin-top: 3mm;
         }
         .qr-chip {
             display: inline-block;
             padding: 2mm;
             border: 0.45mm solid #C9971C;
-            background: rgba(255, 255, 255, 0.75);
+            background-color: rgba(255, 255, 255, 0.85);
         }
         .qr-chip img {
             display: block;
@@ -125,9 +116,8 @@
             height: 16mm;
         }
         .verify-label {
-            margin-top: 1.8mm;
+            margin-top: 1.5mm;
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 5.6pt;
             color: #006838;
             letter-spacing: 0.14em;
@@ -136,10 +126,17 @@
         .verify-url {
             margin-top: 0.8mm;
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
-            font-size: 5.4pt;
+            font-size: 5.2pt;
             color: #6C756E;
-            word-wrap: break-word;
+        }
+        /* Pin QR + footer to page 1 — DomPDF will not flow them onto page 2 */
+        .verify-fixed {
+            position: fixed;
+            bottom: 22mm;
+            left: 0;
+            width: 210mm;
+            z-index: 3;
+            text-align: center;
         }
         .footer {
             position: fixed;
@@ -147,13 +144,12 @@
             left: 28mm;
             right: 28mm;
             border-top: 0.25mm solid #E4E2DC;
-            padding-top: 1.8mm;
+            padding-top: 1.6mm;
             text-align: center;
-            z-index: 2;
+            z-index: 3;
         }
         .footer-line {
             font-family: 'IBM Plex Mono', DejaVu Sans Mono, monospace;
-            font-weight: 400;
             font-size: 5.2pt;
             color: #6C756E;
             line-height: 1.35;
@@ -168,18 +164,18 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="text-align: center;">
-                        <img src="{{ $logoBase64 }}" alt="SAPRF" style="width: 72mm; display: block; margin: 0 auto;">
+                        <img src="{{ $logoBase64 }}" alt="SAPRF" style="width: 72mm;">
                     </td>
                 </tr>
             </table>
 
-            <table class="center-wrap" style="margin-top: 2.5mm;">
+            <table class="block" style="margin-top: 2.5mm;">
                 <tr>
                     <td align="center">
-                        <table style="width: 64mm; margin: 0 auto; border-collapse: collapse;">
+                        <table style="width: 64mm; border-collapse: collapse;">
                             <tr>
                                 <td style="width: 28mm; border-bottom: 0.3mm solid #C9971C;"></td>
-                                <td style="width: 8mm; text-align: center; vertical-align: middle;">
+                                <td style="width: 8mm; text-align: center;">
                                     <div style="width: 2.4mm; height: 2.4mm; background: #C9971C; margin: 0 auto;"></div>
                                 </td>
                                 <td style="width: 28mm; border-bottom: 0.3mm solid #C9971C;"></td>
@@ -192,10 +188,10 @@
             <div class="title">Membership Certificate</div>
             <div class="subtitle">Official Membership Documentation</div>
 
-            <table class="center-wrap">
+            <table class="block">
                 <tr>
                     <td align="center">
-                        <table class="card" style="width: 118mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
+                        <table class="card" style="width: 118mm; border-collapse: separate; border-spacing: 0;">
                             <tr>
                                 <td style="padding: 4mm 6mm; text-align: center;">
                                     <div class="eyebrow">This is to certify that</div>
@@ -208,13 +204,13 @@
                 </tr>
             </table>
 
-            <table class="center-wrap">
+            <table class="block">
                 <tr>
                     <td align="center">
-                        <table class="card" style="width: 110mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
+                        <table class="card" style="width: 110mm; border-collapse: separate; border-spacing: 0;">
                             <tr>
                                 <td style="padding: 1.3mm 4mm; text-align: center; background: #006838;">
-                                    <span class="record-header"><span>Member Record</span></span>
+                                    <span class="record-header-text">Member Record</span>
                                 </td>
                             </tr>
                             <tr>
@@ -239,11 +235,13 @@
                     </td>
                 </tr>
             </table>
+        </div>
 
-            <table class="center-wrap" style="margin-top: 2.4mm;">
+        <div class="verify-fixed">
+            <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td align="center">
-                        <table class="card" style="width: 84mm; border-collapse: separate; border-spacing: 0; margin: 0 auto;">
+                        <table class="card" style="width: 84mm; border-collapse: separate; border-spacing: 0;">
                             <tr>
                                 <td style="padding: 2.5mm; text-align: center;">
                                     <div class="qr-chip">
@@ -261,7 +259,7 @@
 
         <div class="footer">
             <div class="footer-line">This certificate is electronically generated and verifiable via the QR code.</div>
-            <div class="footer-line">Generated {{ $generatedDate }} · {{ $generatedTime }} SAST</div>
+            <div class="footer-line">Generated {{ $generatedDate }} · {{ $generatedTime }} SAST · build {{ $certBuild }}</div>
         </div>
     </div>
 </body>
