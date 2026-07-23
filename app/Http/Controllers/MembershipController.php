@@ -478,12 +478,13 @@ class MembershipController extends Controller
 
     private function downloadHtmlAsPdf(string $html, string $filename): Response
     {
-        $fontDir = storage_path('fonts');
-        if (! is_dir($fontDir)) {
-            mkdir($fontDir, 0775, true);
+        // Source TTFs live in resources/ (deployable). DomPDF cache stays in storage/.
+        $fontDir = resource_path('fonts/certificates');
+        $fontCache = storage_path('fonts');
+        if (! is_dir($fontCache)) {
+            mkdir($fontCache, 0775, true);
         }
 
-        // Certificate views are authored for DomPDF (tables + local TTFs + PNG frame).
         $pdf = Pdf::loadHTML($html)
             ->setPaper('A4', 'portrait')
             ->setOption('isRemoteEnabled', false)
@@ -491,7 +492,7 @@ class MembershipController extends Controller
             ->setOption('isFontSubsettingEnabled', true)
             ->setOption('chroot', base_path())
             ->setOption('fontDir', $fontDir)
-            ->setOption('fontCache', $fontDir);
+            ->setOption('fontCache', $fontCache);
 
         return $pdf->download($filename);
     }

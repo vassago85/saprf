@@ -1,5 +1,5 @@
 @php
-    $font = fn (string $file) => str_replace('\\', '/', storage_path('fonts/'.$file));
+    $font = fn (string $file) => str_replace('\\', '/', resource_path('fonts/certificates/'.$file));
 @endphp
 <style>
     @font-face {
