@@ -46,6 +46,23 @@ class ReevaluateScoresCommand extends Command
         $this->newLine();
 
         if (! $this->option('skip-free-fix')) {
+            // Legacy imports sometimes stamped real paid members as type=free.
+            // Promote those (real SAPRF # + paid + unexpired) to type=paid first.
+            $promoteQuery = Membership::where('membership_type', 'free')
+                ->whereIn('payment_status', ['paid', 'waived'])
+                ->whereNotNull('saprf_number')
+                ->where('saprf_number', 'not like', 'SAPRF-IMPORT-%')
+                ->whereNotNull('expiry_date')
+                ->whereDate('expiry_date', '>=', now()->startOfDay());
+            $promoteCount = $promoteQuery->count();
+            if ($dryRun) {
+                $this->line("Would promote {$promoteCount} free→paid membership(s) that look like real paid members.");
+            } else {
+                $promoteQuery->update(['membership_type' => 'paid']);
+                $this->line("Promoted {$promoteCount} free→paid membership(s) (real SAPRF # + paid + unexpired).");
+            }
+
+            // Remaining free rows with a paid flag are forced-registration guests.
             $freeQuery = Membership::where('membership_type', 'free')
                 ->where('payment_status', '!=', 'unpaid');
             $freeCount = $freeQuery->count();

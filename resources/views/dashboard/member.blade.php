@@ -7,7 +7,7 @@
                 <p class="text-sm text-stone-500">Welcome back,</p>
                 <h1 class="font-heading text-3xl font-bold text-stone-900">{{ Str::before($user->name, ' ') }}</h1>
             </div>
-            @if($membership && $membership->membership_type === 'paid')
+            @if($membership?->isActiveMember())
                 <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20">SAPRF Member</span>
             @else
                 <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-stone-100 text-stone-600 ring-1 ring-inset ring-stone-500/20">Free Account</span>
@@ -15,17 +15,11 @@
         </div>
 
         {{-- Membership Status Card --}}
-        @if($membership && $membership->membership_type === 'paid')
+        @if($membership?->isActiveMember())
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="font-heading text-xl font-bold text-stone-900">Membership</h2>
-                    @if($membership->status === 'active')
-                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800">Active</span>
-                    @elseif($membership->status === 'pending')
-                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800">Pending</span>
-                    @else
-                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-800">{{ ucfirst($membership->status) }}</span>
-                    @endif
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800">{{ $membership->effective_status_label }}</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
@@ -38,7 +32,7 @@
                     </div>
                     <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                         <p class="text-xs text-stone-500 uppercase tracking-wider">Status</p>
-                        <p class="text-lg font-bold text-stone-900 mt-1">{{ ucfirst($membership->status) }}</p>
+                        <p class="text-lg font-bold text-stone-900 mt-1">{{ $membership->effective_status_label }}</p>
                     </div>
                     <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                         <p class="text-xs text-stone-500 uppercase tracking-wider">Expires</p>

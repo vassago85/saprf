@@ -2,7 +2,7 @@
     <div class="max-w-2xl mx-auto space-y-6">
         <h1 class="font-heading text-3xl font-bold text-stone-900">My Membership</h1>
 
-        @if($membership && $membership->payment_status === 'paid' && $membership->status === 'active')
+        @if($membership?->isActiveMember())
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="inline-flex items-center justify-center size-10 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">

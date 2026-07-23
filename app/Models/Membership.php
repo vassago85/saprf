@@ -77,6 +77,45 @@ class Membership extends Model
         };
     }
 
+    /**
+     * True when this person should be treated as a current federation member
+     * in the UI (dashboard badge, membership card, etc.).
+     *
+     * Uses expiry + payment rather than requiring membership_type === 'paid',
+     * because legacy imports often used other type labels (or left type as
+     * "free" while still stamping a real SAPRF number and paid window).
+     */
+    public function isActiveMember(): bool
+    {
+        if ($this->status === 'revoked') {
+            return false;
+        }
+
+        // Explicit free/non-member registrations — unless they clearly have a
+        // real paid membership window (legacy bad data).
+        if ($this->membership_type === 'free') {
+            $looksLikeRealMember = filled($this->saprf_number)
+                && ! str_starts_with((string) $this->saprf_number, 'SAPRF-IMPORT-')
+                && in_array($this->payment_status, ['paid', 'waived'], true)
+                && $this->expiry_date
+                && $this->expiry_date->gte(now()->startOfDay());
+
+            return $looksLikeRealMember;
+        }
+
+        if (! in_array($this->payment_status, ['paid', 'waived'], true) && $this->status !== 'active') {
+            return false;
+        }
+
+        if ($this->expiry_date && $this->expiry_date->lt(now()->startOfDay())) {
+            return false;
+        }
+
+        // Paid/waived with a current window, or active status with no expiry yet.
+        return in_array($this->payment_status, ['paid', 'waived'], true)
+            || ($this->status === 'active' && filled($this->saprf_number));
+    }
+
     public function revokedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'revoked_by');
