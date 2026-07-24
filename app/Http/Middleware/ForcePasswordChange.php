@@ -16,6 +16,7 @@ class ForcePasswordChange
         'verification.verify',
         'password.reset',
         'password.request',
+        'invitation.accept',
     ];
 
     public function handle(Request $request, Closure $next): Response

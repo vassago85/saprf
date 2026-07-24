@@ -41,6 +41,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'handover_email',
         'handover_token',
         'handover_expires_at',
+        'invitation_token',
+        'invitation_sent_at',
+        'invitation_expires_at',
+        'invitation_accepted_at',
     ];
 
     /**
@@ -69,6 +73,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'email_otp_expires_at' => 'datetime',
             'handover_expires_at' => 'datetime',
+            'invitation_sent_at' => 'datetime',
+            'invitation_expires_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
@@ -119,6 +126,49 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Number of days a platform invitation link stays valid.
+     */
+    public const INVITATION_TTL_DAYS = 21;
+
+    /**
+     * Generate a fresh invitation token, store its hash, and return the raw
+     * token to embed in the emailed link. The raw token is never persisted.
+     */
+    public function generateInvitationToken(): string
+    {
+        $raw = \Illuminate\Support\Str::random(64);
+
+        $this->forceFill([
+            'invitation_token' => hash('sha256', $raw),
+            'invitation_sent_at' => now(),
+            'invitation_expires_at' => now()->addDays(self::INVITATION_TTL_DAYS),
+            'invitation_accepted_at' => null,
+        ])->save();
+
+        return $raw;
+    }
+
+    /**
+     * Has this member been invited but not yet completed onboarding?
+     */
+    public function hasPendingInvitation(): bool
+    {
+        return $this->invitation_token !== null
+            && $this->invitation_accepted_at === null
+            && $this->invitation_expires_at !== null
+            && $this->invitation_expires_at->isFuture();
+    }
+
+    /**
+     * A member is "onboarded" once they have verified their email and no longer
+     * need to change a starter password.
+     */
+    public function hasOnboarded(): bool
+    {
+        return $this->hasVerifiedEmail() && ! $this->must_change_password;
     }
 
     public function province(): BelongsTo

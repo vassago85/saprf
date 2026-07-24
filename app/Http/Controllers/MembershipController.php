@@ -6,6 +6,7 @@ use App\Models\Membership;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
+use App\Notifications\MemberInvitationNotification;
 use App\Services\AuditLogService;
 use App\Services\GreenQrCodePng;
 use App\Services\SettingsService;
@@ -59,6 +60,7 @@ class MembershipController extends Controller
                 'filters' => [],
                 'sort' => 'name',
                 'dir' => 'asc',
+                'pendingInviteCount' => 0,
             ]);
         }
 
@@ -71,6 +73,7 @@ class MembershipController extends Controller
             'filters' => $request->only(['search', 'status', 'province_id']),
             'sort' => $this->resolveSort($request),
             'dir' => $this->resolveDir($request),
+            'pendingInviteCount' => $this->pendingInvitationQuery()->count(),
         ]);
     }
 
@@ -298,6 +301,84 @@ class MembershipController extends Controller
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership has been reinstated.');
+    }
+
+    // ── Member Invitations ──
+
+    /**
+     * Send (or re-send) a platform invitation to a single member.
+     */
+    public function invite(Request $request, Membership $membership): RedirectResponse
+    {
+        abort_unless($request->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin']), 403);
+
+        $member = $membership->user;
+
+        if (! $member || blank($member->email)) {
+            return back()->with('error', 'This member has no email address on file.');
+        }
+
+        if ($member->is_managed_account) {
+            return back()->with('error', 'Managed family accounts are activated by their guardian, not by invitation.');
+        }
+
+        $this->dispatchInvitation($request->user(), $member);
+
+        return back()->with('success', "Invitation sent to {$member->email}.");
+    }
+
+    /**
+     * Bulk-invite every member who has not yet activated their account.
+     */
+    public function invitePending(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin']), 403);
+
+        $members = $this->pendingInvitationQuery()->get();
+
+        foreach ($members as $member) {
+            $this->dispatchInvitation($request->user(), $member);
+        }
+
+        $count = $members->count();
+
+        if ($count === 0) {
+            return back()->with('success', 'Every member has already activated their account — no invitations needed.');
+        }
+
+        return back()->with('success', "Invitations queued for {$count} member".($count === 1 ? '' : 's').'.');
+    }
+
+    private function dispatchInvitation(User $actor, User $member): void
+    {
+        $token = $member->generateInvitationToken();
+
+        $member->notify(new MemberInvitationNotification($token));
+
+        $this->auditLogService->log(
+            $actor,
+            'member.invitation.sent',
+            'User',
+            $member->id,
+            null,
+            ['email' => $member->email],
+        );
+    }
+
+    /**
+     * Members eligible for a platform invitation: real (non-managed) accounts
+     * with an email who have not yet verified their email or still hold a
+     * starter password that must be changed.
+     */
+    private function pendingInvitationQuery()
+    {
+        return User::query()
+            ->where('is_managed_account', false)
+            ->whereNotNull('email')
+            ->where(function ($q) {
+                $q->whereNull('email_verified_at')
+                    ->orWhere('must_change_password', true);
+            });
     }
 
     // ── Public Verification ──

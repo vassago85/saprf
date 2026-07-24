@@ -12,6 +12,15 @@
         <h1 class="font-heading text-3xl font-bold text-stone-900">Memberships</h1>
 
         <div class="flex items-center gap-2">
+            @if($isAdmin && $pendingInviteCount > 0)
+                <form method="POST" action="{{ route('memberships.invite-pending') }}" onsubmit="return confirm('Send an activation invitation email to {{ $pendingInviteCount }} member(s) who have not yet activated their account?');">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                        Invite Pending ({{ $pendingInviteCount }})
+                    </button>
+                </form>
+            @endif
             @if($isAdmin)
                 <a href="{{ route('memberships.csv', array_merge($filters, ['sort' => $sort, 'dir' => $dir])) }}" class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -118,6 +127,16 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <div class="flex items-center justify-end gap-2">
+                                @if($isAdmin && $membership->user && ! $membership->user->is_managed_account && ! $membership->user->hasOnboarded() && filled($membership->user->email))
+                                    @php $invited = $membership->user->invitation_sent_at !== null; @endphp
+                                    <form method="POST" action="{{ route('memberships.invite', $membership) }}" onsubmit="return confirm('Send an activation invitation email to {{ $membership->user->email }}?');">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" title="{{ $invited ? 'Re-send activation invitation' : 'Send activation invitation' }}">
+                                            <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                                            {{ $invited ? 'Re-invite' : 'Invite' }}
+                                        </button>
+                                    </form>
+                                @endif
                                 <a href="{{ route('memberships.show', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
                                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                 </a>

@@ -66,6 +66,7 @@ Route::middleware('guest')->group(function (): void {
     Volt::route('/register', 'pages.auth.register')->name('register');
     Volt::route('/forgot-password', 'pages.auth.forgot-password')->name('password.request');
     Volt::route('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
+    Volt::route('/invitation/{token}', 'pages.auth.accept-invitation')->name('invitation.accept');
 });
 
 Route::post('/logout', function () {
@@ -223,9 +224,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
         Route::post('/scores/{score}/override', [ScoreController::class, 'override'])->name('scores.override');
         Route::get('/memberships/export/csv', [MembershipController::class, 'downloadCsv'])->name('memberships.csv');
+        Route::post('/memberships/invite-pending', [MembershipController::class, 'invitePending'])->name('memberships.invite-pending');
         Route::resource('memberships', MembershipController::class)->except(['destroy']);
         Route::post('/memberships/{membership}/revoke', [MembershipController::class, 'revoke'])->name('memberships.revoke');
         Route::post('/memberships/{membership}/reinstate', [MembershipController::class, 'reinstate'])->name('memberships.reinstate');
+        Route::post('/memberships/{membership}/invite', [MembershipController::class, 'invite'])->name('memberships.invite');
         Route::put('/registrations/{registration}/status', [RegistrationController::class, 'updateStatus'])->name('registrations.update-status');
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
