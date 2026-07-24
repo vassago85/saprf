@@ -222,8 +222,11 @@ class MembershipController extends Controller
 
         $validated = $request->validate([
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($membership->user_id)],
-            'status' => ['required', 'in:active,pending,lapsed,expired,revoked'],
-            'payment_status' => ['required', 'in:paid,unpaid,partial'],
+            'saprf_number' => ['nullable', 'string', 'max:100', Rule::unique('memberships', 'saprf_number')->ignore($membership->id)],
+            'membership_type' => ['required', 'string', 'max:50'],
+            'status' => ['required', 'in:pending,active,lapsed,suspended,expired,revoked'],
+            'payment_status' => ['required', 'in:unpaid,pending,paid,partial,overdue,waived'],
+            'start_date' => ['nullable', 'date'],
             'expiry_date' => ['nullable', 'date'],
         ]);
 
@@ -244,9 +247,18 @@ class MembershipController extends Controller
             );
         }
 
-        $membershipFields = collect($validated)->only(['status', 'payment_status', 'expiry_date'])->all();
-        $old = $membership->only(['status', 'payment_status', 'expiry_date']);
-        $membership->update($membershipFields);
+        $trackedFields = ['saprf_number', 'membership_type', 'status', 'payment_status', 'start_date', 'expiry_date'];
+        $old = $membership->only($trackedFields);
+        $membership->update([
+            // Keep the existing number if the field was cleared, so we never
+            // wipe a member's SAPRF number by accident.
+            'saprf_number' => $validated['saprf_number'] ?: $membership->saprf_number,
+            'membership_type' => $validated['membership_type'],
+            'status' => $validated['status'],
+            'payment_status' => $validated['payment_status'],
+            'start_date' => $validated['start_date'] ?: null,
+            'expiry_date' => $validated['expiry_date'] ?: null,
+        ]);
 
         $this->auditLogService->log(
             $request->user(),
@@ -254,7 +266,7 @@ class MembershipController extends Controller
             'Membership',
             $membership->id,
             $old,
-            $membership->only(['status', 'payment_status', 'expiry_date']),
+            $membership->only($trackedFields),
         );
 
         return redirect()->route('memberships.show', $membership)

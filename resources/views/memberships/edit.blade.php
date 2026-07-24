@@ -29,42 +29,53 @@
                     <input type="text" name="saprf_number" id="saprf_number" value="{{ old('saprf_number', $membership->saprf_number) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
 
+                @php
+                    $currentType = old('membership_type', $membership->membership_type);
+                    $currentStatus = old('status', $membership->status);
+                    $currentPayment = old('payment_status', $membership->payment_status);
+                    $typeOptions = ['paid' => 'Paid', 'full' => 'Full', 'associate' => 'Associate', 'junior' => 'Junior', 'free' => 'Free / Non-member'];
+                    $statusOptions = ['pending' => 'Pending', 'active' => 'Active', 'lapsed' => 'Lapsed', 'suspended' => 'Suspended', 'expired' => 'Expired', 'revoked' => 'Revoked'];
+                    $paymentOptions = ['unpaid' => 'Unpaid', 'pending' => 'Pending', 'paid' => 'Paid', 'partial' => 'Partial', 'overdue' => 'Overdue', 'waived' => 'Waived'];
+                @endphp
+
                 <div>
                     <label for="membership_type" class="block text-sm font-medium text-stone-700">Membership Type</label>
                     <select name="membership_type" id="membership_type" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="full" @selected(old('membership_type', $membership->membership_type) === 'full')>Full</option>
-                        <option value="associate" @selected(old('membership_type', $membership->membership_type) === 'associate')>Associate</option>
-                        <option value="junior" @selected(old('membership_type', $membership->membership_type) === 'junior')>Junior</option>
+                        @foreach ($typeOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($currentType === $value)>{{ $label }}</option>
+                        @endforeach
+                        @if ($currentType && ! array_key_exists($currentType, $typeOptions))
+                            <option value="{{ $currentType }}" selected>{{ ucfirst($currentType) }}</option>
+                        @endif
                     </select>
                 </div>
 
                 <div>
                     <label for="status" class="block text-sm font-medium text-stone-700">Status</label>
                     <select name="status" id="status" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="pending" @selected(old('status', $membership->status) === 'pending')>Pending</option>
-                        <option value="active" @selected(old('status', $membership->status) === 'active')>Active</option>
-                        <option value="lapsed" @selected(old('status', $membership->status) === 'lapsed')>Lapsed</option>
-                        <option value="suspended" @selected(old('status', $membership->status) === 'suspended')>Suspended</option>
+                        @foreach ($statusOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($currentStatus === $value)>{{ $label }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div>
                     <label for="payment_status" class="block text-sm font-medium text-stone-700">Payment Status</label>
                     <select name="payment_status" id="payment_status" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="pending" @selected(old('payment_status', $membership->payment_status) === 'pending')>Pending</option>
-                        <option value="paid" @selected(old('payment_status', $membership->payment_status) === 'paid')>Paid</option>
-                        <option value="overdue" @selected(old('payment_status', $membership->payment_status) === 'overdue')>Overdue</option>
+                        @foreach ($paymentOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($currentPayment === $value)>{{ $label }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div>
                     <label for="start_date" class="block text-sm font-medium text-stone-700">Start Date</label>
-                    <input type="date" name="start_date" id="start_date" value="{{ old('start_date', $membership->start_date?->format('Y-m-d')) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="date" name="start_date" id="start_date" value="{{ old('start_date', $membership->start_date?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
 
                 <div>
                     <label for="expiry_date" class="block text-sm font-medium text-stone-700">Expiry Date</label>
-                    <input type="date" name="expiry_date" id="expiry_date" value="{{ old('expiry_date', $membership->expiry_date?->format('Y-m-d')) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="date" name="expiry_date" id="expiry_date" value="{{ old('expiry_date', $membership->expiry_date?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
             </div>
         </div>
