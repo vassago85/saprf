@@ -41,15 +41,32 @@ class StandingsCalculationService
 
             $this->recalculateSeasonStandings($match->series, $season);
 
-            if ($match->also_counts_for_provincial && $match->province_id) {
-                $this->recalculateSeasonStandings($match->series, $season, $match->province_id);
+            // Provincial credit follows each shooter's home province, so a single
+            // dual-count national can touch several provincial tables at once.
+            if ($match->also_counts_for_provincial) {
+                $this->recalculateProvincialStandings($match->series, $season);
             }
         } else {
-            $this->recalculateSeasonStandings($match->series, $season, $match->province_id);
+            // A provincial match is attended by shooters from many provinces, and
+            // each is scored against their OWN province — so recalculate every
+            // provincial table, not just the host province's.
+            $this->recalculateProvincialStandings($match->series, $season);
 
             if ($pooled) {
                 $this->recalculateSeasonStandings($match->series, $season);
             }
+        }
+    }
+
+    /**
+     * Rebuild the provincial standings for every province for a series/season.
+     * Because a score is attributed to the shooter's home province (not the
+     * match's), any province may be affected by a single match.
+     */
+    public function recalculateProvincialStandings(string $series, string $season): void
+    {
+        foreach (\App\Models\Province::query()->pluck('id') as $provinceId) {
+            $this->recalculateSeasonStandings($series, $season, (int) $provinceId);
         }
     }
 
@@ -163,7 +180,7 @@ class StandingsCalculationService
         // state here — otherwise a member whose membership expires later in
         // the season would lose all their earlier valid scores retroactively.
         $allScores = Score::query()
-            ->with(['match'])
+            ->with(['match', 'user:id,province_id'])
             ->where('status', 'valid')
             ->where('counts_for_season', true)
             ->whereNotNull('user_id')
@@ -181,7 +198,12 @@ class StandingsCalculationService
                     return false;
                 }
 
-                if ($match->province_id !== $provinceId) {
+                // Provincial results follow the SHOOTER's home province, not the
+                // province that hosted the match. An out-of-province score still
+                // counts towards the shooter's own provincial standing, and a
+                // shooter can only ever appear in one provincial table (so no
+                // duplicate 1st/2nd/3rd across provinces).
+                if (($score->user?->province_id) !== $provinceId) {
                     return false;
                 }
 

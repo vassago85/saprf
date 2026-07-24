@@ -30,7 +30,8 @@ class UserManagementController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('membership', fn ($mq) => $mq->where('saprf_number', 'like', "%{$search}%"));
             });
         }
 

@@ -23,12 +23,31 @@ class RegistrationController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
+        $isPrivileged = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director']);
 
-        $registrations = $user->hasAnyRole(['owner', 'admin', 'match_director'])
-            ? MatchRegistration::query()->with(['match', 'user'])->latest()->paginate(20)
-            : $user->matchRegistrations()->with('match')->latest()->paginate(20);
+        $matchId = $request->integer('match_id') ?: null;
+        $match = $matchId ? MatchEvent::find($matchId) : null;
 
-        return view('registrations.index', compact('registrations'));
+        if ($match) {
+            // Public entry list for a single match — everyone can see who has
+            // registered. Cancelled/withdrawn entries are hidden.
+            $registrations = $match->registrations()
+                ->where('registration_status', '!=', 'cancelled')
+                ->with(['match', 'user'])
+                ->orderBy('registered_at')
+                ->paginate(50)
+                ->withQueryString();
+        } elseif ($isPrivileged) {
+            $registrations = MatchRegistration::query()->with(['match', 'user'])->latest()->paginate(20);
+        } else {
+            $registrations = $user->matchRegistrations()->with(['match', 'user'])->latest()->paginate(20);
+        }
+
+        // Fee/payment columns stay restricted to organisers; the entry list
+        // itself (names + category + status) is visible to everyone.
+        $canViewFinancials = $isPrivileged;
+
+        return view('registrations.index', compact('registrations', 'match', 'canViewFinancials', 'isPrivileged'));
     }
 
     public function store(StoreRegistrationRequest $request): RedirectResponse

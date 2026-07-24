@@ -197,7 +197,7 @@ class PaymentController extends Controller
         } else {
             $membership = Membership::create([
                 'user_id' => $user->id,
-                'saprf_number' => $this->generateSaprfNumber(),
+                'saprf_number' => Membership::nextSaprfNumber(),
                 'membership_type' => 'paid',
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
@@ -224,21 +224,6 @@ class PaymentController extends Controller
         );
 
         return redirect()->route('payments.redirect', $payment);
-    }
-
-    private function generateSaprfNumber(): string
-    {
-        $year = now()->year;
-        $prefix = "SAPRF-{$year}-";
-
-        $maxNum = Membership::where('saprf_number', 'like', "{$prefix}%")
-            ->pluck('saprf_number')
-            ->map(fn (string $num) => (int) str_replace($prefix, '', $num))
-            ->max();
-
-        $next = ($maxNum ?? 0) + 1;
-
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     public function payMembership(Request $request, Membership $membership): RedirectResponse

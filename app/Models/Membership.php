@@ -31,6 +31,42 @@ class Membership extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // New memberships continue the federation's legacy sequential numbering
+        // (plain integers). Explicit numbers set by imports/scrapers
+        // (e.g. SAPRF-IMPORT-… stubs) are left untouched.
+        static::creating(function (Membership $membership): void {
+            if (blank($membership->saprf_number)) {
+                $membership->saprf_number = static::nextSaprfNumber();
+            }
+        });
+    }
+
+    /**
+     * Next SAPRF membership number following the legacy scheme: the highest
+     * existing purely-numeric number plus one (e.g. 2025 → 2026). Non-numeric
+     * legacy values (SAPRF-IMPORT-…, SAPRF-YYYY-…) are ignored.
+     */
+    public static function nextSaprfNumber(): string
+    {
+        $max = static::query()
+            ->whereNotNull('saprf_number')
+            ->pluck('saprf_number')
+            ->map(fn ($number) => trim((string) $number))
+            ->filter(fn (string $number) => $number !== '' && ctype_digit($number))
+            ->map(fn (string $number) => (int) $number)
+            ->max();
+
+        $next = ($max ?? 0) + 1;
+
+        while (static::where('saprf_number', (string) $next)->exists()) {
+            $next++;
+        }
+
+        return (string) $next;
+    }
+
     public function isRevoked(): bool
     {
         return $this->status === 'revoked' && $this->revoked_at !== null;

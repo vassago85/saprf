@@ -128,15 +128,13 @@ class ReevaluateScoresCommand extends Command
                 $standings->recalculateSeasonStandings($combo->series, $combo->season, null);
             }
 
-            $provinceIds = MatchEvent::where('series', $combo->series)
-                ->where('season', $combo->season)
-                ->whereNotNull('province_id')
-                ->distinct()
-                ->pluck('province_id');
+            // Provincial standings follow the shooter's home province, so every
+            // province is a candidate table regardless of where matches were held.
+            $provinceIds = \App\Models\Province::query()->pluck('id');
 
             foreach ($provinceIds as $provinceId) {
                 if (! $dryRun) {
-                    $standings->recalculateSeasonStandings($combo->series, $combo->season, $provinceId);
+                    $standings->recalculateSeasonStandings($combo->series, $combo->season, (int) $provinceId);
                 }
             }
             $this->line("    + {$provinceIds->count()} province table(s)");
