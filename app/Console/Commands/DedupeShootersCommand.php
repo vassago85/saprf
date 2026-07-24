@@ -116,22 +116,32 @@ class DedupeShootersCommand extends Command
     }
 
     /**
-     * Choose which account survives a merge:
+     * Choose which account survives a merge. We keep the account the member
+     * actually logs in with — a real email — because scores are moved onto the
+     * keeper regardless of where they started. Priority (best first):
      *   1. A real (non-imported) email beats an @import.saprf.local stub.
      *   2. A verified email beats an unverified one.
      *   3. More scores beats fewer.
      *   4. Fall back to the oldest account (lowest id).
      *
+     * Implemented with a single composite sort key so the ordering is
+     * deterministic (an array of closures passed to sortBy() does not compare
+     * the way you'd expect).
+     *
      * @param \Illuminate\Support\Collection<int, User> $users
      */
     private function pickKeeper($users): User
     {
-        return $users->sortBy([
-            fn (User $u) => Str::endsWith($u->email, '@import.saprf.local') ? 1 : 0,
-            fn (User $u) => $u->email_verified_at ? 0 : 1,
-            fn (User $u) => -1 * (int) ($u->scores_count ?? $u->scores()->count()),
-            fn (User $u) => $u->id,
-        ])->first();
+        return $users->sortBy(function (User $u): string {
+            $isImport = Str::endsWith((string) $u->email, '@import.saprf.local') ? 1 : 0;
+            $unverified = $u->email_verified_at ? 0 : 1;
+            $scores = (int) ($u->scores_count ?? $u->scores()->count());
+            // Descending on score count: fewer scores => larger number => sorts later.
+            $scoreKey = str_pad((string) max(0, 9999999 - $scores), 7, '0', STR_PAD_LEFT);
+            $idKey = str_pad((string) $u->id, 12, '0', STR_PAD_LEFT);
+
+            return "{$isImport}{$unverified}{$scoreKey}{$idKey}";
+        })->first();
     }
 
     /**
@@ -173,10 +183,18 @@ class DedupeShootersCommand extends Command
             $keeperRegMatchIds[] = $registration->match_id;
         }
 
-        // Reassign shooter_logs if that table tracks a user.
-        if (Schema::hasTable('shooter_logs') && Schema::hasColumn('shooter_logs', 'user_id')) {
-            DB::table('shooter_logs')->where('user_id', $loser->id)->update(['user_id' => $keeper->id]);
-        }
+        // Reassign every remaining reference that would otherwise block the
+        // delete (all of these FKs are ON DELETE RESTRICT). Moving them to the
+        // keeper is correct — it's the same person.
+        $this->reassign('shooter_logs', 'user_id', $loser->id, $keeper->id);
+        $this->reassign('payments', 'user_id', $loser->id, $keeper->id);
+        $this->reassign('matches', 'created_by', $loser->id, $keeper->id);
+        $this->reassign('qualification_rules', 'created_by', $loser->id, $keeper->id);
+        $this->reassign('score_imports', 'uploaded_by', $loser->id, $keeper->id);
+
+        // Standings are fully rebuilt by scores:reevaluate, so the loser's rows
+        // can simply be dropped (they'd otherwise block the delete via RESTRICT).
+        \App\Models\Standing::where('user_id', $loser->id)->delete();
 
         // Backfill province/division onto the keeper only if it's missing.
         $backfill = [];
@@ -199,5 +217,18 @@ class DedupeShootersCommand extends Command
         $loser->committeePositions()->delete();
         $loser->membership()?->delete();
         $loser->forceDelete();
+    }
+
+    /**
+     * Point a foreign-key column at the keeper, guarding against missing
+     * tables/columns so the command stays resilient across schema changes.
+     */
+    private function reassign(string $table, string $column, int $fromId, int $toId): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        DB::table($table)->where($column, $fromId)->update([$column => $toId]);
     }
 }
