@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MembershipController extends Controller
@@ -113,6 +114,7 @@ class MembershipController extends Controller
             ->with(['user.province'])
             ->join('users', 'users.id', '=', 'memberships.user_id')
             ->leftJoin('provinces', 'provinces.id', '=', 'users.province_id')
+            ->whereNull('users.deleted_at')
             ->select('memberships.*');
 
         if ($search = $request->input('search')) {
@@ -219,13 +221,32 @@ class MembershipController extends Controller
         $this->authorize('update', $membership);
 
         $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($membership->user_id)],
             'status' => ['required', 'in:active,pending,lapsed,expired,revoked'],
             'payment_status' => ['required', 'in:paid,unpaid,partial'],
             'expiry_date' => ['nullable', 'date'],
         ]);
 
+        // Email lives on the user, not the membership. Update it separately and
+        // log it as its own change so duplicate-account clean-ups are auditable.
+        $user = $membership->user;
+        if ($user && $validated['email'] !== $user->email) {
+            $oldEmail = $user->email;
+            $user->update(['email' => $validated['email']]);
+
+            $this->auditLogService->log(
+                $request->user(),
+                'user.email_updated',
+                'User',
+                $user->id,
+                ['email' => $oldEmail],
+                ['email' => $validated['email']],
+            );
+        }
+
+        $membershipFields = collect($validated)->only(['status', 'payment_status', 'expiry_date'])->all();
         $old = $membership->only(['status', 'payment_status', 'expiry_date']);
-        $membership->update($validated);
+        $membership->update($membershipFields);
 
         $this->auditLogService->log(
             $request->user(),
@@ -238,6 +259,47 @@ class MembershipController extends Controller
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership updated successfully.');
+    }
+
+    /**
+     * Delete the member account tied to this membership. Intended for cleaning
+     * up duplicate imported accounts. Soft-deletes the user (restorable from the
+     * user-management deleted list); the membership row is left intact.
+     */
+    public function destroy(Request $request, Membership $membership): RedirectResponse
+    {
+        $this->authorize('delete', $membership);
+
+        $actor = $request->user();
+        $user = $membership->user;
+
+        if ($user && $user->hasRole('owner')) {
+            return back()->with('error', 'Cannot delete an owner account.');
+        }
+
+        if ($user && $actor && $user->id === $actor->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $name = $user?->name ?? 'Unknown';
+        $email = $user?->email;
+
+        $this->auditLogService->log(
+            $actor,
+            'user.soft_deleted',
+            'User',
+            $user?->id,
+            ['name' => $name, 'email' => $email, 'reason' => 'Duplicate account removed from membership details'],
+            null,
+        );
+
+        // Soft-delete the user only; the membership row is left intact so a
+        // restore from User Management brings the whole account back. The index
+        // hides memberships whose user is trashed, so it disappears from lists.
+        $user?->delete();
+
+        return redirect()->route('memberships.index')
+            ->with('success', "{$name} has been deleted. You can restore them from the deleted users list in User Management.");
     }
 
     public function revoke(Request $request, Membership $membership): RedirectResponse

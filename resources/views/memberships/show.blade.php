@@ -173,6 +173,33 @@
             @endif
         @endrole
 
+        {{-- Delete account (admin only) — for removing duplicate imported accounts --}}
+        @role('owner|admin')
+            <div class="rounded-xl border border-red-200 bg-white p-6 shadow-sm" x-data="{ confirm: false }">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-red-800">Delete Account</h2>
+                        <p class="text-sm text-stone-500 mt-1">Permanently remove this member — use this to clean up duplicate accounts. The account is soft-deleted and can be restored from the deleted users list in User Management.</p>
+                    </div>
+                    <button @click="confirm = !confirm"
+                            class="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">
+                        Delete
+                    </button>
+                </div>
+
+                <form x-show="confirm" x-transition method="POST"
+                      action="{{ route('memberships.destroy', $membership) }}"
+                      class="mt-4 border-t border-red-200 pt-4"
+                      onsubmit="return confirm('Delete {{ addslashes($membership->user->name) }}? This soft-deletes the account and can be undone from User Management.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="px-5 py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                        Confirm Delete Account
+                    </button>
+                </form>
+            </div>
+        @endrole
+
         @if ($membership->payments->count())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Payment History</h2>

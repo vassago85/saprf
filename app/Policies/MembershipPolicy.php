@@ -33,6 +33,6 @@ class MembershipPolicy
 
     public function delete(User $user, Membership $membership): bool
     {
-        return false;
+        return $user->hasRole(['owner', 'admin']);
     }
 }

@@ -18,6 +18,12 @@
 
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <label for="email" class="block text-sm font-medium text-stone-700">Email Address</label>
+                    <input type="email" name="email" id="email" value="{{ old('email', $membership->user->email) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Used for login, invitations and notifications. Must be unique.</p>
+                </div>
+
                 <div>
                     <label for="saprf_number" class="block text-sm font-medium text-stone-700">SAPRF Number</label>
                     <input type="text" name="saprf_number" id="saprf_number" value="{{ old('saprf_number', $membership->saprf_number) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
