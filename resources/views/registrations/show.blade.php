@@ -103,6 +103,43 @@
             </dl>
         </div>
 
+        {{-- Division change — allowed until registration closes (staff any time) --}}
+        @php
+            $isStaffViewer = auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director']);
+            $ownsRegistration = $registration->user_id === auth()->id();
+            $canEditEntry = $registration->canEditEntry();
+        @endphp
+        @if(($ownsRegistration || $isStaffViewer) && ($canEditEntry || $isStaffViewer) && $divisions->isNotEmpty())
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Change Division</h2>
+                <form method="POST" action="{{ route('registrations.update-division', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                    @csrf
+                    @method('PUT')
+                    <div class="flex-1 w-full">
+                        <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1">Division</label>
+                        <select name="division_id" id="division_id" required
+                                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="" disabled @selected(!$registration->division_id)>— Select a division —</option>
+                            @foreach($divisions as $division)
+                                <option value="{{ $division->id }}" @selected($registration->division_id == $division->id)>{{ $division->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        Save Division
+                    </button>
+                </form>
+                <p class="mt-2 text-xs text-stone-400">
+                    @if($registration->match?->registration_close_date)
+                        You can change your division until registration closes on {{ $registration->match->registration_close_date->format('D, d M Y H:i') }}.
+                    @else
+                        You can change your division until registration closes.
+                    @endif
+                </p>
+            </div>
+        @endif
+
         {{-- Rifle selection / update --}}
         @if($registration->user_id === auth()->id() && $registration->registration_status !== 'cancelled' && $rifles->isNotEmpty())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">

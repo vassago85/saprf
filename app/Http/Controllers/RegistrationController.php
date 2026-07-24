@@ -96,7 +96,7 @@ class RegistrationController extends Controller
 
     public function show(Request $request, MatchRegistration $registration): View
     {
-        $registration->load(['match', 'user', 'rifleConfiguration.make', 'rifleConfiguration.model', 'rifleConfiguration.calibre']);
+        $registration->load(['match', 'user', 'division', 'rifleConfiguration.make', 'rifleConfiguration.model', 'rifleConfiguration.calibre']);
 
         $rifles = $request->user()->rifleConfigurations()
             ->active()
@@ -104,7 +104,9 @@ class RegistrationController extends Controller
             ->orderByDesc('is_primary')
             ->get();
 
-        return view('registrations.show', compact('registration', 'rifles'));
+        $divisions = $registration->match?->availableDivisions() ?? collect();
+
+        return view('registrations.show', compact('registration', 'rifles', 'divisions'));
     }
 
     public function updateRifle(Request $request, MatchRegistration $registration): RedirectResponse
@@ -131,6 +133,49 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', 'Rifle configuration updated.');
+    }
+
+    /**
+     * Change the division a shooter is entered under. Allowed for the shooter
+     * (or staff) up until registration closes.
+     */
+    public function updateDivision(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $isStaff = $request->user()->hasAnyRole(['owner', 'admin', 'match_director']);
+
+        if ($registration->user_id !== $request->user()->id && ! $isStaff) {
+            abort(403);
+        }
+
+        // Members can only change their entry while registration is open; staff
+        // may adjust it at any time.
+        if (! $isStaff && ! $registration->canEditEntry()) {
+            return back()->with('error', 'Registration has closed — the division can no longer be changed.');
+        }
+
+        $allowedDivisionIds = $registration->match?->availableDivisions()->pluck('id')->all() ?? [];
+
+        $validated = $request->validate([
+            'division_id' => ['required', \Illuminate\Validation\Rule::in($allowedDivisionIds)],
+        ], [
+            'division_id.required' => 'Please choose a division.',
+            'division_id.in' => 'The selected division is not available for this match.',
+        ]);
+
+        $old = $registration->only(['division_id']);
+        $registration->update($validated);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.division.updated',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            $validated,
+        );
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', 'Division updated.');
     }
 
     public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse

@@ -86,6 +86,33 @@ class MatchRegistration extends Model
         return $this->belongsTo(AmmoLoad::class);
     }
 
+    // ── Editing Logic ──
+
+    /**
+     * May the shooter still change their entry details (division, rifle)?
+     * Allowed while the entry is live and registration has not yet closed —
+     * i.e. up to the registration close date, or the match date when no close
+     * date is set.
+     */
+    public function canEditEntry(): bool
+    {
+        if ($this->registration_status === 'cancelled') {
+            return false;
+        }
+
+        $match = $this->match;
+
+        if (! $match || in_array($match->status, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
+        if ($match->registration_close_date) {
+            return $match->registration_close_date->isFuture();
+        }
+
+        return $match->match_date ? $match->match_date->isFuture() : true;
+    }
+
     // ── Withdrawal Logic ──
 
     public function isWithdrawable(): bool

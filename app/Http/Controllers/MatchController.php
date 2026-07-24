@@ -446,27 +446,9 @@ class MatchController extends Controller
 
         $juniors = $parent->managedAccounts()->orderBy('name')->get();
 
-        $divisions = $this->availableDivisions($match);
+        $divisions = $match->availableDivisions();
 
         return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions'));
-    }
-
-    /**
-     * Divisions a shooter may enter for a match: the divisions explicitly
-     * assigned to the match, falling back to every active division when none
-     * have been configured.
-     */
-    private function availableDivisions(MatchEvent $match): \Illuminate\Support\Collection
-    {
-        $divisions = $match->divisions()
-            ->where('is_active', true)
-            ->orderBy('display_order')
-            ->orderBy('name')
-            ->get();
-
-        return $divisions->isNotEmpty()
-            ? $divisions
-            : \App\Models\Division::query()->active()->ordered()->get();
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
@@ -488,7 +470,7 @@ class MatchController extends Controller
             return back()->with('error', 'Registration is not available for this match.');
         }
 
-        $allowedDivisionIds = $this->availableDivisions($match)->pluck('id')->all();
+        $allowedDivisionIds = $match->availableDivisions()->pluck('id')->all();
 
         $validated = $request->validate([
             'rifle_configuration_id' => ['nullable', 'exists:rifle_configurations,id'],

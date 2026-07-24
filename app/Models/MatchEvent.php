@@ -106,6 +106,26 @@ class MatchEvent extends Model
         return $this->belongsToMany(Division::class, 'match_division', 'match_id', 'division_id');
     }
 
+    /**
+     * Divisions a shooter may enter for this match: the divisions explicitly
+     * assigned to the match, falling back to every active division when none
+     * have been configured.
+     *
+     * @return \Illuminate\Support\Collection<int, Division>
+     */
+    public function availableDivisions(): \Illuminate\Support\Collection
+    {
+        $divisions = $this->divisions()
+            ->where('is_active', true)
+            ->orderBy('display_order')
+            ->orderBy('name')
+            ->get();
+
+        return $divisions->isNotEmpty()
+            ? $divisions
+            : Division::query()->active()->ordered()->get();
+    }
+
     public function expenses(): HasMany
     {
         return $this->hasMany(MatchExpense::class, 'match_id');

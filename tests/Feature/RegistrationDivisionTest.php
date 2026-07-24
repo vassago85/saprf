@@ -70,6 +70,72 @@ it('saves the chosen division on registration', function () {
         ->and($registration->division_id)->toBe($this->division->id);
 });
 
+it('lets the shooter change their division while registration is open', function () {
+    $tactical = Division::create(['slug' => 'tac', 'name' => 'Tactical', 'is_active' => true, 'display_order' => 2]);
+
+    $user = User::factory()->create(['email_verified_at' => now()]);
+    $user->assignRole('member');
+
+    $registration = MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $user->id,
+        'division_id' => $this->division->id,
+        'shooter_name' => $user->name,
+        'email' => $user->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('registrations.update-division', $registration), ['division_id' => $tactical->id])
+        ->assertRedirect(route('registrations.show', $registration));
+
+    expect($registration->fresh()->division_id)->toBe($tactical->id);
+});
+
+it('blocks a division change once registration has closed', function () {
+    $tactical = Division::create(['slug' => 'tac', 'name' => 'Tactical', 'is_active' => true, 'display_order' => 2]);
+
+    $closedMatch = MatchEvent::create([
+        'name' => 'Closed Match',
+        'match_type' => 'PRS',
+        'series_level' => 'national',
+        'series' => 'PRS',
+        'season' => '2026',
+        'match_date' => Carbon::today()->addWeek(),
+        'registration_close_date' => Carbon::yesterday(),
+        'status' => 'open',
+        'published' => true,
+        'active_member_fee' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $user = User::factory()->create(['email_verified_at' => now()]);
+    $user->assignRole('member');
+
+    $registration = MatchRegistration::create([
+        'match_id' => $closedMatch->id,
+        'user_id' => $user->id,
+        'division_id' => $this->division->id,
+        'shooter_name' => $user->name,
+        'email' => $user->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('registrations.update-division', $registration), ['division_id' => $tactical->id])
+        ->assertSessionHas('error');
+
+    expect($registration->fresh()->division_id)->toBe($this->division->id);
+});
+
 it('shows the division on the public event entry list', function () {
     $shooter = User::factory()->create(['name' => 'Jane Marksman']);
     MatchRegistration::create([
