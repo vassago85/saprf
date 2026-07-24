@@ -269,6 +269,64 @@
                             <p class="mt-1 text-sm text-stone-400">Results will be published after the match is completed.</p>
                         </div>
                     @endif
+
+                    {{-- Entry List — who has registered (public) --}}
+                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-stone-100">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400">Entry List</h2>
+                            <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                                {{ $entries->count() }} {{ Str::plural('shooter', $entries->count()) }}
+                            </span>
+                        </div>
+
+                        @if($entries->isEmpty())
+                            <div class="px-6 py-12 text-center">
+                                <p class="text-sm text-stone-400">No shooters have registered yet.</p>
+                            </div>
+                        @else
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full">
+                                    <thead>
+                                        <tr class="border-b border-stone-100 bg-stone-50/60">
+                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 w-10">#</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Division</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Province</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-stone-100">
+                                        @foreach($entries as $i => $entry)
+                                            <tr class="hover:bg-stone-50 transition-colors">
+                                                <td class="px-6 py-3 text-sm text-stone-400 tabular-nums">{{ $i + 1 }}</td>
+                                                <td class="px-6 py-3 text-sm font-medium text-stone-900">{{ $entry->user?->name ?? $entry->shooter_name }}</td>
+                                                <td class="px-6 py-3 text-sm">
+                                                    @if($entry->division)
+                                                        <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{{ $entry->division->name }}</span>
+                                                    @else
+                                                        <span class="text-stone-400">—</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-6 py-3 text-sm text-stone-500">{{ $entry->user?->province?->name ?? '—' }}</td>
+                                                <td class="px-6 py-3">
+                                                    @switch($entry->registration_status)
+                                                        @case('confirmed')
+                                                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Confirmed</span>
+                                                            @break
+                                                        @case('waitlisted')
+                                                            <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Waitlisted</span>
+                                                            @break
+                                                        @default
+                                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
+                                                    @endswitch
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
                 </div>
 
                 {{-- ═══ Sidebar ═══ --}}

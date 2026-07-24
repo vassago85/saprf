@@ -57,6 +57,17 @@ it('shows the public entry list for a match to any member', function () {
         ->assertSee('Entry List');
 });
 
+it('lists registered shooters on the public event page', function () {
+    registerShooter($this->match, 'Jane Marksman');
+    registerShooter($this->match, 'Withdrawn Wally', ['registration_status' => 'cancelled']);
+
+    $this->get(route('events.show', $this->match))
+        ->assertOk()
+        ->assertSee('Entry List')
+        ->assertSee('Jane Marksman')
+        ->assertDontSee('Withdrawn Wally');
+});
+
 it('hides fee and payment details from ordinary members on the entry list', function () {
     registerShooter($this->match, 'Jane Marksman', ['fee_amount' => 1500.00]);
 

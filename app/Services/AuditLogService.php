@@ -18,6 +18,7 @@ class AuditLogService
     ): AuditLog {
         return AuditLog::query()->create([
             'user_id' => $actor?->id,
+            'actor_type' => $this->classifyActor($actor),
             'action_type' => $actionType,
             'entity_type' => $entityType,
             'entity_id' => $entityId,
@@ -26,5 +27,18 @@ class AuditLogService
             'reason' => $reason,
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Decide whether a change was made by the system (no actor), a staff member
+     * (admin authority) or an ordinary member.
+     */
+    private function classifyActor(?User $actor): string
+    {
+        if (! $actor) {
+            return AuditLog::ACTOR_SYSTEM;
+        }
+
+        return $actor->isStaffMember() ? AuditLog::ACTOR_ADMIN : AuditLog::ACTOR_USER;
     }
 }

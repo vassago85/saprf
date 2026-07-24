@@ -23,6 +23,16 @@
                     <dd class="mt-1 text-sm text-stone-900">{{ $registration->user->name }}</dd>
                 </div>
                 <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Division</dt>
+                    <dd class="mt-1.5">
+                        @if($registration->division)
+                            <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">{{ $registration->division->name }}</span>
+                        @else
+                            <span class="text-sm text-stone-400">—</span>
+                        @endif
+                    </dd>
+                </div>
+                <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Category</dt>
                     <dd class="mt-1 text-sm text-stone-900 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</dd>
                 </div>

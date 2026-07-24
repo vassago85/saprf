@@ -338,7 +338,15 @@ class MatchController extends Controller
 
         $divisions = $match->scores->pluck('division')->filter()->unique('id')->sortBy('display_order')->values();
 
-        return view('events.show', compact('match', 'userRegistration', 'divisions'));
+        // Public entry list — everyone can see who has registered. Cancelled /
+        // withdrawn entries are hidden; fees stay private to organisers.
+        $entries = $match->registrations()
+            ->where('registration_status', '!=', 'cancelled')
+            ->with('user:id,name,province_id', 'user.province:id,name', 'division:id,name')
+            ->orderBy('registered_at')
+            ->get();
+
+        return view('events.show', compact('match', 'userRegistration', 'divisions', 'entries'));
     }
 
     public function publicCalendarData(Request $request): JsonResponse
@@ -438,7 +446,27 @@ class MatchController extends Controller
 
         $juniors = $parent->managedAccounts()->orderBy('name')->get();
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors'));
+        $divisions = $this->availableDivisions($match);
+
+        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions'));
+    }
+
+    /**
+     * Divisions a shooter may enter for a match: the divisions explicitly
+     * assigned to the match, falling back to every active division when none
+     * have been configured.
+     */
+    private function availableDivisions(MatchEvent $match): \Illuminate\Support\Collection
+    {
+        $divisions = $match->divisions()
+            ->where('is_active', true)
+            ->orderBy('display_order')
+            ->orderBy('name')
+            ->get();
+
+        return $divisions->isNotEmpty()
+            ? $divisions
+            : \App\Models\Division::query()->active()->ordered()->get();
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
@@ -460,9 +488,15 @@ class MatchController extends Controller
             return back()->with('error', 'Registration is not available for this match.');
         }
 
-        $request->validate([
+        $allowedDivisionIds = $this->availableDivisions($match)->pluck('id')->all();
+
+        $validated = $request->validate([
             'rifle_configuration_id' => ['nullable', 'exists:rifle_configurations,id'],
+            'division_id' => ['required', \Illuminate\Validation\Rule::in($allowedDivisionIds)],
             'notes' => ['nullable', 'string', 'max:500'],
+        ], [
+            'division_id.required' => 'Please choose a division to enter.',
+            'division_id.in' => 'The selected division is not available for this match.',
         ]);
 
         $breakdown = app(RegistrationPricingService::class)
@@ -478,6 +512,7 @@ class MatchController extends Controller
             'match_id' => $match->id,
             'user_id' => $shooter->id,
             'rifle_configuration_id' => $request->input('rifle_configuration_id'),
+            'division_id' => $validated['division_id'],
             'shooter_name' => $shooter->name,
             'email' => $contactEmail,
             'phone' => $contactPhone,

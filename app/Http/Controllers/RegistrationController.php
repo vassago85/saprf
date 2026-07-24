@@ -33,14 +33,14 @@ class RegistrationController extends Controller
             // registered. Cancelled/withdrawn entries are hidden.
             $registrations = $match->registrations()
                 ->where('registration_status', '!=', 'cancelled')
-                ->with(['match', 'user'])
+                ->with(['match', 'user', 'division'])
                 ->orderBy('registered_at')
                 ->paginate(50)
                 ->withQueryString();
         } elseif ($isPrivileged) {
-            $registrations = MatchRegistration::query()->with(['match', 'user'])->latest()->paginate(20);
+            $registrations = MatchRegistration::query()->with(['match', 'user', 'division'])->latest()->paginate(20);
         } else {
-            $registrations = $user->matchRegistrations()->with(['match', 'user'])->latest()->paginate(20);
+            $registrations = $user->matchRegistrations()->with(['match', 'user', 'division'])->latest()->paginate(20);
         }
 
         // Fee/payment columns stay restricted to organisers; the entry list

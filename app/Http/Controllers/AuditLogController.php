@@ -3,18 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AuditLogController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $category = $request->input('category');
+
         $auditLogs = AuditLog::query()
             ->with('user')
+            ->actorType($category)
             ->latest('created_at')
-            ->paginate(30);
+            ->paginate(30)
+            ->withQueryString();
 
-        return view('audit-logs.index', compact('auditLogs'));
+        // Tally per actor category for the filter tabs.
+        $counts = AuditLog::query()
+            ->selectRaw('actor_type, COUNT(*) as aggregate')
+            ->groupBy('actor_type')
+            ->pluck('aggregate', 'actor_type');
+
+        return view('audit-logs.index', compact('auditLogs', 'category', 'counts'));
     }
 
     public function show(AuditLog $auditLog): View

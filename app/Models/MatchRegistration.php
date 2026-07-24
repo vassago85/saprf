@@ -14,6 +14,7 @@ class MatchRegistration extends Model
         'match_id',
         'user_id',
         'rifle_configuration_id',
+        'division_id',
         'ammo_load_id',
         'shooter_name',
         'email',
@@ -73,6 +74,11 @@ class MatchRegistration extends Model
     public function rifleConfiguration(): BelongsTo
     {
         return $this->belongsTo(RifleConfiguration::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
     }
 
     public function ammoLoad(): BelongsTo

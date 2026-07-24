@@ -3,7 +3,7 @@
         $canViewFinancials = $canViewFinancials ?? false;
         $isPrivileged = $isPrivileged ?? false;
         $match = $match ?? null;
-        $colspan = $canViewFinancials ? 8 : 6;
+        $colspan = $canViewFinancials ? 9 : 7;
     @endphp
 
     @if($match)
@@ -29,6 +29,7 @@
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Match</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Shooter</th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Division</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Category</th>
                     @if($canViewFinancials)
                         <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Fee</th>
@@ -46,6 +47,13 @@
                             <a href="{{ route('events.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $registration->user->name }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                            @if($registration->division)
+                                <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{{ $registration->division->name }}</span>
+                            @else
+                                <span class="text-stone-400">—</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</td>
                         @if($canViewFinancials)
                             <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">

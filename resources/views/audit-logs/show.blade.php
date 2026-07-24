@@ -17,6 +17,21 @@
                     <dd class="mt-1 text-sm text-stone-900">{{ $auditLog->created_at->format('d M Y H:i:s') }}</dd>
                 </div>
                 <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Source</dt>
+                    <dd class="mt-1.5">
+                        @switch($auditLog->actor_type)
+                            @case(\App\Models\AuditLog::ACTOR_SYSTEM)
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">System</span>
+                                @break
+                            @case(\App\Models\AuditLog::ACTOR_ADMIN)
+                                <span class="inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">Admin</span>
+                                @break
+                            @default
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">User</span>
+                        @endswitch
+                    </dd>
+                </div>
+                <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">User</dt>
                     <dd class="mt-1 text-sm text-stone-900">{{ $auditLog->user->name ?? 'System' }}</dd>
                 </div>

@@ -236,6 +236,22 @@ class User extends Authenticatable implements MustVerifyEmail
             ->toArray();
     }
 
+    /**
+     * Federation staff roles. Holding any of these — or sitting on an active
+     * provincial committee — means a change is made in an administrative
+     * capacity rather than as an ordinary member.
+     */
+    public const STAFF_ROLES = ['developer', 'exco', 'owner', 'admin', 'match_director'];
+
+    /**
+     * Does this user act with staff/admin authority anywhere on the platform?
+     */
+    public function isStaffMember(): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES)
+            || $this->committeePositions()->where('is_active', true)->exists();
+    }
+
     public function getAgeOn(Carbon $date): ?int
     {
         if (! $this->date_of_birth) {

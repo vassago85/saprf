@@ -80,6 +80,21 @@
                         @endif
                     </div>
 
+                    {{-- Division (compulsory) --}}
+                    <div>
+                        <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1.5">Division <span class="text-red-500">*</span></label>
+                        <select name="division_id" id="division_id" required
+                                class="w-full rounded-xl border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="" disabled @selected(!old('division_id'))>— Select a division —</option>
+                            @foreach($divisions as $division)
+                                <option value="{{ $division->id }}" @selected((string) old('division_id') === (string) $division->id)>
+                                    {{ $division->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-stone-400">The equipment class you are competing in. Required.</p>
+                    </div>
+
                     {{-- Rifle Configuration --}}
                     @if($rifles->isNotEmpty())
                         <div>
