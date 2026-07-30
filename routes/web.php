@@ -179,7 +179,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Match detail: members are redirected to the public event page; MDs/admins get the management view.
-    Route::get('/matches/{match}', [MatchController::class, 'show'])->name('matches.show');
+    Route::get('/matches/{match}', [MatchController::class, 'show'])->name('matches.show')->whereNumber('match');
 
     // Match Director + Admin + Owner (+ Developer)
     Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
