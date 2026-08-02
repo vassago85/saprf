@@ -11,10 +11,12 @@
 
     <div class="mt-6 border-t border-stone-200"></div>
 
+    <h2 class="sr-only">Filters</h2>
     <div class="mt-6 flex flex-wrap gap-3">
-        <form method="GET" action="{{ route('matches.index') }}" class="flex flex-wrap items-end gap-3">
+        <form method="GET" action="{{ route('matches.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Match filters">
             <div>
-                <select name="match_type" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="matches_match_type" class="sr-only">Match type</label>
+                <select id="matches_match_type" name="match_type" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Types</option>
                     <option value="PRS" @selected(request('match_type') === 'PRS')>PRS</option>
                     <option value="PR22" @selected(request('match_type') === 'PR22')>PR22</option>
@@ -22,7 +24,8 @@
             </div>
 
             <div>
-                <select name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="matches_status" class="sr-only">Status</label>
+                <select id="matches_status" name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                     <option value="open" @selected(request('status') === 'open')>Open</option>
@@ -34,6 +37,8 @@
             <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
         </form>
     </div>
+
+    <h2 class="sr-only">Matches list</h2>
 
     <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
         <table class="min-w-full">

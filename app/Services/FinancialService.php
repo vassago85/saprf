@@ -79,8 +79,8 @@ class FinancialService
             COALESCE(SUM(gateway_fee), 0) as gateway_fees,
             COALESCE(SUM(surcharge_amount), 0) as surcharges,
             COALESCE(SUM(md_net_amount), 0) as md_net,
-            SUM(CASE WHEN membership_fee_category = "member" THEN 1 ELSE 0 END) as member_entries,
-            SUM(CASE WHEN membership_fee_category = "lapsed" THEN 1 ELSE 0 END) as lapsed_entries,
+            SUM(CASE WHEN membership_fee_category = "active_member" THEN 1 ELSE 0 END) as member_entries,
+            SUM(CASE WHEN membership_fee_category = "lapsed_member" THEN 1 ELSE 0 END) as lapsed_entries,
             SUM(CASE WHEN membership_fee_category = "non_member" THEN 1 ELSE 0 END) as non_member_entries
         ')->first();
 
@@ -214,8 +214,8 @@ class FinancialService
             'total_registrations' => $registrations->count(),
             'paid_registrations' => $paid->count(),
             'pending_registrations' => $pending->count(),
-            'member_entries' => $registrations->where('membership_fee_category', 'member')->count(),
-            'lapsed_entries' => $registrations->where('membership_fee_category', 'lapsed')->count(),
+            'member_entries' => $registrations->where('membership_fee_category', 'active_member')->count(),
+            'lapsed_entries' => $registrations->where('membership_fee_category', 'lapsed_member')->count(),
             'non_member_entries' => $registrations->where('membership_fee_category', 'non_member')->count(),
             'gross_revenue' => (float) $paid->sum('fee_amount'),
             'saprf_fees' => (float) $paid->sum('saprf_fee'),

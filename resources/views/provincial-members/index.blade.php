@@ -5,15 +5,16 @@
             <p class="mt-1 text-sm text-stone-500">Members registered in your province.</p>
         </div>
 
-        <form method="GET" action="{{ route('provincial-members.index') }}" class="flex flex-wrap items-end gap-3">
+        <h2 class="sr-only">Filters</h2>
+        <form method="GET" action="{{ route('provincial-members.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Provincial member filters">
             <div>
-                <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Name, email, SAPRF number..."
+                <label for="pm_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
+                <input type="text" id="pm_search" name="search" value="{{ request('search') }}" placeholder="Name, email, SAPRF number..."
                     class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             </div>
             <div>
-                <label class="block text-xs font-medium text-stone-500 mb-1">Province</label>
-                <select name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="pm_province" class="block text-xs font-medium text-stone-500 mb-1">Province</label>
+                <select id="pm_province" name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Provinces</option>
                     @foreach ($provinces as $prov)
                         <option value="{{ $prov->id }}" @selected(request('province_id') == $prov->id)>{{ $prov->name }}</option>

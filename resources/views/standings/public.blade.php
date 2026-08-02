@@ -28,13 +28,15 @@
         <x-sponsors-strip placement="leaderboard" class="bg-white border-b border-stone-200 !py-4" />
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <h2 class="sr-only">Filters</h2>
             {{-- Row 1: Season, Series, Level --}}
             <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
                 {{-- Season --}}
                 <form method="GET" action="{{ url('/standings') }}" class="flex items-center gap-2">
                     <input type="hidden" name="series" value="{{ $series }}">
                     <input type="hidden" name="level" value="{{ $level }}">
-                    <select name="season" onchange="this.form.submit()"
+                    <label for="standings_season" class="sr-only">Season</label>
+                    <select id="standings_season" name="season" onchange="this.form.submit()"
                             class="rounded-xl border border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                         @foreach($seasons as $s)
                             <option value="{{ $s }}" @selected($season === $s)>{{ $s }} Season</option>
@@ -89,7 +91,8 @@
                     @if($divisionId)
                         <input type="hidden" name="division_id" value="{{ $divisionId }}">
                     @endif
-                    <select name="province_id" onchange="this.form.submit()"
+                    <label for="standings_province" class="sr-only">Province</label>
+                    <select id="standings_province" name="province_id" onchange="this.form.submit()"
                             class="rounded-xl border border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                         <option value="">All Provinces</option>
                         @foreach($provinces as $prov)
@@ -143,6 +146,7 @@
             </div>
 
             {{-- Standings Table --}}
+            <h2 class="sr-only">Standings</h2>
             @include('standings._public-table', [
                 'standings' => $standings,
                 'showProvince' => true,

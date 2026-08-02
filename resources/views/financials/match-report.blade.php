@@ -168,10 +168,18 @@
                             <td class="py-2 px-4 text-stone-700">{{ $reg->shooter_name ?? $reg->user?->name ?? '—' }}</td>
                             <td class="py-2 px-4">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                    @if($reg->membership_fee_category === 'member') bg-emerald-50 text-emerald-700
-                                    @elseif($reg->membership_fee_category === 'lapsed') bg-amber-50 text-amber-700
+                                    @if($reg->membership_fee_category === 'active_member') bg-emerald-50 text-emerald-700
+                                    @elseif($reg->membership_fee_category === 'lapsed_member') bg-amber-50 text-amber-700
                                     @else bg-red-50 text-red-700 @endif">
-                                    {{ ucfirst($reg->membership_fee_category ?? 'unknown') }}
+                                    @php
+                                        $categoryLabel = match($reg->membership_fee_category) {
+                                            'active_member' => 'Member',
+                                            'lapsed_member' => 'Lapsed',
+                                            'non_member' => 'Non-member',
+                                            default => 'Unknown',
+                                        };
+                                    @endphp
+                                    {{ $categoryLabel }}
                                 </span>
                             </td>
                             <td class="py-2 px-4">

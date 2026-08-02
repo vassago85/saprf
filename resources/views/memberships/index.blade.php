@@ -37,16 +37,17 @@
     </div>
 
     @if($isAdmin)
-        <form method="GET" action="{{ route('memberships.index') }}" class="mt-6 flex flex-wrap items-end gap-3">
+        <h2 class="sr-only">Filters</h2>
+        <form method="GET" action="{{ route('memberships.index') }}" class="mt-6 flex flex-wrap items-end gap-3" aria-label="Membership filters">
             <input type="hidden" name="sort" value="{{ $sort }}">
             <input type="hidden" name="dir" value="{{ $dir }}">
             <div class="flex-1 min-w-[220px]">
-                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Search</label>
-                <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Name, email or SAPRF number" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <label for="memberships_search" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Search</label>
+                <input type="text" id="memberships_search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Name, email or SAPRF number" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
             </div>
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Province</label>
-                <select name="province_id" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <label for="memberships_province" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Province</label>
+                <select id="memberships_province" name="province_id" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     <option value="">All</option>
                     @foreach($provinces as $p)
                         <option value="{{ $p->id }}" @selected(($filters['province_id'] ?? '') == $p->id)>{{ $p->name }}</option>
@@ -54,8 +55,8 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
-                <select name="status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <label for="memberships_status" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
+                <select id="memberships_status" name="status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     <option value="">All</option>
                     @foreach(['active' => 'Active', 'expired' => 'Expired', 'non_member' => 'Non-member', 'revoked' => 'Revoked'] as $val => $label)
                         <option value="{{ $val }}" @selected(($filters['status'] ?? '') === $val)>{{ $label }}</option>
@@ -69,6 +70,8 @@
                 @endif
             </div>
         </form>
+
+        <h2 class="sr-only">Memberships list</h2>
     @endif
 
     <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">

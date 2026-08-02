@@ -12,15 +12,16 @@
             </a>
         </div>
 
-        <form method="GET" action="{{ route('venues.index') }}" class="flex flex-wrap items-end gap-3">
+        <h2 class="sr-only">Filters</h2>
+        <form method="GET" action="{{ route('venues.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Venue filters">
             <div>
-                <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
-                <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Name, city, address..."
+                <label for="venues_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
+                <input type="text" id="venues_search" name="search" value="{{ $search ?? '' }}" placeholder="Name, city, address..."
                        class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             </div>
             <div>
-                <label class="block text-xs font-medium text-stone-500 mb-1">Province</label>
-                <select name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="venues_province" class="block text-xs font-medium text-stone-500 mb-1">Province</label>
+                <select id="venues_province" name="province_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Provinces</option>
                     @foreach ($provinces as $prov)
                         <option value="{{ $prov->id }}" @selected(($provinceFilter ?? '') == $prov->id)>{{ $prov->name }}</option>
@@ -33,12 +34,28 @@
             @endif
         </form>
 
+        <h2 class="sr-only">Venues list</h2>
+
         @if(session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {{ session('success') }}
             </div>
         @endif
 
+        @if($venues->isEmpty() && !($search ?? '') && !($provinceFilter ?? ''))
+            <x-empty-state
+                heading="No venues yet"
+                description="Add your first shooting venue or range so match directors can select it when creating matches."
+                cta-label="Add Venue"
+                :cta-href="route('venues.create')">
+                <x-slot:icon>
+                    <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                    </svg>
+                </x-slot:icon>
+            </x-empty-state>
+        @else
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -102,13 +119,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No venues found. Add your first venue to get started.</td>
+                                <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No venues match your filters. <a href="{{ route('venues.index') }}" class="text-emerald-700 hover:underline">Clear filters</a>.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         @if($venues->hasPages())
             <div class="mt-4">{{ $venues->withQueryString()->links() }}</div>

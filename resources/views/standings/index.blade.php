@@ -20,13 +20,16 @@
             <p class="mt-1 text-sm text-stone-500">Official {{ $series }} rankings for the {{ $season }} season.</p>
         </div>
 
+        <h2 class="sr-only">Filters</h2>
+
         {{-- Row 1: Season, Series, Level --}}
         <div class="flex flex-wrap items-center gap-4">
             {{-- Season --}}
             <form method="GET" action="{{ route('standings.index') }}">
                 <input type="hidden" name="series" value="{{ $series }}">
                 <input type="hidden" name="level" value="{{ $level }}">
-                <select name="season" onchange="this.form.submit()"
+                <label for="standings_admin_season" class="sr-only">Season</label>
+                <select id="standings_admin_season" name="season" onchange="this.form.submit()"
                         class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     @foreach ($seasons as $s)
                         <option value="{{ $s }}" @selected($season == $s)>{{ $s }}</option>

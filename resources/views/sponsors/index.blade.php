@@ -11,16 +11,17 @@
             </a>
         </div>
 
+        <h2 class="sr-only">Filters</h2>
         <div class="flex flex-wrap items-end gap-4">
-            <form method="GET" action="{{ route('sponsors.index') }}" class="flex items-end gap-3">
+            <form method="GET" action="{{ route('sponsors.index') }}" class="flex items-end gap-3" aria-label="Sponsor filters">
                 <div>
-                    <label class="block text-xs font-medium text-stone-500 mb-1">Search</label>
-                    <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Sponsor name..."
+                    <label for="sponsors_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
+                    <input type="text" id="sponsors_search" name="search" value="{{ $search ?? '' }}" placeholder="Sponsor name..."
                         class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-stone-500 mb-1">Status</label>
-                    <select name="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <label for="sponsors_status" class="block text-xs font-medium text-stone-500 mb-1">Status</label>
+                    <select id="sponsors_status" name="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">All</option>
                         <option value="active" @selected(request('status') === 'active')>Active</option>
                         <option value="expired" @selected(request('status') === 'expired')>Expired / Inactive</option>

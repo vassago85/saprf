@@ -3,10 +3,12 @@
 
     <div class="mt-6 border-t border-stone-200"></div>
 
+    <h2 class="sr-only">Filters</h2>
     <div class="mt-6 flex flex-wrap gap-3">
-        <form method="GET" action="{{ route('scores.index') }}" class="flex flex-wrap items-end gap-3">
+        <form method="GET" action="{{ route('scores.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Score filters">
             <div>
-                <select name="match_id" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="scores_match" class="sr-only">Match</label>
+                <select id="scores_match" name="match_id" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Matches</option>
                     @foreach ($matches as $match)
                         <option value="{{ $match->id }}" @selected(request('match_id') == $match->id)>{{ $match->name }}</option>
@@ -15,7 +17,8 @@
             </div>
 
             <div>
-                <select name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="scores_status" class="sr-only">Status</label>
+                <select id="scores_status" name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="valid" @selected(request('status') === 'valid')>Valid</option>
                     <option value="pending" @selected(request('status') === 'pending')>Pending</option>
@@ -27,6 +30,8 @@
             <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
         </form>
     </div>
+
+    <h2 class="sr-only">Scores list</h2>
 
     <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
         <table class="min-w-full">

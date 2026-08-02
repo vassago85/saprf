@@ -21,7 +21,29 @@
          nmSurcharge: {{ $nmSurcharge }},
          lmSurcharge: {{ $lmSurcharge }},
      })"
-     x-init="$nextTick(() => { calculate(); const el = document.getElementById('active_member_fee'); if(el) el.addEventListener('input', () => calculate()); })"
+     x-init="$nextTick(() => {
+        // Sync base fee input
+        const feeEl = document.getElementById('active_member_fee');
+        if(feeEl) feeEl.addEventListener('input', () => calculate());
+
+        // Two-way sync with the persisted Estimated Shooters field above
+        const shootersEl = document.getElementById('estimated_shooters');
+        if(shootersEl) {
+            const initial = parseInt(shootersEl.value, 10);
+            if(!isNaN(initial) && initial > 0) shooters = initial;
+            shootersEl.addEventListener('input', () => {
+                const v = parseInt(shootersEl.value, 10);
+                shooters = (!isNaN(v) && v > 0) ? v : 0;
+            });
+            $watch('shooters', v => {
+                if(String(shootersEl.value) !== String(v ?? '')) {
+                    shootersEl.value = (v === null || v === undefined || v === '' || isNaN(v)) ? '' : v;
+                }
+            });
+        }
+
+        calculate();
+     })"
      x-effect="shooters; calculate()">
 
     <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5 space-y-4">
@@ -30,10 +52,11 @@
             <span class="text-xs text-stone-400">Per shooter estimate</span>
         </div>
 
-        <div class="space-y-2">
-            <label class="block text-xs font-medium text-stone-500">Expected Shooters</label>
-            <input type="number" x-model.number="shooters" min="1" max="500" placeholder="30"
+        <div class="space-y-1">
+            <label for="expected_shooters_estimator" class="block text-xs font-medium text-stone-500">Expected Shooters</label>
+            <input type="number" id="expected_shooters_estimator" x-model.number="shooters" min="1" max="500" placeholder="30"
                    class="block w-32 rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+            <p class="text-[11px] text-stone-400">Synced with the Estimated Shooters field above.</p>
         </div>
 
         <template x-if="fee > 0">
