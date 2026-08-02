@@ -170,7 +170,7 @@
                 <h2 class="font-heading text-base font-semibold text-red-800 mb-2">Danger Zone</h2>
                 <p class="text-sm text-stone-500 mb-4">Delete this user. They will be soft-deleted and can be restored from the deleted users list.</p>
                 <form method="POST" action="{{ route('user-management.destroy', $user) }}"
-                      onsubmit="return confirm('Delete {{ addslashes($user->name) }}? They will be moved to the deleted users list and can be restored later.')">
+                      onsubmit="return confirm('⚠  Delete member: {{ addslashes($user->name) }}\n(SAPRF #{{ addslashes($user->membership?->saprf_number ?? '—') }} · {{ addslashes($user->email) }})\n\nThis is a soft delete — the member will be moved to the deleted users list and can be restored from there. Their scores, registrations and history stay intact.\n\nProceed?')">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">

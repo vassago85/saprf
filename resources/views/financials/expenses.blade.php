@@ -85,7 +85,19 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-sm text-stone-400">No expenses recorded yet.</td>
+                            <td colspan="7" class="py-0">
+                                <x-empty-state class="!rounded-none !border-0 !border-t !border-dashed"
+                                    heading="No expenses recorded yet"
+                                    description="Track your platform's fixed costs (hosting, tools, subscriptions) here to see accurate net revenue on the Financial Dashboard."
+                                    cta-label="Add Expense"
+                                    :cta-href="route('financials.expenses.create')">
+                                    <x-slot:icon>
+                                        <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                                        </svg>
+                                    </x-slot:icon>
+                                </x-empty-state>
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>

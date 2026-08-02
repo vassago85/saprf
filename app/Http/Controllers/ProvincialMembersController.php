@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Province;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProvincialMembersController extends Controller
 {
+    public function __construct(private readonly AuditLogService $auditLogService)
+    {
+    }
+
     public function index(Request $request): View
     {
         $actor = $request->user();
@@ -36,6 +41,22 @@ class ProvincialMembersController extends Controller
             : 'All_Provinces';
 
         $filename = 'Provincial_Members_' . str_replace(' ', '_', $provinceName) . '_' . now()->format('Y-m-d') . '.csv';
+
+        // POPIA: log every provincial-members CSV export so admin exports are traceable.
+        $this->auditLogService->log(
+            $actor,
+            'provincial_members.csv_exported',
+            'ProvincialMembers',
+            null,
+            null,
+            [
+                'row_count' => $users->count(),
+                'includes_sa_id' => $showSaId,
+                'province_id' => $provinceFilter,
+                'search' => $request->input('search'),
+                'filename' => $filename,
+            ],
+        );
 
         return response()->streamDownload(function () use ($users, $showSaId) {
             $handle = fopen('php://output', 'w');

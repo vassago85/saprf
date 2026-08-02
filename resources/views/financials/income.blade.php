@@ -90,7 +90,19 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-sm text-stone-400">No income recorded yet.</td>
+                            <td colspan="7" class="py-0">
+                                <x-empty-state class="!rounded-none !border-0 !border-t !border-dashed"
+                                    heading="No income recorded yet"
+                                    description="Log sponsorship payments, donations and other non-match income here to keep the Financial Dashboard totals accurate."
+                                    cta-label="Add Income"
+                                    :cta-href="route('financials.income.create')">
+                                    <x-slot:icon>
+                                        <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.198 0-3.995-.7-3.995-2.42 0-1.72 1.797-2.42 3.995-2.42s3.995.7 3.995 2.42" />
+                                        </svg>
+                                    </x-slot:icon>
+                                </x-empty-state>
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>

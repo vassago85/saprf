@@ -133,7 +133,19 @@
                         @endif
                         @empty
                         <tr>
-                            <td colspan="10" class="py-8 text-center text-sm text-stone-400">No payouts recorded yet.</td>
+                            <td colspan="10" class="py-0">
+                                <x-empty-state class="!rounded-none !border-0 !border-t !border-dashed"
+                                    heading="No payouts recorded yet"
+                                    description="Once matches complete and payments settle, record Match Director payouts here. They're tracked against each match's net-to-MD amount."
+                                    cta-label="Record Payout"
+                                    :cta-href="route('financials.payouts.create')">
+                                    <x-slot:icon>
+                                        <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                                        </svg>
+                                    </x-slot:icon>
+                                </x-empty-state>
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>

@@ -144,7 +144,7 @@
                                         @endif
                                         @if(!$user->hasRole('owner') && $user->id !== auth()->id())
                                             <form method="POST" action="{{ route('user-management.destroy', $user) }}" class="inline"
-                                                  onsubmit="return confirm('Delete {{ addslashes($user->name) }}? They will be moved to the deleted users list and can be restored later.')">
+                                                  onsubmit="return confirm('⚠  Delete member: {{ addslashes($user->name) }}\n(SAPRF #{{ addslashes($user->membership?->saprf_number ?? '—') }} · {{ addslashes($user->email) }})\n\nThis is a soft delete — the member will be moved to the deleted users list and can be restored from there. Their scores, registrations and history stay intact.\n\nProceed?')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-800 transition">Delete</button>

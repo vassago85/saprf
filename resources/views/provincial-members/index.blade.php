@@ -26,11 +26,19 @@
                 Filter
             </button>
             <a href="{{ route('provincial-members.csv', request()->only(['search', 'province_id'])) }}"
-               class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+               class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition"
+               @if($showSaId) onclick="return confirm('This CSV contains full SA ID numbers and personal contact details. Handle in line with POPIA — store securely and delete when no longer needed.\n\nContinue with download?')" @endif>
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                 Download CSV
             </a>
         </form>
+
+        @if($showSaId)
+            <p class="text-xs text-stone-400 flex items-center gap-1.5">
+                <svg class="h-3.5 w-3.5 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                SA ID numbers are masked on this table for POPIA compliance. Full IDs are available in the CSV export and SASCOC report.
+            </p>
+        @endif
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
@@ -58,7 +66,13 @@
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->phone ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->province?->name ?? '—' }}</td>
                                 @if ($showSaId)
-                                    <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">{{ $user->sa_id_number ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">
+                                        @if($user->sa_id_number)
+                                            <span title="Masked for privacy — full ID is available in the CSV export and SASCOC report">•••••••••{{ substr($user->sa_id_number, -4) }}</span>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
                                 @endif
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                                     @switch($user->membership?->status)

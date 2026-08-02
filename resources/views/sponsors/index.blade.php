@@ -83,7 +83,20 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No sponsors found.</td>
+                            <td colspan="6" class="py-0">
+                                <x-empty-state class="!rounded-none !border-0 !border-t !border-dashed"
+                                    heading="{{ (request('search') || request('status')) ? 'No sponsors match your filters' : 'No sponsors yet' }}"
+                                    description="{{ (request('search') || request('status')) ? 'Try clearing filters or broadening your search.' : 'Add your first sponsor to make them visible on the site sidebar, event pages and reports.' }}"
+                                    :cta-label="(request('search') || request('status')) ? null : 'Add Sponsor'"
+                                    :cta-href="(request('search') || request('status')) ? null : route('sponsors.create')">
+                                    <x-slot:icon>
+                                        <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+                                        </svg>
+                                    </x-slot:icon>
+                                </x-empty-state>
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

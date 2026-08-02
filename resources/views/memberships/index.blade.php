@@ -37,6 +37,36 @@
     </div>
 
     @if($isAdmin)
+        {{-- Legend: Type vs Status --}}
+        <details class="mt-6 rounded-lg border border-stone-200 bg-stone-50 text-sm">
+            <summary class="cursor-pointer select-none px-4 py-2.5 font-medium text-stone-700 hover:text-stone-900">
+                What do <span class="font-semibold">Type</span> and <span class="font-semibold">Status</span> mean?
+            </summary>
+            <div class="px-4 pb-4 pt-1 grid gap-4 sm:grid-cols-2 text-xs text-stone-600">
+                <div>
+                    <p class="font-semibold text-stone-800 mb-1">Type — the membership plan</p>
+                    <ul class="space-y-1">
+                        <li><span class="inline-block w-16 font-mono text-stone-500">Full</span> Standard paying member (voting rights).</li>
+                        <li><span class="inline-block w-16 font-mono text-stone-500">Associate</span> Non-voting paying member.</li>
+                        <li><span class="inline-block w-16 font-mono text-stone-500">Junior</span> Under-18 member (reduced rate).</li>
+                        <li><span class="inline-block w-16 font-mono text-stone-500">Free</span> Non-paying account (e.g. guests, admins). Never counts as a valid membership for scoring.</li>
+                        <li><span class="inline-block w-16 font-mono text-stone-500">Paid</span> Legacy import label — treated the same as Full for scoring.</li>
+                    </ul>
+                </div>
+                <div>
+                    <p class="font-semibold text-stone-800 mb-1">Status — the current state of that plan</p>
+                    <ul class="space-y-1">
+                        <li><span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span> Paid up and within the membership window.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span> Registered but not yet paid / approved.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired / Lapsed</span> Past the expiry date.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked / Suspended</span> Manually terminated by an admin.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-400/20">Non-member</span> Has an account but no valid paid plan (typical for Free accounts).</li>
+                    </ul>
+                    <p class="mt-2 text-[11px] text-stone-500">A row can read e.g. <em>Free / Non-member</em> (a guest account) or <em>Full / Expired</em> (a paying member whose renewal is overdue).</p>
+                </div>
+            </div>
+        </details>
+
         <h2 class="sr-only">Filters</h2>
         <form method="GET" action="{{ route('memberships.index') }}" class="mt-6 flex flex-wrap items-end gap-3" aria-label="Membership filters">
             <input type="hidden" name="sort" value="{{ $sort }}">
