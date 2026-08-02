@@ -1,7 +1,7 @@
 # SAPRF PRS (Centrefire) 2026 — Scraped Match Data
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-07-07 19:09:29
+Scraped: 2026-08-02 09:46:50
 
 PRS = the Centrefire program (leagues 'SAPRF National Series' / 'SAPRF Provincial Series').
 Per-match score CSV columns: `shooter_name,division,raw_score,placement`
@@ -30,6 +30,8 @@ Catalogs: `matches.csv` (completed w/ scores), `upcoming.csv` (no results yet)
 | 2026-03-21 | — | provincial | Centrefire NW Provincial | NW Klerksdorp | North West | [#252](https://www.precisionrifle.co.za/events/252) |
 | 2026-07-11 | 2026-07-12 | national | Centrefire MP 2-Day National | Lydenburg | Mpumalanga | [#223](https://www.precisionrifle.co.za/events/223) |
 | 2026-08-08 | 2026-08-09 | national | Centrefire LP 2-Day National | Marble Hall | Limpopo | [#221](https://www.precisionrifle.co.za/events/221) |
+| 2026-08-08 | — | provincial | CenterFire 1day | Marble Hall | Limpopo | [#256](https://www.precisionrifle.co.za/events/256) |
 | 2026-08-29 | — | provincial | Centrefire WC Provincial | Romansrivier Wolseley | Western Cape | [#245](https://www.precisionrifle.co.za/events/245) |
 | 2026-10-24 | 2026-10-25 | national | Centrefire WC 2-Day National | Darling Steel Valley | Western Cape | [#222](https://www.precisionrifle.co.za/events/222) |
+| 2026-10-24 | — | provincial | CentreFire 1Day | Darling Steel Valley | Western Cape | [#255](https://www.precisionrifle.co.za/events/255) |
 | 2026-11-21 | 2026-11-22 | final | Centrefire GP 2-Day National Championship Match | Legends Adventure Farm | Gauteng | [#224](https://www.precisionrifle.co.za/events/224) |
