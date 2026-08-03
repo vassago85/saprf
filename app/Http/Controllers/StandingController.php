@@ -130,9 +130,11 @@ class StandingController extends Controller
             }
         }
 
-        $rankedQuery = Standing::where('season', $season)->where('series', $series)
-            ->whereNull('division_id');
-        $totalRanked = $rankedQuery->distinct('user_id')->count('user_id');
+        // Ranked-shooter count must match the filters currently shown in the
+        // table (level, division, province) — otherwise the header can read
+        // "81 Ranked Shooters" while the table lists 64, which the user
+        // (rightly) reads as a bug.
+        $totalRanked = (clone $standings)->distinct('user_id')->count('user_id');
         $totalMatches = MatchEvent::where('season', $season)->where('match_type', $series)->published()->count();
         $completedMatches = MatchEvent::where('season', $season)->where('match_type', $series)->where('status', 'completed')->count();
         $remainingMatches = MatchEvent::where('season', $season)->where('match_type', $series)

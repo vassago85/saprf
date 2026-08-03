@@ -10,6 +10,43 @@ html {
     overflow-x: hidden;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Mobile sidebar polyfill.
+ *
+ * Flux Free ships the sidebar markup but not the JS that powers the
+ * `<ui-sidebar>` custom element's stashable / responsive behaviour
+ * (that lives in Flux Pro). Without a polyfill the desktop sidebar
+ * stays wedged on-screen at <lg viewports and squashes the main content.
+ *
+ * The hamburger button in <flux:header> already dispatches the
+ * `flux-sidebar-toggle` event on click; the <body> element listens for
+ * that and toggles the `data-sidebar-open` attribute, and these rules do
+ * the rest — pulling the sidebar out of the grid and sliding it in from
+ * the left with a backdrop.
+ * ───────────────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+    [data-flux-sidebar] {
+        position: fixed !important;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: 17rem;
+        max-width: 85vw;
+        transform: translateX(-100%);
+        transition: transform 200ms ease-out;
+        max-height: 100dvh;
+        overflow-y: auto;
+    }
+    body[data-sidebar-open] [data-flux-sidebar] {
+        transform: translateX(0);
+    }
+}
+@media (min-width: 1024px) {
+    /* On desktop, ignore any lingering mobile-state attribute. */
+    [data-flux-sidebar] {
+        transform: none !important;
+    }
+}
+
 /* Force light mode on public/guest pages */
 .force-light, .force-light * {
     color-scheme: light !important;

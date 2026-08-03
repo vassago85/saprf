@@ -64,7 +64,7 @@
                 <option value="{{ $division->id }}" @selected((string) old('division_id', $isEdit ? $junior->division_id : '') === (string) $division->id)>{{ $division->name }}</option>
             @endforeach
         </select>
-        <p class="mt-1 text-xs text-stone-400">Pick one — Open, Factory, Limited, Production, Ladies, Junior, or Senior.</p>
+        <p class="mt-1 text-xs text-stone-400">Pick one — {{ $divisions->pluck('name')->join(', ', ', or ') }}.</p>
         @error('division_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 

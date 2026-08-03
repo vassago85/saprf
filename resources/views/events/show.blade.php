@@ -270,7 +270,8 @@
                         </div>
                     @endif
 
-                    {{-- Entry List — who has registered (public) --}}
+                    {{-- Entry List — hidden for imported historic events (no registration data). --}}
+                    @if(! ($match->status === 'completed' && $match->scores->isNotEmpty() && $entries->isEmpty()))
                     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                         <div class="flex items-center justify-between px-6 py-4 border-b border-stone-100">
                             <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400">Entry List</h2>
@@ -327,6 +328,7 @@
                             </div>
                         @endif
                     </div>
+                    @endif
                 </div>
 
                 {{-- ═══ Sidebar ═══ --}}
@@ -389,23 +391,42 @@
                     @endif
 
                     {{-- Stats --}}
+                    @php
+                        // Historic events (imported from external sources) have scores
+                        // but no registration records, which makes "Registered: 0"
+                        // next to "Scored: N" read as a bug. Detect that here.
+                        $isImportedHistoric = $match->status === 'completed'
+                            && ($match->scores_count ?? 0) > 0
+                            && ($match->registrations_count ?? 0) === 0;
+                    @endphp
                     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
                         <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Stats</h2>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-2xl font-bold text-stone-900">{{ $match->registrations_count ?? 0 }}</p>
-                                <p class="text-xs text-stone-400 mt-0.5">Registered</p>
-                            </div>
-                            @if($match->status === 'completed')
+                            @if($isImportedHistoric)
                                 <div>
                                     <p class="text-2xl font-bold text-stone-900">{{ $match->scores_count ?? 0 }}</p>
-                                    <p class="text-xs text-stone-400 mt-0.5">Scored</p>
+                                    <p class="text-xs text-stone-400 mt-0.5">Shooters</p>
                                 </div>
-                            @elseif($match->max_competitors)
                                 <div>
-                                    <p class="text-2xl font-bold text-stone-900">{{ $match->max_competitors }}</p>
-                                    <p class="text-xs text-stone-400 mt-0.5">Max Capacity</p>
+                                    <p class="text-2xl font-bold text-stone-500">—</p>
+                                    <p class="text-xs text-stone-400 mt-0.5" title="Historic event imported from external results — no live registrations were captured.">Imported</p>
                                 </div>
+                            @else
+                                <div>
+                                    <p class="text-2xl font-bold text-stone-900">{{ $match->registrations_count ?? 0 }}</p>
+                                    <p class="text-xs text-stone-400 mt-0.5">Registered</p>
+                                </div>
+                                @if($match->status === 'completed')
+                                    <div>
+                                        <p class="text-2xl font-bold text-stone-900">{{ $match->scores_count ?? 0 }}</p>
+                                        <p class="text-xs text-stone-400 mt-0.5">Scored</p>
+                                    </div>
+                                @elseif($match->max_competitors)
+                                    <div>
+                                        <p class="text-2xl font-bold text-stone-900">{{ $match->max_competitors }}</p>
+                                        <p class="text-xs text-stone-400 mt-0.5">Max Capacity</p>
+                                    </div>
+                                @endif
                             @endif
                         </div>
                     </div>

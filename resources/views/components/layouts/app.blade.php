@@ -14,7 +14,22 @@
     @fluxAppearance('light')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="force-light min-h-screen bg-stone-50" style="color-scheme: light;">
+<body class="force-light min-h-screen bg-stone-50" style="color-scheme: light;"
+    x-data="{ sidebarOpen: false }"
+    x-effect="sidebarOpen ? $el.setAttribute('data-sidebar-open', '') : $el.removeAttribute('data-sidebar-open')"
+    @flux-sidebar-toggle.window="sidebarOpen = !sidebarOpen"
+    @keydown.escape.window="sidebarOpen = false"
+    @click="if ($event.target.closest('[data-flux-sidebar] a')) sidebarOpen = false">
+    {{-- Mobile sidebar backdrop (Flux Free doesn't ship this). --}}
+    <div
+        x-show="sidebarOpen"
+        x-transition.opacity.duration.150ms
+        x-cloak
+        @click="sidebarOpen = false"
+        class="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        aria-hidden="true"
+    ></div>
+
     <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 

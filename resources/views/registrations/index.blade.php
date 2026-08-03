@@ -51,7 +51,10 @@
                             @if($registration->division)
                                 <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{{ $registration->division->name }}</span>
                             @else
-                                <span class="text-stone-400">—</span>
+                                <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500 ring-1 ring-inset ring-stone-200"
+                                      title="Division was not selected at registration — you can set it from the registration details page.">
+                                    Not set
+                                </span>
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</td>
