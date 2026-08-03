@@ -12,12 +12,6 @@
             </a>
         </div>
 
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                {{ session('success') }}
-            </div>
-        @endif
-
         @if($juniors->isEmpty())
             <div class="rounded-2xl border-2 border-dashed border-stone-200 bg-white px-6 py-12 text-center">
                 <div class="mx-auto w-12 h-12 rounded-full bg-emerald-50 ring-1 ring-emerald-100 flex items-center justify-center mb-4">
@@ -35,7 +29,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($juniors as $junior)
                     @php
-                        $age = $junior->date_of_birth ? $junior->date_of_birth->diffInYears(now()) : null;
+                        $age = $junior->date_of_birth ? (int) floor($junior->date_of_birth->diffInYears(now())) : null;
                         $membership = $junior->membership;
                         $membershipActive = $membership && $membership->status === 'active' && $membership->payment_status === 'paid';
                     @endphp

@@ -262,17 +262,32 @@
                         <h2 class="font-heading text-lg font-semibold text-amber-800">Withdraw from Match</h2>
                         @php $calc = $registration->calculateRefund(); @endphp
                         @if($calc['reason'] === 'before_deadline')
-                            <p class="text-sm text-amber-700 mt-1">
-                                You will receive a refund of <strong>R {{ number_format($calc['refund'], 2) }}</strong>
-                                (entry fee minus R {{ number_format($calc['admin_fee'], 2) }} admin fee).
-                            </p>
-                            <p class="text-xs text-amber-600 mt-1">
-                                Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
-                            </p>
+                            @if(((float) $registration->fee_amount) <= 0)
+                                <p class="text-sm text-amber-700 mt-1">
+                                    This is a <strong>free entry</strong>, so no refund applies — you can withdraw with no financial impact.
+                                </p>
+                                <p class="text-xs text-amber-600 mt-1">
+                                    Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
+                                </p>
+                            @else
+                                <p class="text-sm text-amber-700 mt-1">
+                                    You will receive a refund of <strong>R {{ number_format($calc['refund'], 2) }}</strong>
+                                    (entry fee minus R {{ number_format($calc['admin_fee'], 2) }} admin fee).
+                                </p>
+                                <p class="text-xs text-amber-600 mt-1">
+                                    Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
+                                </p>
+                            @endif
                         @else
-                            <p class="text-sm text-red-700 mt-1">
-                                The withdrawal deadline has passed. <strong>No refund</strong> will be issued.
-                            </p>
+                            @if(((float) $registration->fee_amount) <= 0)
+                                <p class="text-sm text-amber-700 mt-1">
+                                    The withdrawal deadline has passed, but this is a <strong>free entry</strong> so no fee is forfeited.
+                                </p>
+                            @else
+                                <p class="text-sm text-red-700 mt-1">
+                                    The withdrawal deadline has passed. <strong>No refund</strong> will be issued.
+                                </p>
+                            @endif
                         @endif
                     </div>
                     <button @click="showForm = !showForm"

@@ -14,6 +14,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -641,22 +643,43 @@ class MembershipController extends Controller
 
     private function downloadHtmlAsPdf(string $html, string $filename): Response
     {
-        $fontDir = $this->prepareCertificateFontDirectory();
+        // DomPDF is memory / CPU heavy — bump the ceilings so a slow render
+        // doesn't get killed by php-fpm (which upstream nginx surfaces as a
+        // 502 / 503 rather than a clean Laravel error page).
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(120);
 
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper('A4', 'portrait')
-            ->setOption('isRemoteEnabled', false)
-            ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isFontSubsettingEnabled', false)
-            ->setOption('chroot', base_path())
-            ->setOption('fontDir', $fontDir)
-            ->setOption('fontCache', $fontDir);
+        try {
+            $fontDir = $this->prepareCertificateFontDirectory();
 
-        // Pre-register TTFs into the writable cache so DomPDF never tries to
-        // write .ufm metrics under resources/fonts (not writable by www-data).
-        $this->registerCertificateFonts($pdf, $fontDir);
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper('A4', 'portrait')
+                ->setOption('isRemoteEnabled', false)
+                ->setOption('isHtml5ParserEnabled', true)
+                ->setOption('isFontSubsettingEnabled', false)
+                ->setOption('chroot', base_path())
+                ->setOption('fontDir', $fontDir)
+                ->setOption('fontCache', $fontDir);
 
-        return $pdf->download($filename);
+            // Pre-register TTFs into the writable cache so DomPDF never tries to
+            // write .ufm metrics under resources/fonts (not writable by www-data).
+            $this->registerCertificateFonts($pdf, $fontDir);
+
+            return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            // Log the underlying failure with enough context to diagnose from
+            // the server, then surface a clean 500 (rather than a silent
+            // worker crash that nginx turns into 502/503).
+            Log::error('PDF render failed', [
+                'filename' => $filename,
+                'user_id' => Auth::id(),
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => collect($e->getTrace())->take(8)->all(),
+            ]);
+
+            abort(500, 'Unable to generate PDF. Please try again shortly — if the problem persists, contact support.');
+        }
     }
 
     /**

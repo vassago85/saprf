@@ -106,6 +106,20 @@
 
         get hasExactMatch() {
             return this.results.some(r => r.{{ $displayField }}.toLowerCase() === this.query.toLowerCase());
+        },
+
+        // Keep the visible input's native validity in sync with whether the
+        // user has actually *selected* a suggestion. Typing text without
+        // picking one would otherwise pass required-validation silently.
+        syncValidity(el) {
+            if (! el) return;
+            @if($required)
+                if (this.query.trim() && ! this.selectedId) {
+                    el.setCustomValidity('Please pick a suggestion from the list, or use "Add ..." to create it.');
+                } else {
+                    el.setCustomValidity('');
+                }
+            @endif
         }
     }"
     @if($dependsOn)
@@ -122,7 +136,9 @@
         <input
             type="text"
             id="{{ $name }}_input"
+            x-ref="input"
             x-model="query"
+            x-effect="syncValidity($refs.input)"
             @input="search()"
             @focus="if (query.length >= 1 && results.length > 0) open = true"
             @keydown.escape="open = false"
@@ -156,7 +172,7 @@
         x-ref="list"
         class="absolute z-50 mt-1 w-full rounded-lg border border-stone-200 bg-white shadow-lg max-h-60 overflow-y-auto"
     >
-        <template x-if="results.length === 0 && !loading && query.length >= 1">
+        <template x-if="!selectedId && results.length === 0 && !loading && query.length >= 1">
             <div class="px-3 py-2 text-sm text-stone-400">No matches found</div>
         </template>
 
@@ -178,7 +194,7 @@
         </template>
 
         @if($createUrl)
-            <template x-if="query.length >= 2 && !hasExactMatch && !loading">
+            <template x-if="!selectedId && query.length >= 2 && !hasExactMatch && !loading">
                 <button
                     type="button"
                     @click="createNew()"

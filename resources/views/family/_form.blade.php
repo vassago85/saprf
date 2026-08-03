@@ -10,7 +10,7 @@
             <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name <span class="text-red-500">*</span></label>
             <input type="text" name="name" id="name" required maxlength="120"
                    value="{{ old('name', $isEdit ? $junior->name : '') }}"
-                   placeholder="e.g. Sarah Britnell"
+                   placeholder="e.g. Alex Smith"
                    class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
             @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>

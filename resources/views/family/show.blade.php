@@ -1,6 +1,6 @@
 <x-layouts.app :title="$junior->name . ' - My Family'">
     @php
-        $age = $junior->date_of_birth ? $junior->date_of_birth->diffInYears(now()) : null;
+        $age = $junior->date_of_birth ? (int) floor($junior->date_of_birth->diffInYears(now())) : null;
         $membership = $junior->membership;
         $membershipActive = $membership && $membership->status === 'active' && $membership->payment_status === 'paid';
     @endphp
@@ -40,12 +40,6 @@
                 </a>
             </div>
         </div>
-
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                {{ session('success') }}
-            </div>
-        @endif
 
         {{-- Quick Stats --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

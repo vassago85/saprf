@@ -11,12 +11,6 @@
             </a>
         </div>
 
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">

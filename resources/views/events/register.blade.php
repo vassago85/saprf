@@ -135,9 +135,14 @@
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
                         <h4 class="text-sm font-semibold text-amber-800">Cancellation / Withdrawal Policy</h4>
                         <ul class="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                            <li>Full payment of <strong>R {{ number_format($pricing['fee'], 2) }}</strong> is required to confirm your entry.</li>
-                            <li>Withdrawals made <strong>{{ $withdrawalHours }}+ hours</strong> before the match: refund minus <strong>R {{ number_format($withdrawalFee, 2) }}</strong> admin fee.</li>
-                            <li>Withdrawals made <strong>less than {{ $withdrawalHours }} hours</strong> before the match: <strong>no refund</strong>.</li>
+                            @if(((float) $pricing['fee']) > 0)
+                                <li>Full payment of <strong>R {{ number_format($pricing['fee'], 2) }}</strong> is required to confirm your entry.</li>
+                                <li>Withdrawals made <strong>{{ $withdrawalHours }}+ hours</strong> before the match: refund minus <strong>R {{ number_format($withdrawalFee, 2) }}</strong> admin fee.</li>
+                                <li>Withdrawals made <strong>less than {{ $withdrawalHours }} hours</strong> before the match: <strong>no refund</strong>.</li>
+                            @else
+                                <li>This is a <strong>free entry</strong> — no payment required to confirm.</li>
+                                <li>You can withdraw at any time before the match with no financial impact.</li>
+                            @endif
                         </ul>
                     </div>
 

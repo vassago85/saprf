@@ -36,12 +36,6 @@
 
         <h2 class="sr-only">Venues list</h2>
 
-        @if(session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {{ session('success') }}
-            </div>
-        @endif
-
         @if($venues->isEmpty() && !($search ?? '') && !($provinceFilter ?? ''))
             <x-empty-state
                 heading="No venues yet"

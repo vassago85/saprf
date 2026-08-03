@@ -258,7 +258,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        return $this->date_of_birth->diffInYears($date);
+        return (int) floor($this->date_of_birth->diffInYears($date));
     }
 
     // ──────────────────────────────────────────────────────────────────────

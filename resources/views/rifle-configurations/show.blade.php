@@ -17,12 +17,6 @@
             </a>
         </div>
 
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <div class="grid gap-6 lg:grid-cols-2">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
                 <h2 class="font-heading text-lg font-bold text-stone-900">Build Details</h2>
