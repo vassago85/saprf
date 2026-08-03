@@ -83,12 +83,59 @@
                     </div>
                 </div>
 
-                @if ($user->hasRole('owner'))
+                @if ($user->hasRole('owner') && ! auth()->user()->hasRole('developer'))
                     <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
-                        This user has the Owner role which cannot be removed here. The roles below are in addition to Owner.
+                        This user has the Owner role which cannot be removed here. The roles above are in addition to Owner.
                     </div>
                 @endif
             </div>
+
+            {{-- Elevated / sysadmin-only roles. Visible only to developers. --}}
+            @if(! empty($elevatedRoles))
+                <div class="rounded-xl border-2 border-red-300 bg-red-50/50 p-6 shadow-sm space-y-4">
+                    <div class="flex items-start gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 shrink-0 mt-0.5 text-red-700">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                        </svg>
+                        <div class="flex-1">
+                            <label class="block text-sm font-semibold text-red-900">Elevated Roles (developer-only)</label>
+                            <p class="text-xs text-red-700/80 mt-1 leading-relaxed">
+                                These roles bypass every permission check in the app. Only assign them to users who need federation-wide or sysadmin access. Every change is written to the audit log.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        @foreach ($elevatedRoles as $role)
+                            @php
+                                $elevatedDescriptions = [
+                                    'provincial_admin' => 'Manages members and matches within their assigned province',
+                                    'exco' => 'Federation-wide read/write bypass — shared board-walkthrough account',
+                                    'owner' => 'Federation superuser — full access, cannot be soft-deleted',
+                                    'developer' => 'Sysadmin — bypasses every policy, can grant/revoke any role',
+                                ];
+                                $isChecked = in_array($role, old('roles', $user->getRoleNames()->toArray()));
+                                $isSelfDeveloperRow = $role === 'developer' && $user->id === auth()->id();
+                            @endphp
+                            <label class="flex items-start gap-3 rounded-lg border {{ $isChecked ? 'border-red-400 bg-red-50' : 'border-red-200 bg-white' }} p-3 hover:bg-red-50 transition cursor-pointer">
+                                <input type="checkbox" name="roles[]" value="{{ $role }}"
+                                    class="mt-0.5 rounded border-red-300 text-red-600 focus:ring-red-500"
+                                    @checked($isChecked)
+                                    @disabled($isSelfDeveloperRow)>
+                                <div class="flex-1">
+                                    <span class="text-sm font-semibold text-red-900">{{ str_replace('_', ' ', ucfirst($role)) }}</span>
+                                    <p class="text-xs text-red-700/80 mt-0.5">{{ $elevatedDescriptions[$role] ?? '' }}</p>
+                                    @if($isSelfDeveloperRow)
+                                        <p class="text-[11px] italic text-red-600 mt-1">Locked — you cannot remove your own developer role.</p>
+                                        {{-- Preserve the value on submit even though the checkbox is disabled. --}}
+                                        <input type="hidden" name="roles[]" value="developer">
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             <div class="flex items-center gap-3">
                 <button type="submit" class="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">

@@ -70,6 +70,50 @@
             </dl>
         </div>
 
+        {{-- Subject: the person the log entry is ABOUT (distinct from the actor who made the change). --}}
+        @if ($subject)
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1">
+                        <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">
+                            Subject
+                            <span class="text-xs font-normal text-stone-400 ml-1">— the account this change affected</span>
+                        </h2>
+                        <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                            <div>
+                                <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Name</dt>
+                                <dd class="mt-1 text-sm font-medium text-stone-900">
+                                    {{ $subject['name'] }}
+                                    @if($subject['is_deleted'])
+                                        <span class="ml-1 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Deleted</span>
+                                    @endif
+                                </dd>
+                            </div>
+                            @if(! empty($subject['email']))
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Email</dt>
+                                    <dd class="mt-1 text-sm text-stone-900 break-all">{{ $subject['email'] }}</dd>
+                                </div>
+                            @endif
+                            @if(! empty($subject['saprf_number']))
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">SAPRF #</dt>
+                                    <dd class="mt-1 text-sm font-mono text-stone-900">{{ $subject['saprf_number'] }}</dd>
+                                </div>
+                            @endif
+                        </dl>
+                    </div>
+                    @if(! empty($subject['edit_url']))
+                        <a href="{{ $subject['edit_url'] }}"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 whitespace-nowrap">
+                            Open user
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @if ($auditLog->old_value)
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Old Values</h2>

@@ -19,6 +19,10 @@ class AuditLogController extends Controller
             ->paginate(30)
             ->withQueryString();
 
+        // Bulk-resolve User/Membership subjects for this page so the "who was
+        // changed?" column can render without an N+1 query.
+        AuditLog::preloadSubjects($auditLogs->getCollection());
+
         // Tally per actor category for the filter tabs.
         $counts = AuditLog::query()
             ->selectRaw('actor_type, COUNT(*) as aggregate')
@@ -32,6 +36,10 @@ class AuditLogController extends Controller
     {
         $auditLog->load('user');
 
-        return view('audit-logs.show', compact('auditLog'));
+        // Resolve the affected subject (member/membership) up front so the
+        // view can render its details next to the entity ID.
+        $subject = $auditLog->resolveSubject();
+
+        return view('audit-logs.show', compact('auditLog', 'subject'));
     }
 }

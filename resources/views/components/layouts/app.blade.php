@@ -107,7 +107,7 @@
                 <flux:navlist.item icon="megaphone" :href="route('sponsors.index')" :current="request()->routeIs('sponsors.*')">
                     Sponsors
                 </flux:navlist.item>
-                @role('exco|owner')
+                @role('developer|exco|owner')
                 <flux:navlist.item icon="tag" :href="route('sponsor-tiers.index')" :current="request()->routeIs('sponsor-tiers.*')">
                     Sponsor Tiers
                 </flux:navlist.item>

@@ -343,6 +343,32 @@
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">Setup:</strong> Create a Mailgun account, add and verify your domain, then paste the API key and domain here. The <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">.env</code> values will be used as fallback if these fields are left blank.</p>
                 </div>
+
+                {{-- Notification master switch. --}}
+                @php
+                    $notificationsEnabled = (bool) ($settings['notifications_enabled'] ?? true);
+                @endphp
+                <div class="rounded-lg border {{ $notificationsEnabled ? 'border-stone-200 bg-white' : 'border-amber-300 bg-amber-50' }} p-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="hidden" name="notifications_enabled" value="0">
+                        <input type="checkbox" name="notifications_enabled" value="1"
+                               @checked(old('notifications_enabled', $notificationsEnabled ? '1' : '0') == '1')
+                               class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="flex-1">
+                            <span class="block text-sm font-medium text-stone-800">Send outgoing email notifications</span>
+                            <span class="mt-1 block text-xs text-stone-500 leading-relaxed">
+                                Master switch for transactional emails — membership confirmations, payment receipts, match registration confirmations, membership expiry warnings, family handover invitations, and admin invitations.
+                                <strong class="text-stone-700">Login OTP codes and password-reset emails are always sent</strong>, regardless of this setting, so account access is never blocked.
+                            </span>
+                            @unless($notificationsEnabled)
+                                <span class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-300">
+                                    <svg class="size-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/></svg>
+                                    Notifications are currently paused
+                                </span>
+                            @endunless
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Settings</button>

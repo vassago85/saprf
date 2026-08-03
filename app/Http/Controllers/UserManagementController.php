@@ -13,6 +13,20 @@ use Illuminate\View\View;
 
 class UserManagementController extends Controller
 {
+    /**
+     * Roles anyone with access to user management can assign. Deliberately
+     * kept small so owners can delegate day-to-day admin without accidentally
+     * escalating another user to federation-level power.
+     */
+    private const STANDARD_ASSIGNABLE_ROLES = ['member', 'match_director', 'admin'];
+
+    /**
+     * Roles that only a developer (sysadmin) may assign. These are elevated:
+     * owner/exco are federation-wide bypass roles, provincial_admin has
+     * province-scoped power, and developer is the sysadmin superuser.
+     */
+    private const ELEVATED_ASSIGNABLE_ROLES = ['provincial_admin', 'exco', 'owner', 'developer'];
+
     public function __construct(
         private readonly AuditLogService $auditLogService,
     ) {}
@@ -41,12 +55,18 @@ class UserManagementController extends Controller
         return view('user-management.index', compact('users', 'search', 'showTrashed', 'trashedCount'));
     }
 
-    public function edit(User $user): View
+    public function edit(Request $request, User $user): View
     {
         $user->load('roles', 'membership');
-        $assignableRoles = ['member', 'match_director', 'admin'];
+        $assignableRoles = self::STANDARD_ASSIGNABLE_ROLES;
+        // Developers see the elevated tier as an "advanced" section so they
+        // can manage sysadmin/federation-level access without dropping to
+        // tinker. Non-developers never see the elevated checkboxes.
+        $elevatedRoles = $request->user()->hasRole('developer')
+            ? self::ELEVATED_ASSIGNABLE_ROLES
+            : [];
 
-        return view('user-management.edit', compact('user', 'assignableRoles'));
+        return view('user-management.edit', compact('user', 'assignableRoles', 'elevatedRoles'));
     }
 
     public function updateMembership(
@@ -123,25 +143,47 @@ class UserManagementController extends Controller
 
     public function updateRole(Request $request, User $user): RedirectResponse
     {
+        $actor = $request->user();
+        $isDeveloper = $actor->hasRole('developer');
+
+        // Developers get the elevated tier; everyone else is restricted to the
+        // standard three. The validator refuses anything outside this list so
+        // hand-crafted POSTs can't sneak elevated roles through.
+        $allowedRoles = array_merge(
+            self::STANDARD_ASSIGNABLE_ROLES,
+            $isDeveloper ? self::ELEVATED_ASSIGNABLE_ROLES : [],
+        );
+
         $validated = $request->validate([
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', 'in:member,match_director,admin'],
+            'roles.*' => ['string', 'in:' . implode(',', $allowedRoles)],
         ]);
 
-        $actor = $request->user();
-
-        if ($user->id === $actor->id && !$actor->hasRole('owner')) {
+        // Self-edit guards: an owner or developer may edit their own roles
+        // (they're the top of the tree and need a way out of a bad state);
+        // everyone else must ask someone higher up.
+        if ($user->id === $actor->id && !$actor->hasRole('owner') && !$isDeveloper) {
             return back()->with('error', 'You cannot change your own roles.');
         }
 
-        if ($user->hasRole('owner') && $user->id !== $actor->id) {
+        // A developer may edit another owner's roles (that's what sysadmin is
+        // for); anyone else is blocked from touching an owner account.
+        if ($user->hasRole('owner') && $user->id !== $actor->id && !$isDeveloper) {
             return back()->with('error', 'Cannot change the roles of another owner.');
+        }
+
+        // A developer must never lock themselves out — keep the developer
+        // role on their own account no matter what the form submitted.
+        if ($user->id === $actor->id && $isDeveloper) {
+            $validated['roles'][] = 'developer';
         }
 
         $oldRoles = $user->getRoleNames()->toArray();
         $newRoles = $validated['roles'];
 
-        if ($user->hasRole('owner')) {
+        // Non-developer editors can never demote an owner. Developers CAN
+        // (they can drop 'owner' by unchecking it in the elevated section).
+        if ($user->hasRole('owner') && !$isDeveloper) {
             $newRoles[] = 'owner';
         }
 

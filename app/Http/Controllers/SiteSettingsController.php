@@ -49,6 +49,7 @@ class SiteSettingsController extends Controller
             'mailgun_endpoint' => ['nullable', 'string', 'in:api.eu.mailgun.net,api.mailgun.net'],
             'mail_from_address' => ['nullable', 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:255'],
+            'notifications_enabled' => ['required', 'boolean'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -94,6 +95,7 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('mailgun_endpoint', $validated['mailgun_endpoint'] ?? 'api.eu.mailgun.net', 'Mailgun API endpoint (EU or US)');
         $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');
+        $this->settingsService->set('notifications_enabled', $validated['notifications_enabled'], 'Send outgoing email notifications (1=yes, 0=paused). Auth OTP + password reset always send regardless.');
 
         $this->auditLogService->log(
             $request->user(),
