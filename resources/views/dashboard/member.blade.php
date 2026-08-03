@@ -72,75 +72,139 @@
             </div>
         @endif
 
-        {{-- Season Stats — split by discipline (PRS / PR22) and level (Provincial / National) --}}
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
-                <div>
-                    <h2 class="font-heading text-xl font-bold text-stone-900">Season Stats</h2>
-                    <p class="text-xs text-stone-500 mt-0.5">Broken down by discipline and level for the current season.</p>
-                </div>
-                <div class="hidden sm:flex items-center gap-4 text-xs text-stone-500">
-                    <span><span class="font-semibold text-stone-700">{{ $matchesShot }}</span> total matches shot</span>
-                    <span aria-hidden="true">·</span>
-                    <span><span class="font-semibold text-emerald-700">{{ number_format($totalPoints) }}</span> national points</span>
+        {{-- Season Stats — split by discipline (PRS / PR22) and level (Provincial / National).
+             PRS and PR22 points are NOT interchangeable — they're separate series with
+             separate standings, so they're never rolled into a shared total here. --}}
+        <div class="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-stone-50/70 to-white">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="font-heading text-xl font-bold text-stone-900">Season Stats</h2>
+                        <p class="text-sm text-stone-500 mt-1">Broken down by discipline and level for {{ now()->year }}.</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Total This Season</p>
+                        <p class="text-2xl font-bold text-stone-900 mt-0.5 tabular-nums">
+                            {{ $matchesShot }} <span class="text-sm font-medium text-stone-500">{{ Str::plural('match', $matchesShot) }}</span>
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {{-- Grid: two disciplines, two levels each. Renders as a compact table
-                 on md+ and stacks on mobile. --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-px bg-stone-100">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-stone-100">
                 @foreach(['PRS', 'PR22'] as $seriesKey)
                     @php
                         $seriesRows = collect($statsBreakdown)->where('series', $seriesKey)->values();
                         $seriesTotalMatches = $seriesRows->sum('matches');
+                        $seriesTotalPoints = $seriesRows->sum('points');
                     @endphp
-                    <div class="bg-white p-5 space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <x-discipline-chip :discipline="$seriesKey" />
-                                <span class="text-xs text-stone-500">{{ $seriesTotalMatches }} {{ Str::plural('match', $seriesTotalMatches) }}</span>
-                            </div>
+                    <div class="bg-white p-6 space-y-4">
+                        {{-- Discipline header --}}
+                        <div class="flex items-center justify-between gap-3">
+                            <x-discipline-chip :discipline="$seriesKey" class="!px-3 !py-1 !text-sm" />
+                            @if($seriesTotalMatches > 0)
+                                <span class="text-xs font-medium text-stone-500 tabular-nums">
+                                    <span class="text-stone-700 font-semibold">{{ $seriesTotalMatches }}</span> {{ Str::plural('match', $seriesTotalMatches) }}
+                                    <span class="mx-1 text-stone-300">·</span>
+                                    <span class="text-emerald-700 font-semibold">{{ number_format($seriesTotalPoints) }}</span> pts
+                                </span>
+                            @else
+                                <span class="text-xs text-stone-400">No {{ $seriesKey }} matches yet</span>
+                            @endif
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
-                            @foreach($seriesRows as $row)
-                                <div class="rounded-lg border border-stone-200 bg-stone-50/60 p-3.5">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">{{ ucfirst($row['level']) }}</span>
-                                        @if($row['matches'] > 0)
-                                            <span class="inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-200 tabular-nums">
-                                                {{ $row['matches'] }} {{ Str::plural('match', $row['matches']) }}
-                                            </span>
+                        @foreach($seriesRows as $row)
+                            @php
+                                $isProvincial = $row['level'] === 'provincial';
+                                $best = $row['best'];
+                                // Podium colouring — gold/silver/bronze for #1/#2/#3.
+                                $bestTileClass = match(true) {
+                                    $best === 1 => 'from-amber-100 to-amber-50 ring-amber-300',
+                                    $best === 2 => 'from-stone-200 to-stone-50 ring-stone-300',
+                                    $best === 3 => 'from-orange-100 to-orange-50 ring-orange-300',
+                                    default     => 'from-white to-stone-50/40 ring-stone-200',
+                                };
+                                $bestTextClass = match(true) {
+                                    $best === 1 => 'text-amber-800',
+                                    $best === 2 => 'text-stone-700',
+                                    $best === 3 => 'text-orange-800',
+                                    default     => 'text-stone-800',
+                                };
+                                $bestIconClass = match(true) {
+                                    $best === 1 => 'text-amber-500',
+                                    $best === 2 => 'text-stone-500',
+                                    $best === 3 => 'text-orange-500',
+                                    default     => 'text-stone-400',
+                                };
+                            @endphp
+                            <div class="rounded-xl border border-stone-200 bg-gradient-to-br from-stone-50/60 to-white p-5 space-y-4">
+                                {{-- Level header --}}
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        @if($isProvincial)
+                                            {{-- Map-pin: provincial --}}
+                                            <svg class="size-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z"/></svg>
+                                        @else
+                                            {{-- Globe: national --}}
+                                            <svg class="size-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418"/></svg>
                                         @endif
+                                        <span class="text-sm font-bold uppercase tracking-wider text-stone-700">{{ $row['level'] }}</span>
                                     </div>
-
-                                    @if($row['matches'] === 0)
-                                        <p class="text-xs text-stone-400 py-2">No matches shot yet.</p>
-                                    @else
-                                        <dl class="grid grid-cols-3 gap-2 text-center">
-                                            <div>
-                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Best</dt>
-                                                <dd class="mt-1 text-base font-bold {{ $row['best'] && $row['best'] <= 3 ? 'text-amber-600' : 'text-stone-900' }} font-mono">
-                                                    {{ $row['best'] ? '#'.$row['best'] : '—' }}
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Avg</dt>
-                                                <dd class="mt-1 text-base font-bold text-stone-900 font-mono">
-                                                    {{ $row['avg'] ? '#'.$row['avg'] : '—' }}
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Points</dt>
-                                                <dd class="mt-1 text-base font-bold text-emerald-700 font-mono">
-                                                    {{ number_format($row['points']) }}
-                                                </dd>
-                                            </div>
-                                        </dl>
+                                    @if($row['matches'] > 0)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-200 tabular-nums">
+                                            <svg class="size-3 text-stone-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                                            {{ $row['matches'] }} {{ Str::plural('match', $row['matches']) }}
+                                        </span>
                                     @endif
                                 </div>
-                            @endforeach
-                        </div>
+
+                                @if($row['matches'] === 0)
+                                    {{-- Empty state --}}
+                                    <div class="text-center py-6 px-4">
+                                        <div class="mx-auto inline-flex size-10 items-center justify-center rounded-full bg-stone-100 mb-2">
+                                            <svg class="size-5 text-stone-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
+                                        </div>
+                                        <p class="text-xs text-stone-400">No {{ $seriesKey }} {{ $row['level'] }} matches shot yet.</p>
+                                    </div>
+                                @else
+                                    {{-- Stat tiles --}}
+                                    <div class="grid grid-cols-3 gap-3">
+                                        {{-- Best Placement — podium colours --}}
+                                        <div class="rounded-lg bg-gradient-to-br {{ $bestTileClass }} ring-1 ring-inset p-3 text-center">
+                                            <svg class="mx-auto size-4 {{ $bestIconClass }} mb-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 0 0 2.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 0 1 2.916.52 6.003 6.003 0 0 1-5.395 4.972m0 0a6.726 6.726 0 0 1-2.749 1.35m0 0a6.772 6.772 0 0 1-3.044 0"/>
+                                            </svg>
+                                            <p class="text-[9px] font-bold uppercase tracking-wider {{ $bestTextClass }} opacity-80">Best</p>
+                                            <p class="text-xl font-bold font-mono mt-0.5 {{ $bestTextClass }}">
+                                                {{ $best ? '#'.$best : '—' }}
+                                            </p>
+                                        </div>
+
+                                        {{-- Average Placement --}}
+                                        <div class="rounded-lg bg-gradient-to-br from-sky-50 to-white ring-1 ring-inset ring-sky-200 p-3 text-center">
+                                            <svg class="mx-auto size-4 text-sky-600 mb-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
+                                            </svg>
+                                            <p class="text-[9px] font-bold uppercase tracking-wider text-sky-700 opacity-80">Average</p>
+                                            <p class="text-xl font-bold font-mono mt-0.5 text-sky-800">
+                                                {{ $row['avg'] ? '#'.$row['avg'] : '—' }}
+                                            </p>
+                                        </div>
+
+                                        {{-- Points --}}
+                                        <div class="rounded-lg bg-gradient-to-br from-emerald-50 to-white ring-1 ring-inset ring-emerald-200 p-3 text-center">
+                                            <svg class="mx-auto size-4 text-emerald-600 mb-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/>
+                                            </svg>
+                                            <p class="text-[9px] font-bold uppercase tracking-wider text-emerald-700 opacity-80">Points</p>
+                                            <p class="text-xl font-bold font-mono mt-0.5 text-emerald-800 tabular-nums">
+                                                {{ number_format($row['points']) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @endforeach
             </div>
