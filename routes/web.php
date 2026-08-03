@@ -110,6 +110,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/{junior}', [FamilyController::class, 'show'])->name('show');
         Route::get('/{junior}/edit', [FamilyController::class, 'edit'])->name('edit');
         Route::put('/{junior}', [FamilyController::class, 'update'])->name('update');
+        Route::delete('/{junior}', [FamilyController::class, 'destroy'])->name('destroy');
         Route::post('/{junior}/handover', [FamilyController::class, 'startHandover'])->name('handover.start');
         Route::delete('/{junior}/handover', [FamilyController::class, 'cancelHandover'])->name('handover.cancel');
     });

@@ -227,6 +227,14 @@
 
         {{-- Cancellation details (if cancelled) --}}
         @if($registration->registration_status === 'cancelled' && $registration->cancelled_at)
+            @php
+                // A free-entry withdrawal has no financial line items — collapse
+                // the details block so we don't display a nonsensical
+                // "Admin Fee: R 100.00" beside a R 0.00 refund on a R 0.00 event.
+                $wasFreeEntry = ((float) $registration->fee_amount) <= 0
+                    && ((float) ($registration->refund_amount ?? 0)) === 0.0
+                    && ((float) ($registration->admin_fee_charged ?? 0)) === 0.0;
+            @endphp
             <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Withdrawal Details</h2>
                 <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -234,16 +242,23 @@
                         <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Cancelled At</dt>
                         <dd class="mt-1 text-sm text-red-800">{{ $registration->cancelled_at->format('d M Y H:i') }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Admin Fee</dt>
-                        <dd class="mt-1 text-sm text-red-800">R {{ number_format($registration->admin_fee_charged ?? 0, 2) }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Refund Amount</dt>
-                        <dd class="mt-1 text-sm font-semibold {{ ($registration->refund_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-red-800' }}">
-                            R {{ number_format($registration->refund_amount ?? 0, 2) }}
-                        </dd>
-                    </div>
+                    @if($wasFreeEntry)
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Financial Impact</dt>
+                            <dd class="mt-1 text-sm text-red-800">Free entry — none.</dd>
+                        </div>
+                    @else
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Admin Fee</dt>
+                            <dd class="mt-1 text-sm text-red-800">R {{ number_format($registration->admin_fee_charged ?? 0, 2) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Refund Amount</dt>
+                            <dd class="mt-1 text-sm font-semibold {{ ($registration->refund_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-red-800' }}">
+                                R {{ number_format($registration->refund_amount ?? 0, 2) }}
+                            </dd>
+                        </div>
+                    @endif
                     @if($registration->cancellation_reason)
                     <div class="sm:col-span-2">
                         <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Reason</dt>
@@ -261,15 +276,13 @@
                     <div>
                         <h2 class="font-heading text-lg font-semibold text-amber-800">Withdraw from Match</h2>
                         @php $calc = $registration->calculateRefund(); @endphp
-                        @if($calc['reason'] === 'before_deadline')
-                            @if(((float) $registration->fee_amount) <= 0)
+                        @switch($calc['reason'])
+                            @case('free_entry')
                                 <p class="text-sm text-amber-700 mt-1">
-                                    This is a <strong>free entry</strong>, so no refund applies — you can withdraw with no financial impact.
+                                    This is a <strong>free entry</strong> — you can withdraw at any time with no financial impact.
                                 </p>
-                                <p class="text-xs text-amber-600 mt-1">
-                                    Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
-                                </p>
-                            @else
+                                @break
+                            @case('before_deadline')
                                 <p class="text-sm text-amber-700 mt-1">
                                     You will receive a refund of <strong>R {{ number_format($calc['refund'], 2) }}</strong>
                                     (entry fee minus R {{ number_format($calc['admin_fee'], 2) }} admin fee).
@@ -277,18 +290,12 @@
                                 <p class="text-xs text-amber-600 mt-1">
                                     Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
                                 </p>
-                            @endif
-                        @else
-                            @if(((float) $registration->fee_amount) <= 0)
-                                <p class="text-sm text-amber-700 mt-1">
-                                    The withdrawal deadline has passed, but this is a <strong>free entry</strong> so no fee is forfeited.
-                                </p>
-                            @else
+                                @break
+                            @default
                                 <p class="text-sm text-red-700 mt-1">
                                     The withdrawal deadline has passed. <strong>No refund</strong> will be issued.
                                 </p>
-                            @endif
-                        @endif
+                        @endswitch
                     </div>
                     <button @click="showForm = !showForm"
                             class="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-50 transition">

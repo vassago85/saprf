@@ -95,6 +95,62 @@ it('cannot manage a family member belonging to another account', function () {
         ->assertForbidden();
 });
 
+it('lets a parent remove a managed account that has no scores or active registrations', function () {
+    $junior = User::factory()->create([
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->delete(route('family.destroy', $junior))
+        ->assertRedirect(route('family.index'));
+
+    expect(User::find($junior->id))->toBeNull()
+        ->and(User::withTrashed()->find($junior->id))->not->toBeNull();
+});
+
+it('refuses to remove a managed account that has recorded scores', function () {
+    $junior = User::factory()->create([
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+    ]);
+
+    // Give the junior a score so removal is blocked.
+    $match = \App\Models\MatchEvent::create([
+        'name' => 'Guard Test Match',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'provincial',
+        'season' => (string) now()->year,
+        'match_date' => \Carbon\Carbon::today()->subMonth(),
+        'status' => 'completed',
+        'published' => true,
+        'active_member_fee' => 0,
+        'non_member_fee' => 0,
+        'created_by' => $this->parent->id,
+    ]);
+    \App\Models\Score::create([
+        'match_id' => $match->id,
+        'user_id' => $junior->id,
+        'shooter_name' => $junior->name,
+        'raw_score' => 85.0,
+        'division_id' => $this->division->id,
+        'status' => 'valid',
+        'match_date' => $match->match_date->toDateString(),
+    ]);
+
+    $this->actingAs($this->parent)
+        ->delete(route('family.destroy', $junior))
+        ->assertRedirect(route('family.show', $junior))
+        ->assertSessionHas('error');
+
+    expect(User::find($junior->id))->not->toBeNull();
+});
+
 it('exposes all managed accounts and relationship labels', function () {
     User::factory()->create([
         'parent_id' => $this->parent->id,

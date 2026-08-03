@@ -150,6 +150,18 @@ class MatchRegistration extends Model
         $adminFee = (float) $settings->get('withdrawal_admin_fee', 100);
         $fee = (float) $this->fee_amount;
 
+        // Free entry — no money changed hands, so no refund and no admin fee.
+        // Return a distinct reason so views/messages can render coherent copy
+        // instead of the deadline-based branches (which would nonsensically
+        // charge a R100 admin fee against a R0 entry).
+        if ($fee <= 0) {
+            return [
+                'refund' => 0,
+                'admin_fee' => 0,
+                'reason' => 'free_entry',
+            ];
+        }
+
         if (! $this->isBeforeDeadline()) {
             return [
                 'refund' => 0,

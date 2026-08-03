@@ -211,6 +211,57 @@ class FamilyController extends Controller
             ->with('success', 'Handover invitation sent to ' . $data['handover_email'] . '. The link expires in ' . self::HANDOVER_TTL_DAYS . ' days.');
     }
 
+    public function destroy(Request $request, User $junior): RedirectResponse
+    {
+        $this->authorizeJunior($request, $junior);
+
+        // Guard: refuse to remove a managed account with historical data —
+        // scores and confirmed registrations must not disappear silently.
+        // The parent can start a handover instead to migrate the account.
+        $scoreCount = $junior->scores()->count();
+        $activeRegistrations = $junior->matchRegistrations()
+            ->whereIn('registration_status', ['pending', 'confirmed', 'waitlisted'])
+            ->count();
+
+        if ($scoreCount > 0) {
+            return redirect()->route('family.show', $junior)
+                ->with('error', "{$junior->name} has {$scoreCount} recorded score(s) and cannot be removed. Their competition history must be preserved. Use \"Hand over account\" if they should manage their own account instead.");
+        }
+
+        if ($activeRegistrations > 0) {
+            return redirect()->route('family.show', $junior)
+                ->with('error', "{$junior->name} has {$activeRegistrations} active registration(s). Withdraw those first, then try again.");
+        }
+
+        $juniorName = $junior->name;
+        $juniorId = $junior->id;
+
+        DB::transaction(function () use ($junior) {
+            // Clear any lingering handover token before soft-deleting.
+            if ($junior->handover_token) {
+                $junior->update([
+                    'handover_email' => null,
+                    'handover_token' => null,
+                    'handover_expires_at' => null,
+                ]);
+            }
+
+            $junior->delete(); // Soft delete — the User model uses SoftDeletes.
+        });
+
+        $this->auditLogService->log(
+            $request->user(),
+            'family.member.removed',
+            'User',
+            $juniorId,
+            ['name' => $juniorName, 'parent_id' => $request->user()->id],
+            null,
+        );
+
+        return redirect()->route('family.index')
+            ->with('success', "{$juniorName} has been removed from your family.");
+    }
+
     public function cancelHandover(Request $request, User $junior): RedirectResponse
     {
         $this->authorizeJunior($request, $junior);

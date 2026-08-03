@@ -273,9 +273,14 @@ class RegistrationController extends Controller
             ],
         );
 
-        $message = $refundCalc['refund'] > 0
-            ? 'Registration withdrawn. Refund of R ' . number_format($refundCalc['refund'], 2) . ' (minus R ' . number_format($refundCalc['admin_fee'], 2) . ' admin fee).'
-            : 'Registration withdrawn. No refund — withdrawal was after the deadline.';
+        $message = match ($refundCalc['reason']) {
+            'free_entry'      => 'Registration withdrawn. This was a free entry — no financial impact.',
+            'past_deadline'   => 'Registration withdrawn. No refund — withdrawal was after the deadline.',
+            'before_deadline' => $refundCalc['refund'] > 0
+                ? 'Registration withdrawn. Refund of R ' . number_format($refundCalc['refund'], 2) . ' (minus R ' . number_format($refundCalc['admin_fee'], 2) . ' admin fee).'
+                : 'Registration withdrawn. The admin fee equalled or exceeded the entry fee, so no refund is due.',
+            default           => 'Registration withdrawn.',
+        };
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', $message);
