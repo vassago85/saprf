@@ -189,6 +189,36 @@ class DashboardController extends Controller
             ->where('season', $season)
             ->sum('points');
 
+        // Per-discipline (PRS / PR22) × per-level (provincial / national)
+        // breakdown. Users have consistently asked for these to be split out
+        // rather than aggregated into a single row of numbers.
+        $scoresByCategory = $seasonScores->groupBy(fn ($s) => ($s->match?->match_type ?? 'unknown').'|'.($s->match?->series_level ?? 'unknown'));
+
+        $standingsByCategory = Standing::where('user_id', $user->id)
+            ->where('season', $season)
+            ->whereNull('division_id')
+            ->get()
+            ->groupBy(fn ($st) => $st->series.'|'.($st->province_id ? 'provincial' : 'national'));
+
+        $statsBreakdown = [];
+        foreach (['PRS', 'PR22'] as $seriesKey) {
+            foreach (['provincial', 'national'] as $levelKey) {
+                $key = "{$seriesKey}|{$levelKey}";
+                $catScores = $scoresByCategory->get($key) ?? collect();
+                $catStandings = $standingsByCategory->get($key) ?? collect();
+                $placed = $catScores->whereNotNull('placement');
+
+                $statsBreakdown[] = [
+                    'series' => $seriesKey,
+                    'level' => $levelKey,
+                    'matches' => $catScores->count(),
+                    'best' => $placed->min('placement'),
+                    'avg' => $placed->count() > 0 ? round($placed->avg('placement'), 1) : null,
+                    'points' => (int) $catStandings->sum('points'),
+                ];
+            }
+        }
+
         $rifles = RifleConfiguration::forUser($user->id)
             ->active()
             ->with(['make', 'model', 'calibre'])
@@ -216,6 +246,7 @@ class DashboardController extends Controller
             'bestPlacement' => $bestPlacement,
             'avgPlacement' => $avgPlacement ? round($avgPlacement, 1) : null,
             'totalPoints' => $totalPoints,
+            'statsBreakdown' => $statsBreakdown,
             'rifles' => $rifles,
             'rifleCount' => $rifleCount,
             'recentMatches' => $recentMatches,

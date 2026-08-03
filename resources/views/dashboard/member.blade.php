@@ -72,33 +72,77 @@
             </div>
         @endif
 
-        {{-- Season Stats --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs text-stone-500 uppercase tracking-wider">Matches Shot</p>
-                <p class="text-3xl font-bold text-stone-900 mt-2 font-mono">{{ $matchesShot }}</p>
-                <p class="text-xs text-stone-400 mt-1">this season</p>
+        {{-- Season Stats — split by discipline (PRS / PR22) and level (Provincial / National) --}}
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
+                <div>
+                    <h2 class="font-heading text-xl font-bold text-stone-900">Season Stats</h2>
+                    <p class="text-xs text-stone-500 mt-0.5">Broken down by discipline and level for the current season.</p>
+                </div>
+                <div class="hidden sm:flex items-center gap-4 text-xs text-stone-500">
+                    <span><span class="font-semibold text-stone-700">{{ $matchesShot }}</span> total matches shot</span>
+                    <span aria-hidden="true">·</span>
+                    <span><span class="font-semibold text-emerald-700">{{ number_format($totalPoints) }}</span> national points</span>
+                </div>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs text-stone-500 uppercase tracking-wider">Best Placement</p>
-                @if($bestPlacement)
-                    <p class="text-3xl font-bold text-amber-600 mt-2 font-mono">#{{ $bestPlacement }}</p>
-                @else
-                    <p class="text-sm text-stone-400 mt-3">No results yet</p>
-                @endif
-            </div>
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs text-stone-500 uppercase tracking-wider">Avg Placement</p>
-                @if($avgPlacement)
-                    <p class="text-3xl font-bold text-stone-900 mt-2 font-mono">#{{ $avgPlacement }}</p>
-                @else
-                    <p class="text-sm text-stone-400 mt-3">No results yet</p>
-                @endif
-            </div>
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs text-stone-500 uppercase tracking-wider">Points Earned</p>
-                <p class="text-3xl font-bold text-emerald-700 mt-2 font-mono">{{ number_format($totalPoints) }}</p>
-                <p class="text-xs text-stone-400 mt-1">national standings</p>
+
+            {{-- Grid: two disciplines, two levels each. Renders as a compact table
+                 on md+ and stacks on mobile. --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-px bg-stone-100">
+                @foreach(['PRS', 'PR22'] as $seriesKey)
+                    @php
+                        $seriesRows = collect($statsBreakdown)->where('series', $seriesKey)->values();
+                        $seriesTotalMatches = $seriesRows->sum('matches');
+                    @endphp
+                    <div class="bg-white p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <x-discipline-chip :discipline="$seriesKey" />
+                                <span class="text-xs text-stone-500">{{ $seriesTotalMatches }} {{ Str::plural('match', $seriesTotalMatches) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            @foreach($seriesRows as $row)
+                                <div class="rounded-lg border border-stone-200 bg-stone-50/60 p-3.5">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">{{ ucfirst($row['level']) }}</span>
+                                        @if($row['matches'] > 0)
+                                            <span class="inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-200 tabular-nums">
+                                                {{ $row['matches'] }} {{ Str::plural('match', $row['matches']) }}
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    @if($row['matches'] === 0)
+                                        <p class="text-xs text-stone-400 py-2">No matches shot yet.</p>
+                                    @else
+                                        <dl class="grid grid-cols-3 gap-2 text-center">
+                                            <div>
+                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Best</dt>
+                                                <dd class="mt-1 text-base font-bold {{ $row['best'] && $row['best'] <= 3 ? 'text-amber-600' : 'text-stone-900' }} font-mono">
+                                                    {{ $row['best'] ? '#'.$row['best'] : '—' }}
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Avg</dt>
+                                                <dd class="mt-1 text-base font-bold text-stone-900 font-mono">
+                                                    {{ $row['avg'] ? '#'.$row['avg'] : '—' }}
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Points</dt>
+                                                <dd class="mt-1 text-base font-bold text-emerald-700 font-mono">
+                                                    {{ number_format($row['points']) }}
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
             </div>
         </div>
 
