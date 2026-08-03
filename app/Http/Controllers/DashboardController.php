@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\QualificationService;
 use App\Services\SettingsService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -47,6 +48,16 @@ class DashboardController extends Controller
         $canImpersonate = app()->isLocal();
         $viewAs = $canImpersonate ? $request->input('view_as') : null;
 
+        // Shooter/Admin toggle: staff users can flip to their own shooter view
+        // via the sidebar switch. When in shooter mode, always render the
+        // member dashboard regardless of their staff role.
+        if (! $viewAs && $user->effectiveViewMode() === 'shooter') {
+            return $this->memberDashboard($user)->with([
+                'devSwitcherEnabled' => $canImpersonate,
+                'currentViewAs' => 'member',
+            ]);
+        }
+
         $role = $viewAs && in_array($viewAs, self::ROLE_PRIORITY, true)
             ? $viewAs
             : $this->resolveRole($user);
@@ -65,6 +76,27 @@ class DashboardController extends Controller
             'devSwitcherEnabled' => $canImpersonate,
             'currentViewAs' => $role,
         ]);
+    }
+
+    /**
+     * Flip the session view-mode flag between `admin` and `shooter`. Only
+     * users who hold a staff role are allowed to switch — everyone else is
+     * pinned to the shooter experience.
+     */
+    public function switchViewMode(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'mode' => ['required', 'in:admin,shooter'],
+        ]);
+
+        $user = $request->user();
+        if (! $user->canSwitchViewMode()) {
+            return redirect()->route('dashboard');
+        }
+
+        $request->session()->put('view_mode', $validated['mode']);
+
+        return redirect()->route('dashboard');
     }
 
     private function resolveRole(User $user): string

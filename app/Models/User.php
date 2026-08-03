@@ -252,6 +252,34 @@ class User extends Authenticatable implements MustVerifyEmail
             || $this->committeePositions()->where('is_active', true)->exists();
     }
 
+    /**
+     * Can this user switch between the "Admin" and "Shooter" experiences?
+     *
+     * Anyone with a staff role can switch (they see two experiences: their
+     * admin console and their own shooter view). Pure members see only the
+     * shooter experience.
+     */
+    public function canSwitchViewMode(): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES);
+    }
+
+    /**
+     * The user's current effective view mode: `admin` or `shooter`.
+     *
+     * Staff users default to `admin` but can flip to `shooter` via the
+     * sidebar toggle; the choice is stored in the session. Non-staff users
+     * are always in `shooter` mode regardless of any session value.
+     */
+    public function effectiveViewMode(): string
+    {
+        if (! $this->canSwitchViewMode()) {
+            return 'shooter';
+        }
+
+        return session('view_mode') === 'shooter' ? 'shooter' : 'admin';
+    }
+
     public function getAgeOn(Carbon $date): ?int
     {
         if (! $this->date_of_birth) {

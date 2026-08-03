@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function (): void {
 
 Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/view-mode', [DashboardController::class, 'switchViewMode'])->name('dashboard.view-mode');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');

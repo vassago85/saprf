@@ -37,6 +37,44 @@
             <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-10 w-auto">
         </a>
 
+        {{-- View-mode toggle: staff users can flip between their admin console
+             and their own shooter (member) experience. Members-only never see this. --}}
+        @php
+            $viewMode = auth()->user()?->effectiveViewMode() ?? 'shooter';
+            $canSwitchView = (bool) auth()->user()?->canSwitchViewMode();
+        @endphp
+        @if($canSwitchView)
+            <div class="px-2 pt-2">
+                <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">View as</div>
+                <div class="flex rounded-lg bg-stone-100 p-0.5 ring-1 ring-inset ring-stone-200">
+                    <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
+                        @csrf
+                        <input type="hidden" name="mode" value="admin">
+                        <button type="submit"
+                                class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
+                                       {{ $viewMode === 'admin'
+                                          ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
+                                          : 'text-stone-500 hover:text-stone-800' }}">
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            Admin
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
+                        @csrf
+                        <input type="hidden" name="mode" value="shooter">
+                        <button type="submit"
+                                class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
+                                       {{ $viewMode === 'shooter'
+                                          ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
+                                          : 'text-stone-500 hover:text-stone-800' }}">
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/></svg>
+                            Shooter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
+
         <flux:navlist variant="outline">
             <flux:navlist.group heading="Main">
                 <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')">
@@ -71,6 +109,9 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
+            {{-- Everything below is hidden when a staff user has flipped to
+                 Shooter mode, giving them a member-only sidebar. --}}
+            @if($viewMode === 'admin')
             @role('developer|exco|owner|admin|match_director')
             <flux:navlist.group heading="Match Admin">
                 <flux:navlist.item icon="cog-6-tooth" :href="route('matches.index')" :current="request()->routeIs('matches.*')">
@@ -189,6 +230,7 @@
                 </flux:navlist.item>
             </flux:navlist.group>
             @endrole
+            @endif {{-- $viewMode === 'admin' --}}
         </flux:navlist>
 
         <flux:spacer />
