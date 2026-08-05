@@ -475,7 +475,11 @@ class StandingsCalculationService
         return $scores
             ->groupBy('user_id')
             ->map(function (Collection $userScores, int $userId) use ($rule, $context): array {
-                $breakdown = [];
+                // Tag the breakdown with an explicit mode so consumers
+                // (view, contribution merger) can distinguish weighted-pools
+                // rows from the other shapes (annual_log, best_of_n) without
+                // relying on the presence of specific pool keys.
+                $breakdown = ['mode' => 'weighted_pools'];
                 $total = 0.0;
 
                 foreach ($this->poolConfigs($rule) as $poolKey => $config) {

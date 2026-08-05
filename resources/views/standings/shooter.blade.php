@@ -1,5 +1,5 @@
 <x-layouts.public :title="$shooter->name . ' - ' . $season . ' Rankings - SAPRF'" current="standings">
-    <div class="bg-stone-50 min-h-screen">
+    <div class="bg-stone-50 min-h-screen" x-data="{ active: '{{ $seriesOrder->first() ?? '' }}' }">
         <div class="bg-white border-b border-stone-200">
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
                 <a href="{{ url('/standings?season=' . $season) }}"
@@ -8,47 +8,95 @@
                     Back to Standings
                 </a>
 
-                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                    <div>
-                        <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $shooter->name }}</h1>
-                        <div class="flex items-center gap-3 mt-2">
-                            @if($shooter->province)
-                                <span class="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ $shooter->province->name }}</span>
-                            @endif
-                            <span class="text-sm text-stone-500">{{ $season }} Season</span>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-6 flex-wrap">
-                        @foreach($standingsSummary as $entry)
-                            {{-- National standing badge (both PRS and PR22 have one). --}}
-                            @if($entry['overall_rank'] !== null)
-                                <div class="text-center">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wider {{ $entry['series'] === 'PRS' ? 'text-emerald-600' : 'text-sky-600' }}">{{ $entry['series'] }} National</p>
-                                    <p class="text-2xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
-                                    <p class="text-xs text-stone-400">{{ number_format($entry['overall_points'] ?? 0, 2) }} pts</p>
-                                </div>
-                            @endif
-
-                            {{-- Provincial standing badge (PR22 only). Kept as a
-                                 separate, differently-coloured tile so there is
-                                 no possibility of reading a provincial rank as
-                                 a national one. --}}
-                            @if(!empty($entry['has_provincial']))
-                                <div class="text-center border-l border-stone-200 pl-6">
-                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
-                                        {{ $entry['series'] }} Provincial
-                                        @if($entry['province_name'])
-                                            <span class="text-blue-400">&middot; {{ $entry['province_name'] }}</span>
-                                        @endif
-                                    </p>
-                                    <p class="text-2xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
-                                    <p class="text-xs text-stone-400">{{ number_format($entry['provincial_points'] ?? 0, 2) }} pts</p>
-                                </div>
-                            @endif
-                        @endforeach
+                <div class="mb-6">
+                    <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $shooter->name }}</h1>
+                    <div class="flex items-center gap-3 mt-2">
+                        @if($shooter->province)
+                            <span class="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ $shooter->province->name }}</span>
+                        @endif
+                        <span class="text-sm text-stone-500">{{ $season }} Season</span>
                     </div>
                 </div>
+
+                {{-- Series tabs. Each tab is a button showing that series'
+                     top-line standings (national + provincial for PR22).
+                     Clicking a tab reveals the detailed card for that series
+                     below and hides the other. This is the primary
+                     navigation on this page — a PRS tab NEVER shows PR22
+                     data and vice-versa. --}}
+                @if($seriesOrder->isNotEmpty())
+                    <div class="grid grid-cols-1 @if($seriesOrder->count() >= 2) sm:grid-cols-2 @endif gap-3">
+                        @foreach($seriesOrder as $series)
+                            @php
+                                $tabEntry = $summaryBySeries[$series] ?? null;
+                                $tabMatches = ($scoresBySeries[$series] ?? collect())->count();
+                                // Explicit class strings (not interpolated) so
+                                // the Tailwind JIT sees both variants as
+                                // literal tokens in the source and includes
+                                // them in the build.
+                                $activeClasses = $series === 'PRS'
+                                    ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400 shadow-sm'
+                                    : 'border-sky-500 bg-sky-50 ring-2 ring-sky-400 shadow-sm';
+                                $headingClass = $series === 'PRS' ? 'text-emerald-700' : 'text-sky-700';
+                            @endphp
+                            <button type="button"
+                                    @click="active = '{{ $series }}'"
+                                    :class="active === '{{ $series }}'
+                                        ? '{{ $activeClasses }}'
+                                        : 'border-stone-200 bg-white hover:border-stone-300'"
+                                    class="rounded-2xl border-2 p-5 text-left transition cursor-pointer">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold uppercase tracking-wider {{ $headingClass }}">{{ $series }} Standings</span>
+                                        <x-discipline-chip :discipline="$series" />
+                                    </div>
+                                    <span x-show="active === '{{ $series }}'" x-cloak class="text-[10px] font-semibold uppercase tracking-wider {{ $headingClass }} flex items-center gap-1">
+                                        <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                        Viewing
+                                    </span>
+                                    <span x-show="active !== '{{ $series }}'" class="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Click to view</span>
+                                </div>
+
+                                @if($tabEntry && $tabEntry['overall_rank'] !== null)
+                                    <div class="flex items-start gap-6 flex-wrap">
+                                        <div>
+                                            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">National</p>
+                                            <div class="flex items-baseline gap-2">
+                                                <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['overall_rank'] }}</p>
+                                                <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['overall_points'] ?? 0, 2) }} pts</p>
+                                            </div>
+                                            @if($tabEntry['division_name'])
+                                                <p class="text-[10px] text-stone-400 mt-0.5">
+                                                    {{ $tabEntry['division_name'] }}: <span class="font-bold text-amber-700">#{{ $tabEntry['division_rank'] ?? '—' }}</span>
+                                                </p>
+                                            @endif
+                                        </div>
+                                        @if(!empty($tabEntry['has_provincial']))
+                                            <div class="border-l border-stone-200 pl-6">
+                                                <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+                                                    Provincial @if($tabEntry['province_name'])<span class="text-blue-400">&middot; {{ $tabEntry['province_name'] }}</span>@endif
+                                                </p>
+                                                <div class="flex items-baseline gap-2">
+                                                    <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['provincial_rank'] ?? '—' }}</p>
+                                                    <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['provincial_points'] ?? 0, 2) }} pts</p>
+                                                </div>
+                                                @if($tabEntry['provincial_division_name'])
+                                                    <p class="text-[10px] text-stone-400 mt-0.5">
+                                                        {{ $tabEntry['provincial_division_name'] }}: <span class="font-bold text-amber-700">#{{ $tabEntry['provincial_division_rank'] ?? '—' }}</span>
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <p class="text-sm text-stone-500">
+                                        {{ $tabMatches }} match{{ $tabMatches === 1 ? '' : 'es' }} attended <span class="text-stone-400">&mdash; not ranked</span>
+                                    </p>
+                                @endif
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -66,7 +114,11 @@
                     $entry = $summaryBySeries[$series] ?? null;
                     $seriesScores = ($scoresBySeries[$series] ?? collect())->values();
                 @endphp
-                <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                {{-- Only the currently-selected series tab's card is shown.
+                     This keeps a PRS view free of any PR22 detail (and
+                     vice-versa) with no possibility of visual confusion. --}}
+                <div x-show="active === '{{ $series }}'" x-cloak
+                     class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <h2 class="text-lg font-semibold text-stone-900">{{ $series }} @if($entry) Rankings @else Matches @endif</h2>
@@ -128,8 +180,81 @@
                                 <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 2) }} / {{ $pb['max'] ?? 400 }}</span>
                             </div>
                         </div>
-                    {{-- Pool breakdown card (weighted-pools mode, e.g. PR22 NATIONAL standing) --}}
-                    @elseif(!empty($entry['pool_breakdown']))
+                    {{-- Best-of-N breakdown card. Used for any series whose
+                         QualificationRule is missing or set to a plain best-of-N
+                         (e.g. PRS 2026 while the annual-log rule isn't yet
+                         configured). Renders a single-pool summary with every
+                         match's contribution so the "counted" and "dropped"
+                         labels in the table below line up with the season total. --}}
+                    @elseif(($entry['pool_breakdown']['mode'] ?? null) === 'best_of_n')
+                        @php
+                            $pb = $entry['pool_breakdown'];
+                            $bpBestOf = $pb['best_of'] ?? null;
+                            $bpMatches = collect($pb['matches'] ?? []);
+                            $bpCounted = $bpMatches->where('counted', true);
+                            $bpMax = $bpBestOf ? ($bpBestOf * 100) : null;
+                        @endphp
+                        <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-white">
+                            <div class="flex items-baseline justify-between mb-3">
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-emerald-700">National Standing Breakdown</h3>
+                                <span class="text-[10px] text-stone-400">
+                                    @if($bpBestOf)
+                                        Sum of your best {{ $bpBestOf }} counting match scores
+                                    @else
+                                        Sum of all your counting match scores
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 mb-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                                        @if($bpBestOf) Best {{ $bpBestOf }} Matches @else Counted Matches @endif
+                                    </span>
+                                    <span class="text-[10px] font-mono text-stone-500">{{ $bpCounted->count() }}/{{ $bpMatches->count() }} counted</span>
+                                </div>
+                                <div class="mt-2 flex items-baseline gap-1">
+                                    <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format((float) ($pb['total'] ?? ($entry['overall_points'] ?? 0)), 2) }}</span>
+                                    @if($bpMax)
+                                        <span class="text-xs text-stone-400">/ {{ $bpMax }}</span>
+                                    @endif
+                                </div>
+                                <div class="mt-3 space-y-1 text-[11px] text-stone-500">
+                                    @forelse($bpMatches->sortByDesc('pct') as $row)
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="truncate">
+                                                {{ $row['match_name'] ?? ('Match #'.$row['match_id']) }}
+                                                @if(!empty($row['series_level']))
+                                                    <span class="text-stone-400">&middot; {{ ucfirst((string) $row['series_level']) }}</span>
+                                                @endif
+                                            </span>
+                                            <span class="flex items-center gap-2">
+                                                <span class="font-mono">{{ number_format((float) ($row['pct'] ?? 0), 2) }}%</span>
+                                                @if(!empty($row['counted']))
+                                                    <span class="text-emerald-700 font-semibold">counted</span>
+                                                @else
+                                                    <span class="text-stone-400">dropped</span>
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @empty
+                                        <div class="text-stone-400">No counting matches found in this series.</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider">National Season Total</span>
+                                <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Nat. Pts column in the match table below">{{ number_format($entry['overall_points'] ?? 0, 2) }}@if($bpMax) / {{ $bpMax }}@endif</span>
+                            </div>
+                        </div>
+
+                    {{-- Pool breakdown card (weighted-pools mode, e.g. PR22 NATIONAL standing).
+                         Match either the explicit mode key (set on new rows)
+                         or the presence of any pool bucket (for legacy rows
+                         persisted before the mode key was added). --}}
+                    @elseif(($entry['pool_breakdown']['mode'] ?? null) === 'weighted_pools'
+                        || isset($entry['pool_breakdown']['provincial'])
+                        || isset($entry['pool_breakdown']['national'])
+                        || isset($entry['pool_breakdown']['champs']))
                         @php
                             $pb = $entry['pool_breakdown'];
                             // Each pool is one of three "buckets" of matches

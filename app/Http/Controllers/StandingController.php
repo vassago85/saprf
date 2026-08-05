@@ -305,8 +305,10 @@ class StandingController extends Controller
             return;
         }
 
+        $mode = $breakdown['mode'] ?? null;
+
         // PRS annual log: named regular matches + champs.
-        if (($breakdown['mode'] ?? null) === 'annual_log') {
+        if ($mode === 'annual_log') {
             foreach ($breakdown['regular'] ?? [] as $row) {
                 $matchId = $row['match_id'] ?? null;
                 if ($matchId === null) {
@@ -322,6 +324,26 @@ class StandingController extends Controller
                     true,
                     (float) ($breakdown['champs']['pct'] ?? 0),
                 );
+            }
+
+            return;
+        }
+
+        // Best-of-N sum mode (aggregateSeasonTotals): matches[] at the top
+        // level, each row already carrying `counted` + `contribution`. This is
+        // the fallback path used when a series has no QualificationRule
+        // configured (or one that's not weighted_pools / best_n_plus_champs) —
+        // without this branch every match on the shooter page would render as
+        // DROPPED even though the aggregate total counts them correctly.
+        if ($mode === 'best_of_n') {
+            foreach ($breakdown['matches'] ?? [] as $row) {
+                $matchId = $row['match_id'] ?? null;
+                if ($matchId === null) {
+                    continue;
+                }
+                $counted = (bool) ($row['counted'] ?? false);
+                $contribution = (float) ($row['contribution'] ?? 0);
+                $this->applyNationalContribution($map, (int) $matchId, $series, $counted, $contribution);
             }
 
             return;
