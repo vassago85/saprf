@@ -79,22 +79,35 @@
                             <td class="px-4 sm:px-5 py-4 text-right">
                                 <span class="text-sm font-mono font-bold text-stone-900">{{ number_format($standing->points, 1) }}</span>
                                 @if(($standing->pool_breakdown['mode'] ?? null) === 'annual_log')
+                                    {{-- PRS national annual log: best-N regulars + fixed champs. --}}
                                     <span class="block text-[10px] text-stone-400 mt-0.5">/ {{ $standing->pool_breakdown['max'] ?? 400 }}</span>
                                     <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
                                         <span class="rounded bg-emerald-50 text-emerald-700 px-1 py-0.5" title="Best {{ $standing->pool_breakdown['regular_best_of'] ?? 3 }} regular (national) matches: {{ $standing->pool_breakdown['regular_counted'] ?? 0 }} counted">R {{ number_format($standing->pool_breakdown['regular_total'] ?? 0, 1) }}</span>
                                         <span class="rounded bg-amber-50 text-amber-700 px-1 py-0.5" title="SA Champs (fixed, not droppable)">C {{ number_format($standing->pool_breakdown['champs_pct'] ?? 0, 1) }}</span>
                                     </div>
-                                @elseif(!empty($standing->pool_breakdown))
+                                @elseif(($standing->pool_breakdown['mode'] ?? null) === 'best_of_n')
+                                    {{-- Provincial standings (PR22 provincial + legacy best-of-N): sum of best-N normalized scores. --}}
+                                    @php $bo = (int) ($standing->pool_breakdown['best_of'] ?? 0); @endphp
+                                    @if($bo > 0)
+                                        <span class="block text-[10px] text-stone-400 mt-0.5">/ {{ $bo * 100 }}</span>
+                                        <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
+                                            <span class="rounded bg-blue-50 text-blue-700 px-1 py-0.5" title="Sum of best {{ $bo }} provincial + dual-count national scores ({{ $standing->pool_breakdown['scores_counted'] ?? 0 }}/{{ $bo }} counted)">Best {{ $bo }}</span>
+                                        </div>
+                                    @endif
+                                @elseif(isset($standing->pool_breakdown['provincial']) || isset($standing->pool_breakdown['national']) || isset($standing->pool_breakdown['champs']))
+                                    {{-- PR22 national weighted pools. The "P/N/C" chips are the three
+                                         match-category pools that make up the NATIONAL total on this row —
+                                         NOT the separate provincial standing (that's the /standings?level=provincial view). --}}
                                     <span class="block text-[10px] text-stone-400 mt-0.5">/ 100</span>
                                     <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
                                         @if(isset($standing->pool_breakdown['provincial']))
-                                            <span class="rounded bg-blue-50 text-blue-700 px-1 py-0.5" title="Provincial pool: best {{ $standing->pool_breakdown['provincial']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['provincial']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['provincial']['weight_pct'] }}%">P {{ number_format($standing->pool_breakdown['provincial']['contribution'], 1) }}</span>
+                                            <span class="rounded bg-sky-50 text-sky-700 px-1 py-0.5" title="Provincial-matches pool (part of the national total): best {{ $standing->pool_breakdown['provincial']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['provincial']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['provincial']['weight_pct'] }}%">Prov {{ number_format($standing->pool_breakdown['provincial']['contribution'], 1) }}</span>
                                         @endif
                                         @if(isset($standing->pool_breakdown['national']))
-                                            <span class="rounded bg-emerald-50 text-emerald-700 px-1 py-0.5" title="National pool: best {{ $standing->pool_breakdown['national']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['national']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['national']['weight_pct'] }}%">N {{ number_format($standing->pool_breakdown['national']['contribution'], 1) }}</span>
+                                            <span class="rounded bg-emerald-50 text-emerald-700 px-1 py-0.5" title="National-matches pool (part of the national total): best {{ $standing->pool_breakdown['national']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['national']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['national']['weight_pct'] }}%">Nat {{ number_format($standing->pool_breakdown['national']['contribution'], 1) }}</span>
                                         @endif
                                         @if(isset($standing->pool_breakdown['champs']))
-                                            <span class="rounded bg-amber-50 text-amber-700 px-1 py-0.5" title="SA Champs pool: best {{ $standing->pool_breakdown['champs']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['champs']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['champs']['weight_pct'] }}%">C {{ number_format($standing->pool_breakdown['champs']['contribution'], 1) }}</span>
+                                            <span class="rounded bg-amber-50 text-amber-700 px-1 py-0.5" title="SA Champs pool (part of the national total): best {{ $standing->pool_breakdown['champs']['best_of'] }}, avg {{ number_format($standing->pool_breakdown['champs']['pool_average'], 1) }}% × {{ (int) $standing->pool_breakdown['champs']['weight_pct'] }}%">Champs {{ number_format($standing->pool_breakdown['champs']['contribution'], 1) }}</span>
                                         @endif
                                     </div>
                                 @endif

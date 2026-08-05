@@ -175,6 +175,11 @@ class StandingController extends Controller
             ->values();
 
         $standingsSummary = [];
+        // Per-match contribution map, keyed by match_id. Each entry describes
+        // whether that match counted toward the shooter's national and/or
+        // provincial standing, and the points it contributed. Populated below
+        // from the persisted pool_breakdown of each Standing row.
+        $contributionByMatch = [];
         foreach (['PRS', 'PR22'] as $series) {
             $overall = Standing::where('user_id', $user->id)
                 ->where('season', $season)
@@ -183,29 +188,72 @@ class StandingController extends Controller
                 ->whereNull('division_id')
                 ->first();
 
-            if ($overall) {
-                $divisionStanding = Standing::where('user_id', $user->id)
+            $seriesRule = \App\Models\QualificationRule::where('season', $season)
+                ->where('series', $series)
+                ->first();
+
+            // Provincial standing (PR22 only — PRS has no provincial variant).
+            // Loaded here regardless so the summary knows about it even if the
+            // shooter has no national row yet, and so we can pull its
+            // pool_breakdown for per-match provincial contributions.
+            $provincial = null;
+            $provincialDivision = null;
+            if ($series === 'PR22' && $user->province_id) {
+                $provincial = Standing::where('user_id', $user->id)
                     ->where('season', $season)
-                    ->where('series', $series)
-                    ->whereNull('province_id')
+                    ->where('series', 'PR22')
+                    ->where('province_id', $user->province_id)
+                    ->whereNull('division_id')
+                    ->first();
+
+                $provincialDivision = Standing::where('user_id', $user->id)
+                    ->where('season', $season)
+                    ->where('series', 'PR22')
+                    ->where('province_id', $user->province_id)
                     ->whereNotNull('division_id')
                     ->with('division')
                     ->first();
 
-                $seriesRule = \App\Models\QualificationRule::where('season', $season)
-                    ->where('series', $series)
-                    ->first();
+                if ($provincial) {
+                    $this->mergeProvincialContributions($contributionByMatch, $provincial->pool_breakdown);
+                }
+            }
+
+            if ($overall || $provincial) {
+                $divisionStanding = $overall
+                    ? Standing::where('user_id', $user->id)
+                        ->where('season', $season)
+                        ->where('series', $series)
+                        ->whereNull('province_id')
+                        ->whereNotNull('division_id')
+                        ->with('division')
+                        ->first()
+                    : null;
 
                 $standingsSummary[] = [
                     'series' => $series,
-                    'overall_rank' => $overall->rank,
-                    'overall_points' => $overall->points,
-                    'pool_breakdown' => $overall->pool_breakdown,
+                    // National standing
+                    'overall_rank' => $overall?->rank,
+                    'overall_points' => $overall?->points,
+                    'pool_breakdown' => $overall?->pool_breakdown,
                     'scoring_mode' => $seriesRule?->scoring_mode ?? 'best_of_n',
                     'division_name' => $divisionStanding?->division?->name,
                     'division_rank' => $divisionStanding?->rank,
                     'division_points' => $divisionStanding?->points,
+                    // Provincial standing (PR22 only)
+                    'has_provincial' => (bool) $provincial,
+                    'province_name' => $user->province?->name,
+                    'provincial_rank' => $provincial?->rank,
+                    'provincial_points' => $provincial?->points,
+                    'provincial_pool_breakdown' => $provincial?->pool_breakdown,
+                    'provincial_division_name' => $provincialDivision?->division?->name,
+                    'provincial_division_rank' => $provincialDivision?->rank,
+                    'provincial_division_points' => $provincialDivision?->points,
                 ];
+
+                if ($overall) {
+                    $this->mergeNationalContributions($contributionByMatch, $series, $overall->pool_breakdown);
+                }
             }
         }
 
@@ -232,11 +280,128 @@ class StandingController extends Controller
             'summaryBySeries' => $summaryBySeries,
             'seriesOrder' => $seriesOrder,
             'standingsSummary' => $standingsSummary,
+            'contributionByMatch' => $contributionByMatch,
             'matchesShot' => $matchesShot,
             'bestNormalized' => $bestNormalized ? round($bestNormalized, 2) : null,
             'bestOf' => $bestOf,
             'rule' => $rule,
         ]);
+    }
+
+    /**
+     * Merge national-standing contributions for a series into the shared
+     * per-match map. Handles both the PRS annual-log shape (regular[] +
+     * champs) and the PR22 weighted-pools shape (provincial/national/champs
+     * with per-pool matches[]). A dual-count PR22 national appears in both
+     * the national pool and the provincial pool of the national standing —
+     * we sum both pool contributions into a single national-standing figure
+     * for that match.
+     *
+     * @param  array<int,array{series:string,counted_national:bool,national_pts:float,counted_provincial:bool,provincial_pts:float}>  $map
+     */
+    private function mergeNationalContributions(array &$map, string $series, ?array $breakdown): void
+    {
+        if (! is_array($breakdown) || empty($breakdown)) {
+            return;
+        }
+
+        // PRS annual log: named regular matches + champs.
+        if (($breakdown['mode'] ?? null) === 'annual_log') {
+            foreach ($breakdown['regular'] ?? [] as $row) {
+                $matchId = $row['match_id'] ?? null;
+                if ($matchId === null) {
+                    continue;
+                }
+                $this->applyNationalContribution($map, (int) $matchId, $series, true, (float) ($row['pct'] ?? 0));
+            }
+            if (! empty($breakdown['champs']) && isset($breakdown['champs']['match_id'])) {
+                $this->applyNationalContribution(
+                    $map,
+                    (int) $breakdown['champs']['match_id'],
+                    $series,
+                    true,
+                    (float) ($breakdown['champs']['pct'] ?? 0),
+                );
+            }
+
+            return;
+        }
+
+        // PR22 weighted pools: iterate every pool's matches[] and sum the
+        // per-match contribution into the national-standing figure.
+        foreach (['provincial', 'national', 'champs'] as $poolKey) {
+            $matches = $breakdown[$poolKey]['matches'] ?? [];
+            foreach ($matches as $row) {
+                $matchId = $row['match_id'] ?? null;
+                if ($matchId === null) {
+                    continue;
+                }
+                $counted = (bool) ($row['counted'] ?? false);
+                $contribution = (float) ($row['contribution'] ?? 0);
+                $this->applyNationalContribution($map, (int) $matchId, $series, $counted, $contribution);
+            }
+        }
+    }
+
+    /**
+     * Merge provincial-standing contributions (PR22 only) into the shared
+     * per-match map. The provincial standing uses aggregateSeasonTotals()
+     * (best-of-N sum), so each counted match's contribution is the
+     * normalized value that went into the sum.
+     *
+     * @param  array<int,array{series:string,counted_national:bool,national_pts:float,counted_provincial:bool,provincial_pts:float}>  $map
+     */
+    private function mergeProvincialContributions(array &$map, ?array $breakdown): void
+    {
+        if (! is_array($breakdown) || empty($breakdown['matches'])) {
+            return;
+        }
+
+        foreach ($breakdown['matches'] as $row) {
+            $matchId = $row['match_id'] ?? null;
+            if ($matchId === null) {
+                continue;
+            }
+            $counted = (bool) ($row['counted'] ?? false);
+            $contribution = (float) ($row['contribution'] ?? 0);
+
+            $entry = $map[(int) $matchId] ?? [
+                'series' => 'PR22',
+                'counted_national' => false,
+                'national_pts' => 0.0,
+                'counted_provincial' => false,
+                'provincial_pts' => 0.0,
+            ];
+
+            // Counted flag is sticky-true; contributions accumulate.
+            $entry['series'] = 'PR22';
+            $entry['counted_provincial'] = $entry['counted_provincial'] || $counted;
+            $entry['provincial_pts'] += $counted ? $contribution : 0.0;
+
+            $map[(int) $matchId] = $entry;
+        }
+    }
+
+    private function applyNationalContribution(
+        array &$map,
+        int $matchId,
+        string $series,
+        bool $counted,
+        float $contribution,
+    ): void {
+        $entry = $map[$matchId] ?? [
+            'series' => $series,
+            'counted_national' => false,
+            'national_pts' => 0.0,
+            'counted_provincial' => false,
+            'provincial_pts' => 0.0,
+        ];
+
+        $entry['series'] = $series;
+        $entry['counted_national'] = $entry['counted_national'] || $counted;
+        $entry['national_pts'] += $counted ? $contribution : 0.0;
+
+        $map[$matchId] = $entry;
     }
 
     // ── API ──

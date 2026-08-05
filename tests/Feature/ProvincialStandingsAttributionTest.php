@@ -100,3 +100,81 @@ it('aggregates a shooter\'s out-of-province results into their home province onl
     expect(Standing::where('user_id', $gpShooter->id)->where('province_id', $this->gp->id)->whereNull('division_id')->count())->toBe(1)
         ->and(Standing::where('user_id', $gpShooter->id)->where('province_id', $this->wc->id)->exists())->toBeFalse();
 });
+
+it('records per-match provincial contribution in the standings pool_breakdown', function () {
+    // Rule with best_of_count = 2 so we can force a drop.
+    \App\Models\QualificationRule::create([
+        'series' => 'PR22',
+        'season' => '2026',
+        'scoring_mode' => 'best_of_n',
+        'best_of_count' => 2,
+        'total_qualifying_matches' => 3,
+        'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create(['province_id' => $this->gp->id]);
+
+    // Three provincial matches: 100, 50, 25. Best-of-2 keeps 100 and 50;
+    // 25 is dropped (valid but non-contributing).
+    $matches = [];
+    foreach ([['A', 100], ['B', 50], ['C', 25]] as [$suffix, $normalized]) {
+        $match = MatchEvent::create([
+            'name' => 'Provincial GP '.$suffix,
+            'match_type' => 'PR22',
+            'series_level' => 'provincial',
+            'series' => 'PR22',
+            'season' => '2026',
+            'province_id' => $this->gp->id,
+            'match_date' => '2026-03-15',
+            'status' => 'completed',
+            'created_by' => User::factory()->create()->id,
+            'active_member_fee' => 500,
+            'published' => true,
+        ]);
+        // Sole shooter → normalized = 100. Add a bench shooter so we can
+        // control the shooter's normalized pct.
+        $top = User::factory()->create();
+        Score::create([
+            'match_id' => $match->id, 'user_id' => $top->id, 'shooter_name' => $top->name,
+            'raw_score' => 100, 'division_id' => $this->division->id,
+            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
+        ]);
+        Score::create([
+            'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
+            'raw_score' => $normalized, 'division_id' => $this->division->id,
+            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
+        ]);
+        $matches[$suffix] = $match;
+        $this->service->recalculateForMatch($match);
+    }
+
+    $standing = Standing::where('user_id', $shooter->id)
+        ->where('province_id', $this->gp->id)
+        ->whereNull('division_id')
+        ->firstOrFail();
+
+    $breakdown = $standing->pool_breakdown;
+
+    expect($breakdown['mode'] ?? null)->toBe('best_of_n')
+        ->and($breakdown['scores_counted'] ?? null)->toBe(2)
+        ->and($breakdown['matches'] ?? [])->toHaveCount(3);
+
+    // Matches are sorted by contribution desc: 100, 50 counted; 25 dropped.
+    $rows = collect($breakdown['matches']);
+
+    $top = $rows->first();
+    expect($top['match_id'])->toBe($matches['A']->id)
+        ->and((bool) $top['counted'])->toBeTrue()
+        ->and((float) $top['contribution'])->toBe(100.0);
+
+    $mid = $rows[1];
+    expect($mid['match_id'])->toBe($matches['B']->id)
+        ->and((bool) $mid['counted'])->toBeTrue()
+        ->and((float) $mid['contribution'])->toBe(50.0);
+
+    $dropped = $rows->last();
+    expect($dropped['match_id'])->toBe($matches['C']->id)
+        ->and((bool) $dropped['counted'])->toBeFalse()
+        ->and((float) $dropped['contribution'])->toBe(0.0);
+});

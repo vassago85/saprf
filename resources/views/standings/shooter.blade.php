@@ -19,13 +19,33 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-6 flex-wrap">
                         @foreach($standingsSummary as $entry)
-                            <div class="text-center">
-                                <p class="text-xs font-semibold uppercase tracking-wider {{ $entry['series'] === 'PRS' ? 'text-emerald-600' : 'text-sky-600' }}">{{ $entry['series'] }}</p>
-                                <p class="text-2xl font-bold text-stone-900">#{{ $entry['overall_rank'] ?? '—' }}</p>
-                                <p class="text-xs text-stone-400">{{ number_format($entry['overall_points'] ?? 0, 1) }} pts</p>
-                            </div>
+                            {{-- National standing badge (both PRS and PR22 have one). --}}
+                            @if($entry['overall_rank'] !== null)
+                                <div class="text-center">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider {{ $entry['series'] === 'PRS' ? 'text-emerald-600' : 'text-sky-600' }}">{{ $entry['series'] }} National</p>
+                                    <p class="text-2xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
+                                    <p class="text-xs text-stone-400">{{ number_format($entry['overall_points'] ?? 0, 1) }} pts</p>
+                                </div>
+                            @endif
+
+                            {{-- Provincial standing badge (PR22 only). Kept as a
+                                 separate, differently-coloured tile so there is
+                                 no possibility of reading a provincial rank as
+                                 a national one. --}}
+                            @if(!empty($entry['has_provincial']))
+                                <div class="text-center border-l border-stone-200 pl-6">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+                                        {{ $entry['series'] }} Provincial
+                                        @if($entry['province_name'])
+                                            <span class="text-blue-400">&middot; {{ $entry['province_name'] }}</span>
+                                        @endif
+                                    </p>
+                                    <p class="text-2xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
+                                    <p class="text-xs text-stone-400">{{ number_format($entry['provincial_points'] ?? 0, 1) }} pts</p>
+                                </div>
+                            @endif
                         @endforeach
                     </div>
                 </div>
@@ -108,19 +128,24 @@
                                 <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 2) }} / {{ $pb['max'] ?? 400 }}</span>
                             </div>
                         </div>
-                    {{-- Pool breakdown card (weighted-pools mode, e.g. PR22) --}}
+                    {{-- Pool breakdown card (weighted-pools mode, e.g. PR22 NATIONAL standing) --}}
                     @elseif(!empty($entry['pool_breakdown']))
                         @php
                             $pb = $entry['pool_breakdown'];
+                            // Each pool is one of three "buckets" of matches
+                            // inside the NATIONAL standing. The labels are
+                            // spelled out so the reader can never mistake the
+                            // "provincial-matches pool" (inside national) for
+                            // the separate provincial standing block below.
                             $poolMeta = [
                                 'provincial' => [
-                                    'label' => 'Provincial',
-                                    'card' => 'border-blue-200 bg-blue-50/50',
-                                    'chip' => 'text-blue-700',
-                                    'value' => 'text-blue-800',
+                                    'label' => 'Provincial matches',
+                                    'card' => 'border-sky-200 bg-sky-50/50',
+                                    'chip' => 'text-sky-700',
+                                    'value' => 'text-sky-800',
                                 ],
                                 'national' => [
-                                    'label' => 'National',
+                                    'label' => 'National matches',
                                     'card' => 'border-emerald-200 bg-emerald-50/50',
                                     'chip' => 'text-emerald-700',
                                     'value' => 'text-emerald-800',
@@ -134,7 +159,10 @@
                             ];
                         @endphp
                         <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-white">
-                            <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Season Score Breakdown</h3>
+                            <div class="flex items-baseline justify-between mb-3">
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-emerald-700">National Standing Breakdown</h3>
+                                <span class="text-[10px] text-stone-400">Weighted average of your {{ $series }} matches (out of 100)</span>
+                            </div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                                 @foreach($poolMeta as $key => $meta)
                                     @if(isset($pb[$key]))
@@ -157,30 +185,126 @@
                                 @endforeach
                             </div>
                             <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wider">Season Total</span>
+                                <span class="text-xs font-semibold uppercase tracking-wider">National Season Total</span>
                                 <span class="text-2xl font-bold tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 1) }} / 100</span>
                             </div>
                         </div>
+
+                        {{-- Provincial standing (PR22 only). Rendered as its
+                             own visually distinct block so nothing here can be
+                             read as part of the national standing above. --}}
+                        @if(!empty($entry['has_provincial']))
+                            @php
+                                $ppb = $entry['provincial_pool_breakdown'] ?? [];
+                                $ppMatches = collect($ppb['matches'] ?? []);
+                                $ppCounted = $ppMatches->where('counted', true);
+                                $ppBestOf = $ppb['best_of'] ?? null;
+                                $ppMax = $ppBestOf ? ($ppBestOf * 100) : null;
+                            @endphp
+                            <div class="px-6 py-5 border-b border-stone-100 bg-gradient-to-br from-blue-50/40 to-white">
+                                <div class="flex items-baseline justify-between mb-3">
+                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                                        Provincial Standing Breakdown
+                                        @if($entry['province_name'])
+                                            <span class="text-blue-400 font-normal normal-case">&middot; {{ $entry['province_name'] }}</span>
+                                        @endif
+                                    </h3>
+                                    <span class="text-[10px] text-stone-400">
+                                        @if($ppBestOf)
+                                            Sum of your best {{ $ppBestOf }} provincial + dual-count national scores
+                                        @else
+                                            Sum of your qualifying provincial scores
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="rounded-xl border border-blue-200 bg-white/60 p-4 mb-3">
+                                    <div class="text-[11px] text-stone-500 space-y-1">
+                                        @forelse($ppCounted as $m)
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="truncate">{{ $m['match_name'] ?? ('Match #'.$m['match_id']) }}</span>
+                                                <span class="font-mono text-blue-800 font-semibold">{{ number_format((float) $m['contribution'], 2) }}</span>
+                                            </div>
+                                        @empty
+                                            <div class="text-stone-400">No provincial matches counted yet.</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                                <div class="rounded-lg bg-blue-900 text-white px-4 py-3 flex items-center justify-between">
+                                    <span class="text-xs font-semibold uppercase tracking-wider">Provincial Season Total</span>
+                                    <span class="text-2xl font-bold tabular-nums">
+                                        {{ number_format((float) ($entry['provincial_points'] ?? 0), 1) }}@if($ppMax)<span class="text-xs text-blue-200"> / {{ $ppMax }}</span>@endif
+                                    </span>
+                                </div>
+                            </div>
+                        @endif
                     @endif
 
                     <div class="px-6 py-4 border-b border-stone-50 bg-stone-50/30">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                            <div>
-                                <p class="text-xs text-stone-400">Overall</p>
-                                <p class="text-xl font-bold text-stone-900">#{{ $entry['overall_rank'] ?? '—' }}</p>
-                                <p class="text-xs text-stone-500">{{ number_format($entry['overall_points'] ?? 0, 1) }} pts</p>
-                            </div>
-                            @if($entry['division_name'])
-                                <div>
-                                    <p class="text-xs text-stone-400">{{ $entry['division_name'] }}</p>
-                                    <p class="text-xl font-bold text-amber-700">#{{ $entry['division_rank'] ?? '—' }}</p>
-                                    <p class="text-xs text-stone-500">{{ number_format($entry['division_points'] ?? 0, 1) }} pts</p>
+                        <div class="grid grid-cols-1 @if(!empty($entry['has_provincial'])) md:grid-cols-2 @endif gap-4">
+                            {{-- National standing rank/points --}}
+                            @if($entry['overall_rank'] !== null)
+                                <div class="text-center @if(!empty($entry['has_provincial'])) md:border-r md:border-stone-200 @endif">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">{{ $series }} National</p>
+                                    <div class="flex items-start justify-center gap-6">
+                                        <div>
+                                            <p class="text-xs text-stone-400">Overall</p>
+                                            <p class="text-xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
+                                            <p class="text-xs text-stone-500">{{ number_format($entry['overall_points'] ?? 0, 1) }} pts</p>
+                                        </div>
+                                        @if($entry['division_name'])
+                                            <div>
+                                                <p class="text-xs text-stone-400">{{ $entry['division_name'] }}</p>
+                                                <p class="text-xl font-bold text-amber-700">#{{ $entry['division_rank'] ?? '—' }}</p>
+                                                <p class="text-xs text-stone-500">{{ number_format($entry['division_points'] ?? 0, 1) }} pts</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- Provincial standing rank/points (PR22 only) --}}
+                            @if(!empty($entry['has_provincial']))
+                                <div class="text-center">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-700 mb-1">
+                                        {{ $series }} Provincial
+                                        @if($entry['province_name'])
+                                            <span class="text-blue-400">&middot; {{ $entry['province_name'] }}</span>
+                                        @endif
+                                    </p>
+                                    <div class="flex items-start justify-center gap-6">
+                                        <div>
+                                            <p class="text-xs text-stone-400">Overall</p>
+                                            <p class="text-xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
+                                            <p class="text-xs text-stone-500">{{ number_format($entry['provincial_points'] ?? 0, 1) }} pts</p>
+                                        </div>
+                                        @if($entry['provincial_division_name'])
+                                            <div>
+                                                <p class="text-xs text-stone-400">{{ $entry['provincial_division_name'] }}</p>
+                                                <p class="text-xl font-bold text-amber-700">#{{ $entry['provincial_division_rank'] ?? '—' }}</p>
+                                                <p class="text-xs text-stone-500">{{ number_format($entry['provincial_division_points'] ?? 0, 1) }} pts</p>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                         </div>
                     </div>
                     @endif
 
+                    @php
+                        // PR22 gets two contribution columns (National + Provincial);
+                        // PRS only has a national standing so one column.
+                        $hasProvincialCol = $series === 'PR22';
+                        // Column count for empty/tfoot rows: 7 base cols
+                        // (Date, Match, Level, Division, #, Impacts, %Score)
+                        // + Status + 1 contribution col (PRS) or 2 (PR22).
+                        $tableColCount = $hasProvincialCol ? 10 : 9;
+                    @endphp
+                    <div class="px-6 pt-4 pb-1">
+                        <p class="text-xs text-stone-400">
+                            All <span class="font-semibold text-stone-600">{{ $series }}</span> matches this shooter attended in {{ $season }}.
+                        </p>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead>
@@ -192,6 +316,10 @@
                                     <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">#</th>
                                     <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
                                     <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">% Score</th>
+                                    <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50/40" title="Points this match contributed toward the {{ $series }} National standing">Nat. Pts</th>
+                                    @if($hasProvincialCol)
+                                        <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-blue-700 bg-blue-50/40" title="Points this match contributed toward the {{ $series }} Provincial standing">Prov. Pts</th>
+                                    @endif
                                     <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
                                 </tr>
                             </thead>
@@ -199,12 +327,25 @@
                                 @forelse($seriesScores as $score)
                                     @php
                                         $badge = $statusBadges[$score->status] ?? $statusBadges['non_member'];
-                                        $levelLabel = match($score->match?->series_level) {
+                                        $level = $score->match?->series_level;
+                                        $levelLabel = match($level) {
                                             'national' => 'National',
                                             'provincial' => 'Provincial',
                                             'final' => 'SA Champs',
-                                            default => ucfirst((string) $score->match?->series_level),
+                                            default => ucfirst((string) $level),
                                         };
+                                        $contribution = $contributionByMatch[$score->match_id] ?? null;
+                                        $countedNat = (bool) ($contribution['counted_national'] ?? false);
+                                        $countedProv = (bool) ($contribution['counted_provincial'] ?? false);
+                                        $isValid = $score->status === 'valid';
+
+                                        // Does the shooter's match_type/level even
+                                        // feed the provincial standing? Provincial
+                                        // matches always do; nationals only if the
+                                        // match was flagged also_counts_for_provincial;
+                                        // finals never do.
+                                        $feedsProvincial = $level === 'provincial'
+                                            || ($level === 'national' && (bool) ($score->match?->also_counts_for_provincial));
                                     @endphp
                                     <tr class="border-b border-stone-50 hover:bg-stone-50/50">
                                         <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ $score->match?->match_date?->format('j M') }}</td>
@@ -226,13 +367,44 @@
                                         </td>
                                         <td class="px-5 py-3 text-right text-sm text-stone-700 tabular-nums">{{ number_format($score->raw_score, 1) }}</td>
                                         <td class="px-5 py-3 text-right text-sm font-bold text-stone-700 tabular-nums">{{ number_format($score->normalized_score, 2) }}</td>
+
+                                        {{-- National standing contribution --}}
+                                        <td class="px-5 py-3 text-center whitespace-nowrap bg-emerald-50/20">
+                                            @if($countedNat)
+                                                <span class="text-sm font-bold text-emerald-700 tabular-nums" title="Points contributed to {{ $series }} National standing">
+                                                    +{{ number_format((float) $contribution['national_pts'], 2) }}
+                                                </span>
+                                            @elseif($isValid)
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset bg-stone-100 text-stone-400 ring-stone-200" title="Valid score, but not among the counting matches for the National standing">DROPPED</span>
+                                            @else
+                                                <span class="text-stone-300">—</span>
+                                            @endif
+                                        </td>
+
+                                        {{-- Provincial standing contribution (PR22 only) --}}
+                                        @if($hasProvincialCol)
+                                            <td class="px-5 py-3 text-center whitespace-nowrap bg-blue-50/20">
+                                                @if(!$feedsProvincial)
+                                                    <span class="text-stone-300" title="This match does not feed the Provincial standing">—</span>
+                                                @elseif($countedProv)
+                                                    <span class="text-sm font-bold text-blue-700 tabular-nums" title="Points contributed to {{ $series }} Provincial standing">
+                                                        +{{ number_format((float) $contribution['provincial_pts'], 2) }}
+                                                    </span>
+                                                @elseif($isValid)
+                                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset bg-stone-100 text-stone-400 ring-stone-200" title="Valid score, but not among the counting matches for the Provincial standing">DROPPED</span>
+                                                @else
+                                                    <span class="text-stone-300">—</span>
+                                                @endif
+                                            </td>
+                                        @endif
+
                                         <td class="px-5 py-3 text-center">
                                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset {{ $badge['class'] }}">{{ strtoupper($badge['label']) }}</span>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-5 py-8 text-center text-sm text-stone-400">No matches attended in this series.</td>
+                                        <td colspan="{{ $tableColCount }}" class="px-5 py-8 text-center text-sm text-stone-400">No matches attended in this series.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -242,7 +414,15 @@
                                         <td colspan="6" class="px-5 py-3 text-sm font-semibold text-stone-700">
                                             {{ $seriesScores->count() }} match{{ $seriesScores->count() === 1 ? '' : 'es' }} attended
                                         </td>
-                                        <td class="px-5 py-3 text-right text-sm font-bold text-emerald-700 tabular-nums" title="Best % score">{{ number_format($seriesScores->max('normalized_score'), 2) }}</td>
+                                        <td class="px-5 py-3 text-right text-sm font-bold text-stone-600 tabular-nums" title="Best % score">{{ number_format($seriesScores->max('normalized_score'), 2) }}</td>
+                                        <td class="px-5 py-3 text-center text-sm font-bold text-emerald-700 tabular-nums bg-emerald-50/20" title="Total points contributed to {{ $series }} National standing">
+                                            {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 2) }}
+                                        </td>
+                                        @if($hasProvincialCol)
+                                            <td class="px-5 py-3 text-center text-sm font-bold text-blue-700 tabular-nums bg-blue-50/20" title="Total points contributed to {{ $series }} Provincial standing">
+                                                {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 2) }}
+                                            </td>
+                                        @endif
                                         <td></td>
                                     </tr>
                                 </tfoot>

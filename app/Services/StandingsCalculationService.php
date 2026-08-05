@@ -491,35 +491,75 @@ class StandingsCalculationService
                         continue;
                     }
 
-                    $normalized = $userScores
-                        ->map(fn (Score $s) => $this->contributionForPool($s, $poolKey, $context))
-                        ->filter(fn ($v) => $v !== null)
-                        ->values();
+                    // Keep per-match metadata alongside the pct so we can record
+                    // which specific matches counted and the points each one
+                    // contributed to the season total.
+                    $eligible = $userScores
+                        ->map(function (Score $s) use ($poolKey, $context) {
+                            $pct = $this->contributionForPool($s, $poolKey, $context);
+                            if ($pct === null) {
+                                return null;
+                            }
 
-                    $sorted = $normalized->sortDesc()->values();
+                            return [
+                                'match_id' => $s->match_id,
+                                'match_name' => $s->match?->name,
+                                'series_level' => $s->match?->series_level,
+                                'pct' => (float) $pct,
+                            ];
+                        })
+                        ->filter()
+                        ->sortByDesc('pct')
+                        ->values();
 
                     if ($poolKey === 'national') {
                         // Drop-one: you must shoot one extra national to unlock each
                         // counting score. The divisor is the number that actually
                         // count, so a single counting score is worth its full value.
-                        $countN = max(0, min($config['best_of'], $sorted->count() - 1));
-                        $counted = $sorted->take($countN);
-                        $poolAverage = $countN > 0 ? $counted->sum() / $countN : 0.0;
+                        $countN = max(0, min($config['best_of'], $eligible->count() - 1));
+                        $divisor = $countN;
+                        $poolAverage = $countN > 0
+                            ? $eligible->take($countN)->sum('pct') / $countN
+                            : 0.0;
                     } else {
                         // Strict: divide by best_of even when the shooter has fewer
                         // scores. Missing matches count as 0.
-                        $counted = $sorted->take($config['best_of']);
-                        $poolAverage = $counted->sum() / $config['best_of'];
+                        $countN = min($config['best_of'], $eligible->count());
+                        $divisor = $config['best_of'];
+                        $poolAverage = $eligible->take($config['best_of'])->sum('pct') / $config['best_of'];
                     }
 
                     $contribution = ($poolAverage * $config['weight']) / 100.0;
 
+                    // Per-match contribution: counted scores contribute
+                    // pct * weight / 100 / divisor; dropped scores contribute 0.
+                    // Divisor differs by pool (best_of for strict pools, countN
+                    // for the national drop-one pool).
+                    $matches = $eligible
+                        ->values()
+                        ->map(function (array $row, int $idx) use ($countN, $divisor, $config) {
+                            $counted = $idx < $countN;
+                            $perMatch = ($counted && $divisor > 0)
+                                ? ($row['pct'] * $config['weight']) / 100.0 / $divisor
+                                : 0.0;
+
+                            return [
+                                'match_id' => $row['match_id'],
+                                'match_name' => $row['match_name'],
+                                'series_level' => $row['series_level'],
+                                'pct' => round($row['pct'], 2),
+                                'counted' => $counted,
+                                'contribution' => round($perMatch, 4),
+                            ];
+                        });
+
                     $breakdown[$poolKey] = [
-                        'scores_counted' => $counted->count(),
+                        'scores_counted' => $countN,
                         'best_of' => $config['best_of'],
                         'weight_pct' => $config['weight'],
                         'pool_average' => round($poolAverage, 2),
                         'contribution' => round($contribution, 2),
+                        'matches' => $matches->all(),
                     ];
 
                     $total += $contribution;
@@ -617,35 +657,69 @@ class StandingsCalculationService
         return $scores
             ->groupBy('user_id')
             ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $finalsMultiplier): array {
-                $scored = $userScores->map(function (Score $s) use ($context, $useProvincialScore, $finalsMultiplier) {
-                    $match = $s->match;
-                    if ($useProvincialScore && $match && $match->series_level === 'national' && $match->also_counts_for_provincial) {
-                        return $s->provincial_normalized_score ?? 0;
-                    }
+                // Keep the source Score attached so we can record per-match
+                // metadata (match_id, name, level) alongside the value that
+                // actually counts. The value already reflects the provincial
+                // day-1 score for dual-count nationals and the finals
+                // multiplier when configured.
+                $scored = $userScores
+                    ->map(function (Score $s) use ($context, $useProvincialScore, $finalsMultiplier) {
+                        $match = $s->match;
 
-                    $base = match ($context) {
-                        'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
-                        default => $s->normalized_score ?? 0,
-                    };
+                        if ($useProvincialScore && $match && $match->series_level === 'national' && $match->also_counts_for_provincial) {
+                            $value = (float) ($s->provincial_normalized_score ?? 0);
+                        } else {
+                            $value = (float) (match ($context) {
+                                'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
+                                default => $s->normalized_score ?? 0,
+                            });
 
-                    if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
-                        $base = $base * $finalsMultiplier;
-                    }
+                            if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
+                                $value = $value * $finalsMultiplier;
+                            }
+                        }
 
-                    return $base;
+                        return [
+                            'match_id' => $s->match_id,
+                            'match_name' => $match?->name,
+                            'series_level' => $match?->series_level,
+                            'value' => $value,
+                        ];
+                    });
+
+                $sorted = $scored->sortByDesc('value')->values();
+
+                $limit = ($bestOf && $bestOf > 0) ? $bestOf : $sorted->count();
+                $countN = min($limit, $sorted->count());
+
+                $matches = $sorted->map(function (array $row, int $idx) use ($countN) {
+                    $counted = $idx < $countN;
+
+                    return [
+                        'match_id' => $row['match_id'],
+                        'match_name' => $row['match_name'],
+                        'series_level' => $row['series_level'],
+                        'pct' => round($row['value'], 2),
+                        'counted' => $counted,
+                        // In best-of-N sum mode the counted score's raw value
+                        // IS its contribution to the season total.
+                        'contribution' => $counted ? round($row['value'], 4) : 0.0,
+                    ];
                 });
 
-                $sorted = $scored->sortDesc()->values();
-
-                if ($bestOf && $bestOf > 0) {
-                    $counted = $sorted->take($bestOf);
-                } else {
-                    $counted = $sorted;
-                }
+                $countedRows = $sorted->take($countN);
+                $points = round($countedRows->sum('value'), 4);
 
                 return [
                     'user_id' => $userId,
-                    'points' => round($counted->sum(), 4),
+                    'points' => $points,
+                    'pool_breakdown' => [
+                        'mode' => 'best_of_n',
+                        'best_of' => $bestOf ?: null,
+                        'scores_counted' => $countN,
+                        'total' => $points,
+                        'matches' => $matches->all(),
+                    ],
                 ];
             })
             ->sortByDesc('points')

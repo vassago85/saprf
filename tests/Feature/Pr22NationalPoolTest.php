@@ -104,3 +104,54 @@ it('leaves the provincial pool on the strict divide-by-best-of rule', function (
         ->and((float) $prov['pool_average'])->toBe(30.0)
         ->and((float) $prov['contribution'])->toBe(9.0); // 30 × 30%
 });
+
+it('records per-match national contribution and marks the drop-one match as dropped', function () {
+    // Three nationals, worst is auto-dropped. Each counted contributes
+    // pct * weight / 100 / countN = pct * 40 / 100 / 2 = pct * 0.2 pts.
+    $b = nationalPoolBreakdown([90.0, 80.0, 70.0]);
+    $matches = $b['matches'] ?? [];
+
+    expect($matches)->toHaveCount(3);
+
+    // Sorted by pct desc: 90, 80 counted; 70 dropped.
+    expect((bool) $matches[0]['counted'])->toBeTrue()
+        ->and((bool) $matches[1]['counted'])->toBeTrue()
+        ->and((bool) $matches[2]['counted'])->toBeFalse();
+
+    // Contribution = pct × 40% ÷ 2  →  90→18, 80→16, dropped→0.
+    expect((float) $matches[0]['contribution'])->toBe(18.0)
+        ->and((float) $matches[1]['contribution'])->toBe(16.0)
+        ->and((float) $matches[2]['contribution'])->toBe(0.0);
+
+    // Sum of per-match contributions equals the pool contribution.
+    $sum = collect($matches)->sum('contribution');
+    expect(round($sum, 2))->toBe((float) $b['contribution']);
+});
+
+it('drops the sole national when only one is shot (national pool contribution is 0)', function () {
+    $b = nationalPoolBreakdown([95.0]);
+    $matches = $b['matches'] ?? [];
+
+    expect($matches)->toHaveCount(1);
+    expect((bool) $matches[0]['counted'])->toBeFalse()
+        ->and((float) $matches[0]['contribution'])->toBe(0.0);
+});
+
+it('records per-match contribution for the strict provincial pool', function () {
+    $service = app(StandingsCalculationService::class);
+    $method = new ReflectionMethod($service, 'aggregateWeightedPools');
+    $method->setAccessible(true);
+
+    // Two provincial scores, best_of = 3. Both counted, but divisor = 3.
+    // Per-match contribution = pct × 30% ÷ 3  →  90→9, 60→6.
+    $scores = collect([poolScore('provincial', 90.0), poolScore('provincial', 60.0)]);
+    $result = $method->invoke($service, $scores, pr22Rule(), 'overall');
+    $prov = $result->first()['pool_breakdown']['provincial'];
+    $matches = $prov['matches'] ?? [];
+
+    expect($matches)->toHaveCount(2)
+        ->and((bool) $matches[0]['counted'])->toBeTrue()
+        ->and((float) $matches[0]['contribution'])->toBe(9.0)
+        ->and((bool) $matches[1]['counted'])->toBeTrue()
+        ->and((float) $matches[1]['contribution'])->toBe(6.0);
+});

@@ -19,8 +19,17 @@
         {{-- Page Header --}}
         <div class="bg-white border-b border-stone-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-                <h1 class="font-heading text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">Season Standings</h1>
-                <p class="mt-1.5 text-stone-500">Official {{ $series }} rankings for the {{ $season }} season.</p>
+                <h1 class="font-heading text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
+                    Season Standings
+                    <span class="ml-2 text-base font-semibold uppercase tracking-wider {{ $series === 'PRS' ? 'text-emerald-700' : 'text-sky-700' }} align-middle">{{ $series }}</span>
+                    <span class="ml-1 text-base font-semibold uppercase tracking-wider {{ $level === 'provincial' ? 'text-blue-700' : 'text-stone-700' }} align-middle">&middot; {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span>
+                </h1>
+                <p class="mt-1.5 text-stone-500">
+                    Official <span class="font-semibold text-stone-700">{{ $series }} {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span> rankings for the {{ $season }} season.
+                    @if($series === 'PRS' && $level === 'provincial')
+                        <span class="block mt-1 text-sm text-amber-700">PRS is a national-only series &mdash; provincial standings only exist for PR22.</span>
+                    @endif
+                </p>
             </div>
         </div>
 
