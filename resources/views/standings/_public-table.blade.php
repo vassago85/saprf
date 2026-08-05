@@ -91,7 +91,7 @@
                                     @if($bo > 0)
                                         <span class="block text-[10px] text-stone-400 mt-0.5">/ {{ $bo * 100 }}</span>
                                         <div class="mt-1 flex justify-end gap-1 text-[10px] font-mono">
-                                            <span class="rounded bg-blue-50 text-blue-700 px-1 py-0.5" title="Sum of best {{ $bo }} provincial + dual-count national scores ({{ $standing->pool_breakdown['scores_counted'] ?? 0 }}/{{ $bo }} counted)">Best {{ $bo }}</span>
+                                            <span class="rounded bg-blue-50 text-blue-700 px-1 py-0.5" title="Sum of best {{ $bo }} provincial-match scores ({{ $standing->pool_breakdown['scores_counted'] ?? 0 }}/{{ $bo }} counted)">Best {{ $bo }}</span>
                                         </div>
                                     @endif
                                 @elseif(isset($standing->pool_breakdown['provincial']) || isset($standing->pool_breakdown['national']) || isset($standing->pool_breakdown['champs']))

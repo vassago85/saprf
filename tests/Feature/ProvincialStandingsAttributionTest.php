@@ -101,6 +101,61 @@ it('aggregates a shooter\'s out-of-province results into their home province onl
         ->and(Standing::where('user_id', $gpShooter->id)->where('province_id', $this->wc->id)->exists())->toBeFalse();
 });
 
+it('never feeds a national match into the provincial standing, even when the legacy dual-count flag is set', function () {
+    // Rule with best_of_count = 3 (best-of-N provincial mode).
+    \App\Models\QualificationRule::create([
+        'series' => 'PR22',
+        'season' => '2026',
+        'scoring_mode' => 'best_of_n',
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 3,
+        'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create(['province_id' => $this->gp->id]);
+
+    // A 2-day national hosted in GP, flagged also_counts_for_provincial=true
+    // and carrying a provincial_normalized_score — mimicking the legacy
+    // dual-count setup. Under the new rules this MUST NOT contribute to the
+    // provincial standing; day-1 belongs on its own separate provincial match.
+    $nat = MatchEvent::create([
+        'name' => '2-Day National GP',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2026',
+        'province_id' => $this->gp->id,
+        'match_date' => '2026-06-06',
+        'status' => 'completed',
+        'created_by' => User::factory()->create()->id,
+        'active_member_fee' => 500,
+        'published' => true,
+        'also_counts_for_provincial' => true,
+    ]);
+    $top = User::factory()->create();
+    Score::create([
+        'match_id' => $nat->id, 'user_id' => $top->id, 'shooter_name' => $top->name,
+        'raw_score' => 100, 'division_id' => $this->division->id,
+        'status' => 'valid', 'counts_for_season' => true,
+        'match_date' => $nat->match_date->toDateString(),
+        'provincial_raw_score' => 100, 'provincial_normalized_score' => 100,
+    ]);
+    Score::create([
+        'match_id' => $nat->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
+        'raw_score' => 90, 'division_id' => $this->division->id,
+        'status' => 'valid', 'counts_for_season' => true,
+        'match_date' => $nat->match_date->toDateString(),
+        'provincial_raw_score' => 90, 'provincial_normalized_score' => 90,
+    ]);
+    $this->service->recalculateForMatch($nat);
+
+    // No provincial standing row should have been created for either shooter
+    // from this national-only match.
+    expect(Standing::where('user_id', $shooter->id)->where('province_id', $this->gp->id)->exists())->toBeFalse()
+        ->and(Standing::where('user_id', $top->id)->where('province_id', $this->gp->id)->exists())->toBeFalse();
+});
+
 it('records per-match provincial contribution in the standings pool_breakdown', function () {
     // Rule with best_of_count = 2 so we can force a drop.
     \App\Models\QualificationRule::create([

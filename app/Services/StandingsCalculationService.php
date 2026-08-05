@@ -32,20 +32,12 @@ class StandingsCalculationService
         }
 
         if (in_array($match->series_level, ['national', 'final'], true)) {
-            // Any 2-day national flagged as dual-count feeds the PR22 provincial pool
-            // via day-1 provincial_normalized_score. Compute those regardless of
-            // whether we're also computing a per-province standings table.
-            if ($match->also_counts_for_provincial) {
-                $this->calculateProvincialNormalizedScores($match);
-            }
-
+            // A national match is national ONLY. Even if the legacy
+            // also_counts_for_provincial flag is set, we deliberately do not
+            // touch the provincial standings from here — provincial credit
+            // requires a genuine provincial-level match (MDs post day-1 as
+            // its own provincial event when that credit is intended).
             $this->recalculateSeasonStandings($match->series, $season);
-
-            // Provincial credit follows each shooter's home province, so a single
-            // dual-count national can touch several provincial tables at once.
-            if ($match->also_counts_for_provincial) {
-                $this->recalculateProvincialStandings($match->series, $season);
-            }
         } else {
             // A provincial match is attended by shooters from many provinces, and
             // each is scored against their OWN province — so recalculate every
@@ -207,15 +199,15 @@ class StandingsCalculationService
                     return false;
                 }
 
-                if ($match->series_level === 'provincial') {
-                    return $score->normalized_score !== null;
-                }
-
-                if ($match->series_level === 'national' && $match->also_counts_for_provincial) {
-                    return $score->provincial_normalized_score !== null;
-                }
-
-                return false;
+                // ONLY provincial-level matches feed the provincial standing.
+                // A national match stays national — even a 2-day national.
+                // If the MD wants day-1 to count provincially, they post day-1
+                // as its own separate provincial match. The legacy
+                // `also_counts_for_provincial` dual-count path is intentionally
+                // ignored here so national scores can never leak into
+                // provincial rankings.
+                return $match->series_level === 'provincial'
+                    && $score->normalized_score !== null;
             });
         } else {
             $allowedLevels = $usePooled
@@ -600,10 +592,11 @@ class StandingsCalculationService
      * Return the normalized contribution a single score makes to a specific pool,
      * or null if the score does not belong to that pool.
      *
-     * Pool membership rules:
+     * Pool membership rules (strict — a national score can NEVER count as a
+     * provincial score, even when historically flagged also_counts_for_provincial;
+     * if day-1 should count provincially, MDs post it as a separate provincial
+     * match):
      *   - provincial : provincial-level matches (full score)
-     *                  + 2-day nationals with also_counts_for_provincial
-     *                    (uses the day-1-based provincial_normalized_score)
      *   - national   : national-level matches (full score)
      *   - champs     : final-level matches (full score)
      */
@@ -615,17 +608,9 @@ class StandingsCalculationService
         }
 
         return match ($poolKey) {
-            'provincial' => match (true) {
-                $match->series_level === 'provincial'
-                    => $this->normalizedScoreForContext($score, $context),
-
-                $match->series_level === 'national' && $match->also_counts_for_provincial
-                    => $score->provincial_normalized_score !== null
-                        ? (float) $score->provincial_normalized_score
-                        : null,
-
-                default => null,
-            },
+            'provincial' => $match->series_level === 'provincial'
+                ? $this->normalizedScoreForContext($score, $context)
+                : null,
             'national' => $match->series_level === 'national'
                 ? $this->normalizedScoreForContext($score, $context)
                 : null,
@@ -659,24 +644,22 @@ class StandingsCalculationService
             ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $finalsMultiplier): array {
                 // Keep the source Score attached so we can record per-match
                 // metadata (match_id, name, level) alongside the value that
-                // actually counts. The value already reflects the provincial
-                // day-1 score for dual-count nationals and the finals
-                // multiplier when configured.
+                // actually counts. National scores never reach this method
+                // when computing a provincial standing (the filter above
+                // strips them), so we always take the match's normalized
+                // score directly — the legacy day-1 provincial_normalized
+                // dual-count path has been removed.
                 $scored = $userScores
-                    ->map(function (Score $s) use ($context, $useProvincialScore, $finalsMultiplier) {
+                    ->map(function (Score $s) use ($context, $finalsMultiplier) {
                         $match = $s->match;
 
-                        if ($useProvincialScore && $match && $match->series_level === 'national' && $match->also_counts_for_provincial) {
-                            $value = (float) ($s->provincial_normalized_score ?? 0);
-                        } else {
-                            $value = (float) (match ($context) {
-                                'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
-                                default => $s->normalized_score ?? 0,
-                            });
+                        $value = (float) (match ($context) {
+                            'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
+                            default => $s->normalized_score ?? 0,
+                        });
 
-                            if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
-                                $value = $value * $finalsMultiplier;
-                            }
+                        if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
+                            $value = $value * $finalsMultiplier;
                         }
 
                         return [

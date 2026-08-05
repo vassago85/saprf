@@ -211,9 +211,9 @@
                                     </h3>
                                     <span class="text-[10px] text-stone-400">
                                         @if($ppBestOf)
-                                            Sum of your best {{ $ppBestOf }} provincial + dual-count national scores
+                                            Sum of your best {{ $ppBestOf }} provincial-match scores
                                         @else
-                                            Sum of your qualifying provincial scores
+                                            Sum of your qualifying provincial-match scores
                                         @endif
                                     </span>
                                 </div>
@@ -339,13 +339,13 @@
                                         $countedProv = (bool) ($contribution['counted_provincial'] ?? false);
                                         $isValid = $score->status === 'valid';
 
-                                        // Does the shooter's match_type/level even
-                                        // feed the provincial standing? Provincial
-                                        // matches always do; nationals only if the
-                                        // match was flagged also_counts_for_provincial;
-                                        // finals never do.
-                                        $feedsProvincial = $level === 'provincial'
-                                            || ($level === 'national' && (bool) ($score->match?->also_counts_for_provincial));
+                                        // Only provincial-level matches feed the
+                                        // provincial standing. A national match
+                                        // (even a 2-day national) stays national
+                                        // — if day-1 should count provincially,
+                                        // the MD posts it as its own separate
+                                        // provincial match.
+                                        $feedsProvincial = $level === 'provincial';
                                     @endphp
                                     <tr class="border-b border-stone-50 hover:bg-stone-50/50">
                                         <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ $score->match?->match_date?->format('j M') }}</td>

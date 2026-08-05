@@ -137,6 +137,32 @@ it('drops the sole national when only one is shot (national pool contribution is
         ->and((float) $matches[0]['contribution'])->toBe(0.0);
 });
 
+it('excludes national scores from the national standing\'s provincial-matches pool', function () {
+    // A national score must never contribute to the "provincial" pool inside
+    // the PR22 NATIONAL standing — even historically-set provincial_normalized
+    // values on the score should be ignored. Only genuine provincial-level
+    // matches feed that pool now.
+    $service = app(StandingsCalculationService::class);
+    $method = new ReflectionMethod($service, 'aggregateWeightedPools');
+    $method->setAccessible(true);
+
+    $nationalScore = poolScore('national', 90.0);
+    // Simulate the legacy fields that used to sneak this score into the
+    // provincial pool — the code must ignore them.
+    $nationalScore->provincial_normalized_score = 90.0;
+    $nationalScore->match->also_counts_for_provincial = true;
+
+    $result = $method->invoke($service, collect([$nationalScore]), pr22Rule(), 'overall');
+    $breakdown = $result->first()['pool_breakdown'];
+
+    // The provincial pool sees zero matches; the national pool sees one
+    // (which is dropped by the drop-one rule when only one is shot).
+    expect($breakdown['provincial']['scores_counted'])->toBe(0)
+        ->and((float) $breakdown['provincial']['pool_average'])->toBe(0.0)
+        ->and((float) $breakdown['provincial']['contribution'])->toBe(0.0)
+        ->and($breakdown['provincial']['matches'])->toBe([]);
+});
+
 it('records per-match contribution for the strict provincial pool', function () {
     $service = app(StandingsCalculationService::class);
     $method = new ReflectionMethod($service, 'aggregateWeightedPools');
