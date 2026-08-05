@@ -24,13 +24,21 @@ use Illuminate\Console\Command;
  *   3. Re-evaluate every score's status (valid / pending / lapsed / non_member).
  *      Historical scores are safe: validity is tied to the match date's paid
  *      window, not the membership's current status label.
- *   4. Recalculate national + per-province season standings for each series.
+ *   4. (unless --skip-match-ranking) recompute per-match rankings — normalized_score,
+ *      division_normalized_score, overall_rank, division_rank — so any Score row
+ *      that drifted out of sync (raw edited post-import, division corrected,
+ *      status flipped) is brought back in line with the current visible set.
+ *      Without this step, season aggregation reads whatever stale numbers were
+ *      persisted, and running the command produces the same wrong totals every
+ *      time.
+ *   5. Recalculate national + per-province season standings for each series.
  */
 class ReevaluateScoresCommand extends Command
 {
     protected $signature = 'scores:reevaluate
         {--skip-free-fix : Do not touch free memberships payment_status}
         {--skip-expiry-fix : Do not expire memberships whose expiry_date has passed}
+        {--skip-match-ranking : Do not recompute per-match normalized scores and ranks}
         {--dry-run : Report what would change without writing}';
 
     protected $description = 'Reconcile membership status (free/expired) and rebuild season standings from valid scores';
@@ -112,6 +120,37 @@ class ReevaluateScoresCommand extends Command
             }
         } else {
             $this->line('  [dry-run] skipping per-score re-evaluation.');
+        }
+
+        // Re-rank every completed match's scores BEFORE aggregating season
+        // standings. Season aggregation reads persisted normalized_score /
+        // division_normalized_score off each Score row — if a raw score, a
+        // shooter's division, or a status was edited after the initial rank
+        // pass without a manual rerank, those persisted values are stale and
+        // every subsequent aggregation reproduces the wrong totals. Re-ranking
+        // here guarantees the season builder always starts from fresh
+        // per-match numbers.
+        if (! $this->option('skip-match-ranking')) {
+            $rankableMatches = MatchEvent::query()
+                ->where('status', 'completed')
+                ->orderBy('match_date')
+                ->get();
+
+            $this->info('Re-ranking '.$rankableMatches->count().' completed match(es)...');
+            if (! $dryRun) {
+                $bar = $this->output->createProgressBar($rankableMatches->count());
+                $bar->start();
+                foreach ($rankableMatches as $rankableMatch) {
+                    $standings->calculateMatchRankings($rankableMatch);
+                    $bar->advance();
+                }
+                $bar->finish();
+                $this->newLine();
+            } else {
+                $this->line('  [dry-run] skipping match re-ranking.');
+            }
+        } else {
+            $this->line('Skipping match re-ranking (--skip-match-ranking).');
         }
 
         $this->info('Recalculating season standings...');
