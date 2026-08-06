@@ -455,12 +455,17 @@
                     @endif
 
                     @php
-                        // PR22 gets two contribution columns (National + Provincial);
-                        // PRS only has a national standing so one column.
-                        $hasProvincialCol = $series === 'PR22';
+                        // Show the Prov. Pts contribution column whenever the
+                        // shooter has a provincial standing for this series.
+                        // Both PRS and PR22 now have provincial standings (sum
+                        // of best-N provincial-level scores). A shooter with
+                        // no provincial standing (e.g. no home province set, or
+                        // no provincial-level scores this season) still sees
+                        // the single Nat. Pts column.
+                        $hasProvincialCol = ! empty($entry['has_provincial']);
                         // Column count for empty/tfoot rows: 7 base cols
                         // (Date, Match, Level, Division, #, Impacts, %Score)
-                        // + Status + 1 contribution col (PRS) or 2 (PR22).
+                        // + Membership + 1 or 2 contribution cols.
                         $tableColCount = $hasProvincialCol ? 10 : 9;
                     @endphp
                     <div class="px-6 pt-4 pb-1">

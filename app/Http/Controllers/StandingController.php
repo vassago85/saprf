@@ -192,16 +192,17 @@ class StandingController extends Controller
                 ->where('series', $series)
                 ->first();
 
-            // Provincial standing (PR22 only — PRS has no provincial variant).
-            // Loaded here regardless so the summary knows about it even if the
-            // shooter has no national row yet, and so we can pull its
-            // pool_breakdown for per-match provincial contributions.
+            // Provincial standing — BOTH PRS and PR22 have provincial standings
+            // now (sum of shooter's best-N provincial-level scores). Loaded
+            // regardless of whether there's a national row yet, so a shooter
+            // who has only shot provincials still gets a summary tile and
+            // per-match provincial contributions.
             $provincial = null;
             $provincialDivisions = collect();
-            if ($series === 'PR22' && $user->province_id) {
+            if ($user->province_id) {
                 $provincial = Standing::where('user_id', $user->id)
                     ->where('season', $season)
-                    ->where('series', 'PR22')
+                    ->where('series', $series)
                     ->where('province_id', $user->province_id)
                     ->whereNull('division_id')
                     ->first();
@@ -214,7 +215,7 @@ class StandingController extends Controller
                 // presentation is stable and matches the standings tables.
                 $provincialDivisions = Standing::where('user_id', $user->id)
                     ->where('season', $season)
-                    ->where('series', 'PR22')
+                    ->where('series', $series)
                     ->where('province_id', $user->province_id)
                     ->whereNotNull('division_id')
                     ->with('division')

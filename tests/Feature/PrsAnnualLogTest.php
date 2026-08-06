@@ -62,7 +62,10 @@ function recalcPrs(): void
     foreach (MatchEvent::all() as $m) {
         $service->calculateMatchRankings($m);
     }
+    // National (annual log) + every provincial table. PRS provincial follows
+    // the same shooter's-home-province attribution rule as PR22.
     $service->recalculateSeasonStandings('PRS', '2026');
+    $service->recalculateProvincialStandings('PRS', '2026');
 }
 
 beforeEach(function () {
@@ -279,10 +282,13 @@ it('keeps a separate, independent log per division', function () {
     expect($prodLog->has($openTop->id))->toBeFalse();
 });
 
-it('ignores provincial PRS matches — only nationals and champs count', function () {
+it('ignores provincial PRS matches for the NATIONAL annual log — only nationals and champs count', function () {
+    // Note the clarified test title: PRS provincial matches are still ignored
+    // by the *national* annual log (regular + champs). They now feed a
+    // *separate* provincial standing (see the "PRS provincial" tests below).
     $shooter = User::factory()->create(['name' => 'Prov']);
 
-    // A provincial match with a huge score that must NOT count.
+    // A provincial match with a huge score that must NOT count toward national.
     $prov = prsMatch('Provincial', 'provincial', '2026-02-01');
     $provTop = User::factory()->create();
     prsScore($prov, $provTop, 100.0, $this->open->id);
@@ -298,7 +304,93 @@ it('ignores provincial PRS matches — only nationals and champs count', functio
     $row = app(StandingsCalculationService::class)->annualLog('PRS', '2026', $this->open->id)
         ->firstWhere('user_id', $shooter->id);
 
-    // Only the national counts: total = 60, provincial 100% is ignored.
+    // Only the national counts toward the annual log: total = 60,
+    // provincial 100% is ignored on this side.
     expect($row['total'])->toBe(60.00);
     expect(collect($row['regular'])->pluck('match_id')->all())->toBe([$nat->id]);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PRS provincial standings — sum of best-3 provincial-level scores.
+|--------------------------------------------------------------------------
+|
+| Mirrors the PR22 provincial rule (sum of best-N provincials) so both series
+| share one behaviour. Only PRS matches with series_level='provincial' feed
+| this — nationals and finals stay on the annual-log side and never leak in.
+| Attribution follows the shooter's home province.
+*/
+
+it('builds a PRS provincial standing from the shooter\'s best 3 provincial scores', function () {
+    $gp = \App\Models\Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
+
+    $shooter = User::factory()->create(['name' => 'PRS Prov Shooter', 'province_id' => $gp->id]);
+    \App\Models\Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'T-PRS-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    // Four PRS provincial matches. The shooter's own scores are 100 / 80 /
+    // 60 / 40 (as raw impacts; a matching "top" shooter drops each to a
+    // normalized %). Best 3 kept: 100 + 80 + 60 = 240; the 40 is dropped.
+    $rawScores = [100, 80, 60, 40];
+    $months = ['02', '03', '04', '05'];
+    foreach ($rawScores as $i => $raw) {
+        $match = prsMatch('PRS Prov '.($i + 1), 'provincial', '2026-'.$months[$i].'-15');
+        // A rival at 100 impacts in every match so the shooter's normalized
+        // % equals their raw score. Rival is a fresh user each match so no
+        // one else builds a big provincial total in this province.
+        $rival = User::factory()->create();
+        prsScore($match, $rival, 100.0, $this->open->id);
+        prsScore($match, $shooter, (float) $raw, $this->open->id);
+    }
+
+    recalcPrs();
+
+    $standing = \App\Models\Standing::where('user_id', $shooter->id)
+        ->where('series', 'PRS')->where('season', '2026')
+        ->where('province_id', $gp->id)
+        ->whereNull('division_id')
+        ->first();
+
+    expect($standing)->not->toBeNull()
+        ->and(round((float) $standing->points, 2))->toBe(240.00);
+
+    // pool_breakdown records the four attempts, with the lowest marked
+    // as dropped.
+    $matches = collect($standing->pool_breakdown['matches'] ?? [])->sortByDesc('pct')->values();
+    expect($matches)->toHaveCount(4);
+    expect((bool) $matches[0]['counted'])->toBeTrue()
+        ->and((bool) $matches[1]['counted'])->toBeTrue()
+        ->and((bool) $matches[2]['counted'])->toBeTrue()
+        ->and((bool) $matches[3]['counted'])->toBeFalse();
+});
+
+it('never leaks a PRS national match into the PRS provincial standing', function () {
+    $gp = \App\Models\Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
+
+    $shooter = User::factory()->create(['name' => 'PRS Mixed', 'province_id' => $gp->id]);
+    \App\Models\Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'T-PRS-2', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    // One PRS national with a huge score.
+    $nat = prsMatch('PRS Nat Only', 'national', '2026-02-15');
+    $rival = User::factory()->create();
+    prsScore($nat, $rival, 100.0, $this->open->id);
+    prsScore($nat, $shooter, 100.0, $this->open->id);
+
+    recalcPrs();
+
+    // No provincial row should exist — national never feeds provincial.
+    $provincial = \App\Models\Standing::where('user_id', $shooter->id)
+        ->where('series', 'PRS')->where('season', '2026')
+        ->where('province_id', $gp->id)
+        ->whereNull('division_id')
+        ->first();
+
+    expect($provincial)->toBeNull();
 });

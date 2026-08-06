@@ -26,9 +26,6 @@
                 </h1>
                 <p class="mt-1.5 text-stone-500">
                     Official <span class="font-semibold text-stone-700">{{ $series }} {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span> rankings for the {{ $season }} season.
-                    @if($series === 'PRS' && $level === 'provincial')
-                        <span class="block mt-1 text-sm text-amber-700">PRS is a national-only series &mdash; provincial standings only exist for PR22.</span>
-                    @endif
                 </p>
             </div>
         </div>

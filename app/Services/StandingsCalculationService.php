@@ -22,11 +22,18 @@ class StandingsCalculationService
         $rule = QualificationRule::where('series', $match->series)->where('season', $season)->first();
         $pooled = $rule && $rule->isPooledScoring();
 
-        // PRS annual log: only national (regular) + final (champs) matches count,
-        // and there is no provincial variant — one recalc of the overall +
-        // per-division tables covers it regardless of the match's level.
+        // PRS annual log: national side uses regular + champs matches only
+        // (annual-log calc), while provincial-level matches feed a separate
+        // best-of-N provincial standing. If the completed match is national
+        // or final, only the national side needs rebuilding; if it's
+        // provincial, every province's table has to be rebuilt (attribution
+        // follows the shooter's home province, so any province can be
+        // affected regardless of the host).
         if ($rule && $rule->isAnnualLogWithChamps()) {
             $this->recalculateSeasonStandings($match->series, $season);
+            if ($match->series_level === 'provincial') {
+                $this->recalculateProvincialStandings($match->series, $season);
+            }
 
             return;
         }
@@ -154,14 +161,19 @@ class StandingsCalculationService
         // matches in the national standings pool.
         $rule = QualificationRule::where('series', $series)->where('season', $season)->first();
 
-        // PRS annual log has no provincial standings — only the national/overall
-        // and per-division tables. Bail out for any province-scoped call.
+        // PRS annual log handles the NATIONAL side (best-N regular + fixed
+        // champs). Provincial PRS standings are computed via the generic
+        // best-of-N provincial builder below — "sum of best N provincial
+        // scores" — using the same best_of_count as the annual log. This
+        // parallels PR22 (provincial standing = sum of best-N provincial
+        // scores) so both series share one provincial rule.
         if ($rule && $rule->isAnnualLogWithChamps()) {
             if (! $isProvincial) {
                 $this->recalculateAnnualLogStandings($series, $season, $rule);
-            }
 
-            return;
+                return;
+            }
+            // Provincial: fall through to the generic path.
         }
 
         $usePooled = ! $isProvincial && $rule && $rule->isPooledScoring();
