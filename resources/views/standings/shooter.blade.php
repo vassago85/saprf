@@ -65,10 +65,15 @@
                                                 <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['overall_rank'] }}</p>
                                                 <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['overall_points'] ?? 0, 2) }} pts</p>
                                             </div>
-                                            @if($tabEntry['division_name'])
-                                                <p class="text-[10px] text-stone-400 mt-0.5">
-                                                    {{ $tabEntry['division_name'] }}: <span class="font-bold text-amber-700">#{{ $tabEntry['division_rank'] ?? '—' }}</span>
-                                                </p>
+                                            {{-- One chip per division the shooter competed in. A single shooter
+                                                 may have several (e.g. Open in one match, Factory in another) and
+                                                 each is ranked independently. --}}
+                                            @if(!empty($tabEntry['divisions']))
+                                                <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0 text-[10px] text-stone-400">
+                                                    @foreach($tabEntry['divisions'] as $div)
+                                                        <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span></span>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         </div>
                                         @if(!empty($tabEntry['has_provincial']))
@@ -80,10 +85,12 @@
                                                     <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['provincial_rank'] ?? '—' }}</p>
                                                     <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['provincial_points'] ?? 0, 2) }} pts</p>
                                                 </div>
-                                                @if($tabEntry['provincial_division_name'])
-                                                    <p class="text-[10px] text-stone-400 mt-0.5">
-                                                        {{ $tabEntry['provincial_division_name'] }}: <span class="font-bold text-amber-700">#{{ $tabEntry['provincial_division_rank'] ?? '—' }}</span>
-                                                    </p>
+                                                @if(!empty($tabEntry['provincial_divisions']))
+                                                    <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0 text-[10px] text-stone-400">
+                                                        @foreach($tabEntry['provincial_divisions'] as $div)
+                                                            <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span></span>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
                                             </div>
                                         @endif
@@ -370,21 +377,24 @@
                             @if($entry['overall_rank'] !== null)
                                 <div class="text-center @if(!empty($entry['has_provincial'])) md:border-r md:border-stone-200 @endif">
                                     <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">{{ $series }} National</p>
-                                    <div class="flex items-start justify-center gap-6">
+                                    <div class="flex items-start justify-center gap-6 flex-wrap">
                                         <div title="Ranking against every {{ $series }} shooter in the season">
                                             <p class="text-xs text-stone-400">Overall</p>
                                             <p class="text-xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
                                             <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 2) }} pts</p>
                                             <p class="text-[9px] text-stone-400 uppercase tracking-wider">vs everyone</p>
                                         </div>
-                                        @if($entry['division_name'])
-                                            <div title="Separate ranking computed using {{ $entry['division_name'] }}-only normalization (each match's top {{ $entry['division_name'] }} shooter = 100%). Points here will not match the Overall total.">
-                                                <p class="text-xs text-stone-400">{{ $entry['division_name'] }}</p>
-                                                <p class="text-xl font-bold text-amber-700">#{{ $entry['division_rank'] ?? '—' }}</p>
-                                                <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['division_points'] ?? 0, 2) }} pts</p>
+                                        {{-- One tile per division the shooter placed in. Each division has
+                                             its own independent normalisation (top of that division = 100%),
+                                             so the points here will never sum to the Overall total. --}}
+                                        @foreach($entry['divisions'] ?? [] as $div)
+                                            <div title="Separate ranking computed using {{ $div['name'] }}-only normalization (each match's top {{ $div['name'] }} shooter = 100%). Points here will not match the Overall total.">
+                                                <p class="text-xs text-stone-400">{{ $div['name'] }}</p>
+                                                <p class="text-xl font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</p>
+                                                <p class="text-xs text-stone-500 tabular-nums">{{ number_format($div['points'] ?? 0, 2) }} pts</p>
                                                 <p class="text-[9px] text-stone-400 uppercase tracking-wider">division only</p>
                                             </div>
-                                        @endif
+                                        @endforeach
                                     </div>
                                 </div>
                             @endif
@@ -398,21 +408,21 @@
                                             <span class="text-blue-400">&middot; {{ $entry['province_name'] }}</span>
                                         @endif
                                     </p>
-                                    <div class="flex items-start justify-center gap-6">
+                                    <div class="flex items-start justify-center gap-6 flex-wrap">
                                         <div title="Ranking against every {{ $entry['province_name'] ?? 'in-province' }} {{ $series }} shooter">
                                             <p class="text-xs text-stone-400">Overall</p>
                                             <p class="text-xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
                                             <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['provincial_points'] ?? 0, 2) }} pts</p>
                                             <p class="text-[9px] text-stone-400 uppercase tracking-wider">vs everyone</p>
                                         </div>
-                                        @if($entry['provincial_division_name'])
-                                            <div title="Separate ranking computed using {{ $entry['provincial_division_name'] }}-only normalization. Points here will not match the Overall total.">
-                                                <p class="text-xs text-stone-400">{{ $entry['provincial_division_name'] }}</p>
-                                                <p class="text-xl font-bold text-amber-700">#{{ $entry['provincial_division_rank'] ?? '—' }}</p>
-                                                <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['provincial_division_points'] ?? 0, 2) }} pts</p>
+                                        @foreach($entry['provincial_divisions'] ?? [] as $div)
+                                            <div title="Separate ranking computed using {{ $div['name'] }}-only normalization. Points here will not match the Overall total.">
+                                                <p class="text-xs text-stone-400">{{ $div['name'] }}</p>
+                                                <p class="text-xl font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</p>
+                                                <p class="text-xs text-stone-500 tabular-nums">{{ number_format($div['points'] ?? 0, 2) }} pts</p>
                                                 <p class="text-[9px] text-stone-400 uppercase tracking-wider">division only</p>
                                             </div>
-                                        @endif
+                                        @endforeach
                                     </div>
                                 </div>
                             @endif

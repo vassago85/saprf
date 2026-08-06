@@ -197,7 +197,7 @@ class StandingController extends Controller
             // shooter has no national row yet, and so we can pull its
             // pool_breakdown for per-match provincial contributions.
             $provincial = null;
-            $provincialDivision = null;
+            $provincialDivisions = collect();
             if ($series === 'PR22' && $user->province_id) {
                 $provincial = Standing::where('user_id', $user->id)
                     ->where('season', $season)
@@ -206,13 +206,21 @@ class StandingController extends Controller
                     ->whereNull('division_id')
                     ->first();
 
-                $provincialDivision = Standing::where('user_id', $user->id)
+                // ALL provincial division standings — a shooter may compete
+                // in multiple divisions across the season (e.g. Open in one
+                // match, Factory in another) and gets a separate ranking in
+                // each. `->first()` silently hid every division past the
+                // first. Sort by the division's display_order so the UI
+                // presentation is stable and matches the standings tables.
+                $provincialDivisions = Standing::where('user_id', $user->id)
                     ->where('season', $season)
                     ->where('series', 'PR22')
                     ->where('province_id', $user->province_id)
                     ->whereNotNull('division_id')
                     ->with('division')
-                    ->first();
+                    ->get()
+                    ->sortBy(fn (Standing $s) => $s->division?->display_order ?? 999)
+                    ->values();
 
                 if ($provincial) {
                     $this->mergeProvincialContributions($contributionByMatch, $provincial->pool_breakdown);
@@ -220,15 +228,19 @@ class StandingController extends Controller
             }
 
             if ($overall || $provincial) {
-                $divisionStanding = $overall
+                // Same treatment for national division standings — load all
+                // divisions the shooter placed in, not just the first row.
+                $divisionStandings = $overall
                     ? Standing::where('user_id', $user->id)
                         ->where('season', $season)
                         ->where('series', $series)
                         ->whereNull('province_id')
                         ->whereNotNull('division_id')
                         ->with('division')
-                        ->first()
-                    : null;
+                        ->get()
+                        ->sortBy(fn (Standing $s) => $s->division?->display_order ?? 999)
+                        ->values()
+                    : collect();
 
                 $standingsSummary[] = [
                     'series' => $series,
@@ -237,18 +249,22 @@ class StandingController extends Controller
                     'overall_points' => $overall?->points,
                     'pool_breakdown' => $overall?->pool_breakdown,
                     'scoring_mode' => $seriesRule?->scoring_mode ?? 'best_of_n',
-                    'division_name' => $divisionStanding?->division?->name,
-                    'division_rank' => $divisionStanding?->rank,
-                    'division_points' => $divisionStanding?->points,
+                    'divisions' => $divisionStandings->map(fn (Standing $s) => [
+                        'name' => $s->division?->name,
+                        'rank' => $s->rank,
+                        'points' => $s->points,
+                    ])->all(),
                     // Provincial standing (PR22 only)
                     'has_provincial' => (bool) $provincial,
                     'province_name' => $user->province?->name,
                     'provincial_rank' => $provincial?->rank,
                     'provincial_points' => $provincial?->points,
                     'provincial_pool_breakdown' => $provincial?->pool_breakdown,
-                    'provincial_division_name' => $provincialDivision?->division?->name,
-                    'provincial_division_rank' => $provincialDivision?->rank,
-                    'provincial_division_points' => $provincialDivision?->points,
+                    'provincial_divisions' => $provincialDivisions->map(fn (Standing $s) => [
+                        'name' => $s->division?->name,
+                        'rank' => $s->rank,
+                        'points' => $s->points,
+                    ])->all(),
                 ];
 
                 if ($overall) {

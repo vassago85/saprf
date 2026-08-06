@@ -180,3 +180,65 @@ it('renders PR22 with separate National and Provincial columns and does not mix 
     // footer copy that mentions both series).
     $response->assertDontSee('Annual Log Breakdown', false);
 });
+
+it('shows every division a shooter placed in — not just the first', function () {
+    // Kevin-style case: shoots one match in Open, another in Factory. The
+    // profile page previously called ->first() when loading division standings,
+    // silently hiding every division past the first one.
+    $province = Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    $factory = Division::create(['slug' => 'factory', 'name' => 'Factory', 'display_order' => 2]);
+    \App\Models\QualificationRule::create([
+        'series' => 'PRS', 'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'best_of_count' => 3, 'total_qualifying_matches' => 3, 'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $kevin = User::factory()->create(['name' => 'Kevin Multi', 'province_id' => $province->id]);
+    Membership::create([
+        'user_id' => $kevin->id, 'saprf_number' => 'T-300', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $service = app(\App\Services\StandingsCalculationService::class);
+
+    // Match 1 — Kevin shoots Open. A rival in Open beats him.
+    $m1 = makeMatch('PRS Open Match', 'PRS', 'national', '2026-02-15');
+    $openRival = User::factory()->create();
+    Score::create([
+        'match_id' => $m1->id, 'user_id' => $openRival->id, 'shooter_name' => 'Open Rival',
+        'division_id' => $open->id, 'raw_score' => 100,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $m1->match_date,
+    ]);
+    Score::create([
+        'match_id' => $m1->id, 'user_id' => $kevin->id, 'shooter_name' => $kevin->name,
+        'division_id' => $open->id, 'raw_score' => 80,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $m1->match_date,
+    ]);
+    $service->recalculateForMatch($m1);
+
+    // Match 2 — Kevin shoots Factory. He's the only Factory competitor, so
+    // he wins Factory outright. Deliberately leave the Open pool alone in
+    // this match so the Open standing stays: Rival #1 (100), Kevin #2 (80).
+    $m2 = makeMatch('PRS Factory Match', 'PRS', 'national', '2026-04-15');
+    Score::create([
+        'match_id' => $m2->id, 'user_id' => $kevin->id, 'shooter_name' => $kevin->name,
+        'division_id' => $factory->id, 'raw_score' => 90,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $m2->match_date,
+    ]);
+    $service->recalculateForMatch($m2);
+
+    $response = $this->get('/standings/2026/shooter/'.$kevin->id);
+
+    $response->assertOk();
+    // BOTH divisions Kevin competed in must appear on his profile — not just
+    // the first one that comes back from the DB.
+    $response->assertSee('Open', false);
+    $response->assertSee('Factory', false);
+    // Each division has its own independent rank chip / tile. Kevin wins
+    // Factory (only Factory shooter → #1) and comes 2nd in Open.
+    $response->assertSeeInOrder(['Open', '#2'], false);
+    $response->assertSeeInOrder(['Factory', '#1'], false);
+});

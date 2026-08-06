@@ -107,6 +107,69 @@ it('re-ranks every match before aggregating season standings, fixing stale divis
     expect(round((float) $johanOpenStanding->points, 2))->toBe(98.21);
 });
 
+it('re-ranks PR22 matches too, so weighted-pool division standings are self-consistent', function () {
+    // Same stale-division scenario as the PRS test, but for PR22 — PR22 uses
+    // weighted_pools aggregation which reads division_normalized_score via a
+    // different code path (contributionForPool → normalizedScoreForContext).
+    // Any fix for PRS division drift must equally fix PR22.
+    $province = Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+
+    \App\Models\QualificationRule::create([
+        'series' => 'PR22', 'season' => '2026',
+        'scoring_mode' => 'weighted_pools',
+        'best_of_count' => 3, 'total_qualifying_matches' => 3, 'min_out_of_province_matches' => 0,
+        'provincial_pool_best_of' => 1, 'provincial_pool_weight_pct' => 30,
+        'national_pool_best_of' => 1, 'national_pool_weight_pct' => 40,
+        'champs_pool_best_of' => 1, 'champs_pool_weight_pct' => 30,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $top = User::factory()->create(['name' => 'Top Open', 'province_id' => $province->id]);
+    $second = User::factory()->create(['name' => 'Second Open', 'province_id' => $province->id]);
+    foreach ([$top, $second] as $u) {
+        Membership::create([
+            'user_id' => $u->id, 'saprf_number' => 'T-'.$u->id, 'membership_type' => 'paid',
+            'status' => 'active', 'payment_status' => 'paid',
+            'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+        ]);
+    }
+
+    $match = MatchEvent::create([
+        'name' => 'PR22 National', 'match_type' => 'PR22', 'series' => 'PR22',
+        'series_level' => 'national', 'season' => '2026', 'province_id' => $province->id,
+        'match_date' => '2026-05-20', 'status' => 'completed',
+        'created_by' => $top->id, 'active_member_fee' => 500, 'published' => true,
+    ]);
+
+    Score::create([
+        'match_id' => $match->id, 'user_id' => $top->id, 'shooter_name' => 'Top',
+        'division_id' => $open->id, 'raw_score' => 100,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $match->match_date,
+    ]);
+    $secondScore = Score::create([
+        'match_id' => $match->id, 'user_id' => $second->id, 'shooter_name' => 'Second',
+        'division_id' => $open->id, 'raw_score' => 80,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $match->match_date,
+    ]);
+
+    // Simulate stale state: 2nd shooter's division-normalized was persisted
+    // as 100 (top-Open at the time), but real ratio is 80/100 = 80%.
+    $secondScore->update([
+        'normalized_score' => 80.00,
+        'division_normalized_score' => 100.00,
+        'overall_rank' => 2,
+        'division_rank' => 1,
+    ]);
+
+    $this->artisan('scores:reevaluate', ['--skip-free-fix' => true, '--skip-expiry-fix' => true])
+        ->assertExitCode(0);
+
+    $secondFresh = $secondScore->fresh();
+    expect(round((float) $secondFresh->division_normalized_score, 2))->toBe(80.00);
+    expect((int) $secondFresh->division_rank)->toBe(2);
+});
+
 it('leaves fresh, already-correct per-match rankings unchanged after reevaluate', function () {
     // Regression guard: a re-rank of a match that's already correctly ranked
     // must produce the same values — no drift on repeat runs.
