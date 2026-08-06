@@ -233,3 +233,76 @@ it('records per-match provincial contribution in the standings pool_breakdown', 
         ->and((bool) $dropped['counted'])->toBeFalse()
         ->and((float) $dropped['contribution'])->toBe(0.0);
 });
+
+it('uses the best 3 provincial scores for a weighted-pools PR22 rule (best_of_count null, provincial_pool_best_of 3)', function () {
+    // This mirrors the REAL seeded PR22 rule: weighted_pools with a null
+    // best_of_count. The provincial best-of lives in provincial_pool_best_of,
+    // and the provincial standing table must honour it (top-3), not sum every
+    // provincial match — matching the PRS provincial table's behaviour.
+    \App\Models\QualificationRule::create([
+        'series' => 'PR22',
+        'season' => '2026',
+        'scoring_mode' => 'weighted_pools',
+        'best_of_count' => null,
+        'total_qualifying_matches' => 6,
+        'min_out_of_province_matches' => 1,
+        'provincial_pool_best_of' => 3,
+        'provincial_pool_weight_pct' => 30.00,
+        'national_pool_best_of' => 2,
+        'national_pool_weight_pct' => 40.00,
+        'champs_pool_best_of' => 1,
+        'champs_pool_weight_pct' => 30.00,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create(['province_id' => $this->gp->id]);
+
+    // Four provincial matches: 100, 80, 60, 40. Best-of-3 keeps 100+80+60=240
+    // and drops the 40.
+    $matches = [];
+    foreach ([['A', 100], ['B', 80], ['C', 60], ['D', 40]] as [$suffix, $normalized]) {
+        $match = MatchEvent::create([
+            'name' => 'Provincial GP '.$suffix,
+            'match_type' => 'PR22',
+            'series_level' => 'provincial',
+            'series' => 'PR22',
+            'season' => '2026',
+            'province_id' => $this->gp->id,
+            'match_date' => '2026-03-15',
+            'status' => 'completed',
+            'created_by' => User::factory()->create()->id,
+            'active_member_fee' => 500,
+            'published' => true,
+        ]);
+        // Bench shooter at 100 raw so the tracked shooter's normalized pct
+        // equals $normalized.
+        $top = User::factory()->create();
+        Score::create([
+            'match_id' => $match->id, 'user_id' => $top->id, 'shooter_name' => $top->name,
+            'raw_score' => 100, 'division_id' => $this->division->id,
+            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
+        ]);
+        Score::create([
+            'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
+            'raw_score' => $normalized, 'division_id' => $this->division->id,
+            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
+        ]);
+        $matches[$suffix] = $match;
+        $this->service->recalculateForMatch($match);
+    }
+
+    $standing = Standing::where('user_id', $shooter->id)
+        ->where('province_id', $this->gp->id)
+        ->whereNull('division_id')
+        ->firstOrFail();
+
+    expect((float) $standing->points)->toBe(240.0)
+        ->and($standing->pool_breakdown['mode'] ?? null)->toBe('best_of_n')
+        ->and($standing->pool_breakdown['scores_counted'] ?? null)->toBe(3)
+        ->and($standing->pool_breakdown['matches'] ?? [])->toHaveCount(4);
+
+    // The 40 is present but dropped.
+    $dropped = collect($standing->pool_breakdown['matches'])->last();
+    expect($dropped['match_id'])->toBe($matches['D']->id)
+        ->and((bool) $dropped['counted'])->toBeFalse();
+});

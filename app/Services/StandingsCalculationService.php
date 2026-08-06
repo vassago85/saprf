@@ -242,6 +242,17 @@ class StandingsCalculationService
         }
 
         $bestOf = $rule?->best_of_count;
+
+        // The provincial standings table is "sum of best N provincial scores".
+        // Under weighted-pools rules (PR22) best_of_count is null — the
+        // provincial best-of lives in provincial_pool_best_of (used by the
+        // national pooled standing) — so fall back to it here. Without this the
+        // provincial table would sum EVERY provincial match instead of the best
+        // N, diverging from the PRS provincial table (which uses best_of_count).
+        if ($isProvincial && ! $bestOf) {
+            $bestOf = $rule?->provincial_pool_best_of ?: null;
+        }
+
         $finalsMultiplier = ($rule && $rule->weighted_final_enabled)
             ? (float) ($rule->weighted_final_multiplier ?? 1.0)
             : 1.0;
