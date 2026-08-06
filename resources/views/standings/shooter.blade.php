@@ -109,11 +109,35 @@
 
         <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
             @php
+                // Membership-eligibility badges. These describe the shooter's
+                // membership state on match day, NOT whether the score
+                // actually contributed to a ranking. Whether a score counted
+                // toward the season is shown separately in the Nat. Pts /
+                // Prov. Pts columns ("+X.XX" if counted, "DROPPED" if valid
+                // but not among the counting matches). A previous "Counts"
+                // label conflicted with the DROPPED indicator and read as
+                // contradictory to shooters.
                 $statusBadges = [
-                    'valid' => ['label' => 'Counts', 'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
-                    'pending' => ['label' => 'Pending', 'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
-                    'lapsed' => ['label' => 'Lapsed', 'class' => 'bg-orange-50 text-orange-700 ring-orange-200'],
-                    'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-500 ring-stone-200'],
+                    'valid' => [
+                        'label' => 'Eligible',
+                        'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                        'tooltip' => 'You were a paid member on match day — this score was eligible for the season log. Look at the National (and Provincial) contribution columns to see if it actually counted toward your ranking.',
+                    ],
+                    'pending' => [
+                        'label' => 'Pending',
+                        'class' => 'bg-amber-50 text-amber-700 ring-amber-200',
+                        'tooltip' => 'Membership payment was pending on match day — score is not eligible for the season log.',
+                    ],
+                    'lapsed' => [
+                        'label' => 'Lapsed',
+                        'class' => 'bg-orange-50 text-orange-700 ring-orange-200',
+                        'tooltip' => 'Membership was lapsed on match day — score is not eligible for the season log.',
+                    ],
+                    'non_member' => [
+                        'label' => 'Non-member',
+                        'class' => 'bg-stone-100 text-stone-500 ring-stone-200',
+                        'tooltip' => 'You were not a member on match day — score is visible for reference but not eligible for the season log.',
+                    ],
                 ];
             @endphp
             @foreach($seriesOrder as $series)
@@ -459,7 +483,7 @@
                                     @if($hasProvincialCol)
                                         <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-blue-700 bg-blue-50/40" title="Points this match contributed toward the {{ $series }} Provincial standing">Prov. Pts</th>
                                     @endif
-                                    <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
+                                    <th class="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400" title="Membership eligibility on match day. Independent of whether the score counted — the contribution columns to the left show that separately.">Membership</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -538,7 +562,7 @@
                                         @endif
 
                                         <td class="px-5 py-3 text-center">
-                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset {{ $badge['class'] }}">{{ strtoupper($badge['label']) }}</span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset {{ $badge['class'] }}" title="{{ $badge['tooltip'] ?? '' }}">{{ strtoupper($badge['label']) }}</span>
                                         </td>
                                     </tr>
                                 @empty
@@ -554,12 +578,22 @@
                                             {{ $seriesScores->count() }} match{{ $seriesScores->count() === 1 ? '' : 'es' }} attended
                                         </td>
                                         <td class="px-5 py-3 text-right text-sm font-bold text-stone-600 tabular-nums" title="Best % score">{{ number_format($seriesScores->max('normalized_score'), 2) }}</td>
-                                        <td class="px-5 py-3 text-center text-sm font-bold text-emerald-700 tabular-nums bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
-                                            {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 2) }}
+                                        {{-- Nat total. The tiny "Nat total" caption above the number
+                                             is deliberately redundant with the column header — the
+                                             blue/emerald colour distinction alone reads as ambiguous
+                                             for anyone scanning just the footer row. --}}
+                                        <td class="px-5 py-3 text-center bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
+                                            <div class="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 leading-none">Nat total</div>
+                                            <div class="text-sm font-bold text-emerald-700 tabular-nums mt-0.5">
+                                                {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 2) }}
+                                            </div>
                                         </td>
                                         @if($hasProvincialCol)
-                                            <td class="px-5 py-3 text-center text-sm font-bold text-blue-700 tabular-nums bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
-                                                {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 2) }}
+                                            <td class="px-5 py-3 text-center bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
+                                                <div class="text-[9px] font-semibold uppercase tracking-wider text-blue-600 leading-none">Prov total</div>
+                                                <div class="text-sm font-bold text-blue-700 tabular-nums mt-0.5">
+                                                    {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 2) }}
+                                                </div>
                                             </td>
                                         @endif
                                         <td></td>

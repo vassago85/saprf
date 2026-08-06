@@ -52,7 +52,12 @@ it('shows matches from both PRS and PR22, including non-member matches', functio
     $response->assertSee('PRS GP National');
     $response->assertSee('PR22 WC Provincial');
     $response->assertSee('NON-MEMBER');   // badge on the PR22 row
-    $response->assertSee('COUNTS');        // badge on the PRS row
+    // The membership-eligibility badge on the PRS row. Note this is
+    // deliberately labelled "ELIGIBLE" (not "COUNTS") because "counts" would
+    // read as contradictory next to a "DROPPED" mark in the Nat. Pts column
+    // — eligibility (paid member on match day) and contribution (was this
+    // score picked among the counting matches) are two different questions.
+    $response->assertSee('ELIGIBLE');
 });
 
 it('renders even when the shooter attended only non-member matches (no ranking)', function () {
@@ -175,6 +180,13 @@ it('renders PR22 with separate National and Provincial columns and does not mix 
     // Both contribution columns must be present in the PR22 match table.
     $response->assertSee('Nat. Pts', false);
     $response->assertSee('Prov. Pts', false);
+    // The footer totals row must carry explicit "Nat total" / "Prov total"
+    // captions — colour alone (blue vs green) reads as ambiguous when the
+    // reader is scanning just the footer. Regression guard.
+    $response->assertSee('Nat total', false);
+    $response->assertSee('Prov total', false);
+    // The membership eligibility column is called "Membership", not "Status".
+    $response->assertSee('Membership', false);
     // The PRS-specific breakdown label must NOT appear on a PR22-only page
     // (a bare assertDontSee('PRS') would collide with the shared public
     // footer copy that mentions both series).
