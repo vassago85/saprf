@@ -6,11 +6,14 @@ use App\Models\Score;
 use App\Services\StandingsCalculationService;
 
 /**
- * The PR22 national pool (40%) uses a "drop-one" rule: a shooter's worst
- * national is always dropped, so counting scores = (nationals shot − 1),
- * capped at 2, and the pool result is the AVERAGE of the counting scores.
- *   1 shot → 0,  2 shot → best 1,  3+ shot → best 2.
- * Provincial (best 3) and Champs (best 1) keep the strict divide-by-N rule.
+ * The PR22 national pool (40%) uses a drop-one + strict-divisor rule:
+ *   - drop-one:  counting scores = (nationals shot − 1), capped at best_of (2).
+ *                1 shot → 0,  2 shot → best 1,  3+ shot → best 2.
+ *   - divisor:   ALWAYS best_of (2). Missing slots count as 0 — the same rule
+ *                the provincial and champs pools use. Shooting only 2 nationals
+ *                therefore yields at most 50% of the pool (one score ÷ 2), so a
+ *                shooter who put in a proper 3-match season isn't matched by a
+ *                shooter who only did 2 with perfect scores.
  */
 
 function pr22Rule(): QualificationRule
@@ -66,12 +69,16 @@ it('gives zero national pool when only one national is shot', function () {
         ->and((float) $b['contribution'])->toBe(0.0);
 });
 
-it('counts only the single highest when two nationals are shot', function () {
+it('counts only the single highest when two nationals are shot, and halves the pool average (divisor = 2)', function () {
+    // 2 shot → 1 counts (drop-one). Divisor is best_of = 2 regardless, so the
+    // single 90% counts as 45 in a 100-max pool. This is the key rule change:
+    // a shooter who has done only 2 nationals cannot match the pool of a
+    // shooter who put in the proper 3 (unless the 3rd shooter blanked hard).
     $b = nationalPoolBreakdown([90.0, 80.0]);
 
     expect($b['scores_counted'])->toBe(1)
-        ->and((float) $b['pool_average'])->toBe(90.0)
-        ->and((float) $b['contribution'])->toBe(36.0); // 90 × 40%
+        ->and((float) $b['pool_average'])->toBe(45.0) // 90 ÷ 2
+        ->and((float) $b['contribution'])->toBe(18.0); // 45 × 40%
 });
 
 it('counts the best two (averaged) once three nationals are shot', function () {

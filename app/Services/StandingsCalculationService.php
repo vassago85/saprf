@@ -509,13 +509,22 @@ class StandingsCalculationService
                         ->values();
 
                     if ($poolKey === 'national') {
-                        // Drop-one: you must shoot one extra national to unlock each
-                        // counting score. The divisor is the number that actually
-                        // count, so a single counting score is worth its full value.
+                        // National pool = best_of + drop-one:
+                        //   - drop-one:  countN = max(0, shot − 1), capped at best_of.
+                        //                (1 shot → 0 counting, 2 shot → 1, 3+ shot → best 2)
+                        //   - divisor:   ALWAYS best_of. If a shooter falls short of the
+                        //                target count, the missing slots count as 0 —
+                        //                the same "divide by the target, never by what
+                        //                you happened to shoot" logic the provincial and
+                        //                champs pools already use. Previously the divisor
+                        //                was `countN`, which gave a shooter with only 2
+                        //                nationals full credit for their single counting
+                        //                score (100% pool) and let them match a shooter
+                        //                who put in a proper 3-match season.
                         $countN = max(0, min($config['best_of'], $eligible->count() - 1));
-                        $divisor = $countN;
-                        $poolAverage = $countN > 0
-                            ? $eligible->take($countN)->sum('pct') / $countN
+                        $divisor = $config['best_of'];
+                        $poolAverage = $divisor > 0
+                            ? $eligible->take($countN)->sum('pct') / $divisor
                             : 0.0;
                     } else {
                         // Strict: divide by best_of even when the shooter has fewer
@@ -529,8 +538,9 @@ class StandingsCalculationService
 
                     // Per-match contribution: counted scores contribute
                     // pct * weight / 100 / divisor; dropped scores contribute 0.
-                    // Divisor differs by pool (best_of for strict pools, countN
-                    // for the national drop-one pool).
+                    // Divisor is `best_of` for every pool now — so per-match
+                    // contribution and the pool average always agree on the
+                    // same "divide by the target count" rule.
                     $matches = $eligible
                         ->values()
                         ->map(function (array $row, int $idx) use ($countN, $divisor, $config) {
