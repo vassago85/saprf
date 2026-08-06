@@ -252,11 +252,18 @@ it('ranks ties with standard competition ranking (1, 2, 2, 4)', function () {
     expect($log[$u4->id]['rank'])->toBe(4); // 3 is skipped
 });
 
-it('keeps a separate, independent log per division', function () {
+it('keeps a separate, independent log per division — same overall % used, division only filters WHO appears', function () {
+    // Under the current scoring model, every standing (overall + per-division)
+    // uses the shooter's OVERALL normalized_score. Division standings are
+    // simply the overall totals restricted to shooters who competed in that
+    // division. This keeps the Overall tile and each Division tile mutually
+    // consistent for the same shooter (previously each division normalised
+    // against its own top, so a shooter's Overall and Division totals could
+    // diverge if the overall winner sat outside their division).
     $prod = Division::create(['slug' => 'production', 'name' => 'Production']);
     $match = prsMatch('N1', 'national', '2026-03-01');
 
-    // Open: 50 (top) & 25 (=50%). Production: 10 (top of its own division = 100%).
+    // Overall top = OpenTop@50 (norm=100). OpenLow@25 (norm=50). ProdOnly@10 (norm=20).
     $openTop = User::factory()->create(['name' => 'OpenTop']);
     $openLow = User::factory()->create(['name' => 'OpenLow']);
     $prodOnly = User::factory()->create(['name' => 'ProdOnly']);
@@ -271,15 +278,59 @@ it('keeps a separate, independent log per division', function () {
     $openLog = $service->annualLog('PRS', '2026', $this->open->id)->keyBy('user_id');
     $prodLog = $service->annualLog('PRS', '2026', $prod->id)->keyBy('user_id');
 
-    // Within Open, winner = 100, other = 50.
+    // Open contains OpenTop (overall winner at 100) and OpenLow (50).
     expect($openLog[$openTop->id]['total'])->toBe(100.00);
     expect($openLog[$openLow->id]['total'])->toBe(50.00);
 
-    // Production shooter is the winner of their OWN division = 100, despite a
-    // low raw score, and never appears in the Open log.
-    expect($prodLog[$prodOnly->id]['total'])->toBe(100.00);
+    // Production contains only ProdOnly, whose overall normalized_score is
+    // 10/50 * 100 = 20. He's the top of the Production log at 20 pts — every
+    // division is no longer guaranteed a 100% champion, but points now match
+    // whatever that shooter earned overall.
+    expect($prodLog[$prodOnly->id]['total'])->toBe(20.00);
     expect($openLog->has($prodOnly->id))->toBeFalse();
     expect($prodLog->has($openTop->id))->toBeFalse();
+});
+
+it('overall and division standings drop the same match — no more 298.21 vs 300.00 divergence', function () {
+    // Regression for the "Johan Nel Open 300.00 vs Overall 298.21" report:
+    // when a shooter is in the same division across the season, their
+    // per-division total MUST equal their overall total (both use the same
+    // overall normalized_score and therefore drop the same lowest match).
+    $senior = Division::create(['slug' => 'senior', 'name' => 'Senior']);
+
+    $johan = User::factory()->create(['name' => 'Johan-like']);
+    // Four national matches. In three of them Johan is overall #1 (norm=100).
+    // In the fourth (16 May analogue) another Open shooter beats him
+    // (norm=98.21). In one match a Senior shooter beats him overall (norm=97.96
+    // for Johan). Best 3 by overall %: 100, 100, 100 → 300... EXCEPT there's
+    // a fifth wrinkle: the OLD rule would have kept 16 May's div_norm at
+    // 100 in a division where Johan was top, giving Open 300 and Overall
+    // 298.21. Now both must agree.
+    $matches = [
+        ['02', 100],  // Feb: Johan raw=100, top overall raw=100 → norm=100
+        ['03', 100],  // Mar: same
+        ['04', 110],  // Apr: rival raw=112 → Johan norm=98.21
+        ['05', 100],  // May: same as Feb
+    ];
+    foreach ($matches as [$mm, $johanRaw]) {
+        $m = prsMatch('N-'.$mm, 'national', '2026-'.$mm.'-01');
+        // Overall winner (Open) — different shooter per match so no season buildup here.
+        prsScore($m, User::factory()->create(), $johanRaw === 110 ? 112.0 : 100.0, $this->open->id);
+        prsScore($m, $johan, (float) $johanRaw, $this->open->id);
+    }
+
+    recalcPrs();
+    $service = app(StandingsCalculationService::class);
+
+    $overall = $service->annualLog('PRS', '2026', null)->firstWhere('user_id', $johan->id);
+    $openLog = $service->annualLog('PRS', '2026', $this->open->id)->firstWhere('user_id', $johan->id);
+
+    // Best 3 overall %s: 100, 100, 100 (Apr's 98.21 dropped).
+    expect($overall['total'])->toBe(300.00);
+    // Open division standing MUST equal overall — same shooter, same
+    // matches, same scoring.
+    expect($openLog['total'])->toBe(300.00);
+    expect($openLog['total'])->toEqual($overall['total']);
 });
 
 it('ignores provincial PRS matches for the NATIONAL annual log — only nationals and champs count', function () {

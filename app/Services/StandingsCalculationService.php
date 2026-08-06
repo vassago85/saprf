@@ -647,12 +647,34 @@ class StandingsCalculationService
         };
     }
 
+    /**
+     * Return the score value to use for season aggregation in a given context.
+     *
+     * IMPORTANT: both 'overall' and 'division' contexts now return the same
+     * value — the shooter's OVERALL normalized_score (their raw % against the
+     * top raw score in the match, across ALL divisions).
+     *
+     * The old behaviour normalised division standings against the top score
+     * IN THAT DIVISION, which meant each division always had a shooter at
+     * 100% per match but the season totals could diverge from the overall
+     * standing (best-3 dropped different matches depending on whether the
+     * overall winner was in the shooter's division). Users read the two
+     * numbers as inconsistent — e.g. Overall 298.21 vs Open 300.00 for the
+     * same shooter, same 4 matches — even though both were internally
+     * consistent by their own rule.
+     *
+     * Under the new rule, each per-division standing is simply the overall
+     * best-3 total restricted to the cohort of shooters who shot that
+     * division. Every shooter's Open/Senior/Ladies/etc. points now equal
+     * their Overall points (matching cohort permitting), and only the
+     * ranking changes across divisions. The `division_normalized_score`
+     * column is still populated by calculateMatchRankings() and remains
+     * available for the per-match "By Division" tab on the match page —
+     * it's just no longer used for season aggregation.
+     */
     private function normalizedScoreForContext(Score $score, string $context): float
     {
-        return match ($context) {
-            'division' => (float) ($score->division_normalized_score ?? $score->normalized_score ?? 0),
-            default => (float) ($score->normalized_score ?? 0),
-        };
+        return (float) ($score->normalized_score ?? 0);
     }
 
     /**
@@ -679,10 +701,12 @@ class StandingsCalculationService
                     ->map(function (Score $s) use ($context, $finalsMultiplier) {
                         $match = $s->match;
 
-                        $value = (float) (match ($context) {
-                            'division' => $s->division_normalized_score ?? $s->normalized_score ?? 0,
-                            default => $s->normalized_score ?? 0,
-                        });
+                        // Always go through normalizedScoreForContext() so
+                        // both 'overall' and 'division' contexts sum the
+                        // shooter's overall normalized_score. See that
+                        // method's docblock for why the old
+                        // division_normalized_score path was retired.
+                        $value = $this->normalizedScoreForContext($s, $context);
 
                         if ($match && $match->series_level === 'final' && $finalsMultiplier > 1.0) {
                             $value = $value * $finalsMultiplier;

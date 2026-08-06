@@ -587,14 +587,14 @@
                                              is deliberately redundant with the column header — the
                                              blue/emerald colour distinction alone reads as ambiguous
                                              for anyone scanning just the footer row. --}}
-                                        <td class="px-5 py-3 text-center bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
+                                        <td class="px-5 py-3 text-center bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 2) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
                                             <div class="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 leading-none">Nat total</div>
                                             <div class="text-sm font-bold text-emerald-700 tabular-nums mt-0.5">
                                                 {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 2) }}
                                             </div>
                                         </td>
                                         @if($hasProvincialCol)
-                                            <td class="px-5 py-3 text-center bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 2) }}). The division-only standing above uses different normalization and won't match this sum.">
+                                            <td class="px-5 py-3 text-center bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 2) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
                                                 <div class="text-[9px] font-semibold uppercase tracking-wider text-blue-600 leading-none">Prov total</div>
                                                 <div class="text-sm font-bold text-blue-700 tabular-nums mt-0.5">
                                                     {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 2) }}
