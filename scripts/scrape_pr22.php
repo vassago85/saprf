@@ -28,7 +28,7 @@ $targetLeagues = [
     'national'   => 'SAPRF PR22 National Series',
     'provincial' => 'SAPRF PR22 Provincial Series',
 ];
-$targetYear = '2026';
+$targetYears = ['2025', '2026'];
 
 function httpGet(string $url, string $cacheFile): string
 {
@@ -172,7 +172,14 @@ foreach ([$pastHtml, $upHtml] as $listHtml) {
         $provText   = textOf($cells->item(3));
         $leagueText = textOf($cells->item(4));
 
-        if (strpos($leagueText, $targetYear) === false) continue;
+        // The league column carries the season year, e.g.
+        // "SAPRF PR22 Provincial Series 2026". Keep the event if it matches any
+        // target year, and tag it with the year we matched.
+        $year = null;
+        foreach ($targetYears as $ty) {
+            if (strpos($leagueText, $ty) !== false) { $year = $ty; break; }
+        }
+        if ($year === null) continue;
 
         $level = null;
         foreach ($targetLeagues as $lvl => $needle) {
@@ -198,7 +205,7 @@ foreach ([$pastHtml, $upHtml] as $listHtml) {
             'level'      => $level,
             'match_type' => 'pr22',
             'series'     => 'pr22',
-            'season'     => $targetYear,
+            'season'     => $year,
             'source_url' => $baseUrl.'/events/'.$eventId,
         ];
     }
@@ -206,7 +213,7 @@ foreach ([$pastHtml, $upHtml] as $listHtml) {
 
 usort($candidates, fn($a, $b) => strcmp($a['date_iso'], $b['date_iso']));
 
-echo count($candidates)." PR22 2026 match(es) discovered.\n";
+echo count($candidates).' PR22 '.implode('/', $targetYears)." match(es) discovered.\n";
 
 $scraped = [];
 $upcoming = [];   // no results table yet (future / unpublished)
@@ -349,11 +356,11 @@ foreach ($upcoming as $ev) {
 fclose($uh);
 
 $indexPath = $outDir.'/INDEX.md';
-$md  = "# SAPRF PR22 2026 — Scraped Match Results\n\n";
+$md  = '# SAPRF PR22 '.implode('/', $targetYears)." — Scraped Match Results\n\n";
 $md .= "Source: https://www.precisionrifle.co.za/events (past + upcoming listings)\n";
 $md .= "Scraped: ".date('Y-m-d H:i:s')."\n\n";
 $md .= "Series in scope:\n\n";
-foreach ($targetLeagues as $k => $v) $md .= "- $v $targetYear (`$k`)\n";
+foreach ($targetLeagues as $k => $v) $md .= '- '.$v.' '.implode('/', $targetYears)." (`$k`)\n";
 $md .= "\nPer-match score CSV columns: `shooter_name,division,raw_score,placement`\n";
 $md .= "Match catalog: `matches.csv` (one row per match, ready to import as `MatchEvent` records)\n\n";
 $md .= "## Matches scraped\n\n";

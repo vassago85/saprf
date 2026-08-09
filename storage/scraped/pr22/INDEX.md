@@ -1,12 +1,12 @@
-# SAPRF PR22 2026 — Scraped Match Results
+# SAPRF PR22 2025/2026 — Scraped Match Results
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-08-02 09:47:07
+Scraped: 2026-08-07 11:34:18
 
 Series in scope:
 
-- SAPRF PR22 National Series 2026 (`national`)
-- SAPRF PR22 Provincial Series 2026 (`provincial`)
+- SAPRF PR22 National Series 2025/2026 (`national`)
+- SAPRF PR22 Provincial Series 2025/2026 (`provincial`)
 
 Per-match score CSV columns: `shooter_name,division,raw_score,placement`
 Match catalog: `matches.csv` (one row per match, ready to import as `MatchEvent` records)
@@ -15,6 +15,12 @@ Match catalog: `matches.csv` (one row per match, ready to import as `MatchEvent`
 
 | Date | End | Level | Match | Venue | Province | MD | Shooters | 2day→prov | Src | CSV |
 |---|---|---|---|---|---|---|---:|:---:|---|---|
+| 2025-09-06 | — | provincial | SAPRF WC PR22 Provincial | Romansrivier Wolseley | Western Cape | Ruan Zeeman | 10 | — | [#211](https://www.precisionrifle.co.za/events/211) | `storage/scraped/pr22/provincial/2025-09-06_saprf-wc-pr22-provincial.csv` |
+| 2025-09-27 | — | provincial | SAPRF PR22 GP Provincial | Papaburg | Gauteng | Eddie Kinnear | 32 | — | [#212](https://www.precisionrifle.co.za/events/212) | `storage/scraped/pr22/provincial/2025-09-27_saprf-pr22-gp-provincial.csv` |
+| 2025-11-01 | — | provincial | SAPRF PR 22 WC Provincial | Romansrivier Wolseley | Western Cape | Handre van Niekerk | 23 | — | [#214](https://www.precisionrifle.co.za/events/214) | `storage/scraped/pr22/provincial/2025-11-01_saprf-pr-22-wc-provincial.csv` |
+| 2025-11-22 | — | provincial | SAPRF PR22 GP Provincial | Botha Wil Stalle | Gauteng | Clive Mey | 35 | — | [#215](https://www.precisionrifle.co.za/events/215) | `storage/scraped/pr22/provincial/2025-11-22_saprf-pr22-gp-provincial.csv` |
+| 2025-11-29 | 2025-11-30 | national | SAPRF PR22 Champs | Mpumalanga venue | Mpumalanga | Wayne Lesch | 49 | yes | [#191](https://www.precisionrifle.co.za/events/191) | `storage/scraped/pr22/national/2025-11-29_saprf-pr22-champs.csv` |
+| 2025-11-29 | — | provincial | SAPRF PR22 MP Provincial | Lydenburg | Mpumalanga | Wayne Lesch | 48 | — | [#236](https://www.precisionrifle.co.za/events/236) | `storage/scraped/pr22/provincial/2025-11-29_saprf-pr22-mp-provincial.csv` |
 | 2026-01-18 | — | provincial | SAPRF PR22 WC Provincial | Atlantis Shooting Range | Western Cape | Angelo Van Zyl | 27 | — | [#237](https://www.precisionrifle.co.za/events/237) | `storage/scraped/pr22/provincial/2026-01-18_saprf-pr22-wc-provincial.csv` |
 | 2026-01-24 | — | provincial | SAPRF PR22 GP Provincial | Papaburg | Gauteng | Eddie Kinnear | 57 | — | [#225](https://www.precisionrifle.co.za/events/225) | `storage/scraped/pr22/provincial/2026-01-24_saprf-pr22-gp-provincial.csv` |
 | 2026-02-21 | 2026-02-22 | national | Rimfire PR22 WC 2-Day National | Darling Steel Valley | Western Cape | Handre van Niekerk | 27 | yes | [#232](https://www.precisionrifle.co.za/events/232) | `storage/scraped/pr22/national/2026-02-21_rimfire-pr22-wc-2-day-national.csv` |
