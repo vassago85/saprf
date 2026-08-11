@@ -6,14 +6,16 @@ use App\Models\Score;
 use App\Services\StandingsCalculationService;
 
 /**
- * The PR22 national pool (40%) uses a drop-one + strict-divisor rule:
- *   - drop-one:  counting scores = (nationals shot − 1), capped at best_of (2).
- *                1 shot → 0,  2 shot → best 1,  3+ shot → best 2.
- *   - divisor:   ALWAYS best_of (2). Missing slots count as 0 — the same rule
- *                the provincial and champs pools use. Shooting only 2 nationals
- *                therefore yields at most 50% of the pool (one score ÷ 2), so a
- *                shooter who put in a proper 3-match season isn't matched by a
- *                shooter who only did 2 with perfect scores.
+ * The PR22 national pool (40%) uses a minimum-matches gate + strict-divisor rule
+ * with NO drop-one:
+ *   - gate:      a shooter must complete at least `national_pool_min_matches` (2)
+ *                national matches before ANY national score is earned.
+ *                1 shot → 0.
+ *   - count:     at/above the gate, the best `best_of` (2) scores count and are
+ *                summed. 2 shot → both count, 3+ shot → best 2.
+ *   - divisor:   ALWAYS best_of (2). So two solid nationals now earn full pool
+ *                credit (sum ÷ 2), matching a three-match shooter whose best two
+ *                are equal — you must simply have shot at least the minimum.
  */
 
 function pr22Rule(): QualificationRule
@@ -24,6 +26,7 @@ function pr22Rule(): QualificationRule
     $rule->provincial_pool_weight_pct = 30;
     $rule->national_pool_best_of = 2;
     $rule->national_pool_weight_pct = 40;
+    $rule->national_pool_min_matches = 2;
     $rule->champs_pool_best_of = 1;
     $rule->champs_pool_weight_pct = 30;
 
@@ -61,7 +64,7 @@ function nationalPoolBreakdown(array $normalizedScores): array
     ];
 }
 
-it('gives zero national pool when only one national is shot', function () {
+it('gives zero national pool when only one national is shot (below the minimum)', function () {
     $b = nationalPoolBreakdown([95.0]);
 
     expect($b['scores_counted'])->toBe(0)
@@ -69,16 +72,15 @@ it('gives zero national pool when only one national is shot', function () {
         ->and((float) $b['contribution'])->toBe(0.0);
 });
 
-it('counts only the single highest when two nationals are shot, and halves the pool average (divisor = 2)', function () {
-    // 2 shot → 1 counts (drop-one). Divisor is best_of = 2 regardless, so the
-    // single 90% counts as 45 in a 100-max pool. This is the key rule change:
-    // a shooter who has done only 2 nationals cannot match the pool of a
-    // shooter who put in the proper 3 (unless the 3rd shooter blanked hard).
+it('counts both nationals (summed) once the two-match minimum is met', function () {
+    // 2 shot → both count (no drop-one) now that the minimum is 2. Divisor is
+    // best_of = 2, so (90 + 80) ÷ 2 = 85. A shooter who puts in two solid
+    // nationals earns full pool credit — they simply had to shoot the minimum.
     $b = nationalPoolBreakdown([90.0, 80.0]);
 
-    expect($b['scores_counted'])->toBe(1)
-        ->and((float) $b['pool_average'])->toBe(45.0) // 90 ÷ 2
-        ->and((float) $b['contribution'])->toBe(18.0); // 45 × 40%
+    expect($b['scores_counted'])->toBe(2)
+        ->and((float) $b['pool_average'])->toBe(85.0) // (90 + 80) ÷ 2
+        ->and((float) $b['contribution'])->toBe(34.0); // 85 × 40%
 });
 
 it('counts the best two (averaged) once three nationals are shot', function () {
@@ -112,9 +114,10 @@ it('leaves the provincial pool on the strict divide-by-best-of rule', function (
         ->and((float) $prov['contribution'])->toBe(9.0); // 30 × 30%
 });
 
-it('records per-match national contribution and marks the drop-one match as dropped', function () {
-    // Three nationals, worst is auto-dropped. Each counted contributes
-    // pct * weight / 100 / countN = pct * 40 / 100 / 2 = pct * 0.2 pts.
+it('records per-match national contribution and marks the surplus match as dropped', function () {
+    // Three nationals, only the best two count (best_of = 2), so the worst is
+    // excluded. Each counted contributes pct * weight / 100 / best_of
+    // = pct * 40 / 100 / 2 = pct * 0.2 pts.
     $b = nationalPoolBreakdown([90.0, 80.0, 70.0]);
     $matches = $b['matches'] ?? [];
 
@@ -135,7 +138,7 @@ it('records per-match national contribution and marks the drop-one match as drop
     expect(round($sum, 2))->toBe((float) $b['contribution']);
 });
 
-it('drops the sole national when only one is shot (national pool contribution is 0)', function () {
+it('excludes the sole national when below the two-match minimum (national pool contribution is 0)', function () {
     $b = nationalPoolBreakdown([95.0]);
     $matches = $b['matches'] ?? [];
 

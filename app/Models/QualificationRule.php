@@ -20,6 +20,7 @@ class QualificationRule extends Model
         'provincial_pool_weight_pct',
         'national_pool_best_of',
         'national_pool_weight_pct',
+        'national_pool_min_matches',
         'champs_pool_best_of',
         'champs_pool_weight_pct',
         'created_by',

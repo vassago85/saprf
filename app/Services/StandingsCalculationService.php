@@ -532,19 +532,20 @@ class StandingsCalculationService
                         ->values();
 
                     if ($poolKey === 'national') {
-                        // National pool = best_of + drop-one:
-                        //   - drop-one:  countN = max(0, shot − 1), capped at best_of.
-                        //                (1 shot → 0 counting, 2 shot → 1, 3+ shot → best 2)
-                        //   - divisor:   ALWAYS best_of. If a shooter falls short of the
-                        //                target count, the missing slots count as 0 —
-                        //                the same "divide by the target, never by what
-                        //                you happened to shoot" logic the provincial and
-                        //                champs pools already use. Previously the divisor
-                        //                was `countN`, which gave a shooter with only 2
-                        //                nationals full credit for their single counting
-                        //                score (100% pool) and let them match a shooter
-                        //                who put in a proper 3-match season.
-                        $countN = max(0, min($config['best_of'], $eligible->count() - 1));
+                        // National pool = minimum-matches gate + best-of (NO drop-one):
+                        //   - gate:      a shooter must complete at least `min` national
+                        //                matches before ANY national score is earned. Below
+                        //                that threshold the pool is 0.
+                        //   - count:     at/above the gate, the best `best_of` scores count
+                        //                and are summed (no worst-score drop).
+                        //                (min=2, best_of=2 → 1 shot → 0, 2 shot → both,
+                        //                 3+ shot → best 2)
+                        //   - divisor:   ALWAYS best_of, so the pool is scored out of the
+                        //                same target regardless of how many were shot.
+                        $min = $config['min'];
+                        $countN = $eligible->count() >= $min
+                            ? min($config['best_of'], $eligible->count())
+                            : 0;
                         $divisor = $config['best_of'];
                         $poolAverage = $divisor > 0
                             ? $eligible->take($countN)->sum('pct') / $divisor
@@ -617,6 +618,7 @@ class StandingsCalculationService
             'national' => [
                 'best_of' => (int) ($rule->national_pool_best_of ?? 0),
                 'weight' => (float) ($rule->national_pool_weight_pct ?? 0),
+                'min' => (int) ($rule->national_pool_min_matches ?? 2),
             ],
             'champs' => [
                 'best_of' => (int) ($rule->champs_pool_best_of ?? 1),

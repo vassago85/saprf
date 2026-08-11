@@ -285,13 +285,49 @@ class ScoreImportService
         if (! empty($row['shooter_name'])) {
             $name = Str::lower(preg_replace('/\s+/', ' ', trim((string) $row['shooter_name'])));
             if ($name !== '') {
-                return User::query()
+                $exact = User::query()
                     ->whereRaw("LOWER(REGEXP_REPLACE(name, '\\\\s+', ' ')) = ?", [$name])
                     ->value('id');
+                if ($exact) {
+                    return (int) $exact;
+                }
+
+                // Priority 4: order-insensitive token match. Handles exports that
+                // swap name order (e.g. "Mey Aliza" ↔ "Aliza Mey"). Only accept
+                // when exactly one user shares the same set of name tokens, so we
+                // never collapse two distinct shooters onto one account.
+                $swapped = $this->resolveByNameTokens($name);
+                if ($swapped !== null) {
+                    return $swapped;
+                }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Resolve a user by an order-insensitive comparison of name tokens. Returns
+     * the user id only when a single user matches; null otherwise.
+     */
+    private function resolveByNameTokens(string $normalizedName): ?int
+    {
+        $tokens = collect(explode(' ', $normalizedName))->filter()->sort()->values();
+        if ($tokens->count() < 2) {
+            return null;
+        }
+        $key = $tokens->implode(' ');
+
+        $candidates = User::query()
+            ->get(['id', 'name'])
+            ->filter(function (User $user) use ($key): bool {
+                $userKey = collect(preg_split('/\s+/', Str::lower(trim((string) $user->name))))
+                    ->filter()->sort()->values()->implode(' ');
+
+                return $userKey === $key;
+            });
+
+        return $candidates->count() === 1 ? (int) $candidates->first()->id : null;
     }
 
     /**
