@@ -3,11 +3,16 @@
 namespace App\Console\Commands;
 
 use App\Models\MatchEvent;
+use App\Models\Membership;
 use App\Models\Province;
+use App\Models\Score;
 use App\Models\ScoreImport;
+use App\Models\ShooterLog;
 use App\Models\User;
 use App\Services\ScoreImportService;
+use App\Services\StandingsCalculationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -20,6 +25,11 @@ use Illuminate\Support\Str;
  * The full 2-day nationals are already loaded; this command only creates the
  * provincial day-1 events so those day-1 results feed the provincial standings.
  *
+ * EVERY shooter who put in a day-1 score counts: shooters without an account get
+ * a stub member account (mirroring the scraped historical importer), and every
+ * resulting score is marked valid + counts_for_season so nobody is dropped for
+ * membership state on the day. Re-run with --replace to rebuild an existing event.
+ *
  * The two exports use different layouts:
  *   - Darling: long/per-stage rows. Day 1 = stages labelled "Stage: N ...";
  *     Day 2 = "D2 Stage: N ...". Per-shooter day-1 total = sum of impacts across
@@ -28,24 +38,23 @@ use Illuminate\Support\Str;
  *     "Day 2 Stage 1..8" and a Grand Total. Per-shooter day-1 total = sum of the
  *     "Day 1 Stage n" columns. No division column (resolved from the shooter's
  *     account where possible).
- *
- * Each event is transformed into the importer's flat CSV shape
- * (shooter_name, division, raw_score) and run through ScoreImportService so it
- * shares the exact user/division resolution, membership validation and
- * standings recalculation as a normal admin upload.
  */
 class ImportProvincialDay1Command extends Command
 {
     protected $signature = 'saprf:import-provincial-day1
         {--darling=storage/app/imports/darling_steel_valley_pr22_scores_by_stage.csv : Path (relative to project root) to the Darling per-stage export}
         {--clash=storage/app/imports/clash_of_the_legends_scores_by_stage.csv : Path (relative to project root) to the Clash of the Legends pivot export}
+        {--replace : If the provincial match already exists, delete its scores/imports and rebuild}
         {--dry-run : Parse and print per-shooter day-1 totals, but write nothing}';
 
-    protected $description = 'Extract day-1 scores from the Darling & Clash 2-day exports and load them as provincial PR22 matches';
+    protected $description = 'Extract day-1 scores from the Darling & Clash 2-day exports and load them as provincial PR22 matches (all shooters count)';
 
-    public function handle(ScoreImportService $importer): int
+    private int $memberSeq = 90001;
+
+    public function handle(ScoreImportService $importer, StandingsCalculationService $standings): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $replace = (bool) $this->option('replace');
 
         $events = [
             [
@@ -100,12 +109,7 @@ class ImportProvincialDay1Command extends Command
 
             if ($dryRun) {
                 foreach ($rows as $row) {
-                    $this->line(sprintf(
-                        '    %-32s %-10s %s',
-                        $row['shooter_name'],
-                        $row['division'] ?: '—',
-                        $row['raw_score'],
-                    ));
+                    $this->line(sprintf('    %-32s %-10s %s', $row['shooter_name'], $row['division'] ?: '—', $row['raw_score']));
                 }
 
                 continue;
@@ -126,9 +130,13 @@ class ImportProvincialDay1Command extends Command
                 ->first();
 
             if ($existing) {
-                $this->warn("  Match already exists (id {$existing->id}) — skipping to avoid duplicate. Delete it first to re-import.");
+                if (! $replace) {
+                    $this->warn("  Match already exists (id {$existing->id}) — skipping. Re-run with --replace to rebuild.");
 
-                continue;
+                    continue;
+                }
+                $this->warn("  Match exists (id {$existing->id}) — replacing its scores.");
+                $this->deleteMatch($existing);
             }
 
             $match = MatchEvent::create([
@@ -160,13 +168,129 @@ class ImportProvincialDay1Command extends Command
 
             $imported = $importer->importCsv($scoreImport, $csvPath);
 
-            $this->info("  Created match id {$match->id}, imported {$imported} score row(s).");
+            // Make every day-1 score count: backfill accounts for unmatched
+            // shooters and mark all scores valid + counts_for_season, then rebuild.
+            [$total, $stubs] = $this->ensureAllCounted($match, $province->id);
+            $standings->recalculateForMatch($match);
+
+            $this->info("  Created match id {$match->id}: imported {$imported} row(s); {$total} score(s) counting, {$stubs} stub account(s) created.");
         }
 
         $this->newLine();
         $this->info($dryRun ? 'Dry run complete — nothing written.' : 'Done.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Ensure every score on the match counts: give unmatched shooters a stub
+     * member account, then force status=valid + counts_for_season on all rows.
+     *
+     * @return array{0:int,1:int} [total scores, stub accounts created]
+     */
+    private function ensureAllCounted(MatchEvent $match, int $provinceId): array
+    {
+        $stubs = 0;
+        $scores = $match->scores()->get();
+
+        foreach ($scores as $score) {
+            if (! $score->user_id) {
+                $score->user_id = $this->resolveOrCreateUser($score->shooter_name, $provinceId, $score->division_id, $stubs);
+            }
+            $score->status = 'valid';
+            $score->is_member = true;
+            $score->counts_for_season = true;
+            $score->counts_for_log = true;
+            $score->save();
+        }
+
+        return [$scores->count(), $stubs];
+    }
+
+    private function resolveOrCreateUser(string $name, int $provinceId, ?int $divisionId, int &$stubs): int
+    {
+        $canon = strtolower($this->cleanName($name));
+
+        $exact = User::query()->whereRaw('LOWER(name) = ?', [$canon])->value('id');
+        if ($exact) {
+            return (int) $exact;
+        }
+
+        // Order-insensitive token match ("Mey Aliza" ↔ "Aliza Mey"), unique only.
+        $tokens = collect(explode(' ', $canon))->filter()->sort()->values();
+        if ($tokens->count() >= 2) {
+            $key = $tokens->implode(' ');
+            $candidates = User::query()->get(['id', 'name'])->filter(function (User $u) use ($key): bool {
+                return collect(preg_split('/\s+/', Str::lower(trim((string) $u->name))))
+                    ->filter()->sort()->values()->implode(' ') === $key;
+            });
+            if ($candidates->count() === 1) {
+                return (int) $candidates->first()->id;
+            }
+        }
+
+        $stubs++;
+
+        return $this->createStub($name, $provinceId, $divisionId);
+    }
+
+    private function createStub(string $name, int $provinceId, ?int $divisionId): int
+    {
+        $parts = preg_split('/\s+/', $this->cleanName($name));
+        $first = Str::slug($parts[0] ?? 'shooter') ?: 'shooter';
+        $last = count($parts) > 1 ? Str::slug((string) end($parts)) : '';
+        $base = $first.($last ? '.'.$last : '');
+        $email = $base.'@import.saprf.local';
+        $n = 1;
+        while (User::where('email', $email)->exists()) {
+            $email = $base.(++$n).'@import.saprf.local';
+        }
+
+        $user = User::create([
+            'name' => $this->cleanName($name),
+            'email' => $email,
+            'password' => Hash::make(Str::random(40)),
+            'province_id' => $provinceId,
+            'division_id' => $divisionId,
+            'is_active' => true,
+            'email_verified_at' => null,
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('member');
+
+        $saprf = $this->nextSaprfNumber();
+        Membership::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'saprf_number' => $saprf,
+                'membership_type' => 'paid',
+                'status' => 'active',
+                'payment_status' => 'waived',
+                'start_date' => '2026-01-01',
+                'expiry_date' => '2026-12-31',
+            ],
+        );
+
+        return $user->id;
+    }
+
+    private function nextSaprfNumber(): string
+    {
+        do {
+            $number = 'SAPRF-2026-'.str_pad((string) $this->memberSeq++, 5, '0', STR_PAD_LEFT);
+        } while (Membership::where('saprf_number', $number)->exists());
+
+        return $number;
+    }
+
+    private function deleteMatch(MatchEvent $match): void
+    {
+        $scoreIds = Score::where('match_id', $match->id)->pluck('id');
+        ShooterLog::whereIn('score_id', $scoreIds)->delete();
+        ShooterLog::where('match_id', $match->id)->delete();
+        Score::where('match_id', $match->id)->delete();
+        ScoreImport::where('match_id', $match->id)->delete();
+        $match->delete();
     }
 
     /**
@@ -192,7 +316,6 @@ class ImportProvincialDay1Command extends Command
             }
 
             $stage = strtolower(trim((string) ($line[$idx['stage']] ?? '')));
-            // Day 2 stages are prefixed "D2 Stage:" — skip them.
             if ($stage === '' || Str::startsWith($stage, 'd2')) {
                 continue;
             }
@@ -236,8 +359,6 @@ class ImportProvincialDay1Command extends Command
             return [];
         }
 
-        // Find the header row that actually contains the stage columns — the
-        // export has a "Sum of Impacts,Column Labels,..." banner line first.
         $header = null;
         while (($line = fgetcsv($handle)) !== false) {
             $lower = array_map(fn ($c) => strtolower(trim((string) $c)), $line);
