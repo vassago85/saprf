@@ -318,8 +318,9 @@ class FederationDemoSeeder extends Seeder
 
             // PR22 uses the weighted 3-pool model as decided by the chair:
             //   Best 3 provincial (30%) + Best 2 nationals (40%) + SA Champs (30%) = /100
-            // National pool: a shooter must complete at least 2 nationals before any
-            // national score is earned; from there the best 2 are summed (no drop-one).
+            // National pool: best 2 nationals are summed (no drop-one). A single
+            // national still counts as the shooter's best-1 (scored out of best_of),
+            // i.e. it is not dropped — hence national_pool_min_matches = 1.
             QualificationRule::firstOrCreate(
                 ['series' => 'PR22', 'season' => '2026'],
                 [
@@ -331,7 +332,7 @@ class FederationDemoSeeder extends Seeder
                     'provincial_pool_weight_pct' => 30.00,
                     'national_pool_best_of' => 2,
                     'national_pool_weight_pct' => 40.00,
-                    'national_pool_min_matches' => 2,
+                    'national_pool_min_matches' => 1,
                     'champs_pool_best_of' => 1,
                     'champs_pool_weight_pct' => 30.00,
                     'created_by' => $admin->id,

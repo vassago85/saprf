@@ -538,7 +538,7 @@ class StandingsCalculationService
                         //                that threshold the pool is 0.
                         //   - count:     at/above the gate, the best `best_of` scores count
                         //                and are summed (no worst-score drop).
-                        //                (min=2, best_of=2 → 1 shot → 0, 2 shot → both,
+                        //                (min=1, best_of=2 → 1 shot → best 1, 2 shot → both,
                         //                 3+ shot → best 2)
                         //   - divisor:   ALWAYS best_of, so the pool is scored out of the
                         //                same target regardless of how many were shot.

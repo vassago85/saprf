@@ -8,14 +8,15 @@ use App\Services\StandingsCalculationService;
 /**
  * The PR22 national pool (40%) uses a minimum-matches gate + strict-divisor rule
  * with NO drop-one:
- *   - gate:      a shooter must complete at least `national_pool_min_matches` (2)
- *                national matches before ANY national score is earned.
- *                1 shot → 0.
+ *   - gate:      a shooter must complete at least `national_pool_min_matches` (1)
+ *                national matches before ANY national score is earned. So a lone
+ *                national is NOT dropped — it counts as the shooter's best-1.
  *   - count:     at/above the gate, the best `best_of` (2) scores count and are
- *                summed. 2 shot → both count, 3+ shot → best 2.
- *   - divisor:   ALWAYS best_of (2). So two solid nationals now earn full pool
- *                credit (sum ÷ 2), matching a three-match shooter whose best two
- *                are equal — you must simply have shot at least the minimum.
+ *                summed. 1 shot → best 1, 2 shot → both, 3+ shot → best 2.
+ *   - divisor:   ALWAYS best_of (2). So a single national is scored out of 2
+ *                (half credit), and two solid nationals earn full pool credit
+ *                (sum ÷ 2) — the incentive to shoot two nationals is preserved
+ *                without discarding a shooter's only national score.
  */
 
 function pr22Rule(): QualificationRule
@@ -26,7 +27,7 @@ function pr22Rule(): QualificationRule
     $rule->provincial_pool_weight_pct = 30;
     $rule->national_pool_best_of = 2;
     $rule->national_pool_weight_pct = 40;
-    $rule->national_pool_min_matches = 2;
+    $rule->national_pool_min_matches = 1;
     $rule->champs_pool_best_of = 1;
     $rule->champs_pool_weight_pct = 30;
 
@@ -64,18 +65,19 @@ function nationalPoolBreakdown(array $normalizedScores): array
     ];
 }
 
-it('gives zero national pool when only one national is shot (below the minimum)', function () {
+it('counts a single national as best-1 (scored out of best_of, not dropped)', function () {
+    // Only one national shot. With the minimum lowered to 1 it now counts as the
+    // shooter's best-1, but the divisor is still best_of = 2, so 95 → 47.5 pool.
     $b = nationalPoolBreakdown([95.0]);
 
-    expect($b['scores_counted'])->toBe(0)
-        ->and((float) $b['pool_average'])->toBe(0.0)
-        ->and((float) $b['contribution'])->toBe(0.0);
+    expect($b['scores_counted'])->toBe(1)
+        ->and((float) $b['pool_average'])->toBe(47.5) // 95 ÷ 2
+        ->and((float) $b['contribution'])->toBe(19.0); // 47.5 × 40%
 });
 
-it('counts both nationals (summed) once the two-match minimum is met', function () {
-    // 2 shot → both count (no drop-one) now that the minimum is 2. Divisor is
-    // best_of = 2, so (90 + 80) ÷ 2 = 85. A shooter who puts in two solid
-    // nationals earns full pool credit — they simply had to shoot the minimum.
+it('counts both nationals (summed) when two are shot', function () {
+    // 2 shot → both count (no drop-one). Divisor is best_of = 2, so
+    // (90 + 80) ÷ 2 = 85. Two solid nationals earn full pool credit.
     $b = nationalPoolBreakdown([90.0, 80.0]);
 
     expect($b['scores_counted'])->toBe(2)
@@ -138,13 +140,13 @@ it('records per-match national contribution and marks the surplus match as dropp
     expect(round($sum, 2))->toBe((float) $b['contribution']);
 });
 
-it('excludes the sole national when below the two-match minimum (national pool contribution is 0)', function () {
+it('counts the sole national as best-1 (per-match contribution is not zero)', function () {
     $b = nationalPoolBreakdown([95.0]);
     $matches = $b['matches'] ?? [];
 
     expect($matches)->toHaveCount(1);
-    expect((bool) $matches[0]['counted'])->toBeFalse()
-        ->and((float) $matches[0]['contribution'])->toBe(0.0);
+    expect((bool) $matches[0]['counted'])->toBeTrue()
+        ->and((float) $matches[0]['contribution'])->toBe(19.0); // 95 × 40% ÷ 2
 });
 
 it('excludes national scores from the national standing\'s provincial-matches pool', function () {
@@ -166,7 +168,7 @@ it('excludes national scores from the national standing\'s provincial-matches po
     $breakdown = $result->first()['pool_breakdown'];
 
     // The provincial pool sees zero matches; the national pool sees one
-    // (which is dropped by the drop-one rule when only one is shot).
+    // (which now counts as the shooter's best-1).
     expect($breakdown['provincial']['scores_counted'])->toBe(0)
         ->and((float) $breakdown['provincial']['pool_average'])->toBe(0.0)
         ->and((float) $breakdown['provincial']['contribution'])->toBe(0.0)
