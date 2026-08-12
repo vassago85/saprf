@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MembershipFeeTier;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 
@@ -27,8 +28,11 @@ class LegalController extends Controller
         $liabilityCap = $this->currentLiabilityCap();
         $markdown = str_replace('{{LIABILITY_CAP}}', $liabilityCap, $markdown);
 
+        [$html, $toc] = $this->renderWithToc($markdown);
+
         return view('legal.terms', [
-            'html' => $this->render($markdown),
+            'html' => $html,
+            'toc' => $toc,
             'source_path' => 'docs/legal/terms.md',
             'last_updated' => $this->lastUpdated($mdPath),
             'liability_cap' => $liabilityCap,
@@ -40,19 +44,69 @@ class LegalController extends Controller
         $mdPath = base_path('docs/legal/privacy.md');
         $markdown = is_file($mdPath) ? (string) file_get_contents($mdPath) : '';
 
+        [$html, $toc] = $this->renderWithToc($markdown);
+
         return view('legal.privacy', [
-            'html' => $this->render($markdown),
+            'html' => $html,
+            'toc' => $toc,
             'source_path' => 'docs/legal/privacy.md',
             'last_updated' => $this->lastUpdated($mdPath),
         ]);
     }
 
-    private function render(string $markdown): string
+    /**
+     * Render markdown to HTML and extract an H2-level table of contents.
+     * Each H2 element gets a unique, URL-safe id assigned so the TOC links
+     * (#anchor) actually jump. Backing this into the controller (rather
+     * than a CommonMark extension) keeps the dependency surface small.
+     *
+     * @return array{0: string, 1: array<int, array{id: string, text: string}>}
+     */
+    private function renderWithToc(string $markdown): array
     {
-        return (new GithubFlavoredMarkdownConverter([
+        $html = (new GithubFlavoredMarkdownConverter([
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
         ]))->convert($markdown)->getContent();
+
+        if (trim($html) === '') {
+            return ['', []];
+        }
+
+        $doc = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="UTF-8"?><div>'.$html.'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        $toc = [];
+        $usedIds = [];
+        foreach ($doc->getElementsByTagName('h2') as $h2) {
+            $text = trim((string) $h2->textContent);
+            if ($text === '') {
+                continue;
+            }
+            $baseId = Str::slug($text);
+            if ($baseId === '') {
+                continue;
+            }
+            $id = $baseId;
+            $suffix = 2;
+            while (isset($usedIds[$id])) {
+                $id = $baseId.'-'.$suffix++;
+            }
+            $usedIds[$id] = true;
+            $h2->setAttribute('id', $id);
+            $toc[] = ['id' => $id, 'text' => $text];
+        }
+
+        // Re-serialize inner HTML of the wrapper div (the loadHTML wrapper).
+        $wrapper = $doc->documentElement;
+        $inner = '';
+        foreach ($wrapper->childNodes as $child) {
+            $inner .= $doc->saveHTML($child);
+        }
+
+        return [$inner, $toc];
     }
 
     private function lastUpdated(string $mdPath): ?\Carbon\Carbon

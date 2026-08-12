@@ -44,7 +44,17 @@
             </div>
         </div>
 
-        <article class="prose prose-stone dark:prose-invert max-w-none prose-headings:scroll-mt-24 prose-table:text-sm prose-th:bg-stone-100 dark:prose-th:bg-stone-800 prose-th:font-semibold prose-td:align-top">
+        <article class="prose prose-stone dark:prose-invert max-w-none
+            prose-headings:font-heading prose-headings:tracking-tight
+            prose-h2:scroll-mt-24 prose-h2:mt-10 prose-h2:pb-2 prose-h2:border-b prose-h2:border-stone-200 dark:prose-h2:border-stone-800
+            prose-h3:mt-6
+            prose-p:leading-relaxed
+            prose-a:text-emerald-700 dark:prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline
+            prose-strong:text-stone-900 dark:prose-strong:text-stone-100
+            prose-table:text-sm prose-table:w-full prose-table:border-collapse
+            prose-th:bg-stone-100 dark:prose-th:bg-stone-800 prose-th:font-semibold prose-th:text-left prose-th:p-3 prose-th:border prose-th:border-stone-200 dark:prose-th:border-stone-700
+            prose-td:p-3 prose-td:border prose-td:border-stone-200 dark:prose-td:border-stone-700 prose-td:align-top
+            prose-code:text-emerald-800 dark:prose-code:text-emerald-300 prose-code:bg-emerald-50 dark:prose-code:bg-emerald-950 prose-code:px-1 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
             {!! $html !!}
         </article>
     </div>

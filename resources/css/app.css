@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
+/* Long-form typography for markdown-rendered content (Terms, Privacy,
+   Selection Policies). Without this plugin the `prose` classes on
+   .legal-doc / policy pages are no-ops and content renders as raw
+   browser default. */
+@plugin '@tailwindcss/typography';
+
 [x-cloak] { display: none !important; }
 
 /* Guard against accidental horizontal overflow on small screens. Applied to

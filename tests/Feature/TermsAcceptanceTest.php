@@ -15,6 +15,19 @@ test('the public terms page renders the verbatim markdown', function () {
         ->assertSee('South African Precision Rifle Federation');
 });
 
+test('the terms page renders a jump-anchor TOC of H2 sections', function () {
+    $response = $this->get(route('legal.terms'))->assertOk();
+
+    // Each H2 in the doc gets a slug id + a matching sidebar link.
+    // "SAPRF Membership" and "Disclaimers and limitation of liability" are
+    // both present in the source and useful to grep against.
+    $response->assertSee('id="saprf-membership"', false)
+        ->assertSee('href="#saprf-membership"', false)
+        ->assertSee('id="disclaimers-and-limitation-of-liability"', false)
+        ->assertSee('href="#disclaimers-and-limitation-of-liability"', false)
+        ->assertSee('On this page');
+});
+
 test('the public privacy page renders the verbatim markdown', function () {
     $this->get(route('legal.privacy'))
         ->assertOk()
