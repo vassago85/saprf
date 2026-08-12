@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\Province;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +17,7 @@ class ProfileController extends Controller
     /**
      * Countries we surface in the residence dropdown. Kept small because the
      * only functional consequence today is IPRF eligibility (SA vs. abroad);
-     * "OTHER" is a valid fallback for anyone not in this list.
+     * "XX" is the ISO user-assigned code for "other/unknown".
      */
     private const COUNTRIES = [
         'ZA' => 'South Africa',
@@ -50,6 +51,8 @@ class ProfileController extends Controller
             'provinces' => Province::orderBy('name')->get(),
             'clubs' => $clubs,
             'countries' => self::COUNTRIES,
+            'genderOptions' => User::GENDER_OPTIONS,
+            'ethnicityOptions' => User::ETHNICITY_OPTIONS,
         ]);
     }
 
@@ -62,11 +65,16 @@ class ProfileController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:20'],
             'sa_id_number' => ['nullable', 'string', 'digits:13', Rule::unique('users')->ignore($user->id)],
+            'passport_number' => ['nullable', 'string', 'max:50'],
+            'mil_le_number' => ['nullable', 'string', 'max:50'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'province_id' => ['nullable', 'exists:provinces,id'],
             'club_id' => ['nullable', 'exists:clubs,id'],
             'sa_citizen' => ['nullable', Rule::in(['0', '1', ''])],
             'country_of_residence' => ['nullable', Rule::in(array_keys(self::COUNTRIES))],
+            'gender' => ['nullable', Rule::in(array_keys(User::GENDER_OPTIONS))],
+            'ethnicity' => ['nullable', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
+            'previously_disadvantaged_choice' => ['nullable', Rule::in(['', 'yes', 'no'])],
             'current_password' => ['nullable', 'required_with:new_password', 'current_password'],
             'new_password' => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
@@ -76,11 +84,23 @@ class ProfileController extends Controller
         $saCitizen = $validated['sa_citizen'] ?? null;
         $validated['sa_citizen'] = $saCitizen === '' ? null : (bool) $saCitizen;
 
+        // previously_disadvantaged is a tri-state select that arrives as a
+        // string ('', 'yes', 'no'); persist as nullable boolean.
+        $validated['previously_disadvantaged'] = match ($validated['previously_disadvantaged_choice'] ?? '') {
+            'yes' => true,
+            'no' => false,
+            default => null,
+        };
+
         if (! empty($validated['new_password'])) {
             $user->password = Hash::make($validated['new_password']);
         }
 
-        unset($validated['current_password'], $validated['new_password']);
+        unset(
+            $validated['current_password'],
+            $validated['new_password'],
+            $validated['previously_disadvantaged_choice'],
+        );
 
         $user->fill($validated);
         $user->save();

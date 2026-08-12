@@ -26,9 +26,14 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'phone',
         'sa_id_number',
+        'passport_number',
+        'mil_le_number',
         'sa_citizen',
         'country_of_residence',
         'date_of_birth',
+        'gender',
+        'ethnicity',
+        'previously_disadvantaged',
         'is_active',
         'must_change_password',
         'province_id',
@@ -63,6 +68,47 @@ class User extends Authenticatable implements MustVerifyEmail
         'other' => 'Other family',
     ];
 
+    /**
+     * SASCOC-aligned gender options, keyed by stored value => human label.
+     *
+     * @var array<string, string>
+     */
+    public const GENDER_OPTIONS = [
+        'male' => 'Male',
+        'female' => 'Female',
+        'other' => 'Other / prefer not to say',
+    ];
+
+    /**
+     * SASCOC-aligned ethnicity options, keyed by stored value => human label.
+     * The taxonomy mirrors the categories used by the South African Sports
+     * Confederation and Olympic Committee for demographic reporting, plus
+     * a "prefer not to say" option because we can't legally compel disclosure.
+     *
+     * @var array<string, string>
+     */
+    public const ETHNICITY_OPTIONS = [
+        'black_african' => 'Black African',
+        'coloured' => 'Coloured',
+        'indian' => 'Indian',
+        'white' => 'White',
+        'other' => 'Other',
+        'prefer_not_to_say' => 'Prefer not to say',
+    ];
+
+    /**
+     * Ethnicity values that map to "previously disadvantaged" under
+     * SASCOC / B-BBEE conventions. Used only to suggest a default on the
+     * signup form — the actual boolean is stored verbatim.
+     *
+     * @var array<int, string>
+     */
+    public const PREVIOUSLY_DISADVANTAGED_ETHNICITIES = [
+        'black_african',
+        'coloured',
+        'indian',
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -83,6 +129,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'must_change_password' => 'boolean',
             'is_managed_account' => 'boolean',
             'sa_citizen' => 'boolean',
+            'previously_disadvantaged' => 'boolean',
             'date_of_birth' => 'date',
         ];
     }

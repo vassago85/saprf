@@ -58,9 +58,20 @@
                 </div>
 
                 <div>
-                    <label for="sa_id_number" class="block text-sm font-medium text-stone-700">SA ID Number @if(session('profile_incomplete') && empty($user->sa_id_number))<span class="text-red-600">*</span>@endif</label>
-                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->sa_id_number)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
-                    <p class="mt-1 text-xs text-stone-400">Required for SASCOC reporting. 13 digits only.</p>
+                    <label for="sa_id_number" class="block text-sm font-medium text-stone-700">SA ID Number @if(session('profile_incomplete') && empty($user->sa_id_number) && empty($user->passport_number))<span class="text-red-600">*</span>@endif</label>
+                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->sa_id_number) && empty($user->passport_number)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
+                    <p class="mt-1 text-xs text-stone-400">Required for SASCOC reporting. 13 digits only. Leave blank if you are not a South African citizen — fill in Passport Number below instead.</p>
+                </div>
+
+                <div>
+                    <label for="passport_number" class="block text-sm font-medium text-stone-700">Passport Number</label>
+                    <input type="text" name="passport_number" id="passport_number" value="{{ old('passport_number', $user->passport_number) }}" maxlength="50" placeholder="Non-SA citizens only" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Only capture this if you don't have a South African ID.</p>
+                </div>
+
+                <div>
+                    <label for="mil_le_number" class="block text-sm font-medium text-stone-700">Mil / LE Number</label>
+                    <input type="text" name="mil_le_number" id="mil_le_number" value="{{ old('mil_le_number', $user->mil_le_number) }}" maxlength="50" placeholder="Optional — military or law-enforcement service number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
 
                 <div>
@@ -76,6 +87,43 @@
                         @foreach($provinces as $province)
                             <option value="{{ $province->id }}" @selected(old('province_id', $user->province_id) == $province->id)>{{ $province->name }}</option>
                         @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">SASCOC Demographic Reporting</h2>
+                    <p class="mt-1 text-sm text-stone-500">All optional. SASCOC (South African Sports Confederation and Olympic Committee) uses this to consider Protea Colours motivations. You can update any of it later.</p>
+                </div>
+
+                <div>
+                    <label for="gender" class="block text-sm font-medium text-stone-700">Gender</label>
+                    <select name="gender" id="gender" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="">— Not specified —</option>
+                        @foreach($genderOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(old('gender', $user->gender) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label for="ethnicity" class="block text-sm font-medium text-stone-700">Ethnicity</label>
+                    <select name="ethnicity" id="ethnicity" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="">— Not specified —</option>
+                        @foreach($ethnicityOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(old('ethnicity', $user->ethnicity) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label for="previously_disadvantaged_choice" class="block text-sm font-medium text-stone-700">Previously Disadvantaged</label>
+                    @php($pdCurrent = old('previously_disadvantaged_choice', $user->previously_disadvantaged === true ? 'yes' : ($user->previously_disadvantaged === false ? 'no' : '')))
+                    <select name="previously_disadvantaged_choice" id="previously_disadvantaged_choice" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="" @selected($pdCurrent === '')>Prefer not to say</option>
+                        <option value="yes" @selected($pdCurrent === 'yes')>Yes</option>
+                        <option value="no" @selected($pdCurrent === 'no')>No</option>
                     </select>
                 </div>
             </div>
