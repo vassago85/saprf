@@ -8,50 +8,70 @@ use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 /**
- * Serves the SAPRF legal documents (Terms & Conditions, Privacy Policy).
+ * Serves the SAPRF legal + governance documents (T&Cs, Privacy, Code of
+ * Conduct, Conflict of Interest).
  *
- * Both documents are the verbatim text supplied by SAPRF's legal advisors —
- * the .md files under docs/legal/ are authoritative. The only substitution
- * the controller performs is the `{{LIABILITY_CAP}}` placeholder in the
- * T&Cs "Disclaimers and limitation of liability" clause, which is resolved
- * to the current highest annual membership fee so the cap stays consistent
- * with actual member spend without needing manual edits every time a fee
- * tier changes.
+ * All source content lives under `docs/legal/*.md` and is reproduced verbatim
+ * — the .md files are authoritative. The only substitution the controller
+ * performs is the `{{LIABILITY_CAP}}` placeholder in the T&Cs, resolved to
+ * the current highest annual membership fee so the cap tracks fee changes
+ * without needing manual edits.
  */
 class LegalController extends Controller
 {
     public function terms(): View
     {
-        $mdPath = base_path('docs/legal/terms.md');
-        $markdown = is_file($mdPath) ? (string) file_get_contents($mdPath) : '';
-
         $liabilityCap = $this->currentLiabilityCap();
-        $markdown = str_replace('{{LIABILITY_CAP}}', $liabilityCap, $markdown);
-
-        [$html, $toc] = $this->renderWithToc($markdown);
-
-        return view('legal.terms', [
-            'html' => $html,
-            'toc' => $toc,
-            'source_path' => 'docs/legal/terms.md',
-            'last_updated' => $this->lastUpdated($mdPath),
-            'liability_cap' => $liabilityCap,
+        $props = $this->loadMarkdownDocument('docs/legal/terms.md', [
+            '{{LIABILITY_CAP}}' => $liabilityCap,
         ]);
+
+        return view('legal.terms', $props + ['liability_cap' => $liabilityCap]);
     }
 
     public function privacy(): View
     {
-        $mdPath = base_path('docs/legal/privacy.md');
-        $markdown = is_file($mdPath) ? (string) file_get_contents($mdPath) : '';
+        return view('legal.privacy', $this->loadMarkdownDocument('docs/legal/privacy.md'));
+    }
+
+    public function codeOfConduct(): View
+    {
+        return view('legal.code-of-conduct', $this->loadMarkdownDocument('docs/legal/code-of-conduct.md'));
+    }
+
+    public function conflictOfInterest(): View
+    {
+        return view('legal.conflict-of-interest', $this->loadMarkdownDocument('docs/legal/conflict-of-interest.md'));
+    }
+
+    /**
+     * Load a verbatim markdown document from disk and prepare the props every
+     * legal page needs. Optional `$replacements` are applied to the raw
+     * markdown before rendering — used for dynamic placeholders like the
+     * T&Cs liability cap.
+     *
+     * @param  array<string,string>  $replacements
+     * @return array{html:string, toc:array<int,array{id:string,text:string}>, source_path:string, last_updated:?\Carbon\Carbon}
+     */
+    private function loadMarkdownDocument(string $relPath, array $replacements = []): array
+    {
+        $absPath = base_path($relPath);
+        $markdown = is_file($absPath) ? (string) file_get_contents($absPath) : '';
+
+        if ($replacements !== []) {
+            $markdown = strtr($markdown, $replacements);
+        }
 
         [$html, $toc] = $this->renderWithToc($markdown);
 
-        return view('legal.privacy', [
+        return [
             'html' => $html,
             'toc' => $toc,
-            'source_path' => 'docs/legal/privacy.md',
-            'last_updated' => $this->lastUpdated($mdPath),
-        ]);
+            'source_path' => $relPath,
+            'last_updated' => is_file($absPath)
+                ? \Carbon\Carbon::createFromTimestamp(filemtime($absPath))
+                : null,
+        ];
     }
 
     /**
@@ -99,7 +119,6 @@ class LegalController extends Controller
             $toc[] = ['id' => $id, 'text' => $text];
         }
 
-        // Re-serialize inner HTML of the wrapper div (the loadHTML wrapper).
         $wrapper = $doc->documentElement;
         $inner = '';
         foreach ($wrapper->childNodes as $child) {
@@ -107,11 +126,6 @@ class LegalController extends Controller
         }
 
         return [$inner, $toc];
-    }
-
-    private function lastUpdated(string $mdPath): ?\Carbon\Carbon
-    {
-        return is_file($mdPath) ? \Carbon\Carbon::createFromTimestamp(filemtime($mdPath)) : null;
     }
 
     /**

@@ -87,6 +87,22 @@ class DocumentsController extends Controller
                         'badge' => null,
                         'last_updated' => $this->docMtime('docs/legal/privacy.md'),
                     ],
+                    [
+                        'title' => 'Code of Conduct',
+                        'subtitle' => 'Behaviour expected of members, athletes and officials',
+                        'description' => 'The standard of behaviour SAPRF expects on and off the range — from every member, athlete, team, technical official, coach and administrator. Applies at every SAPRF-sanctioned event.',
+                        'url' => route('legal.code-of-conduct'),
+                        'badge' => null,
+                        'last_updated' => $this->docMtime('docs/legal/code-of-conduct.md'),
+                    ],
+                    [
+                        'title' => 'Conflict of Interest Policy',
+                        'subtitle' => 'For all SAPRF Representatives',
+                        'description' => 'How SAPRF Representatives (staff, volunteers, committee members, selectors, directors and officers) must handle real, perceived or potential conflicts of interest. Includes the standard declaration form.',
+                        'url' => route('legal.conflict-of-interest'),
+                        'badge' => null,
+                        'last_updated' => $this->docMtime('docs/legal/conflict-of-interest.md'),
+                    ],
                 ],
             ],
         ];

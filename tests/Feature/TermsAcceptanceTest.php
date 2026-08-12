@@ -10,7 +10,10 @@ beforeEach(function () {
 test('the public terms page renders the verbatim markdown', function () {
     $this->get(route('legal.terms'))
         ->assertOk()
-        ->assertSee('Terms & Conditions', escape: false)
+        // Default assertSee escapes the search value, so this matches both
+        // "Terms & Conditions" (plain text) and "Terms &amp; Conditions"
+        // (HTML-encoded) in the response.
+        ->assertSee('Terms & Conditions')
         ->assertSee('SAPRF Membership')
         ->assertSee('South African Precision Rifle Federation');
 });
