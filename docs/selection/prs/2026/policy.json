@@ -1,16 +1,17 @@
 {
-    "$comment": "Structured encoding of the SAPRF PR22 v1.4 selection document (verbatim source: docs/selection/pr22/2026/policy.md). Read by ParticipationEvaluator / EligibilityEvaluator at run time. Rule IDs and thresholds are stable and match the audit trail written to selection_rule_evaluations. This file is the machine-consumable companion to the verbatim doc; if the two ever diverge, the .md file is authoritative and this file must be corrected.",
+    "$comment": "Structured encoding of the SAPRF v1.4 Centrefire (PRS) selection document (verbatim source: docs/selection/prs/2026/policy.md). This is the PRS Centerfire discipline for the IPRF World Championships 2026 - NOT PR22 (rimfire). Rule IDs and thresholds match the audit trail written to selection_rule_evaluations. If the two ever diverge, the .md file is authoritative and this file must be corrected.",
     "spec": {
-        "series": "PR22",
-        "cycle_name": "IPRF World Championships 2026",
+        "series": "PRS",
+        "cycle_name": "IPRF World Championships 2026 (Centrefire)",
         "spec_version": "1.4",
+        "engine": "PRS_v1.4",
         "governing_document": {
             "title": "SAPRF Team South Africa - Selection Process",
             "version": "Ver 1.4",
             "dated": "2024-11-09"
         },
         "authoritative_url": "https://www.precisionrifle.co.za/documents/",
-        "verbatim_document": "docs/selection/pr22/2026/policy.md"
+        "verbatim_document": "docs/selection/prs/2026/policy.md"
     },
     "key_dates": {
         "qualifying_period_start": "2024-11-15",

@@ -40,14 +40,15 @@ function fullyEligibleUserForState(int $provinceId, int $clubId): User
 function makeStateCycle(): SelectionCycle
 {
     $cycle = SelectionCycle::create([
-        'series' => 'PR22', 'season' => '2026', 'championship_name' => 'IPRF PR22 WCH',
+        'series' => 'PRS', 'season' => '2026', 'championship_name' => 'IPRF WCH 2026 (Centrefire)',
         'qualifying_period_start' => '2024-11-15', 'qualifying_period_end' => '2025-11-30',
         'declaration_deadline' => '2025-09-30 23:59:00', 'results_freeze' => '2026-03-01',
         'status' => 'open',
+        'evaluation_mode' => SelectionCycle::MODE_STRICT,
     ]);
 
     app(PolicyImportService::class)->import(
-        base_path('docs/selection/pr22/2026/policy.json'),
+        base_path('docs/selection/prs/2026/policy.json'),
         $cycle,
     );
 
@@ -133,7 +134,7 @@ it('advances to squad_qualified when every ELG passes, declaration is submitted,
     ];
     foreach ($inputs as [$level, $pid, $date]) {
         $m = MatchEvent::create([
-            'name' => "$level $date", 'match_type' => 'PR22', 'series' => 'PR22', 'season' => '2025',
+            'name' => "$level $date", 'match_type' => 'PRS', 'series' => 'PRS', 'season' => '2025',
             'series_level' => $level, 'province_id' => $pid, 'match_date' => $date,
             'status' => 'completed', 'created_by' => $user->id, 'active_member_fee' => 500, 'published' => true,
         ]);

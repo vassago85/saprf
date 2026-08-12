@@ -13,26 +13,28 @@ use App\Services\Selection\PolicyImportService;
 beforeEach(fn () => seedRoles());
 
 /**
- * Every test in this file exercises the PR22 v1.4 policy imported from
- * docs/selection/pr22/2026/policy.json. The evaluator reads its thresholds
+ * Every test in this file exercises the PRS v1.4 policy imported from
+ * docs/selection/prs/2026/policy.json. The evaluator reads its thresholds
  * from that policy, so we import it into each cycle to keep tests honest
- * to what production actually sees.
+ * to what production actually sees. Cycles are created in 'strict' mode so
+ * the real ruleset runs rather than the auto-pass short-circuit.
  */
 function makeV14Cycle(): SelectionCycle
 {
     $cycle = SelectionCycle::create([
-        'series' => 'PR22',
+        'series' => 'PRS',
         'season' => '2026',
-        'championship_name' => 'IPRF PR22 World Championships 2026',
+        'championship_name' => 'IPRF World Championships 2026 (Centrefire)',
         'qualifying_period_start' => '2024-11-15',
         'qualifying_period_end' => '2025-11-30',
         'declaration_deadline' => '2025-09-30 23:59:00',
         'results_freeze' => '2026-03-01',
         'status' => 'draft',
+        'evaluation_mode' => SelectionCycle::MODE_STRICT,
     ]);
 
     app(PolicyImportService::class)->import(
-        base_path('docs/selection/pr22/2026/policy.json'),
+        base_path('docs/selection/prs/2026/policy.json'),
         $cycle,
     );
 
@@ -56,8 +58,8 @@ function makePartMatch(string $level, int $provinceId, int $creatorId, string $d
 {
     return MatchEvent::create([
         'name' => "Match {$level} {$date}",
-        'match_type' => 'PR22',
-        'series' => 'PR22',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
         'season' => $season,
         'series_level' => $level,
         'province_id' => $provinceId,

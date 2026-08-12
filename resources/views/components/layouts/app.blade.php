@@ -110,6 +110,9 @@
                 <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
                     PR22 Team Selection
                 </flux:navlist.item>
+                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'prs'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'prs'">
+                    PRS Team Selection
+                </flux:navlist.item>
             </flux:navlist.group>
 
             {{-- Everything below is hidden when a staff user has flipped to
@@ -170,8 +173,8 @@
                 <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
                     PR22 Policy (public)
                 </flux:navlist.item>
-                <flux:navlist.item icon="clock" :href="route('selection.policy.public', ['series' => 'pr22', 'season' => '2026'])">
-                    PR22 2026 (historical)
+                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'prs'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'prs'">
+                    PRS Policy (public)
                 </flux:navlist.item>
             </flux:navlist.group>
             @endrole
@@ -224,12 +227,15 @@
             @endrole
 
             @role('developer|exco|owner')
-            <flux:navlist.group heading="Setup" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('qualification-rules.*', 'divisions.*', 'site-settings.*', 'user-management.*')">
+            <flux:navlist.group heading="Setup" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('qualification-rules.*', 'divisions.*', 'fees.*', 'site-settings.*', 'user-management.*')">
                 <flux:navlist.item icon="cog-6-tooth" :href="route('qualification-rules.index')" :current="request()->routeIs('qualification-rules.*')">
                     Qualification Rules
                 </flux:navlist.item>
                 <flux:navlist.item icon="squares-2x2" :href="route('divisions.index')" :current="request()->routeIs('divisions.*')">
                     Divisions
+                </flux:navlist.item>
+                <flux:navlist.item icon="banknotes" :href="route('fees.index')" :current="request()->routeIs('fees.*')">
+                    Membership Fees
                 </flux:navlist.item>
                 <flux:navlist.item icon="adjustments-horizontal" :href="route('site-settings.index')" :current="request()->routeIs('site-settings.*')">
                     Site Settings

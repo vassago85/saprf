@@ -19,12 +19,13 @@ it('populates snapshots + rule evaluations + state for every athlete under v1.4'
     $club = Club::create(['name' => 'Test', 'slug' => 'test-'.uniqid(), 'province_id' => $prov->id, 'saprf_recognised' => true]);
 
     $cycle = SelectionCycle::create([
-        'series' => 'PR22', 'season' => '2026', 'championship_name' => 'IPRF PR22 WCH',
+        'series' => 'PRS', 'season' => '2026', 'championship_name' => 'IPRF WCH 2026 (Centrefire)',
         'qualifying_period_start' => '2024-11-15', 'qualifying_period_end' => '2025-11-30',
         'declaration_deadline' => '2025-09-30 23:59:00', 'results_freeze' => '2026-03-01',
         'status' => 'open',
+        'evaluation_mode' => SelectionCycle::MODE_STRICT,
     ]);
-    app(PolicyImportService::class)->import(base_path('docs/selection/pr22/2026/policy.json'), $cycle);
+    app(PolicyImportService::class)->import(base_path('docs/selection/prs/2026/policy.json'), $cycle);
 
     $users = collect(range(1, 2))->map(function () use ($prov, $club) {
         $u = User::factory()->create([
@@ -44,7 +45,7 @@ it('populates snapshots + rule evaluations + state for every athlete under v1.4'
         SelectionAthlete::create(['selection_cycle_id' => $cycle->id, 'user_id' => $u->id, 'state' => 'registered']);
 
         $m = MatchEvent::create([
-            'name' => 'SA Champs', 'match_type' => 'PR22', 'series' => 'PR22', 'season' => '2025',
+            'name' => 'SA Champs', 'match_type' => 'PRS', 'series' => 'PRS', 'season' => '2025',
             'series_level' => 'final', 'province_id' => $prov->id, 'match_date' => '2025-11-01',
             'status' => 'completed', 'created_by' => $u->id, 'active_member_fee' => 500, 'published' => true,
         ]);

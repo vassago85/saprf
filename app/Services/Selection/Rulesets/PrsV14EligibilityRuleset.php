@@ -10,13 +10,15 @@ use App\Services\MembershipValidationService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * SAPRF PR22 v1.4 eligibility ruleset (ELG-01..06 as published for the 2026
- * IPRF WCH cycle). v1.4 requires BOTH province-affiliation AND SAPRF-club
- * recognition — this is stricter than v1.1 which allows either. The
- * citizen-abroad exception is folded into ELG-04 to mirror how the source
- * document phrases it (single bullet with a sub-bullet).
+ * SAPRF PRS (Centrefire) v1.4 eligibility ruleset (ELG-01..06 as published
+ * for the 2026 IPRF WCH cycle). v1.4 requires BOTH province-affiliation AND
+ * SAPRF-club recognition — this is stricter than the PR22 v1.1 rimfire
+ * ruleset which allows either. The citizen-abroad exception is folded into
+ * ELG-04 to mirror how the source document phrases it (single bullet with a
+ * sub-bullet). ELG-04 uses the SAPRF Centrefire Championship (series_level
+ * 'final') within the qualifying period as the exception trigger.
  */
-class Pr22V14EligibilityRuleset implements EligibilityRuleset
+class PrsV14EligibilityRuleset implements EligibilityRuleset
 {
     public function __construct(private readonly MembershipValidationService $memberValidation)
     {

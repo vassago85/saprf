@@ -125,6 +125,7 @@ class SelectionCycleController extends Controller
             'deliberation_end' => ['nullable', 'date', 'after_or_equal:deliberation_start'],
             'publication_date' => ['nullable', 'date'],
             'status' => ['nullable', Rule::in(['draft', 'open', 'frozen', 'announced', 'closed'])],
+            'evaluation_mode' => ['required', Rule::in(array_keys(SelectionCycle::MODES))],
         ]);
     }
 }

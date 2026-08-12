@@ -16,14 +16,15 @@ beforeEach(fn () => seedRoles());
 function makeElgCycle(): SelectionCycle
 {
     return SelectionCycle::create([
-        'series' => 'PR22',
+        'series' => 'PRS',
         'season' => '2026',
-        'championship_name' => 'IPRF PR22 WCH',
+        'championship_name' => 'IPRF WCH 2026 (Centrefire)',
         'qualifying_period_start' => '2024-11-15',
         'qualifying_period_end' => '2025-11-30',
         'declaration_deadline' => '2025-09-30 23:59:00',
         'results_freeze' => '2026-03-01',
         'status' => 'draft',
+        'evaluation_mode' => SelectionCycle::MODE_STRICT,
     ]);
 }
 
@@ -122,7 +123,7 @@ it('passes ELG-04 via the built-in exception for a non-resident SA citizen who s
     $cycle = makeElgCycle();
 
     $match = MatchEvent::create([
-        'name' => 'SA Champs', 'match_type' => 'PR22', 'series' => 'PR22', 'season' => '2025',
+        'name' => 'SA Champs', 'match_type' => 'PRS', 'series' => 'PRS', 'season' => '2025',
         'series_level' => 'final', 'province_id' => $prov->id,
         'match_date' => '2025-10-01', 'status' => 'completed', 'created_by' => $user->id,
         'active_member_fee' => 500, 'published' => true,

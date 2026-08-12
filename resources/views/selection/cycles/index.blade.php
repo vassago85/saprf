@@ -25,6 +25,7 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Championship</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Qualifying period</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Mode</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Policy</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Athletes</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
@@ -41,6 +42,13 @@
                             <td class="px-6 py-4 text-sm">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ match($cycle->status) { 'open' => 'bg-emerald-100 text-emerald-800', 'frozen' => 'bg-amber-100 text-amber-800', 'announced' => 'bg-sky-100 text-sky-800', 'closed' => 'bg-stone-100 text-stone-600', default => 'bg-stone-100 text-stone-700' } }}">{{ ucfirst($cycle->status) }}</span>
                             </td>
+                            <td class="px-6 py-4 text-sm">
+                                @if ($cycle->isAssumeQualified())
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200" title="Every athlete auto-passes ELG/PART; only DEC-01 gates progression.">Assume qualified</span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200" title="Strict policy rules are evaluated for every athlete.">Strict</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 text-sm text-stone-600">
                                 @if ($cycle->activePolicy)
                                     v{{ $cycle->activePolicy->version }}
@@ -55,7 +63,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-sm text-stone-400">No selection cycles yet. Create one to get started.</td>
+                            <td colspan="8" class="px-6 py-12 text-center text-sm text-stone-400">No selection cycles yet. Create one to get started.</td>
                         </tr>
                     @endforelse
                 </tbody>

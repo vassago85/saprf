@@ -30,6 +30,7 @@ function makeV11ScoringCycle(): SelectionCycle
         'declaration_deadline' => '2026-11-30 23:59:00',
         'results_freeze' => '2026-12-31',
         'status' => 'draft',
+        'evaluation_mode' => SelectionCycle::MODE_STRICT,
     ]);
     app(PolicyImportService::class)->import(
         base_path('docs/selection/pr22/2027/policy.json'),

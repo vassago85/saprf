@@ -8,9 +8,11 @@ use App\Models\SelectionParticipationSnapshot;
 /**
  * Thin dispatcher — resolves the right series+version ruleset for the
  * athlete's cycle policy and delegates. Concrete counting/capping logic
- * lives in Rulesets\Pr22V14ParticipationRuleset (capped 2-day counting
- * with geographical caps) or Pr22V11ParticipationRuleset (raw counts with
- * one out-of-home requirement).
+ * lives in Rulesets\PrsV14ParticipationRuleset (capped 2-day counting
+ * with geographical caps for the PRS centrefire cycle) or
+ * Pr22V11ParticipationRuleset (raw counts with one out-of-home requirement
+ * for PR22 rimfire). When the cycle is in 'assume_qualified' mode the
+ * resolver returns AutoPassParticipationRuleset instead.
  */
 class ParticipationEvaluator
 {

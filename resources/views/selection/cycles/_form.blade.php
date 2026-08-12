@@ -58,6 +58,15 @@
         </select>
     </div>
     @endisset
+    <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-stone-700 mb-1">Evaluation mode <span class="text-red-500">*</span></label>
+        <select name="evaluation_mode" required class="block w-full rounded-lg border border-stone-300 text-sm">
+            @foreach (\App\Models\SelectionCycle::MODES as $value => $label)
+                <option value="{{ $value }}" @selected(old('evaluation_mode', $c?->evaluation_mode ?? \App\Models\SelectionCycle::MODE_ASSUME_QUALIFIED) === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <p class="mt-1 text-xs text-stone-500"><strong>Strict</strong> runs the policy's ELG/PART rules against every athlete. <strong>Assume qualified</strong> auto-passes every rule and treats the DEC-01 nomination letter as the only real gate — use this for historical cycles or while source data is still incomplete.</p>
+    </div>
 </div>
 @if ($errors->any())
     <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">

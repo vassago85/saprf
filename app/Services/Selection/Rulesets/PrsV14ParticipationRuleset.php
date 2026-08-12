@@ -12,12 +12,12 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * SAPRF PR22 v1.4 participation ruleset — capped 2-day match counting with
- * geographical caps, SA-Champs geographical exemption, "within 3 months of
- * close" recency requirement, and a fail-open sanctioning check that will
- * light up once matches carry a sanctioning_body field.
+ * SAPRF PRS (Centrefire) v1.4 participation ruleset — capped 2-day match
+ * counting with geographical caps, SA-Champs geographical exemption, "within
+ * 3 months of close" recency requirement, and a fail-open sanctioning check
+ * that will light up once matches carry a sanctioning_body field.
  */
-class Pr22V14ParticipationRuleset implements ParticipationRuleset
+class PrsV14ParticipationRuleset implements ParticipationRuleset
 {
     private const TWO_DAY_LEVELS = ['national', 'international', 'final'];
 

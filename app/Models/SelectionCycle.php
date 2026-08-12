@@ -15,6 +15,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class SelectionCycle extends Model
 {
+    public const MODE_STRICT = 'strict';
+
+    public const MODE_ASSUME_QUALIFIED = 'assume_qualified';
+
+    public const MODES = [
+        self::MODE_STRICT => 'Strict (run policy rules)',
+        self::MODE_ASSUME_QUALIFIED => 'Assume qualified (nomination letter is the only gate)',
+    ];
+
     protected $fillable = [
         'series',
         'season',
@@ -29,6 +38,7 @@ class SelectionCycle extends Model
         'publication_date',
         'active_policy_version_id',
         'status',
+        'evaluation_mode',
         'created_by',
     ];
 
@@ -79,5 +89,10 @@ class SelectionCycle extends Model
     public function isFrozen(): bool
     {
         return in_array($this->status, ['frozen', 'announced', 'closed'], true);
+    }
+
+    public function isAssumeQualified(): bool
+    {
+        return $this->evaluation_mode === self::MODE_ASSUME_QUALIFIED;
     }
 }

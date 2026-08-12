@@ -5,11 +5,12 @@ namespace App\Services\Selection;
 use App\Models\SelectionAthlete;
 
 /**
- * Thin dispatcher — picks the right series+version ruleset from the athlete's
- * cycle policy and delegates. All the actual rule logic lives in
- * Rulesets\Pr22V14EligibilityRuleset / Pr22V11EligibilityRuleset. This
+ * Thin dispatcher — picks the right series+version ruleset (or the
+ * AutoPassEligibilityRuleset when the cycle is running in
+ * 'assume_qualified' mode) from the athlete's cycle policy and delegates.
+ * All the actual rule logic lives in the concrete Rulesets\* classes. This
  * keeps callers (controllers, artisan commands, other services) agnostic
- * of which policy version they're evaluating against.
+ * of which policy version or mode they're evaluating against.
  */
 class EligibilityEvaluator
 {

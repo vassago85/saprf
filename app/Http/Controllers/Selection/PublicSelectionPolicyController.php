@@ -17,23 +17,28 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  *
  * Route contract:
  *   /selection/{series}-policy               -> current season for the series
+ *                                               (or latest historical if no
+ *                                                current season is published)
  *   /selection/{series}-policy/{season}      -> specific historical season
  */
 class PublicSelectionPolicyController extends Controller
 {
     /**
-     * @var array<string, array{title: string, current_season: string, historical_seasons: array<int, string>}>
+     * Series catalog. `current_season` may be null (e.g. PRS between cycles);
+     * in that case the default view is the most recent historical season.
+     *
+     * @var array<string, array{title: string, current_season: string|null, historical_seasons: array<int, string>}>
      */
     private const SERIES = [
         'pr22' => [
-            'title' => 'PR22 Team Selection',
+            'title' => 'PR22 Team Selection (Rimfire)',
             'current_season' => '2027',
-            'historical_seasons' => ['2026'],
+            'historical_seasons' => [],
         ],
         'prs' => [
-            'title' => 'PRS Team Selection',
-            'current_season' => '2026',
-            'historical_seasons' => [],
+            'title' => 'PRS Team Selection (Centrefire)',
+            'current_season' => null,
+            'historical_seasons' => ['2026'],
         ],
     ];
 
@@ -45,7 +50,10 @@ class PublicSelectionPolicyController extends Controller
         }
 
         $meta = self::SERIES[$series];
-        $season = $season ?: $meta['current_season'];
+        $season = $season ?: ($meta['current_season'] ?? ($meta['historical_seasons'][0] ?? null));
+        if (! $season) {
+            throw new NotFoundHttpException("No selection policy published for {$series} yet.");
+        }
 
         $mdPath = base_path("docs/selection/{$series}/{$season}/policy.md");
         if (! is_file($mdPath)) {
@@ -58,10 +66,11 @@ class PublicSelectionPolicyController extends Controller
             'allow_unsafe_links' => false,
         ]))->convert($markdown)->getContent();
 
-        $otherSeasons = array_values(array_filter(
-            array_merge([$meta['current_season']], $meta['historical_seasons']),
-            fn (string $s) => $s !== $season,
-        ));
+        $allSeasons = array_values(array_filter(array_merge(
+            [$meta['current_season']],
+            $meta['historical_seasons'],
+        )));
+        $otherSeasons = array_values(array_filter($allSeasons, fn (string $s) => $s !== $season));
 
         return view('selection.public.policy', [
             'series_key' => $series,
