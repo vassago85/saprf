@@ -43,6 +43,13 @@ Route::get('/standings', [StandingController::class, 'publicIndex'])->name('stan
 Route::get('/standings/{season}/shooter/{user}', [StandingController::class, 'publicShooter'])->name('standings.shooter');
 Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->name('membership.verify');
 
+// Public verbatim publication of the SAPRF selection policy (current
+// season by default, historical seasons via the optional second segment).
+Route::get('/selection/{series}-policy/{season?}', [\App\Http\Controllers\Selection\PublicSelectionPolicyController::class, 'show'])
+    ->where('series', 'pr22|prs')
+    ->where('season', '[0-9]{4}')
+    ->name('selection.policy.public');
+
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
     ->name('payments.notify')
@@ -315,4 +322,39 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/backups/download/{disk}/{path}', [\App\Http\Controllers\Developer\BackupController::class, 'download'])
             ->where('path', '.*')->name('backups.download');
     });
+
+    // IPRF / national team selection subsystem.
+    Route::middleware(['role:developer|exco|owner|admin|iprf_selector'])
+        ->prefix('selection')
+        ->name('selection.')
+        ->group(function (): void {
+            Route::get('/cycles', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'index'])->name('cycles.index');
+            Route::get('/cycles/create', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'create'])->name('cycles.create');
+            Route::post('/cycles', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'store'])->name('cycles.store');
+            Route::get('/cycles/{cycle}', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'show'])->name('cycles.show');
+            Route::get('/cycles/{cycle}/edit', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'edit'])->name('cycles.edit');
+            Route::put('/cycles/{cycle}', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'update'])->name('cycles.update');
+
+            Route::post('/cycles/{cycle}/policies', [\App\Http\Controllers\Selection\SelectionPolicyController::class, 'store'])->name('cycles.policies.store');
+            Route::get('/cycles/{cycle}/policies/{policy}', [\App\Http\Controllers\Selection\SelectionPolicyController::class, 'show'])->name('cycles.policies.show');
+
+            Route::post('/cycles/{cycle}/reevaluate', [\App\Http\Controllers\Selection\SelectionEvaluationController::class, 'run'])->name('cycles.reevaluate');
+
+            Route::get('/cycles/{cycle}/athletes', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'index'])->name('cycles.athletes.index');
+            Route::get('/cycles/{cycle}/athletes/create', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'create'])->name('cycles.athletes.create');
+            Route::post('/cycles/{cycle}/athletes', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'store'])->name('cycles.athletes.store');
+            Route::post('/cycles/{cycle}/athletes/bulk-register', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'bulkRegister'])->name('cycles.athletes.bulk-register');
+            Route::get('/cycles/{cycle}/athletes/{athlete}', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'show'])->name('cycles.athletes.show');
+            Route::put('/cycles/{cycle}/athletes/{athlete}', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'update'])->name('cycles.athletes.update');
+            Route::post('/cycles/{cycle}/athletes/{athlete}/reevaluate', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'reevaluate'])->name('cycles.athletes.reevaluate');
+
+            Route::post('/cycles/{cycle}/athletes/{athlete}/declaration', [\App\Http\Controllers\Selection\SelectionDeclarationController::class, 'store'])->name('cycles.athletes.declaration.store');
+
+            Route::post('/cycles/{cycle}/athletes/{athlete}/waivers', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'store'])->name('cycles.athletes.waivers.store');
+            Route::put('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'decide'])->name('cycles.athletes.waivers.decide');
+            Route::get('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}/download', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'download'])->name('cycles.athletes.waivers.download');
+
+            Route::post('/cycles/{cycle}/athletes/{athlete}/appeals', [\App\Http\Controllers\Selection\SelectionAppealController::class, 'store'])->name('cycles.athletes.appeals.store');
+            Route::put('/cycles/{cycle}/athletes/{athlete}/appeals/{appeal}', [\App\Http\Controllers\Selection\SelectionAppealController::class, 'decide'])->name('cycles.athletes.appeals.decide');
+        });
 });

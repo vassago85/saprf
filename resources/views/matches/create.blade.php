@@ -30,6 +30,7 @@
                         <option value="provincial" @selected(old('series_level') === 'provincial')>Provincial</option>
                         <option value="club" @selected(old('series_level') === 'club')>Club</option>
                         <option value="final" @selected(old('series_level') === 'final')>Final / Champs</option>
+                        <option value="international" @selected(old('series_level') === 'international')>International</option>
                     </select>
                     <p class="mt-1 text-xs text-stone-400">Finals attract the configured weighting multiplier in season standings.</p>
                 </div>

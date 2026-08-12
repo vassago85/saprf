@@ -15,12 +15,14 @@ class Club extends Model
         'abbreviation',
         'province_id',
         'is_active',
+        'saprf_recognised',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'saprf_recognised' => 'boolean',
         ];
     }
 
@@ -32,6 +34,11 @@ class Club extends Model
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    public function scopeSaprfRecognised($query)
+    {
+        return $query->where('saprf_recognised', true);
     }
 
     /**

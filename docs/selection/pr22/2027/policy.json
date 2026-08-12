@@ -1,0 +1,114 @@
+{
+    "$comment": "Structured encoding of the SAPRF PR22 v1.1 selection document dated 12 December 2025 (verbatim source: docs/selection/pr22/2027/policy.md). Read by the Pr22V11* rulesets. Rule IDs and thresholds are stable and match the audit trail written to selection_rule_evaluations. This file is the machine-consumable companion to the verbatim doc; if the two ever diverge, the .md file is authoritative and this file must be corrected.",
+    "spec": {
+        "series": "PR22",
+        "cycle_name": "IPRF PR22 Team World Championships 2027",
+        "spec_version": "1.1",
+        "engine": "PR22_v1.1",
+        "governing_document": {
+            "title": "Selection document 2026",
+            "version": "V 1.1",
+            "dated": "2025-12-12"
+        },
+        "authoritative_url": "https://www.precisionrifle.co.za/documents/",
+        "verbatim_document": "docs/selection/pr22/2027/policy.md"
+    },
+    "key_dates": {
+        "qualifying_period_start": "2026-01-01",
+        "qualifying_period_end": "2026-12-31",
+        "declaration_deadline": "2026-11-30",
+        "results_freeze": "2026-12-31",
+        "selection_panel_constituted": "2027-01-12",
+        "deliberation_window": {"from": "2027-01-16", "to": "2027-01-28"},
+        "team_announcement": "2027-01-30",
+        "championship": {"from": "2027-08-01", "to": "2027-08-31", "note": "August 2027 - exact dates + venue TBA"}
+    },
+    "eligibility": {
+        "rules": [
+            {"id": "ELG-01", "check": "membership_good_standing", "text": "Be a paid-up Member of SAPRF in good standing at the start of the selection period"},
+            {"id": "ELG-02", "check": "sa_citizen", "text": "Be a South African Citizen"},
+            {"id": "ELG-03", "check": "province_or_recognised_club", "text": "Reside within the province they are affiliated with OR be a member of a SAPRF recognised club"},
+            {"id": "ELG-04", "check": "residence_or_sa_champs_exception", "text": "Reside within South Africa. Exception: SA citizens abroad who shot the 2026 SAPRF PR22 Season SA Championship match."},
+            {"id": "ELG-05", "check": "declaration_form_received", "text": "Complete the 'Eligibility to Compete' forms and such forms must have been received by ExCo"}
+        ],
+        "interpretation_notes": [
+            "ELG-03 is intentionally an OR (residency-in-affiliated-province OR member-of-recognised-club) - this is a v1.1 relaxation vs v1.4, which required BOTH."
+        ]
+    },
+    "participation": {
+        "rules": [
+            {"id": "PART-01", "check": "any_pr22_participation", "text": "Competed in the SAPRF PR22 2026 National/International PR22 series"},
+            {"id": "PART-02", "check": "min_provincial_1d", "text": "Compete in a minimum of 3 National Provincial 1-day PR22 matches"},
+            {"id": "PART-03", "check": "min_2d_nat_or_intl", "text": "Compete in a minimum of 2 International/National 2-day matches"},
+            {"id": "PART-04", "check": "at_least_one_out_of_home", "text": "At least 1 of the 2-day matches must be out of the shooter's home province"},
+            {"id": "PART-05", "check": "sa_champs_shot", "text": "Competed in the mandatory SA championship match of the same year"},
+            {"id": "PART-06", "check": "full_member_before_period", "text": "Full member of SAPRF prior to the start of the selection period (needed to claim points)"}
+        ],
+        "thresholds": {
+            "min_provincial_1d": 3,
+            "min_2d_nat_or_intl": 2,
+            "min_out_of_home_2d": 1,
+            "must_include_sa_champs": true,
+            "sa_champs_year": 2026
+        }
+    },
+    "scoring": {
+        "rules": [
+            {"id": "SCR-01", "check": "weighted_selection_score", "text": "Compute weighted selection % using top 3 provincial 1-day scores (10% each), top 2 national/international 2-day scores (20% each) and SA Champs (30%)."},
+            {"id": "SCR-02", "check": "division_relative_percentage", "text": "Rescale each athlete's weighted selection % against the top-scoring athlete in the same division so the division winner sits at 100%."},
+            {"id": "SCR-03", "check": "protea_threshold", "text": "Athletes at 85% and above (of the division winner) are Protea-eligible; below 85% are Federation-eligible if selected."}
+        ],
+        "formula": {
+            "components": [
+                {"source": "provincial_1d", "match_selection": "top_3_normalized_scores", "per_match_weight_pct": 10, "cap_pct": 30},
+                {"source": "national_or_international_2d", "match_selection": "top_2_normalized_scores", "per_match_weight_pct": 20, "cap_pct": 40},
+                {"source": "sa_champs", "match_selection": "single_final_match", "per_match_weight_pct": 30, "cap_pct": 30}
+            ],
+            "match_score_input": "Score.normalized_score (already computed by StandingsCalculationService against the highest raw score of the day)",
+            "raw_weighted_max_pct": 100,
+            "division_normalization": "raw_weighted / division_top_raw_weighted * 100",
+            "protea_threshold_pct": 85
+        },
+        "interpretation_notes": [
+            "'Highest accumulated score of the divisional winners will be used to calculate your score' - implemented as: each athlete's raw weighted % (0-100) is rescaled by the highest raw weighted % in the same division so the division winner sits at 100. The 85% Protea threshold is measured on this division-relative %.",
+            "Provincial component uses the top 3 normalized_scores from the athlete's provincial 1-day matches in the qualifying period; national component uses the top 2 from 2-day national/international matches; SA Champs component uses the single 'final' series_level match. Athletes with fewer than the required matches in a component get a partial contribution (fewer matches, less accumulated %) - the doc does not explicitly say to zero the whole component out."
+        ]
+    },
+    "squad_quotas": {
+        "note": "v1.1 does not specify a separate Squad size distinct from the Team quotas below. Squad membership is derived from athletes who pass ELG+PART (and, informally, score high enough); Team is chosen from Squad."
+    },
+    "team_quotas": {
+        "OPEN":        {"min": 4, "max": 6},
+        "FACTORY":     {"min": 3, "max": 4},
+        "LADIES_OPEN": {"min": 3, "max": 4},
+        "JUNIOR_OPEN": {"min": 3, "max": 4},
+        "SENIOR_OPEN": {"min": 3, "max": 4},
+        "individuals_max": 2,
+        "cross_division_replacement_locked_at_pct": 85
+    },
+    "appeals": {
+        "grounds": "The Selection Policy process was not properly followed and/or implemented",
+        "window_working_days": 3,
+        "fee_zar": 5000.00,
+        "refund_if_upheld": true,
+        "one_level_only": true,
+        "eligible_appellants": "athletes_only"
+    },
+    "substitution": {
+        "grounds": [
+            "Loss of form or fitness assessed to affect performance at the Championships",
+            "Contravention of Athlete Agreement / SAPRF Rules / Code of Conduct / Constitution / Social Media Policy",
+            "Voluntary removal"
+        ],
+        "replacement_pool": "National Squad"
+    },
+    "waivers": {
+        "waivable_requirements": [
+            "National Squad participation requirements",
+            "Mandatory SA Champs (missed) - exceptional circumstances",
+            "IPRF/SAPRF International match cancellation/postponement"
+        ],
+        "granted_by": "Selectors",
+        "requires_written_request": true
+    }
+}

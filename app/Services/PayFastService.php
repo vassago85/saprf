@@ -197,7 +197,48 @@ class PayFastService
             }
         }
 
-        return in_array($ip, array_unique($validIps), true);
+        if (in_array($ip, array_unique($validIps), true)) {
+            return true;
+        }
+
+        foreach ((array) config('payfast.valid_ip_ranges', []) as $range) {
+            if ($this->ipInRange($ip, (string) $range)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether an IPv4 address falls inside a CIDR block (e.g. 41.74.179.192/27)
+     * or matches a bare single IP.
+     */
+    private function ipInRange(string $ip, string $range): bool
+    {
+        $ipLong = ip2long($ip);
+        if ($ipLong === false) {
+            return false;
+        }
+
+        if (! str_contains($range, '/')) {
+            $rangeLong = ip2long($range);
+
+            return $rangeLong !== false && $ipLong === $rangeLong;
+        }
+
+        [$subnet, $bits] = explode('/', $range, 2);
+        $subnetLong = ip2long($subnet);
+        $bits = (int) $bits;
+
+        if ($subnetLong === false || $bits < 0 || $bits > 32) {
+            return false;
+        }
+
+        // /0 matches everything; guard against the 32-bit shift edge case.
+        $mask = $bits === 0 ? 0 : (-1 << (32 - $bits)) & 0xFFFFFFFF;
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
     private function getMerchantId(): string

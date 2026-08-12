@@ -1,7 +1,7 @@
 # SAPRF PR22 2025/2026 — Scraped Match Results
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-08-07 11:34:18
+Scraped: 2026-08-12 14:22:32
 
 Series in scope:
 
@@ -30,6 +30,7 @@ Match catalog: `matches.csv` (one row per match, ready to import as `MatchEvent`
 | 2026-04-25 | — | provincial | Rimfire PR22 WC Provincial | Atlantis Shooting Range | Western Cape | Handre van Niekerk | 16 | — | [#239](https://www.precisionrifle.co.za/events/239) | `storage/scraped/pr22/provincial/2026-04-25_rimfire-pr22-wc-provincial.csv` |
 | 2026-05-23 | — | provincial | Rimfire PR22 GP Provincial | Leopard's Valley | Gauteng | Warren Britnell | 45 | — | [#227](https://www.precisionrifle.co.za/events/227) | `storage/scraped/pr22/provincial/2026-05-23_rimfire-pr22-gp-provincial.csv` |
 | 2026-06-06 | 2026-06-07 | national | Rimfire PR22 GP 2-Day National | Legends Adventure Farm | Gauteng | Eddie Kinnear | 54 | yes | [#233](https://www.precisionrifle.co.za/events/233) | `storage/scraped/pr22/national/2026-06-06_rimfire-pr22-gp-2-day-national.csv` |
+| 2026-06-06 | — | provincial | Rimfire Clash of the Legends 1 day Provincial | Legends Adventure Farm | Gauteng | Paul Charsley | 47 | — | [#257](https://www.precisionrifle.co.za/events/257) | `storage/scraped/pr22/provincial/2026-06-06_rimfire-clash-of-the-legends-1-day-provincial.csv` |
 | 2026-07-18 | — | provincial | Rimfire PR22 LP Provincial | Risla Range | Limpopo | Petrus Rasmus Jansen van Vuuren | 37 | — | [#228](https://www.precisionrifle.co.za/events/228) | `storage/scraped/pr22/provincial/2026-07-18_rimfire-pr22-lp-provincial.csv` |
 | 2026-07-26 | — | provincial | Rimfire PR22 WC Provincial | Lourensford | Western Cape | Handre van Niekerk | 28 | — | [#253](https://www.precisionrifle.co.za/events/253) | `storage/scraped/pr22/provincial/2026-07-26_rimfire-pr22-wc-provincial.csv` |
 

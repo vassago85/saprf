@@ -26,6 +26,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'phone',
         'sa_id_number',
+        'sa_citizen',
+        'country_of_residence',
         'date_of_birth',
         'is_active',
         'must_change_password',
@@ -80,6 +82,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'is_managed_account' => 'boolean',
+            'sa_citizen' => 'boolean',
             'date_of_birth' => 'date',
         ];
     }
@@ -241,7 +244,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * provincial committee — means a change is made in an administrative
      * capacity rather than as an ordinary member.
      */
-    public const STAFF_ROLES = ['developer', 'exco', 'owner', 'admin', 'match_director'];
+    public const STAFF_ROLES = ['developer', 'exco', 'owner', 'admin', 'match_director', 'iprf_selector'];
 
     /**
      * Does this user act with staff/admin authority anywhere on the platform?

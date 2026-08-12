@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             OpticReferenceSeeder::class,
             DivisionCategorySeeder::class,
             FederationDemoSeeder::class,
+            SelectionCycleSeeder::class,
         ]);
     }
 }

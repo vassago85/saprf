@@ -107,6 +107,9 @@
                         <flux:badge size="sm" color="emerald" class="ml-auto">{{ $familyCount }}</flux:badge>
                     @endif
                 </flux:navlist.item>
+                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
+                    PR22 Team Selection
+                </flux:navlist.item>
             </flux:navlist.group>
 
             {{-- Everything below is hidden when a staff user has flipped to
@@ -156,6 +159,20 @@
                     Provincial Committees
                 </flux:navlist.item>
                 @endrole
+            </flux:navlist.group>
+            @endrole
+
+            @role('developer|exco|owner|admin|iprf_selector')
+            <flux:navlist.group heading="IPRF Selection" expandable :expanded="request()->routeIs('selection.*')">
+                <flux:navlist.item icon="flag" :href="route('selection.cycles.index')" :current="request()->routeIs('selection.cycles.index', 'selection.cycles.create', 'selection.cycles.edit')">
+                    Selection Cycles
+                </flux:navlist.item>
+                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
+                    PR22 Policy (public)
+                </flux:navlist.item>
+                <flux:navlist.item icon="clock" :href="route('selection.policy.public', ['series' => 'pr22', 'season' => '2026'])">
+                    PR22 2026 (historical)
+                </flux:navlist.item>
             </flux:navlist.group>
             @endrole
 

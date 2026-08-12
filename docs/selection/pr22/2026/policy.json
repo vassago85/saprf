@@ -1,0 +1,110 @@
+{
+    "$comment": "Structured encoding of the SAPRF PR22 v1.4 selection document (verbatim source: docs/selection/pr22/2026/policy.md). Read by ParticipationEvaluator / EligibilityEvaluator at run time. Rule IDs and thresholds are stable and match the audit trail written to selection_rule_evaluations. This file is the machine-consumable companion to the verbatim doc; if the two ever diverge, the .md file is authoritative and this file must be corrected.",
+    "spec": {
+        "series": "PR22",
+        "cycle_name": "IPRF World Championships 2026",
+        "spec_version": "1.4",
+        "governing_document": {
+            "title": "SAPRF Team South Africa - Selection Process",
+            "version": "Ver 1.4",
+            "dated": "2024-11-09"
+        },
+        "authoritative_url": "https://www.precisionrifle.co.za/documents/",
+        "verbatim_document": "docs/selection/pr22/2026/policy.md"
+    },
+    "key_dates": {
+        "qualifying_period_start": "2024-11-15",
+        "qualifying_period_end": "2025-11-30",
+        "declaration_deadline": "2025-09-30",
+        "selection_panel_constituted": "2025-09-30",
+        "form_evaluation_window": {
+            "from": "2026-01-01",
+            "to": "2026-02-28"
+        },
+        "results_freeze": "2026-03-01",
+        "team_announcement": "2026-03-15",
+        "championship": {
+            "from": "2026-08-17",
+            "to": "2026-08-26"
+        }
+    },
+    "eligibility": {
+        "rules": [
+            {"id": "ELG-01", "check": "membership_good_standing", "text": "Be a paid-up Member of SAPRF in good standing"},
+            {"id": "ELG-02", "check": "sa_citizen", "text": "Be a South African Citizen"},
+            {"id": "ELG-03", "check": "province_affiliation", "text": "Reside within the Province to which they are affiliated"},
+            {"id": "ELG-04", "check": "residence_or_sa_champs_exception", "text": "Reside within South Africa. Exception: SA citizens residing abroad who shot the SAPRF Centrefire Championship match in 2025."},
+            {"id": "ELG-05", "check": "recognised_club_affiliation", "text": "Be a member of a SAPRF recognized club to which they are affiliated"},
+            {"id": "ELG-06", "check": "declaration_form_received", "text": "Complete the 'Eligibility to Compete' forms and such forms must have been received by the ExCo"}
+        ]
+    },
+    "participation": {
+        "rules": [
+            {"id": "PART-01", "check": "sa_champs_shot", "text": "SA Champs 2025 is mandatory; it always counts as one of the 4 required matches regardless of province"},
+            {"id": "PART-02", "check": "min_counted_2d_matches", "text": "Minimum 4 counted National/International 2-day matches (SA Champs + up to 1 in-province + up to 3 out-of-province + IPRF/PRS internationals)"},
+            {"id": "PART-03", "check": "within_close_window", "text": "At least 1 counted match must fall within 3 months of the closing date of the Qualifying Period (31 Aug – 30 Nov 2025)"},
+            {"id": "PART-04", "check": "in_province_cap", "text": "Only 1 in-province 2-day national match may count (SA Champs exempt)"},
+            {"id": "PART-05", "check": "out_of_province_cap", "text": "Maximum 3 out-of-province 2-day national matches may count"},
+            {"id": "PART-06", "check": "international_sanctioning", "text": "Only IPRF- and PRS-sanctioned international 2-day matches may count"},
+            {"id": "PART-07", "check": "full_member_for_points", "text": "Athlete must be a full member of SAPRF to claim Selection Points"}
+        ],
+        "thresholds": {
+            "min_counted_2d_matches": 4,
+            "must_include_sa_champs": true,
+            "sa_champs_year": 2025,
+            "sa_champs_geographic_exempt": true,
+            "min_within_3_months_of_close": 1,
+            "in_province_2d_national_cap": 1,
+            "out_of_province_2d_national_cap": 3,
+            "allowed_international_sanctioning": ["IPRF", "PRS"]
+        },
+        "interpretation_notes": [
+            "The source document contains a drafting tension: bullet 1 says '1 of which MUST be the SAPRF Championship match in 2025' (SA Champs = 1 of the 4), while a later bullet says 'SA Champs is mandatory and in addition to the 2 day nationals listed above'. The most internally consistent reading, and the one this policy implements, is that SA Champs IS one of the 4 minimum matches, but its province does not consume the in-province cap. If ExCo intends SA Champs to be a fifth mandatory match on top of 4 others, the min_counted_2d_matches threshold should be raised and this policy re-imported.",
+            "'Within 3 months of the closing date' is treated as match_date within the calendar 3 months preceding the qualifying_period_end (i.e. 2025-08-30 to 2025-11-30 inclusive).",
+            "PART-06 (IPRF/PRS-sanctioned international check) will report BLOCKED until the matches table carries a sanctioning_body field. Adding that field is a small follow-up migration; the evaluator will start honouring it automatically once populated."
+        ]
+    },
+    "squad_quotas": {
+        "OPEN":        {"min": 8, "max": 10},
+        "FACTORY":     {"min": 6, "max": 6},
+        "LIMITED":     {"min": 6, "max": 6},
+        "LADIES_OPEN": {"min": 6, "max": 6},
+        "JUNIOR_OPEN": {"min": 6, "max": 6},
+        "SENIOR_OPEN": {"min": 6, "max": 6},
+        "total_cap": 40
+    },
+    "team_quotas": {
+        "OPEN":        {"min": 4, "max": 6},
+        "FACTORY":     {"min": 3, "max": 4},
+        "LIMITED":     {"min": 3, "max": 4},
+        "LADIES_OPEN": {"min": 3, "max": 4},
+        "JUNIOR_OPEN": {"min": 3, "max": 4},
+        "SENIOR_OPEN": {"min": 3, "max": 4},
+        "individuals_max": 2,
+        "note": "Selectors may fill up to 2 Individual positions when a team cannot be filled. Divisions/quotas may change per IPRF directives."
+    },
+    "appeals": {
+        "grounds": "The Selection Policy process was not properly followed and/or implemented",
+        "window_working_days": 3,
+        "fee_zar": 5000.00,
+        "refund_if_upheld": true,
+        "one_level_only": true,
+        "eligible_appellants": "athletes_only"
+    },
+    "substitution": {
+        "grounds": [
+            "Loss of form or fitness assessed to affect performance at the Championships",
+            "Contravention of Athlete Agreement / SAPRF Rules / Code of Conduct / Constitution / Social Media Policy",
+            "Voluntary removal"
+        ],
+        "replacement_pool": "SA Squad"
+    },
+    "waivers": {
+        "waivable_requirements": [
+            "SA Squad participation requirements",
+            "Sufficient IPRF International finishes"
+        ],
+        "granted_by": "Selectors",
+        "requires_written_request": true
+    }
+}

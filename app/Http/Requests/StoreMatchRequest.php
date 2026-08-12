@@ -18,7 +18,7 @@ class StoreMatchRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
-            'series_level' => ['required', Rule::in(['national', 'provincial', 'club', 'final'])],
+            'series_level' => ['required', Rule::in(['national', 'provincial', 'club', 'final', 'international'])],
             'province_id' => ['nullable', 'exists:provinces,id'],
             'match_date' => ['required', 'date', 'after_or_equal:today'],
             'match_end_date' => ['nullable', 'date', 'after_or_equal:match_date'],

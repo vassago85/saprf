@@ -10,7 +10,7 @@ function seedRoles(): void
 {
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-    foreach (['owner', 'admin', 'match_director', 'member'] as $role) {
+    foreach (['owner', 'admin', 'match_director', 'member', 'iprf_selector', 'developer', 'exco'] as $role) {
         Role::firstOrCreate(['name' => $role]);
     }
 }

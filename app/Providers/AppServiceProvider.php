@@ -7,12 +7,20 @@ use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\QualificationRule;
 use App\Models\Score;
+use App\Models\SelectionAppeal;
+use App\Models\SelectionAthlete;
+use App\Models\SelectionCycle;
+use App\Models\SelectionWaiver;
 use App\Observers\MembershipObserver;
 use App\Policies\MatchPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\QualificationRulePolicy;
 use App\Policies\RegistrationPolicy;
 use App\Policies\ScorePolicy;
+use App\Policies\Selection\SelectionAppealPolicy;
+use App\Policies\Selection\SelectionAthletePolicy;
+use App\Policies\Selection\SelectionCyclePolicy;
+use App\Policies\Selection\SelectionWaiverPolicy;
 use App\Models\Setting;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\ResetPasswordNotification;
@@ -56,6 +64,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MatchRegistration::class, RegistrationPolicy::class);
         Gate::policy(Membership::class, MembershipPolicy::class);
         Gate::policy(QualificationRule::class, QualificationRulePolicy::class);
+        Gate::policy(SelectionCycle::class, SelectionCyclePolicy::class);
+        Gate::policy(SelectionAthlete::class, SelectionAthletePolicy::class);
+        Gate::policy(SelectionWaiver::class, SelectionWaiverPolicy::class);
+        Gate::policy(SelectionAppeal::class, SelectionAppealPolicy::class);
 
         Membership::observe(MembershipObserver::class);
 
