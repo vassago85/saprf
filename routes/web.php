@@ -37,7 +37,10 @@ use Livewire\Volt\Volt;
 
 Route::view('/', 'welcome');
 Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
-Route::view('/terms', 'legal.terms')->name('legal.terms');
+// Terms & Conditions — served by a controller so we can inject the
+// current membership-fee liability cap and render the verbatim MD source
+// from docs/legal/terms.md.
+Route::get('/terms', [\App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');

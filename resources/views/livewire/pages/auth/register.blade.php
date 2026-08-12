@@ -24,6 +24,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
     public string $previously_disadvantaged_choice = '';
     public string $password = '';
     public string $password_confirmation = '';
+    public bool $terms_accepted = false;
 
     /**
      * Suggest a default for previously_disadvantaged_choice from ethnicity so
@@ -59,6 +60,9 @@ new #[Layout('components.layouts.guest')] class extends Component {
             'ethnicity' => ['nullable', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
             'previously_disadvantaged_choice' => ['nullable', Rule::in(['', 'yes', 'no'])],
             'password' => ['required', 'min:8', 'confirmed'],
+            'terms_accepted' => ['accepted'],
+        ], [
+            'terms_accepted.accepted' => 'You must accept the Terms & Conditions to create an account.',
         ]);
 
         $previouslyDisadvantaged = match ($validated['previously_disadvantaged_choice'] ?? '') {
@@ -260,6 +264,22 @@ new #[Layout('components.layouts.guest')] class extends Component {
                                 class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                         </div>
                     </div>
+                </fieldset>
+
+                {{-- Section: terms acceptance --}}
+                <fieldset class="border-t border-stone-200 pt-6">
+                    <label class="flex items-start gap-3 text-sm text-stone-700">
+                        <input wire:model="terms_accepted" type="checkbox" id="terms_accepted" required
+                            class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                        <span>
+                            I have read and accept the
+                            <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener" class="text-emerald-700 font-medium hover:text-emerald-800 underline">Terms &amp; Conditions</a>
+                            and
+                            <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener" class="text-emerald-700 font-medium hover:text-emerald-800 underline">Privacy Policy</a>.
+                            <span class="text-red-600">*</span>
+                        </span>
+                    </label>
+                    @error('terms_accepted') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </fieldset>
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
