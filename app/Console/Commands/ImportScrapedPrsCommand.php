@@ -36,7 +36,9 @@ class ImportScrapedPrsCommand extends Command
         {--dir=storage/scraped/prs : Directory containing matches.csv, upcoming.csv and per-match CSVs}
         {--skip-source-ids=252 : Comma-separated source event IDs to skip (defaults to the resultless NW provincial placeholder)}
         {--dry-run : Parse everything and print counts, but write nothing}
-        {--skip-upcoming : Do not create the upcoming (score-less) matches}';
+        {--skip-upcoming : Do not create the upcoming (score-less) matches}
+        {--refresh : For matches that already exist, wipe their existing scores and re-import from the freshly-scraped CSVs (safe: only re-imports scores, never deletes a match)}
+        {--only-match-date= : When set, only refresh/import matches whose match_date matches this YYYY-MM-DD (used to re-scrape a single match without touching the rest)}';
 
     protected $description = 'Import scraped SAPRF PRS 2026 match results additively (keeps existing data, reuses shooters by name)';
 
@@ -55,22 +57,30 @@ class ImportScrapedPrsCommand extends Command
         $skipIds = array_filter(array_map('trim', explode(',', (string) $this->option('skip-source-ids'))));
         $dryRun = (bool) $this->option('dry-run');
         $doUpcoming = ! $this->option('skip-upcoming');
+        $refresh = (bool) $this->option('refresh');
+        $onlyDate = trim((string) $this->option('only-match-date'));
 
         $this->info('=== SAPRF PRS 2026 Scraped Import (additive) ===');
         $this->line("Source dir: {$dir}");
         $this->line('Skip source IDs: '.implode(', ', $skipIds ?: ['<none>']));
         $this->line('Import upcoming: '.($doUpcoming ? 'yes' : 'no'));
+        $this->line('Refresh existing scores: '.($refresh ? 'YES' : 'no'));
+        if ($onlyDate !== '') {
+            $this->line("Only match_date: {$onlyDate}");
+        }
         $this->line('Dry run: '.($dryRun ? 'YES (nothing will be written)' : 'no'));
         $this->newLine();
 
+        $matchDateFilter = fn ($m) => $onlyDate === '' || ($m['match_date'] ?? '') === $onlyDate;
+
         $matches = array_values(array_filter(
             $this->readCsv($catalog),
-            fn ($m) => ! in_array($m['source_id'], $skipIds, true),
+            fn ($m) => ! in_array($m['source_id'], $skipIds, true) && $matchDateFilter($m),
         ));
         $upcoming = ($doUpcoming && is_file($upcomingCatalog))
             ? array_values(array_filter(
                 $this->readCsv($upcomingCatalog),
-                fn ($m) => ! in_array($m['source_id'], $skipIds, true),
+                fn ($m) => ! in_array($m['source_id'], $skipIds, true) && $matchDateFilter($m),
             ))
             : [];
 
@@ -109,7 +119,7 @@ class ImportScrapedPrsCommand extends Command
             return self::SUCCESS;
         }
 
-        DB::transaction(function () use ($roster, $matches, $upcoming, $provinces, $divisions, $divisionsByName) {
+        DB::transaction(function () use ($roster, $matches, $upcoming, $provinces, $divisions, $divisionsByName, $refresh) {
             $creator = User::whereHas('roles', fn ($q) => $q->where('name', 'developer'))->first()
                 ?? User::first();
             if (! $creator) {
@@ -122,19 +132,29 @@ class ImportScrapedPrsCommand extends Command
 
             $this->info('Importing completed matches + scores...');
             $newMatches = 0;
+            $refreshedMatches = 0;
             $totalScores = 0;
             foreach ($matches as $m) {
                 [$match, $created] = $this->firstOrCreateMatch($m, $provinces, $creator->id, 'completed');
                 if (! $created) {
-                    $this->line("  = exists, skipping scores: {$m['name']}");
-
-                    continue;
+                    if (! $refresh) {
+                        $this->line("  = exists, skipping scores: {$m['name']} ({$m['match_date']})");
+                        continue;
+                    }
+                    // --refresh: wipe this match's existing scores so the
+                    // re-scraped CSV becomes the new source of truth.
+                    // We do NOT delete the match itself — that would
+                    // orphan registrations / director assignments.
+                    $deleted = Score::where('match_id', $match->id)->delete();
+                    $this->line("  ↻ refresh: {$m['name']} ({$m['match_date']}) — dropped {$deleted} existing score row(s)");
+                    $refreshedMatches++;
+                } else {
+                    $newMatches++;
                 }
-                $newMatches++;
                 $rows = $this->readCsv(base_path($m['scores_csv']));
                 $totalScores += $this->createScores($match, $rows, $userIdByCanon, $divisions, $divisionsByName);
             }
-            $this->line("  {$newMatches} new match(es), {$totalScores} score rows imported.");
+            $this->line("  {$newMatches} new + {$refreshedMatches} refreshed match(es), {$totalScores} score rows imported.");
 
             if ($upcoming !== []) {
                 $this->info('Creating upcoming matches...');

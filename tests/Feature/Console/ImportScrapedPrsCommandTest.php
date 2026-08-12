@@ -91,6 +91,47 @@ afterEach(function () {
     File::deleteDirectory($this->abs);
 });
 
+it('with --refresh, re-imports scores on an already-imported match without deleting the match itself', function () {
+    // First pass: everything imports fresh.
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
+    $matchIdBefore = MatchEvent::where('name', 'PRS Nat 2')->value('id');
+    $bob = User::where('name', 'Bob')->first();
+    expect($matchIdBefore)->not->toBeNull();
+
+    // Simulate updated results being scraped: Bob dropped to 42, Alice knocked
+    // out of the score list entirely.
+    writeScoreCsv($this->abs, 'national/n2.csv', [['Bob', 'Open', 42, 1]]);
+
+    // Without --refresh, an existing match is skipped (existing scores untouched).
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
+    expect(Score::where('match_id', $matchIdBefore)->count())->toBe(2)
+        ->and((float) Score::where('match_id', $matchIdBefore)->where('user_id', $bob->id)->value('raw_score'))->toBe(100.0);
+
+    // With --refresh, scores are wiped + re-imported from the fresh CSV.
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel, '--refresh' => true])->assertOk();
+    expect(MatchEvent::where('name', 'PRS Nat 2')->value('id'))->toBe($matchIdBefore) // same match row
+        ->and(Score::where('match_id', $matchIdBefore)->count())->toBe(1)
+        ->and((float) Score::where('match_id', $matchIdBefore)->where('user_id', $bob->id)->value('raw_score'))->toBe(42.0);
+});
+
+it('with --only-match-date, restricts import to a single match date', function () {
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
+
+    // Update Nat 2's scores but ask for a re-import scoped to a different
+    // date — Nat 2 must be untouched.
+    writeScoreCsv($this->abs, 'national/n2.csv', [['Bob', 'Open', 1, 1]]);
+    $this->artisan('prs:import-scraped', ['--dir' => $this->rel, '--refresh' => true, '--only-match-date' => '2026-03-01'])->assertOk();
+
+    $n2Id = MatchEvent::where('name', 'PRS Nat 2')->value('id');
+    $n3Id = MatchEvent::where('name', 'PRS Nat 3')->value('id');
+    $bob = User::where('name', 'Bob')->first();
+
+    // Nat 2 (2026-03-01) refreshed.
+    expect((float) Score::where('match_id', $n2Id)->where('user_id', $bob->id)->value('raw_score'))->toBe(1.0);
+    // Nat 3 (2026-04-01) untouched.
+    expect((float) Score::where('match_id', $n3Id)->where('user_id', $bob->id)->value('raw_score'))->toBe(100.0);
+});
+
 it('imports completed PRS matches, scores, shooters and the annual log', function () {
     $this->artisan('prs:import-scraped', ['--dir' => $this->rel])->assertOk();
 
