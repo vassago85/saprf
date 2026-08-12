@@ -1,18 +1,15 @@
 <x-layouts.app :title="$athlete->user?->name.' · '.$cycle->series.' '.$cycle->season">
+    {{-- Model references use fully-qualified names because a `use` block
+         inside an inline PHP directive would be compiled into the component
+         slot closure, which PHP does not permit. --}}
     @php
-        use App\Models\SelectionAthlete;
-        use App\Models\SelectionRuleEvaluation;
-        use App\Models\SelectionWaiver;
-        use App\Models\SelectionAppeal;
-        use App\Models\SelectionDeclaration;
-
         $outcomeBadge = function (?string $outcome): string {
             return match ($outcome) {
-                SelectionRuleEvaluation::OUTCOME_PASS => 'bg-emerald-100 text-emerald-800',
-                SelectionRuleEvaluation::OUTCOME_FAIL => 'bg-red-100 text-red-800',
-                SelectionRuleEvaluation::OUTCOME_MANUAL => 'bg-amber-100 text-amber-800',
-                SelectionRuleEvaluation::OUTCOME_BLOCKED => 'bg-stone-800 text-white',
-                SelectionRuleEvaluation::OUTCOME_NA => 'bg-stone-100 text-stone-600',
+                \App\Models\SelectionRuleEvaluation::OUTCOME_PASS => 'bg-emerald-100 text-emerald-800',
+                \App\Models\SelectionRuleEvaluation::OUTCOME_FAIL => 'bg-red-100 text-red-800',
+                \App\Models\SelectionRuleEvaluation::OUTCOME_MANUAL => 'bg-amber-100 text-amber-800',
+                \App\Models\SelectionRuleEvaluation::OUTCOME_BLOCKED => 'bg-stone-800 text-white',
+                \App\Models\SelectionRuleEvaluation::OUTCOME_NA => 'bg-stone-100 text-stone-600',
                 default => 'bg-stone-100 text-stone-500',
             };
         };
@@ -83,7 +80,7 @@
                     <tbody class="divide-y divide-stone-100">
                         @foreach ($partRules as $ruleId)
                             @php($ev = $latestEvaluations[$ruleId] ?? null)
-                            @php($waived = $athlete->waivers->firstWhere(fn ($w) => $w->waived_rule_id === $ruleId && $w->outcome === SelectionWaiver::OUTCOME_GRANTED))
+                            @php($waived = $athlete->waivers->firstWhere(fn ($w) => $w->waived_rule_id === $ruleId && $w->outcome === \App\Models\SelectionWaiver::OUTCOME_GRANTED))
                             <tr>
                                 <td class="py-2 pr-2 font-mono text-xs text-stone-500">{{ $ruleId }}</td>
                                 <td class="py-2"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $outcomeBadge($ev?->outcome) }}">{{ $ev?->outcome ?? '—' }}</span> @if ($waived) <span class="ml-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">waived</span> @endif</td>
@@ -174,7 +171,7 @@
                             <td class="px-3 py-2 text-xs text-stone-500">{{ $w->decided_at?->format('Y-m-d') ?? '—' }} · {{ optional($w->decidedBy)->name }}</td>
                             <td class="px-3 py-2 text-right">
                                 @can('decide', $w)
-                                    @if ($w->outcome === SelectionWaiver::OUTCOME_PENDING)
+                                    @if ($w->outcome === \App\Models\SelectionWaiver::OUTCOME_PENDING)
                                         <form method="POST" action="{{ route('selection.cycles.athletes.waivers.decide', [$cycle, $athlete, $w]) }}" class="inline-flex items-center gap-1">
                                             @csrf @method('PUT')
                                             <input type="text" name="response_text" placeholder="Response…" class="rounded border border-stone-300 px-2 py-1 text-xs">
@@ -223,7 +220,7 @@
                             <td class="px-3 py-2"><span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ ['upheld' => 'bg-emerald-100 text-emerald-800', 'dismissed' => 'bg-red-100 text-red-800', 'withdrawn' => 'bg-stone-100 text-stone-600', 'pending' => 'bg-amber-100 text-amber-800'][$ap->outcome] ?? 'bg-stone-100 text-stone-600' }}">{{ $ap->outcome }}</span></td>
                             <td class="px-3 py-2 text-right">
                                 @can('decide', $ap)
-                                    @if ($ap->outcome === SelectionAppeal::OUTCOME_PENDING)
+                                    @if ($ap->outcome === \App\Models\SelectionAppeal::OUTCOME_PENDING)
                                         <form method="POST" action="{{ route('selection.cycles.athletes.appeals.decide', [$cycle, $athlete, $ap]) }}" class="inline-flex items-center gap-1">
                                             @csrf @method('PUT')
                                             <button name="outcome" value="upheld" class="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">Uphold</button>
