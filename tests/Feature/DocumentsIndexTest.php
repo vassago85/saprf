@@ -18,20 +18,25 @@ test('documents index lists both selection policies with correct status badges',
         ->assertSee('Historical');
 });
 
-test('documents index lists both legal documents', function () {
+test('documents index lists the legal and governance documents', function () {
     $this->get(route('documents.index'))
         ->assertOk()
+        ->assertSee('Constitution &amp; Memorandum of Incorporation', false)
         ->assertSee('Terms &amp; Conditions', false)
         ->assertSee('Privacy Policy')
-        ->assertSee('POPIA compliance');
+        ->assertSee('POPIA compliance')
+        ->assertSee('Code of Conduct')
+        ->assertSee('Conflict of Interest Policy');
 });
 
 test('every document link on the index resolves to a working page', function () {
-    // Each of the four documents should return 200 when visited directly.
     $this->get(route('selection.policy.public', ['series' => 'pr22']))->assertOk();
     $this->get(route('selection.policy.public', ['series' => 'prs', 'season' => '2026']))->assertOk();
+    $this->get(route('legal.constitution'))->assertOk();
     $this->get(route('legal.terms'))->assertOk();
     $this->get(route('legal.privacy'))->assertOk();
+    $this->get(route('legal.code-of-conduct'))->assertOk();
+    $this->get(route('legal.conflict-of-interest'))->assertOk();
 });
 
 test('documents link appears in the public nav and footer', function () {

@@ -8,8 +8,8 @@ use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 /**
- * Serves the SAPRF legal + governance documents (T&Cs, Privacy, Code of
- * Conduct, Conflict of Interest).
+ * Serves the SAPRF legal + governance documents (Constitution/MOI, T&Cs,
+ * Privacy, Code of Conduct, Conflict of Interest).
  *
  * All source content lives under `docs/legal/*.md` and is reproduced verbatim
  * — the .md files are authoritative. The only substitution the controller
@@ -42,6 +42,11 @@ class LegalController extends Controller
     public function conflictOfInterest(): View
     {
         return view('legal.conflict-of-interest', $this->loadMarkdownDocument('docs/legal/conflict-of-interest.md'));
+    }
+
+    public function constitution(): View
+    {
+        return view('legal.constitution', $this->loadMarkdownDocument('docs/legal/constitution.md'));
     }
 
     /**

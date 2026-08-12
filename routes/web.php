@@ -43,6 +43,7 @@ Route::get('/privacy', [\App\Http\Controllers\LegalController::class, 'privacy']
 Route::get('/terms', [\App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/code-of-conduct', [\App\Http\Controllers\LegalController::class, 'codeOfConduct'])->name('legal.code-of-conduct');
 Route::get('/conflict-of-interest', [\App\Http\Controllers\LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
+Route::get('/constitution', [\App\Http\Controllers\LegalController::class, 'constitution'])->name('legal.constitution');
 
 // Public contact form (with honeypot + time-trap in the controller).
 // Deliberately unauthenticated so anyone can reach the federation.

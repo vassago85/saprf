@@ -72,6 +72,14 @@ class DocumentsController extends Controller
                 'blurb' => 'The binding terms and privacy commitments that govern your use of the SAPRF platform and membership.',
                 'items' => [
                     [
+                        'title' => 'Constitution & Memorandum of Incorporation',
+                        'subtitle' => 'The founding document of SAPPRF',
+                        'description' => 'The Memorandum of Incorporation and Constitution of the South African Practical Precision Rifle Federation (NPC). Defines the federation\'s structure, membership categories, meetings, elections, powers of Council and ExCo, finance, and disciplinary framework.',
+                        'url' => route('legal.constitution'),
+                        'badge' => ['label' => 'Foundational', 'tone' => 'sapphire'],
+                        'last_updated' => $this->docMtime('docs/legal/constitution.md'),
+                    ],
+                    [
                         'title' => 'Terms & Conditions',
                         'subtitle' => 'Membership + platform use',
                         'description' => 'The contractual terms members accept at sign-up, covering platform use, liability cap, dispute resolution and code of conduct.',
