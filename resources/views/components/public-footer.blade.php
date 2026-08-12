@@ -29,7 +29,7 @@
             <div>
                 <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Contact</h4>
                 <ul class="space-y-2 text-sm">
-                    <li class="text-stone-300">info@saprf.co.za</li>
+                    <li><a href="{{ route('contact.create') }}" class="text-stone-300 hover:text-white transition">Send us a message</a></li>
                     <li class="text-stone-300">South Africa</li>
                 </ul>
             </div>

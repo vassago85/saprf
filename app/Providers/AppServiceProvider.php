@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Club;
+use App\Models\ContactMessage;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
@@ -14,6 +15,7 @@ use App\Models\SelectionCycle;
 use App\Models\SelectionWaiver;
 use App\Observers\MembershipObserver;
 use App\Policies\ClubPolicy;
+use App\Policies\ContactMessagePolicy;
 use App\Policies\MatchPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\QualificationRulePolicy;
@@ -67,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Membership::class, MembershipPolicy::class);
         Gate::policy(QualificationRule::class, QualificationRulePolicy::class);
         Gate::policy(Club::class, ClubPolicy::class);
+        Gate::policy(ContactMessage::class, ContactMessagePolicy::class);
         Gate::policy(SelectionCycle::class, SelectionCyclePolicy::class);
         Gate::policy(SelectionAthlete::class, SelectionAthletePolicy::class);
         Gate::policy(SelectionWaiver::class, SelectionWaiverPolicy::class);

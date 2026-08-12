@@ -41,6 +41,12 @@ Route::view('/', 'welcome');
 // inject the current membership-fee liability cap.
 Route::get('/privacy', [\App\Http\Controllers\LegalController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [\App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
+
+// Public contact form (with honeypot + time-trap in the controller).
+// Deliberately unauthenticated so anyone can reach the federation.
+Route::get('/contact', [\App\Http\Controllers\ContactController::class, 'create'])->name('contact.create');
+Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'store'])->name('contact.store');
+Route::get('/contact/thanks', [\App\Http\Controllers\ContactController::class, 'thanks'])->name('contact.thanks');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
@@ -261,6 +267,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'mergeForm'])->name('clubs.merge-form');
         Route::post('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'merge'])->name('clubs.merge');
         Route::delete('/clubs/{club}', [\App\Http\Controllers\ClubController::class, 'destroy'])->name('clubs.destroy');
+
+        // Public /contact form submissions — triage inbox for admins.
+        Route::get('/contact-messages', [\App\Http\Controllers\ContactController::class, 'index'])->name('contact-messages.index');
+        Route::get('/contact-messages/{contactMessage}', [\App\Http\Controllers\ContactController::class, 'show'])->name('contact-messages.show');
+        Route::post('/contact-messages/{contactMessage}/mark-handled', [\App\Http\Controllers\ContactController::class, 'markHandled'])->name('contact-messages.mark-handled');
+        Route::post('/contact-messages/{contactMessage}/reopen', [\App\Http\Controllers\ContactController::class, 'reopen'])->name('contact-messages.reopen');
     });
 
     // Financials (Admin + Owner)

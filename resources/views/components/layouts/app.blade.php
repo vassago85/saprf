@@ -141,7 +141,7 @@
             @endrole
 
             @role('developer|exco|owner|admin')
-            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'clubs.*', 'sponsors.*', 'sponsor-tiers.*')">
+            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'clubs.*', 'contact-messages.*', 'sponsors.*', 'sponsor-tiers.*')">
                 <flux:navlist.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')">
                     Approvals
                     @if(($pendingApprovalCount = \App\Http\Controllers\ApprovalController::totalPendingCount()) > 0)
@@ -153,6 +153,13 @@
                 </flux:navlist.item>
                 <flux:navlist.item icon="building-office-2" :href="route('clubs.index')" :current="request()->routeIs('clubs.*')">
                     Clubs
+                </flux:navlist.item>
+                <flux:navlist.item icon="envelope" :href="route('contact-messages.index')" :current="request()->routeIs('contact-messages.*')">
+                    Contact Enquiries
+                    @php($unhandled = \App\Models\ContactMessage::query()->clean()->unhandled()->count())
+                    @if($unhandled > 0)
+                        <flux:badge size="sm" color="amber" class="ml-auto">{{ $unhandled }}</flux:badge>
+                    @endif
                 </flux:navlist.item>
                 <flux:navlist.item icon="megaphone" :href="route('sponsors.index')" :current="request()->routeIs('sponsors.*')">
                     Sponsors
