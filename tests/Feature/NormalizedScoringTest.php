@@ -129,10 +129,13 @@ it('calculates division ranks and division-specific normalized scores', function
     expect(round($b->normalized_score, 2))->toBe(90.00);
     expect(round($c->normalized_score, 2))->toBe(80.00);
 
-    // Division normalized: relative to top in each division
-    // A: 50/50=100 (Open top=50), B: 45/45=100 (Production top=45), C: 40/50=80 (Open top=50)
+    // Division normalized: relative to the match-wide top raw (highest score
+    // of the day), same baseline as normalized_score. Divisions no longer
+    // renormalize against their own top — division_rank still ranks within
+    // the division, but the percentage always mirrors the overall one.
+    // A: 50/50=100, B: 45/50=90, C: 40/50=80.
     expect(round($a->division_normalized_score, 2))->toBe(100.00);
-    expect(round($b->division_normalized_score, 2))->toBe(100.00);
+    expect(round($b->division_normalized_score, 2))->toBe(90.00);
     expect(round($c->division_normalized_score, 2))->toBe(80.00);
 });
 
@@ -163,8 +166,10 @@ it('calculates division-specific normalized scores for demographic divisions', f
     expect(round($scoreA->normalized_score, 2))->toBe(80.00);   // 40/50
     expect(round($scoreB->normalized_score, 2))->toBe(60.00);   // 30/50
 
-    expect(round($scoreA->division_normalized_score, 2))->toBe(100.00); // 40/40 within Ladies
-    expect(round($scoreB->division_normalized_score, 2))->toBe(75.00);  // 30/40 within Ladies
+    // Division normalized mirrors overall (highest score of the day = 50).
+    // division_rank still orders shooters within Ladies.
+    expect(round($scoreA->division_normalized_score, 2))->toBe(80.00);  // 40/50
+    expect(round($scoreB->division_normalized_score, 2))->toBe(60.00);  // 30/50
     expect($scoreA->division_rank)->toBe(1);
     expect($scoreB->division_rank)->toBe(2);
 });

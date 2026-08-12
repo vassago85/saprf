@@ -1,7 +1,7 @@
 # SAPRF PRS (Centrefire) 2026 — Scraped Match Data
 
 Source: https://www.precisionrifle.co.za/events (past + upcoming listings)
-Scraped: 2026-08-02 09:46:50
+Scraped: 2026-08-12 14:22:21
 
 PRS = the Centrefire program (leagues 'SAPRF National Series' / 'SAPRF Provincial Series').
 Per-match score CSV columns: `shooter_name,division,raw_score,placement`
@@ -22,15 +22,15 @@ Catalogs: `matches.csv` (completed w/ scores), `upcoming.csv` (no results yet)
 | 2026-05-16 | 2026-05-17 | national | Centrefire WC 2-Day National | Romansrivier Wolseley | Western Cape | Ruan Zeeman | 32 | [#219](https://www.precisionrifle.co.za/events/219) | `storage/scraped/prs/national/2026-05-16_centrefire-wc-2-day-national.csv` |
 | 2026-06-20 | 2026-06-21 | national | Centrefire GP 2-Day National | Hippo Creek | Gauteng | Clive Mey | 42 | [#220](https://www.precisionrifle.co.za/events/220) | `storage/scraped/prs/national/2026-06-20_centrefire-gp-2-day-national.csv` |
 | 2026-06-20 | — | provincial | Hippo Brawl 2026 day1 Provincial | Hippo Creek | Gauteng | Clive Mey | 43 | [#254](https://www.precisionrifle.co.za/events/254) | `storage/scraped/prs/provincial/2026-06-20_hippo-brawl-2026-day1-provincial.csv` |
+| 2026-07-11 | 2026-07-12 | national | Centrefire MP 2-Day National | Lydenburg | Mpumalanga | Wayne Lesch | 26 | [#223](https://www.precisionrifle.co.za/events/223) | `storage/scraped/prs/national/2026-07-11_centrefire-mp-2-day-national.csv` |
+| 2026-08-08 | 2026-08-09 | national | Centrefire LP 2-Day National | Marble Hall | Limpopo | Ian Grobler | 45 | [#221](https://www.precisionrifle.co.za/events/221) | `storage/scraped/prs/national/2026-08-08_centrefire-lp-2-day-national.csv` |
+| 2026-08-08 | — | provincial | CenterFire 1day | Marble Hall | Limpopo | Ian Grobler | 41 | [#256](https://www.precisionrifle.co.za/events/256) | `storage/scraped/prs/provincial/2026-08-08_centerfire-1day.csv` |
 
 ## Upcoming / no results yet
 
 | Date | End | Level | Match | Venue | Province | Src |
 |---|---|---|---|---|---|---|
 | 2026-03-21 | — | provincial | Centrefire NW Provincial | NW Klerksdorp | North West | [#252](https://www.precisionrifle.co.za/events/252) |
-| 2026-07-11 | 2026-07-12 | national | Centrefire MP 2-Day National | Lydenburg | Mpumalanga | [#223](https://www.precisionrifle.co.za/events/223) |
-| 2026-08-08 | 2026-08-09 | national | Centrefire LP 2-Day National | Marble Hall | Limpopo | [#221](https://www.precisionrifle.co.za/events/221) |
-| 2026-08-08 | — | provincial | CenterFire 1day | Marble Hall | Limpopo | [#256](https://www.precisionrifle.co.za/events/256) |
 | 2026-08-29 | — | provincial | Centrefire WC Provincial | Romansrivier Wolseley | Western Cape | [#245](https://www.precisionrifle.co.za/events/245) |
 | 2026-10-24 | 2026-10-25 | national | Centrefire WC 2-Day National | Darling Steel Valley | Western Cape | [#222](https://www.precisionrifle.co.za/events/222) |
 | 2026-10-24 | — | provincial | CentreFire 1Day | Darling Steel Valley | Western Cape | [#255](https://www.precisionrifle.co.za/events/255) |

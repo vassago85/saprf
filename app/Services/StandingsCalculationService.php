@@ -102,19 +102,18 @@ class StandingsCalculationService
         }
 
         // Per-division ranks (equipment class OR demographic class — they're
-        // all just divisions now).
+        // all just divisions now). division_normalized_score uses the SAME
+        // baseline as normalized_score — the match-wide highest raw score of
+        // the day — so a shooter's division % matches their overall %.
+        // division_rank still ranks shooters within their division cohort.
         $byDivision = $scores->groupBy('division_id');
         foreach ($byDivision as $divisionId => $divScores) {
             if ($divisionId === null) {
                 continue;
             }
-            $topDivRaw = $divScores->max('raw_score');
-            if ($topDivRaw <= 0) {
-                continue;
-            }
             $rank = 1;
             foreach ($divScores->sortByDesc('raw_score')->values() as $score) {
-                $score->division_normalized_score = ($score->raw_score / $topDivRaw) * 100;
+                $score->division_normalized_score = ($score->raw_score / $topRawScore) * 100;
                 $score->division_rank = $rank++;
             }
         }
