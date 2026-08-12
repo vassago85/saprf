@@ -7,8 +7,10 @@ use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\Province;
 use App\Models\Score;
+use App\Models\ShooterLog;
 use App\Models\Standing;
 use App\Models\User;
+use App\Services\ScoreValidationService;
 use App\Services\StandingsCalculationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +44,7 @@ class ImportScrapedPrsCommand extends Command
 
     protected $description = 'Import scraped SAPRF PRS 2026 match results additively (keeps existing data, reuses shooters by name)';
 
-    public function handle(StandingsCalculationService $standings): int
+    public function handle(StandingsCalculationService $standings, ScoreValidationService $scoreValidation): int
     {
         $dir = base_path((string) $this->option('dir'));
         $catalog = $dir.DIRECTORY_SEPARATOR.'matches.csv';
@@ -119,7 +121,7 @@ class ImportScrapedPrsCommand extends Command
             return self::SUCCESS;
         }
 
-        DB::transaction(function () use ($roster, $matches, $upcoming, $provinces, $divisions, $divisionsByName, $refresh) {
+        DB::transaction(function () use ($roster, $matches, $upcoming, $provinces, $divisions, $divisionsByName, $refresh, $scoreValidation) {
             $creator = User::whereHas('roles', fn ($q) => $q->where('name', 'developer'))->first()
                 ?? User::first();
             if (! $creator) {
@@ -136,6 +138,7 @@ class ImportScrapedPrsCommand extends Command
             $totalScores = 0;
             foreach ($matches as $m) {
                 [$match, $created] = $this->firstOrCreateMatch($m, $provinces, $creator->id, 'completed');
+                $wasRefreshed = false;
                 if (! $created) {
                     if (! $refresh) {
                         $this->line("  = exists, skipping scores: {$m['name']} ({$m['match_date']})");
@@ -145,14 +148,37 @@ class ImportScrapedPrsCommand extends Command
                     // re-scraped CSV becomes the new source of truth.
                     // We do NOT delete the match itself — that would
                     // orphan registrations / director assignments.
+                    //
+                    // shooter_logs.score_id FK is ON DELETE RESTRICT, so we
+                    // have to drop the dependent shooter_logs BEFORE touching
+                    // the scores (same pattern as ImportProvincialDay1Command::deleteMatch).
+                    $scoreIds = Score::where('match_id', $match->id)->pluck('id');
+                    ShooterLog::whereIn('score_id', $scoreIds)->delete();
+                    ShooterLog::where('match_id', $match->id)->delete();
                     $deleted = Score::where('match_id', $match->id)->delete();
-                    $this->line("  ↻ refresh: {$m['name']} ({$m['match_date']}) — dropped {$deleted} existing score row(s)");
+                    $this->line("  ↻ refresh: {$m['name']} ({$m['match_date']}) — dropped {$deleted} existing score row(s) and their shooter_logs");
                     $refreshedMatches++;
+                    $wasRefreshed = true;
                 } else {
                     $newMatches++;
                 }
                 $rows = $this->readCsv(base_path($m['scores_csv']));
-                $totalScores += $this->createScores($match, $rows, $userIdByCanon, $divisions, $divisionsByName);
+                $imported = $this->createScores($match, $rows, $userIdByCanon, $divisions, $divisionsByName);
+                $totalScores += $imported;
+
+                // For refreshed matches, re-evaluate the freshly-created
+                // scores so shooter_logs entries (previously deleted above)
+                // are rebuilt. Fresh imports skip this — they've always
+                // relied on a later `scores:reevaluate` pass — but refreshes
+                // must be self-healing because deleting the shooter_logs
+                // in-place would otherwise leave the match without any log
+                // rows until someone remembered to reevaluate.
+                if ($wasRefreshed && $imported > 0) {
+                    Score::where('match_id', $match->id)
+                        ->with(['user.membership', 'match'])
+                        ->get()
+                        ->each(fn (Score $s) => $scoreValidation->evaluateScoreStatus($s));
+                }
             }
             $this->line("  {$newMatches} new + {$refreshedMatches} refreshed match(es), {$totalScores} score rows imported.");
 

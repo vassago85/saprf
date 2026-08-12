@@ -5,6 +5,7 @@ use App\Models\MatchEvent;
 use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
+use App\Models\ShooterLog;
 use App\Models\Standing;
 use App\Models\User;
 use Illuminate\Support\Facades\File;
@@ -98,6 +99,21 @@ it('with --refresh, re-imports scores on an already-imported match without delet
     $bob = User::where('name', 'Bob')->first();
     expect($matchIdBefore)->not->toBeNull();
 
+    // Regression: simulate downstream shooter_logs rows referencing the
+    // existing scores. shooter_logs.score_id has ON DELETE RESTRICT so
+    // a naive Score::delete() would blow up on live data — the refresh
+    // path has to drop the dependent shooter_logs first.
+    foreach (Score::where('match_id', $matchIdBefore)->get() as $s) {
+        ShooterLog::create([
+            'user_id' => $s->user_id,
+            'match_id' => $s->match_id,
+            'score_id' => $s->id,
+            'counted' => true,
+            'notes' => 'test-seed log',
+        ]);
+    }
+    expect(ShooterLog::where('match_id', $matchIdBefore)->count())->toBe(2);
+
     // Simulate updated results being scraped: Bob dropped to 42, Alice knocked
     // out of the score list entirely.
     writeScoreCsv($this->abs, 'national/n2.csv', [['Bob', 'Open', 42, 1]]);
@@ -108,10 +124,17 @@ it('with --refresh, re-imports scores on an already-imported match without delet
         ->and((float) Score::where('match_id', $matchIdBefore)->where('user_id', $bob->id)->value('raw_score'))->toBe(100.0);
 
     // With --refresh, scores are wiped + re-imported from the fresh CSV.
+    // Must not throw despite the pre-existing shooter_logs.
     $this->artisan('prs:import-scraped', ['--dir' => $this->rel, '--refresh' => true])->assertOk();
     expect(MatchEvent::where('name', 'PRS Nat 2')->value('id'))->toBe($matchIdBefore) // same match row
         ->and(Score::where('match_id', $matchIdBefore)->count())->toBe(1)
         ->and((float) Score::where('match_id', $matchIdBefore)->where('user_id', $bob->id)->value('raw_score'))->toBe(42.0);
+
+    // shooter_logs must be rebuilt (self-healing refresh) — one log per
+    // re-created score, referencing the new score ids only.
+    $newScoreIds = Score::where('match_id', $matchIdBefore)->pluck('id');
+    expect(ShooterLog::where('match_id', $matchIdBefore)->count())->toBe(1)
+        ->and(ShooterLog::whereIn('score_id', $newScoreIds)->count())->toBe(1);
 });
 
 it('with --only-match-date, restricts import to a single match date', function () {
