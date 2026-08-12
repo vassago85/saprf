@@ -7,6 +7,12 @@
             <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst(str_replace('_', ' ', $user->getRoleNames()->first() ?? 'member')) }}</span>
         </div>
 
+        @if(session('success'))
+            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
+                {{ session('success') }}
+            </div>
+        @endif
+
         @if(session('profile_incomplete'))
             <div class="rounded-xl border border-amber-300 bg-amber-50 p-4">
                 <div class="flex items-start gap-3">
@@ -71,6 +77,83 @@
                             <option value="{{ $province->id }}" @selected(old('province_id', $user->province_id) == $province->id)>{{ $province->name }}</option>
                         @endforeach
                     </select>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Membership &amp; Selection Eligibility</h2>
+                    <p class="mt-1 text-sm text-stone-500">Used by the IPRF team selection process (citizenship, residence and club affiliation).</p>
+                </div>
+
+                <div>
+                    <label for="club_id" class="block text-sm font-medium text-stone-700">Primary Club</label>
+                    <select name="club_id" id="club_id" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="">— Not affiliated to a club —</option>
+                        @foreach($clubs as $provinceName => $provinceClubs)
+                            <optgroup label="{{ $provinceName }}">
+                                @foreach($provinceClubs as $club)
+                                    <option value="{{ $club->id }}" @selected(old('club_id', $user->club_id) == $club->id)>
+                                        {{ $club->name }}@unless($club->saprf_recognised) (not SAPRF-recognised)@endunless
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-stone-400">Selection eligibility (ELG-03) requires either provincial residency <em>or</em> membership of a SAPRF-recognised club.</p>
+                </div>
+
+                <div>
+                    <span class="block text-sm font-medium text-stone-700">South African Citizen</span>
+                    <div class="mt-2 flex items-center gap-6 text-sm text-stone-700">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="sa_citizen" value="1" @checked(old('sa_citizen', $user->sa_citizen === true ? '1' : ($user->sa_citizen === false ? '0' : '')) === '1') class="text-emerald-700 focus:ring-emerald-500">
+                            <span>Yes</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="sa_citizen" value="0" @checked(old('sa_citizen', $user->sa_citizen === true ? '1' : ($user->sa_citizen === false ? '0' : '')) === '0') class="text-emerald-700 focus:ring-emerald-500">
+                            <span>No</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="sa_citizen" value="" @checked(old('sa_citizen', $user->sa_citizen === true ? '1' : ($user->sa_citizen === false ? '0' : '')) === '') class="text-emerald-700 focus:ring-emerald-500">
+                            <span class="text-stone-500">Prefer not to say</span>
+                        </label>
+                    </div>
+                    <p class="mt-1 text-xs text-stone-400">Required by IPRF (ELG-02) to represent South Africa.</p>
+                </div>
+
+                <div>
+                    <label for="country_of_residence" class="block text-sm font-medium text-stone-700">Country of Residence</label>
+                    <select name="country_of_residence" id="country_of_residence" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="">— Not specified —</option>
+                        @foreach($countries as $code => $label)
+                            <option value="{{ $code }}" @selected(old('country_of_residence', $user->country_of_residence) === $code)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-stone-400">If you live outside South Africa, ELG-04 requires that you shot the mandatory SA Championship match in the qualifying year.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Change Password</h2>
+                    <p class="mt-1 text-sm text-stone-500">Leave blank if you don't want to change your password.</p>
+                </div>
+
+                <div>
+                    <label for="current_password" class="block text-sm font-medium text-stone-700">Current Password</label>
+                    <input type="password" name="current_password" id="current_password" autocomplete="current-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                </div>
+
+                <div>
+                    <label for="new_password" class="block text-sm font-medium text-stone-700">New Password</label>
+                    <input type="password" name="new_password" id="new_password" autocomplete="new-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Minimum 8 characters, with letters and numbers.</p>
+                </div>
+
+                <div>
+                    <label for="new_password_confirmation" class="block text-sm font-medium text-stone-700">Confirm New Password</label>
+                    <input type="password" name="new_password_confirmation" id="new_password_confirmation" autocomplete="new-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
             </div>
 
