@@ -64,19 +64,34 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:20'],
-            'sa_id_number' => ['nullable', 'string', 'digits:13', Rule::unique('users')->ignore($user->id)],
-            'passport_number' => ['nullable', 'string', 'max:50'],
+            // SASCOC requires an identity number for every member: a 13-digit SA
+            // ID, or a passport number for non-citizens. One of the two is required.
+            'sa_id_number' => ['nullable', 'required_without:passport_number', 'string', 'digits:13', Rule::unique('users')->ignore($user->id)],
+            'passport_number' => ['nullable', 'required_without:sa_id_number', 'string', 'max:50'],
             'mil_le_number' => ['nullable', 'string', 'max:50'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'province_id' => ['nullable', 'exists:provinces,id'],
-            'club_id' => ['nullable', 'exists:clubs,id'],
-            'sa_citizen' => ['nullable', Rule::in(['0', '1', ''])],
-            'country_of_residence' => ['nullable', Rule::in(array_keys(self::COUNTRIES))],
-            'gender' => ['nullable', Rule::in(array_keys(User::GENDER_OPTIONS))],
-            'ethnicity' => ['nullable', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
-            'previously_disadvantaged_choice' => ['nullable', Rule::in(['', 'yes', 'no'])],
+            'date_of_birth' => ['required', 'date', 'before:today'],
+            'province_id' => ['required', 'exists:provinces,id'],
+            'club_id' => ['required', 'exists:clubs,id'],
+            'sa_citizen' => ['required', Rule::in(['0', '1'])],
+            'country_of_residence' => ['required', Rule::in(array_keys(self::COUNTRIES))],
+            // SASCOC demographic reporting is mandatory — SAPRF submits every
+            // paid-up member's details, so no "prefer not to say" is allowed.
+            'gender' => ['required', Rule::in(array_keys(User::GENDER_OPTIONS))],
+            'ethnicity' => ['required', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
+            'previously_disadvantaged_choice' => ['required', Rule::in(['yes', 'no'])],
             'current_password' => ['nullable', 'required_with:new_password', 'current_password'],
             'new_password' => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
+        ], [
+            'sa_id_number.required_without' => 'Enter your 13-digit SA ID number, or a passport number if you are not a South African citizen.',
+            'passport_number.required_without' => 'Enter a passport number, or your 13-digit SA ID number.',
+            'date_of_birth.required' => 'Your date of birth is required for SASCOC reporting.',
+            'gender.required' => 'Please select your gender for SASCOC reporting.',
+            'ethnicity.required' => 'Please select your ethnicity for SASCOC reporting.',
+            'previously_disadvantaged_choice.required' => 'Please indicate whether you are previously disadvantaged for SASCOC reporting.',
+            'province_id.required' => 'Please select your province.',
+            'club_id.required' => 'Please select your primary club.',
+            'sa_citizen.required' => 'Please indicate whether you are a South African citizen (required for IPRF selection).',
+            'country_of_residence.required' => 'Please select your country of residence.',
         ]);
 
         // sa_citizen is a nullable tri-state (yes / no / prefer-not-to-say).
