@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Membership;
+use App\Models\MembershipFeeTier;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
@@ -28,16 +29,24 @@ class MembershipController extends Controller
     public function myMembership(Request $request): View
     {
         $user = $request->user();
-        $membership = Membership::where('user_id', $user->id)->latest()->first();
-        $fee = (float) app(SettingsService::class)->get('annual_membership_fee', 500);
+        $membership = Membership::with('feeTier')->where('user_id', $user->id)->latest()->first();
         $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
+
+        $feeTiers = MembershipFeeTier::active()->ordered()->get();
+        $selectedTier = $membership?->feeTier ?? MembershipFeeTier::defaultTier();
+
+        // Amount shown on the pay/renew card: the membership's own tier if one
+        // is stored, otherwise the default tier, otherwise the legacy setting.
+        $fee = $selectedTier
+            ? (float) $selectedTier->price
+            : (float) app(SettingsService::class)->get('annual_membership_fee', 500);
 
         $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
         if ($seasons->isEmpty()) {
             $seasons = collect([(string) now()->year]);
         }
 
-        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'paymentsEnabled', 'seasons'));
+        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'feeTiers', 'selectedTier', 'paymentsEnabled', 'seasons'));
     }
 
     private const SORTABLE = [

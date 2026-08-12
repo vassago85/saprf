@@ -13,6 +13,7 @@ class Membership extends Model
         'user_id',
         'saprf_number',
         'membership_type',
+        'fee_tier_id',
         'status',
         'payment_status',
         'start_date',
@@ -160,6 +161,11 @@ class Membership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function feeTier(): BelongsTo
+    {
+        return $this->belongsTo(MembershipFeeTier::class, 'fee_tier_id');
     }
 
     public function payments(): HasMany

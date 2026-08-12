@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
@@ -245,6 +246,18 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->only(['index', 'show'])
             ->names('audit-logs');
         Route::resource('sponsors', SponsorController::class)->except(['show']);
+
+        // Shooting clubs — master list, recognition toggle, merge tool.
+        // Recognition drives IPRF ELG-03 / ELG-05 checks.
+        Route::get('/clubs', [\App\Http\Controllers\ClubController::class, 'index'])->name('clubs.index');
+        Route::get('/clubs/create', [\App\Http\Controllers\ClubController::class, 'create'])->name('clubs.create');
+        Route::post('/clubs', [\App\Http\Controllers\ClubController::class, 'store'])->name('clubs.store');
+        Route::get('/clubs/{club}/edit', [\App\Http\Controllers\ClubController::class, 'edit'])->name('clubs.edit');
+        Route::put('/clubs/{club}', [\App\Http\Controllers\ClubController::class, 'update'])->name('clubs.update');
+        Route::post('/clubs/{club}/toggle-recognition', [\App\Http\Controllers\ClubController::class, 'toggleRecognition'])->name('clubs.toggle-recognition');
+        Route::get('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'mergeForm'])->name('clubs.merge-form');
+        Route::post('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'merge'])->name('clubs.merge');
+        Route::delete('/clubs/{club}', [\App\Http\Controllers\ClubController::class, 'destroy'])->name('clubs.destroy');
     });
 
     // Financials (Admin + Owner)
@@ -302,6 +315,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('divisions', DivisionController::class)
             ->except(['show', 'destroy'])
             ->names('divisions');
+
+        Route::resource('fees', MembershipFeeTierController::class)
+            ->parameters(['fees' => 'fee'])
+            ->except(['show'])
+            ->names('fees');
 
         Route::get('/sascoc-report', [SascocReportController::class, 'index'])->name('sascoc-report.index');
         Route::get('/sascoc-report/excel', [SascocReportController::class, 'downloadExcel'])->name('sascoc-report.excel');

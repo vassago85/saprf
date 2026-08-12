@@ -78,7 +78,7 @@
                 @if($paymentsEnabled)
                     <div class="flex items-center justify-between rounded-lg bg-white border border-amber-200 p-4">
                         <div>
-                            <p class="text-sm font-medium text-stone-900">Annual Membership Fee</p>
+                            <p class="text-sm font-medium text-stone-900">{{ $membership->feeTier?->name ? $membership->feeTier->name . ' Membership' : 'Annual Membership Fee' }}</p>
                             <p class="text-2xl font-bold text-stone-900 mt-1">R {{ number_format($fee, 2) }}</p>
                         </div>
                         <form method="POST" action="{{ route('payments.membership', $membership) }}">
@@ -142,18 +142,10 @@
                 </div>
 
                 @if($paymentsEnabled)
-                    <div class="flex items-center justify-between rounded-lg bg-white border border-red-200 p-4">
-                        <div>
-                            <p class="text-sm font-medium text-stone-900">Renewal Fee</p>
-                            <p class="text-2xl font-bold text-stone-900 mt-1">R {{ number_format($fee, 2) }}</p>
-                        </div>
-                        <form method="POST" action="{{ route('membership.join') }}">
-                            @csrf
-                            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
-                                Renew Membership
-                            </button>
-                        </form>
-                    </div>
+                    @include('memberships._fee-tier-select', [
+                        'action' => route('membership.join'),
+                        'buttonLabel' => 'Renew Membership',
+                    ])
                 @else
                     <p class="text-sm text-red-700">Online payments are not currently enabled. Please contact the administrator.</p>
                 @endif
@@ -193,19 +185,10 @@
                 </div>
 
                 @if($paymentsEnabled)
-                    <div class="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 p-5">
-                        <div>
-                            <p class="text-sm font-medium text-stone-700">Annual Membership Fee</p>
-                            <p class="text-3xl font-bold text-stone-900 mt-1">R {{ number_format($fee, 2) }}</p>
-                            <p class="text-xs text-stone-400 mt-1">Valid for 12 months from date of payment</p>
-                        </div>
-                        <form method="POST" action="{{ route('membership.join') }}">
-                            @csrf
-                            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
-                                Join & Pay Now
-                            </button>
-                        </form>
-                    </div>
+                    @include('memberships._fee-tier-select', [
+                        'action' => route('membership.join'),
+                        'buttonLabel' => 'Join & Pay Now',
+                    ])
                 @else
                     <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                         <p class="text-sm text-stone-600">Online payments are not currently enabled. Please contact the administrator to set up your membership.</p>

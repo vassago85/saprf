@@ -19,13 +19,15 @@
                 </div>
             @endif
 
-            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
-                <h2 class="font-heading text-lg font-semibold text-stone-900">Membership Fees</h2>
-                <p class="text-sm text-stone-500">Set the annual membership fee that members pay to join SAPRF.</p>
-
-                <div>
-                    <label for="annual_membership_fee" class="block text-sm font-medium text-stone-700">Annual Membership Fee (ZAR)</label>
-                    <input type="number" name="annual_membership_fee" id="annual_membership_fee" step="0.01" min="0" value="{{ old('annual_membership_fee', $settings['annual_membership_fee'] ?? '500.00') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-stone-900">Membership Fees</h2>
+                        <p class="text-sm text-stone-500">Annual membership fees are now managed as separate tiers (e.g. Adult, Senior, Military).</p>
+                    </div>
+                    <a href="{{ route('fees.index') }}" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors">
+                        Manage Fees
+                    </a>
                 </div>
             </div>
 

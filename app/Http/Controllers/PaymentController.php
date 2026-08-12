@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FinancialTransaction;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
+use App\Models\MembershipFeeTier;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
 use App\Notifications\MembershipConfirmedNotification;
@@ -15,6 +16,7 @@ use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PaymentController extends Controller
@@ -184,14 +186,27 @@ class PaymentController extends Controller
                 ->with('error', 'Online payments are not currently available. Please contact the administrator.');
         }
 
-        $fee = (float) app(SettingsService::class)->get('annual_membership_fee', 500);
+        $validated = $request->validate([
+            'fee_tier_id' => [
+                'nullable',
+                Rule::exists('membership_fee_tiers', 'id')->where('is_active', true),
+            ],
+        ]);
+
+        $tier = isset($validated['fee_tier_id'])
+            ? MembershipFeeTier::find($validated['fee_tier_id'])
+            : MembershipFeeTier::defaultTier();
+
+        $fee = $this->resolveFee($tier);
+        $expiry = now()->addMonths($tier?->duration_months ?? 12)->toDateString();
 
         if ($existing) {
             $existing->update([
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
+                'fee_tier_id' => $tier?->id,
                 'start_date' => now()->toDateString(),
-                'expiry_date' => now()->addYear()->toDateString(),
+                'expiry_date' => $expiry,
             ]);
             $membership = $existing;
         } else {
@@ -199,10 +214,11 @@ class PaymentController extends Controller
                 'user_id' => $user->id,
                 'saprf_number' => Membership::nextSaprfNumber(),
                 'membership_type' => 'paid',
+                'fee_tier_id' => $tier?->id,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'start_date' => now()->toDateString(),
-                'expiry_date' => now()->addYear()->toDateString(),
+                'expiry_date' => $expiry,
             ]);
         }
 
@@ -220,7 +236,7 @@ class PaymentController extends Controller
             'Membership',
             $membership->id,
             null,
-            ['membership_id' => $membership->id, 'amount' => $fee],
+            ['membership_id' => $membership->id, 'amount' => $fee, 'fee_tier_id' => $tier?->id, 'fee_tier' => $tier?->name],
         );
 
         return redirect()->route('payments.redirect', $payment);
@@ -244,7 +260,7 @@ class PaymentController extends Controller
                 ->with('error', 'Online payments are not currently available.');
         }
 
-        $fee = (float) app(\App\Services\SettingsService::class)->get('annual_membership_fee', 500);
+        $fee = $this->resolveFee($membership->feeTier ?? MembershipFeeTier::defaultTier());
 
         $payment = Payment::create([
             'payable_type' => Membership::class,
@@ -255,6 +271,19 @@ class PaymentController extends Controller
         ]);
 
         return redirect()->route('payments.redirect', $payment);
+    }
+
+    /**
+     * Price for a membership fee tier, falling back to the legacy global
+     * annual fee setting when no tier is configured (fresh installs, etc.).
+     */
+    private function resolveFee(?MembershipFeeTier $tier): float
+    {
+        if ($tier) {
+            return (float) $tier->price;
+        }
+
+        return (float) app(SettingsService::class)->get('annual_membership_fee', 500);
     }
 
     private function handleSuccessfulPayment(Payment $payment): void

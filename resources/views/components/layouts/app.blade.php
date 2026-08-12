@@ -141,7 +141,7 @@
             @endrole
 
             @role('developer|exco|owner|admin')
-            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'sponsors.*', 'sponsor-tiers.*')">
+            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'clubs.*', 'sponsors.*', 'sponsor-tiers.*')">
                 <flux:navlist.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')">
                     Approvals
                     @if(($pendingApprovalCount = \App\Http\Controllers\ApprovalController::totalPendingCount()) > 0)
@@ -150,6 +150,9 @@
                 </flux:navlist.item>
                 <flux:navlist.item icon="users" :href="route('memberships.index')" :current="request()->routeIs('memberships.*')">
                     Memberships
+                </flux:navlist.item>
+                <flux:navlist.item icon="building-office-2" :href="route('clubs.index')" :current="request()->routeIs('clubs.*')">
+                    Clubs
                 </flux:navlist.item>
                 <flux:navlist.item icon="megaphone" :href="route('sponsors.index')" :current="request()->routeIs('sponsors.*')">
                     Sponsors

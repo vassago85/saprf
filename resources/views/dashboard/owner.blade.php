@@ -12,19 +12,40 @@
 
         <hr class="border-stone-200 my-6">
 
-        <!-- Fee Settings Overview -->
+        <!-- Membership Fees Overview -->
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
             <div class="flex items-center justify-between">
-                <h2 class="font-heading text-xl font-bold text-stone-900">Federation Fee Settings</h2>
+                <h2 class="font-heading text-xl font-bold text-stone-900">Membership Fees</h2>
+                <a href="{{ route('fees.index') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors">
+                    Manage Fees
+                </a>
+            </div>
+            @if(($feeTiers ?? collect())->isNotEmpty())
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach($feeTiers as $tier)
+                        <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
+                            <p class="text-xs text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                                {{ $tier->name }}
+                                @if($tier->is_default)<span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-800">Default</span>@endif
+                            </p>
+                            <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float) $tier->price, 2) }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-stone-500">No membership fees configured yet. <a href="{{ route('fees.index') }}" class="text-emerald-700 font-medium hover:text-emerald-800">Add one</a> to get started.</p>
+            @endif
+        </div>
+
+        <!-- Match Fee Settings Overview -->
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading text-xl font-bold text-stone-900">Match Fee Settings</h2>
                 <a href="{{ route('site-settings.index') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors">
                     Edit Settings
                 </a>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
-                    <p class="text-xs text-stone-500 uppercase tracking-wider">Annual Membership</p>
-                    <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float)($settings['annual_membership_fee'] ?? 0), 2) }}</p>
-                </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                     <p class="text-xs text-stone-500 uppercase tracking-wider">Non-Member Surcharge</p>
                     <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float)($settings['non_member_surcharge'] ?? 0), 2) }}</p>

@@ -131,6 +131,7 @@ class DashboardController extends Controller
             'totalMatches' => MatchEvent::count(),
             'totalScores' => Score::count(),
             'settings' => $this->settingsService->all(),
+            'feeTiers' => \App\Models\MembershipFeeTier::active()->ordered()->get(),
         ]);
     }
 
