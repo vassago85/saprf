@@ -23,6 +23,7 @@
                     <li><a href="/events" class="text-stone-300 hover:text-white transition">Events</a></li>
                     <li><a href="/standings" class="text-stone-300 hover:text-white transition">Standings</a></li>
                     <li><a href="/events?tab=results" class="text-stone-300 hover:text-white transition">Results</a></li>
+                    <li><a href="{{ route('documents.index') }}" class="text-stone-300 hover:text-white transition">Documents</a></li>
                 </ul>
             </div>
 

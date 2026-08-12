@@ -17,6 +17,10 @@
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'standings' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     Standings
                 </a>
+                <a href="{{ route('documents.index') }}"
+                   class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'documents' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
+                    Documents
+                </a>
                 <a href="{{ route('contact.create') }}"
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'contact' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     Contact
@@ -52,6 +56,7 @@
                     <div class="px-4 py-3 space-y-1">
                         <a href="/events" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'events' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Events</a>
                         <a href="/standings" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'standings' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Standings</a>
+                        <a href="{{ route('documents.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'documents' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Documents</a>
                         <a href="{{ route('contact.create') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'contact' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Contact</a>
                         @auth
                             <a href="/dashboard" class="block px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-50">Dashboard</a>

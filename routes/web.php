@@ -60,6 +60,12 @@ Route::get('/selection/{series}-policy/{season?}', [\App\Http\Controllers\Select
     ->where('season', '[0-9]{4}')
     ->name('selection.policy.public');
 
+// Public Documents landing page — a directory of every SAPRF-published
+// policy, selection process and legal document. Unauth so anyone can find
+// governance material without needing to know the individual URLs.
+Route::get('/documents', [\App\Http\Controllers\DocumentsController::class, 'index'])
+    ->name('documents.index');
+
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
     ->name('payments.notify')

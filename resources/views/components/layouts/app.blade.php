@@ -107,11 +107,8 @@
                         <flux:badge size="sm" color="emerald" class="ml-auto">{{ $familyCount }}</flux:badge>
                     @endif
                 </flux:navlist.item>
-                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
-                    PR22 Team Selection
-                </flux:navlist.item>
-                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'prs'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'prs'">
-                    PRS Team Selection
+                <flux:navlist.item icon="document-text" :href="route('documents.index')" :current="request()->routeIs('documents.*') || request()->routeIs('selection.policy.public') || request()->routeIs('legal.*')">
+                    Documents
                 </flux:navlist.item>
             </flux:navlist.group>
 
@@ -180,11 +177,8 @@
                 <flux:navlist.item icon="flag" :href="route('selection.cycles.index')" :current="request()->routeIs('selection.cycles.index', 'selection.cycles.create', 'selection.cycles.edit')">
                     Selection Cycles
                 </flux:navlist.item>
-                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'pr22'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'pr22'">
-                    PR22 Policy (public)
-                </flux:navlist.item>
-                <flux:navlist.item icon="document-text" :href="route('selection.policy.public', ['series' => 'prs'])" :current="request()->routeIs('selection.policy.public') && request()->route('series') === 'prs'">
-                    PRS Policy (public)
+                <flux:navlist.item icon="document-text" :href="route('documents.index')" :current="request()->routeIs('documents.*')">
+                    Published Documents
                 </flux:navlist.item>
             </flux:navlist.group>
             @endrole
