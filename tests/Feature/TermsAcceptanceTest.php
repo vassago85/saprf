@@ -15,6 +15,16 @@ test('the public terms page renders the verbatim markdown', function () {
         ->assertSee('South African Precision Rifle Federation');
 });
 
+test('the public privacy page renders the verbatim markdown', function () {
+    $this->get(route('legal.privacy'))
+        ->assertOk()
+        ->assertSee('Privacy Policy')
+        ->assertSee('Business and personal information')
+        ->assertSee('Cookies')
+        ->assertSee('Data may be', escape: false)
+        ->assertSee('outside South Africa');
+});
+
 test('the terms page injects the highest active fee tier into the liability cap', function () {
     MembershipFeeTier::query()->delete();
     MembershipFeeTier::create([

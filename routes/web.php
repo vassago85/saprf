@@ -36,10 +36,10 @@ use Livewire\Volt\Volt;
 // ── Public Pages ──
 
 Route::view('/', 'welcome');
-Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
-// Terms & Conditions — served by a controller so we can inject the
-// current membership-fee liability cap and render the verbatim MD source
-// from docs/legal/terms.md.
+// Legal documents (T&Cs + Privacy Policy) are served by a controller so we
+// can render the verbatim MD source under docs/legal/ and, for the T&Cs,
+// inject the current membership-fee liability cap.
+Route::get('/privacy', [\App\Http\Controllers\LegalController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [\App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
