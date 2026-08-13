@@ -265,6 +265,41 @@ it('normalizes plural division names (Seniors/Juniors) to their singular DB slug
         ->toBe(Division::where('slug', 'junior')->value('id'));
 });
 
+it('transitions the match to status=completed by default so the events list card renders the results layout', function () {
+    $match = makePr22NationalMatch();
+    $match->status = 'open';
+    $match->save();
+
+    User::factory()->create(['name' => 'Johan Nel']);
+    $csv = writePracticalScoresCsv([
+        [1, 'Johan Nel', 'JohanNel', 120, '89.55%', -14, '100.00%', 'Open', '13 / 13', '133 / 134'],
+    ]);
+
+    $this->artisan('pr22:seed-match-results', ['match' => $match->id, 'csv' => $csv])
+        ->assertSuccessful();
+
+    expect($match->fresh()->status)->toBe('completed');
+});
+
+it('leaves the match status alone when --keep-status is passed', function () {
+    $match = makePr22NationalMatch();
+    $match->status = 'open';
+    $match->save();
+
+    User::factory()->create(['name' => 'Johan Nel']);
+    $csv = writePracticalScoresCsv([
+        [1, 'Johan Nel', 'JohanNel', 120, '89.55%', -14, '100.00%', 'Open', '13 / 13', '133 / 134'],
+    ]);
+
+    $this->artisan('pr22:seed-match-results', [
+        'match' => $match->id,
+        'csv' => $csv,
+        '--keep-status' => true,
+    ])->assertSuccessful();
+
+    expect($match->fresh()->status)->toBe('open');
+});
+
 it('supports --dry-run without writing anything', function () {
     $match = makePr22NationalMatch();
     User::factory()->create(['name' => 'Johan Nel']);

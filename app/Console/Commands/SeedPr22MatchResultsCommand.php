@@ -48,7 +48,8 @@ class SeedPr22MatchResultsCommand extends Command
         {csv : Path to the Practiscore-style CSV (absolute, or relative to base_path)}
         {--dry-run : Parse and validate the CSV but write nothing}
         {--force-replace : Wipe existing scores on the match before importing (default: refuse if scores exist)}
-        {--create-stubs : Create stub users + waived memberships for names that do not match a real user (default: warn and skip)}';
+        {--create-stubs : Create stub users + waived memberships for names that do not match a real user (default: warn and skip)}
+        {--keep-status : Leave the match status untouched (default: transition to "completed" so the events list card renders the podium + View Results CTA instead of registration pricing)}';
 
     protected $description = 'Seed PR22 or PRS scores from a Practiscore-style CSV into a specific MatchEvent';
 
@@ -84,6 +85,7 @@ class SeedPr22MatchResultsCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $forceReplace = (bool) $this->option('force-replace');
         $createStubs = (bool) $this->option('create-stubs');
+        $keepStatus = (bool) $this->option('keep-status');
 
         if (! is_file($csvPath)) {
             $this->error("CSV not found: {$csvPath}");
@@ -151,7 +153,7 @@ class SeedPr22MatchResultsCommand extends Command
             return self::SUCCESS;
         }
 
-        DB::transaction(function () use ($match, $rows, $divisions, $divisionsByName, $forceReplace, $createStubs, $unmatched) {
+        DB::transaction(function () use ($match, $rows, $divisions, $divisionsByName, $forceReplace, $createStubs, $keepStatus, $unmatched) {
             if ($forceReplace) {
                 Score::where('match_id', $match->id)->delete();
             }
@@ -162,6 +164,20 @@ class SeedPr22MatchResultsCommand extends Command
             }
 
             $this->writeScores($match, $rows, $divisions, $divisionsByName, $stubUserIds, $createStubs);
+
+            // Match now has scored competitors — it's a completed event, not
+            // an "open for registration" one. Transitioning the status here
+            // is what flips the events list card from the registration
+            // layout (price + Register/View My Entry) to the results layout
+            // (podium preview + View Results / completed pill). Skippable
+            // via --keep-status for the rare case of intentionally seeding
+            // a partial/preliminary result set.
+            if (! $keepStatus && $match->status !== 'completed') {
+                $previousStatus = $match->status;
+                $match->status = 'completed';
+                $match->save();
+                $this->line("  status: {$previousStatus} -> completed");
+            }
         });
 
         $this->newLine();
