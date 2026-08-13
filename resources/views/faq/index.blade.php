@@ -62,9 +62,9 @@
                                     rounded-xl
                                     hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                         <span aria-hidden="true"
-                              class="mt-0.5 shrink-0 grid place-items-center size-6 rounded-full
+                              class="mt-1 shrink-0 inline-flex items-center justify-center size-6 rounded-full
                                      bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200
-                                     text-xs font-semibold">
+                                     text-xs font-semibold leading-none tabular-nums">
                             {{ $index + 1 }}
                         </span>
                         <span class="flex-1 font-heading text-lg sm:text-xl font-semibold text-stone-900 tracking-tight leading-snug">
