@@ -60,18 +60,51 @@ class Pr22V11EligibilityRuleset implements EligibilityRuleset
     private function evaluateElg01(User $user, SelectionCycle $cycle): array
     {
         $membership = $user->membership;
-        $valid = $this->memberValidation->isMembershipValidOnDate($membership, $cycle->qualifying_period_start);
+        $periodStart = $cycle->qualifying_period_start;
 
-        return [
-            'outcome' => $valid ? SelectionRuleEvaluation::OUTCOME_PASS : SelectionRuleEvaluation::OUTCOME_FAIL,
-            'detail' => [
-                'as_of' => $cycle->qualifying_period_start->toDateString(),
-                'membership_id' => $membership?->id,
-                'membership_type' => $membership?->membership_type,
-                'payment_status' => $membership?->payment_status,
-                'expiry_date' => optional($membership?->expiry_date)?->toDateString(),
-            ],
+        $detail = [
+            'as_of' => $periodStart->toDateString(),
+            'membership_id' => $membership?->id,
+            'membership_type' => $membership?->membership_type,
+            'payment_status' => $membership?->payment_status,
+            'expiry_date' => optional($membership?->expiry_date)?->toDateString(),
         ];
+
+        if ($this->memberValidation->isMembershipValidOnDate($membership, $periodStart)) {
+            return ['outcome' => SelectionRuleEvaluation::OUTCOME_PASS, 'detail' => $detail];
+        }
+
+        // No historical membership snapshot? Infer membership-at-period-start
+        // from a valid in-period score or the annual expiry_date work-back.
+        $hasValidParticipation = $this->hasValidPeriodScore($user, $cycle);
+        $inferredFrom = $this->memberValidation->inferredMemberAtDate($membership, $periodStart, $hasValidParticipation);
+
+        if ($inferredFrom !== null) {
+            return [
+                'outcome' => SelectionRuleEvaluation::OUTCOME_PASS,
+                'detail' => $detail + ['inferred' => true, 'inferred_from' => $inferredFrom],
+            ];
+        }
+
+        return ['outcome' => SelectionRuleEvaluation::OUTCOME_FAIL, 'detail' => $detail];
+    }
+
+    /**
+     * Does the athlete have at least one VALID score in a match inside this
+     * cycle's series and qualifying period? A valid score encodes that the
+     * membership was confirmed paid at match time.
+     */
+    private function hasValidPeriodScore(User $user, SelectionCycle $cycle): bool
+    {
+        return $user->scores()
+            ->where('status', 'valid')
+            ->whereHas('match', fn ($q) => $q
+                ->where('series', $cycle->series)
+                ->whereBetween('match_date', [
+                    $cycle->qualifying_period_start,
+                    $cycle->qualifying_period_end,
+                ]))
+            ->exists();
     }
 
     private function evaluateElg02(User $user): array

@@ -45,6 +45,50 @@ class MembershipValidationService
         return $startedInTime && $notYetExpired;
     }
 
+    /**
+     * Fallback inference for "was this person a member at $date" when no
+     * historical membership snapshot exists — used ONLY by selection
+     * eligibility (ELG-01 / PART-06), never by score/standings classification.
+     * isMembershipValidOnDate() stays the strict, historical source of truth;
+     * this is a softer read for the case where we simply lack the old records.
+     *
+     * Returns the reason the inference succeeded ('participation' or
+     * 'expiry_workback'), or null if we can't reasonably infer membership.
+     *
+     * @param  bool  $hasValidParticipation  the athlete has ≥1 VALID score in
+     *   the selection period — a valid score already means the system
+     *   confirmed paid membership at match time, so it proves membership.
+     */
+    public function inferredMemberAtDate(?Membership $membership, CarbonInterface $date, bool $hasValidParticipation): ?string
+    {
+        if (! $membership) {
+            return null;
+        }
+
+        // Never infer good standing for free registrants or revoked members.
+        if ($membership->membership_type === 'free' || $membership->status === 'revoked') {
+            return null;
+        }
+
+        if ($hasValidParticipation) {
+            return 'participation';
+        }
+
+        // Memberships run a year. If the annual term implied by the current
+        // expiry_date (expiry − 1 year) began on/before $date and still
+        // covered $date, they held a membership across the period start.
+        $isPaid = in_array($membership->payment_status, ['paid', 'waived'], true);
+        $day = $date->copy()->startOfDay();
+        if ($isPaid
+            && $membership->expiry_date
+            && $membership->expiry_date->copy()->subYear()->lte($day)
+            && $membership->expiry_date->gte($day)) {
+            return 'expiry_workback';
+        }
+
+        return null;
+    }
+
     public function isUserValidForOfficialPurposes(?User $user, CarbonInterface $date): bool
     {
         if (! $user) {
