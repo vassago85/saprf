@@ -1,0 +1,1007 @@
+{
+    "meta": {
+        "source": "precisionrifle.co.za upcoming entries export",
+        "generated_at": "2026-08-13T17:42:51+02:00",
+        "match_count": 11,
+        "entrant_count": 101
+    },
+    "matches": [
+        {
+            "old_event_id": 229,
+            "name": "Rimfire PR22 GP Provincial",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "15 Aug 2026",
+            "match_date": "2026-08-15",
+            "match_end_date": null,
+            "venue": "Hippo Creek",
+            "province": "Gauteng",
+            "match_director": "Clive Mey",
+            "match_director_contact": "Clive Mey +27 83 701 4859",
+            "entry_fee": 550,
+            "junior_fee": 350,
+            "event_url": "https://www.precisionrifle.co.za/events/229"
+        },
+        {
+            "old_event_id": 240,
+            "name": "Rimfire PR22 WC Provincial",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "22 Aug 2026",
+            "match_date": "2026-08-22",
+            "match_end_date": null,
+            "venue": "Grabouw",
+            "province": "Western Cape",
+            "match_director": "Angelo Van Zyl",
+            "match_director_contact": "Angelo Van Zyl 074 634 0330",
+            "entry_fee": 550,
+            "junior_fee": 350,
+            "event_url": "https://www.precisionrifle.co.za/events/240"
+        },
+        {
+            "old_event_id": 234,
+            "name": "Rimfire PR22 MP 2-Day National",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "29 - 30 Aug 2026",
+            "match_date": "2026-08-29",
+            "match_end_date": "2026-08-30",
+            "venue": "Dullstroom",
+            "province": "Mpumalanga",
+            "match_director": "Wayne Lesch",
+            "match_director_contact": "Wayne 0798834407",
+            "entry_fee": 1100,
+            "junior_fee": 550,
+            "event_url": "https://www.precisionrifle.co.za/events/234"
+        },
+        {
+            "old_event_id": 245,
+            "name": "Centrefire WC Provincial",
+            "match_type": "PRS",
+            "series_level": "provincial",
+            "league": "SAPRF Provincial Series 2026",
+            "date_text": "29 Aug 2026",
+            "match_date": "2026-08-29",
+            "match_end_date": null,
+            "venue": "Romansrivier Wolseley",
+            "province": "Western Cape",
+            "match_director": "Ruan Zeeman",
+            "match_director_contact": "Ruan - 0728904442",
+            "entry_fee": 650,
+            "junior_fee": 650,
+            "event_url": "https://www.precisionrifle.co.za/events/245"
+        },
+        {
+            "old_event_id": 230,
+            "name": "Rimfire PR22 GP Provincial",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "05 Sep 2026",
+            "match_date": "2026-09-05",
+            "match_end_date": null,
+            "venue": "Ezemvulo Game Park",
+            "province": "Gauteng",
+            "match_director": "Eddie Kinnear",
+            "match_director_contact": "Eddie Kinear +27 82 821 0420",
+            "entry_fee": 550,
+            "junior_fee": 550,
+            "event_url": "https://www.precisionrifle.co.za/events/230"
+        },
+        {
+            "old_event_id": 242,
+            "name": "Rimfire PR22 GP Provincial",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "10 Oct 2026",
+            "match_date": "2026-10-10",
+            "match_end_date": null,
+            "venue": "Papaburg",
+            "province": "Gauteng",
+            "match_director": null,
+            "match_director_contact": null,
+            "entry_fee": null,
+            "junior_fee": null,
+            "event_url": "https://www.precisionrifle.co.za/events/242"
+        },
+        {
+            "old_event_id": 222,
+            "name": "Centrefire WC 2-Day National",
+            "match_type": "PRS",
+            "series_level": "national",
+            "league": "SAPRF National Series 2026",
+            "date_text": "24 - 25 Oct 2026",
+            "match_date": "2026-10-24",
+            "match_end_date": "2026-10-25",
+            "venue": "Darling Steel Valley",
+            "province": "Western Cape",
+            "match_director": "Hendrie Brink",
+            "match_director_contact": "Hendri Brink",
+            "entry_fee": 1500,
+            "junior_fee": 750,
+            "event_url": "https://www.precisionrifle.co.za/events/222"
+        },
+        {
+            "old_event_id": 255,
+            "name": "CentreFire 1Day",
+            "match_type": "PRS",
+            "series_level": "provincial",
+            "league": "SAPRF Provincial Series 2026",
+            "date_text": "24 Oct 2026",
+            "match_date": "2026-10-24",
+            "match_end_date": null,
+            "venue": "Darling Steel Valley",
+            "province": "Western Cape",
+            "match_director": "Hendrie Brink",
+            "match_director_contact": "Hendrie",
+            "entry_fee": 750,
+            "junior_fee": 400,
+            "event_url": "https://www.precisionrifle.co.za/events/255"
+        },
+        {
+            "old_event_id": 241,
+            "name": "Rimfire PR22 WC Provincial",
+            "match_type": "PR22",
+            "series_level": "provincial",
+            "league": "SAPRF PR22 Provincial Series 2026",
+            "date_text": "31 Oct 2026",
+            "match_date": "2026-10-31",
+            "match_end_date": null,
+            "venue": "TBC - Western Cape",
+            "province": "Western Cape",
+            "match_director": "Greg Sykes",
+            "match_director_contact": "Greg Sykes 083 378 0920",
+            "entry_fee": null,
+            "junior_fee": null,
+            "event_url": "https://www.precisionrifle.co.za/events/241"
+        },
+        {
+            "old_event_id": 235,
+            "name": "Rimfire PR22 GP 2-Day National Championship Match",
+            "match_type": "PR22",
+            "series_level": "national",
+            "league": "SAPRF PR22 National Series 2026",
+            "date_text": "07 - 08 Nov 2026",
+            "match_date": "2026-11-07",
+            "match_end_date": "2026-11-08",
+            "venue": "TBC - Gauteng",
+            "province": "Gauteng",
+            "match_director": "Stelios Christofi",
+            "match_director_contact": "Stelios +27 82 515 5585",
+            "entry_fee": 1100,
+            "junior_fee": 1100,
+            "event_url": "https://www.precisionrifle.co.za/events/235"
+        },
+        {
+            "old_event_id": 224,
+            "name": "Centrefire GP 2-Day National Championship Match",
+            "match_type": "PRS",
+            "series_level": "national",
+            "league": "SAPRF National Series 2026",
+            "date_text": "21 - 22 Nov 2026",
+            "match_date": "2026-11-21",
+            "match_end_date": "2026-11-22",
+            "venue": "Legends Adventure Farm",
+            "province": "Gauteng",
+            "match_director": "Dirk Pio",
+            "match_director_contact": "Dirk Pio",
+            "entry_fee": null,
+            "junior_fee": null,
+            "event_url": "https://www.precisionrifle.co.za/events/224"
+        }
+    ],
+    "entrants": [
+        {
+            "old_event_id": 229,
+            "saprf_number": "1760",
+            "name": "Grant Bower",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "972",
+            "name": "Stelios Christofi",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1745",
+            "name": "Justin Coverly",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "474",
+            "name": "Russell Ferreira",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1199",
+            "name": "Kevin Goncalves",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1933",
+            "name": "Johannes Grobler",
+            "division": "factory",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1921",
+            "name": "Erich Van der Merwe",
+            "division": "junior",
+            "membership_type": "full",
+            "fee": 350
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1920",
+            "name": "Lian Van der Merwe",
+            "division": "junior",
+            "membership_type": "full",
+            "fee": 350
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1232",
+            "name": "MC Van Tonder",
+            "division": "junior",
+            "membership_type": "full",
+            "fee": 350
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2126",
+            "name": "Nina nadja Brook",
+            "division": "ladies",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "507",
+            "name": "Kim-Leigh Ferreira",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "427",
+            "name": "Aliza Mey",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2006",
+            "name": "Carla Nel",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2115",
+            "name": "Suzé Roux",
+            "division": "ladies",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2106",
+            "name": "Pine Voges",
+            "division": "ladies",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1194",
+            "name": "Diana Zoccola",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2013",
+            "name": "Henk Becker",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1468",
+            "name": "Jaco Bosman",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2133",
+            "name": "George Briedenhann",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1912",
+            "name": "Dalton de Bruin",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2127",
+            "name": "Callie De jager",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1383",
+            "name": "Francois de Kock",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1411",
+            "name": "Paul Fick",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1850",
+            "name": "Anthony Frazer",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1800",
+            "name": "Brandon Frazer",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1127",
+            "name": "Sean Graham",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2072",
+            "name": "Johann Hattingh",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "883",
+            "name": "Edward Henwood",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1364",
+            "name": "Lodewyk Jansen van vuuren",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "214",
+            "name": "Wayne Lesch",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1469",
+            "name": "Corne Meyer",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1190",
+            "name": "Pierre Niemandt",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1365",
+            "name": "Deon Retief",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1586",
+            "name": "Antonie Roets",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1682",
+            "name": "Dumisani Shabangu",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1960",
+            "name": "Eghard Van Den Berg",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1955",
+            "name": "Stephan van der Merwe",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2118",
+            "name": "Christo van der Westhuizen",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1227",
+            "name": "Coenie Van Tonder",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1595",
+            "name": "Shayne Young",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "2125",
+            "name": "Basil Brook",
+            "division": "senior",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "243",
+            "name": "Glen Clark",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "969",
+            "name": "Trevor Graham",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1884",
+            "name": "Stephanus Janse van Rensburg",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "741",
+            "name": "Riaan Kunneke",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "683",
+            "name": "Andries Lategan",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1209",
+            "name": "Heinrich Strauss",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 229,
+            "saprf_number": "1970",
+            "name": "Pine Voges",
+            "division": "senior",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1322",
+            "name": "Pieter le Roux",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "199",
+            "name": "Handre van Niekerk",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1982",
+            "name": "Johan Van Zyl",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1293",
+            "name": "TW Van Zyl",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "986",
+            "name": "Marieke Van Rooyen",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "166",
+            "name": "Gert Coetzee",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "196",
+            "name": "Perry De Jager",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "399",
+            "name": "Asharuf Moorad",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1331",
+            "name": "Kobus Swart",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1147",
+            "name": "Angelo Van Zyl",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "16",
+            "name": "Le Riche Coetzer Snr",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1282",
+            "name": "Arthur Kemp",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "1436",
+            "name": "Andre Steenkamp",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 240,
+            "saprf_number": "83",
+            "name": "Greg Sykes",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 550
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "972",
+            "name": "Stelios Christofi",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "1745",
+            "name": "Justin Coverly",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "474",
+            "name": "Russell Ferreira",
+            "division": "factory",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "2027",
+            "name": "Michelle Janse van Rensburg",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "2006",
+            "name": "Carla Nel",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "1206",
+            "name": "Henna du Plessis",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "1364",
+            "name": "Lodewyk Jansen van vuuren",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "1586",
+            "name": "Antonie Roets",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "243",
+            "name": "Glen Clark",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "16",
+            "name": "Le Riche Coetzer Snr",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "969",
+            "name": "Trevor Graham",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "741",
+            "name": "Riaan Kunneke",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 234,
+            "saprf_number": "683",
+            "name": "Andries Lategan",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1100
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "2104",
+            "name": "Dennis Otto",
+            "division": "factory",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "2048",
+            "name": "Egbertus VanRhyn",
+            "division": "factory",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1770",
+            "name": "Jozef Kriek",
+            "division": "limited",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "2131",
+            "name": "Hendri Siebert",
+            "division": "limited",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1910",
+            "name": "Werner Walkinshaw",
+            "division": "limited",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "2124",
+            "name": "Stephan Du Plessis",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1645",
+            "name": "Gerhard Hanekom",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1988",
+            "name": "Nicholas Harlow",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "2021",
+            "name": "Bernard Koekemoer",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "347",
+            "name": "Jacques Matthee",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1763",
+            "name": "Tony Van Heerden",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1765",
+            "name": "Zandre van Heerden",
+            "division": "open",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "1767",
+            "name": "Deon Jordaan",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 650
+        },
+        {
+            "old_event_id": 245,
+            "saprf_number": "558",
+            "name": "Greg Zuccarini",
+            "division": "senior",
+            "membership_type": "free",
+            "fee": 650
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "156",
+            "name": "Natasha Britnell",
+            "division": "ladies",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "925",
+            "name": "Bosman Le Roux",
+            "division": "limited",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "9",
+            "name": "Mohsin Tajbhai",
+            "division": "limited",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "29",
+            "name": "Warren Britnell",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "452",
+            "name": "Terblanche De Jager",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "934",
+            "name": "Leon Goosen",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "1180",
+            "name": "Johan Nel",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "1955",
+            "name": "Stephan van der Merwe",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "686",
+            "name": "Ruan Zeeman",
+            "division": "open",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "16",
+            "name": "Le Riche Coetzer Snr",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "804",
+            "name": "Etienne De Waal",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1500
+        },
+        {
+            "old_event_id": 222,
+            "saprf_number": "542",
+            "name": "Reginald Meintjes",
+            "division": "senior",
+            "membership_type": "full",
+            "fee": 1500
+        }
+    ]
+}
