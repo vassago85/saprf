@@ -79,6 +79,24 @@ class RulesetResolver
         ];
     }
 
+    /**
+     * Resolve the engine-specific ("strict") participation ruleset for the
+     * cycle, bypassing the assume_qualified short-circuit. This is how
+     * AutoPassParticipationRuleset borrows the real counter to populate the
+     * snapshot with informational numbers while still auto-passing every
+     * PART-* rule.
+     */
+    public function strictParticipationForCycle(?SelectionCycle $cycle): ParticipationRuleset
+    {
+        $engine = $this->resolveEngineKey($cycle);
+        $classes = self::ENGINES[$engine] ?? null;
+        if (! $classes) {
+            throw new RuntimeException("No rulesets registered for engine '{$engine}'. Register it in RulesetResolver::ENGINES or set spec.engine on the policy JSON.");
+        }
+
+        return app($classes['participation']);
+    }
+
     public function resolveEngineKey(?SelectionCycle $cycle): string
     {
         $spec = $cycle?->activePolicy?->spec_json['spec'] ?? [];
