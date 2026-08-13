@@ -30,18 +30,11 @@
                         <p class="mt-1 text-xs text-stone-400">This is the email you'll use to log in.</p>
                     </div>
 
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Choose a Password <span class="text-red-500">*</span></label>
-                        <input type="password" name="password" id="password" required minlength="8" autocomplete="new-password"
-                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">At least 8 characters.</p>
-                    </div>
+                    <x-password-field name="password" id="password" label="Choose a Password" :required="true" :min="8" minlength="8">
+                        @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </x-password-field>
 
-                    <div>
-                        <label for="password_confirmation" class="block text-sm font-medium text-stone-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
-                        <input type="password" name="password_confirmation" id="password_confirmation" required minlength="8" autocomplete="new-password"
-                               class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                    </div>
+                    <x-password-field name="password_confirmation" id="password_confirmation" label="Confirm Password" :required="true" :checklist="false" minlength="8" />
 
                     <div>
                         <label for="phone" class="block text-sm font-medium text-stone-700 mb-1">Phone <span class="text-stone-400 font-normal">(optional)</span></label>

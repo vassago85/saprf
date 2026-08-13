@@ -183,21 +183,17 @@
                     <p class="mt-1 text-sm text-stone-500">Leave blank if you don't want to change your password.</p>
                 </div>
 
-                <div>
-                    <label for="current_password" class="block text-sm font-medium text-stone-700">Current Password</label>
-                    <input type="password" name="current_password" id="current_password" autocomplete="current-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                </div>
+                <x-password-field name="current_password" id="current_password" label="Current Password"
+                    autocomplete="current-password" :checklist="false">
+                    @error('current_password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </x-password-field>
 
-                <div>
-                    <label for="new_password" class="block text-sm font-medium text-stone-700">New Password</label>
-                    <input type="password" name="new_password" id="new_password" autocomplete="new-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <p class="mt-1 text-xs text-stone-400">Minimum 8 characters, with letters and numbers.</p>
-                </div>
+                <x-password-field name="new_password" id="new_password" label="New Password"
+                    :min="8" :letters="true" :numbers="true">
+                    @error('new_password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </x-password-field>
 
-                <div>
-                    <label for="new_password_confirmation" class="block text-sm font-medium text-stone-700">Confirm New Password</label>
-                    <input type="password" name="new_password_confirmation" id="new_password_confirmation" autocomplete="new-password" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                </div>
+                <x-password-field name="new_password_confirmation" id="new_password_confirmation" label="Confirm New Password" :checklist="false" />
             </div>
 
             <div class="flex items-center gap-3">

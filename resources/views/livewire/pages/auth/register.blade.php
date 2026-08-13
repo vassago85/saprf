@@ -251,18 +251,12 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 <fieldset class="space-y-4 border-t border-stone-200 pt-6">
                     <legend class="text-sm font-semibold uppercase tracking-wide text-stone-500">Password</legend>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Password <span class="text-red-600">*</span></label>
-                            <input wire:model="password" id="password" type="password" required autocomplete="new-password"
-                                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                        <x-password-field wire:model="password" id="password" label="Password" :required="true" :min="8">
                             @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label for="password_confirmation" class="block text-sm font-medium text-stone-700 mb-1">Confirm Password <span class="text-red-600">*</span></label>
-                            <input wire:model="password_confirmation" id="password_confirmation" type="password" required autocomplete="new-password"
-                                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
-                        </div>
+                        </x-password-field>
+
+                        <x-password-field wire:model="password_confirmation" id="password_confirmation" label="Confirm Password" :required="true" :checklist="false" />
                     </div>
                 </fieldset>
 

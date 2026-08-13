@@ -54,12 +54,10 @@ new #[Layout('components.layouts.guest')] class extends Component {
                     @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
-                    <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Password</label>
-                    <input wire:model="password" id="password" type="password" required
-                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                <x-password-field wire:model="password" id="password" label="Password" :required="true"
+                    autocomplete="current-password" :checklist="false">
                     @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                </div>
+                </x-password-field>
 
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">

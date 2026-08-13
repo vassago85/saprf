@@ -92,18 +92,11 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 </p>
 
                 <form wire:submit="activate" class="space-y-5">
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-stone-700 mb-1">Password</label>
-                        <input wire:model="password" id="password" type="password" required autofocus autocomplete="new-password"
-                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
+                    <x-password-field wire:model="password" id="password" label="Password" :required="true" :autofocus="true" :min="8">
                         @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
+                    </x-password-field>
 
-                    <div>
-                        <label for="password_confirmation" class="block text-sm font-medium text-stone-700 mb-1">Confirm Password</label>
-                        <input wire:model="password_confirmation" id="password_confirmation" type="password" required autocomplete="new-password"
-                            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
-                    </div>
+                    <x-password-field wire:model="password_confirmation" id="password_confirmation" label="Confirm Password" :required="true" :checklist="false" />
 
                     <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                         Activate Account

@@ -25,19 +25,12 @@
                     @csrf
                     @method('PUT')
 
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-stone-700">New password</label>
-                        <input type="password" name="password" id="password" required autofocus autocomplete="new-password"
-                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <x-password-field name="password" id="password" label="New password" :required="true" :autofocus="true"
+                        :min="8" :mixed-case="true" :numbers="true">
                         @error('password')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                        <p class="mt-1 text-xs text-stone-500">Minimum 8 characters, including upper- and lower-case letters and a number.</p>
-                    </div>
+                    </x-password-field>
 
-                    <div>
-                        <label for="password_confirmation" class="block text-sm font-medium text-stone-700">Confirm new password</label>
-                        <input type="password" name="password_confirmation" id="password_confirmation" required autocomplete="new-password"
-                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
+                    <x-password-field name="password_confirmation" id="password_confirmation" label="Confirm new password" :required="true" :checklist="false" />
 
                     <button type="submit"
                             class="w-full inline-flex items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
