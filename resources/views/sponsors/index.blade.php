@@ -32,7 +32,8 @@
         </div>
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+                <table class="w-full">
                 <thead>
                     <tr class="border-b-2 border-stone-200 bg-stone-50">
                         <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Logo</th>
@@ -100,7 +101,8 @@
                         </tr>
                     @endforelse
                 </tbody>
-            </table>
+                </table>
+            </div>
         </div>
 
         @if ($sponsors->hasPages())

@@ -44,7 +44,8 @@
         </form>
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <table class="min-w-full divide-y divide-stone-200">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Shooter</th>
@@ -67,7 +68,8 @@
                         <tr><td colspan="5" class="px-6 py-12 text-center text-sm text-stone-400">No athletes match the current filters.</td></tr>
                     @endforelse
                 </tbody>
-            </table>
+                </table>
+            </div>
         </div>
         <div>{{ $athletes->links() }}</div>
     </div>

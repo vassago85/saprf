@@ -34,7 +34,8 @@
     <h2 class="sr-only">Scores list</h2>
 
     <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-        <table class="min-w-full">
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
             <thead class="border-b-2 border-stone-200">
                 <tr>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
@@ -82,7 +83,8 @@
                     </tr>
                 @endforelse
             </tbody>
-        </table>
+            </table>
+        </div>
     </div>
 
     <div class="mt-6">
