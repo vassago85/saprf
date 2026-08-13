@@ -31,6 +31,7 @@ class StoreMatchRequest extends FormRequest
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['required', 'numeric', 'min:0'],
+            'junior_fee' => ['nullable', 'numeric', 'min:0'],
             'status' => ['nullable', Rule::in(['draft', 'open', 'closed'])],
             'max_competitors' => ['nullable', 'integer', 'min:1', 'max:999'],
             'waitlist_enabled' => ['boolean'],

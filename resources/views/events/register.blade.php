@@ -29,7 +29,18 @@
                     <h2 class="text-lg font-semibold text-stone-900">Complete Registration</h2>
                 </div>
 
-                <form method="POST" action="{{ url('/events/' . $match->id . '/register') }}" class="p-6 space-y-6">
+                <form method="POST" action="{{ url('/events/' . $match->id . '/register') }}" class="p-6 space-y-6"
+                    @if(! empty($juniorPricing))
+                        x-data="{
+                            selectedDivision: '{{ old('division_id') }}',
+                            adultFee: {{ (float) $pricing['fee'] }},
+                            juniorFee: {{ (float) $juniorPricing['fee'] }},
+                            juniorDivisionId: '{{ $juniorDivisionId }}',
+                            get fee() { return this.selectedDivision === this.juniorDivisionId ? this.juniorFee : this.adultFee; },
+                            get feeText() { return 'R ' + this.fee.toFixed(2); },
+                        }"
+                    @endif
+                    >
                     @csrf
 
                     {{-- Register-as Selector (only shown when the user manages family members) --}}
@@ -64,8 +75,11 @@
                             </div>
                             <div class="text-right">
                                 <p class="text-lg font-bold {{ $pricing['category'] === 'active_member' ? 'text-emerald-700' : 'text-stone-900' }}">
-                                    R {{ number_format($pricing['fee'], 2) }}
+                                    @if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif
                                 </p>
+                                @if(! empty($juniorPricing))
+                                    <p class="text-[11px] text-stone-400">Junior division: R {{ number_format($juniorPricing['fee'], 2) }}</p>
+                                @endif
                                 @if($pricing['category'] !== 'active_member')
                                     <p class="text-[11px] text-stone-400">
                                         Member rate: R {{ number_format($match->active_member_fee, 2) }}
@@ -84,6 +98,7 @@
                     <div>
                         <label for="division_id" class="block text-sm font-medium text-stone-700 mb-1.5">Division <span class="text-red-500">*</span></label>
                         <select name="division_id" id="division_id" required
+                                @if(! empty($juniorPricing)) x-model="selectedDivision" @endif
                                 class="w-full rounded-xl border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                             <option value="" disabled @selected(!old('division_id'))>— Select a division —</option>
                             @foreach($divisions as $division)
@@ -136,7 +151,7 @@
                         <h4 class="text-sm font-semibold text-amber-800">Cancellation / Withdrawal Policy</h4>
                         <ul class="text-xs text-amber-700 space-y-1 list-disc list-inside">
                             @if(((float) $pricing['fee']) > 0)
-                                <li>Full payment of <strong>R {{ number_format($pricing['fee'], 2) }}</strong> is required to confirm your entry.</li>
+                                <li>Full payment of <strong>@if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif</strong> is required to confirm your entry.</li>
                                 <li>Withdrawals made <strong>{{ $withdrawalHours }}+ hours</strong> before the match: refund minus <strong>R {{ number_format($withdrawalFee, 2) }}</strong> admin fee.</li>
                                 <li>Withdrawals made <strong>less than {{ $withdrawalHours }} hours</strong> before the match: <strong>no refund</strong>.</li>
                             @else
@@ -162,7 +177,7 @@
                         <a href="{{ url('/events/' . $match->id) }}" class="text-sm text-stone-500 hover:text-stone-700 transition">Cancel</a>
                         <button type="submit"
                                 class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
-                            Register &amp; Pay — R {{ number_format($pricing['fee'], 2) }}
+                            Register &amp; Pay — @if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif
                         </button>
                     </div>
                 </form>

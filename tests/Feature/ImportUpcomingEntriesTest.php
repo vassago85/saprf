@@ -13,7 +13,7 @@ beforeEach(function () {
 
     $this->province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
 
-    foreach (['open' => 'Open', 'factory' => 'Factory'] as $slug => $name) {
+    foreach (['open' => 'Open', 'factory' => 'Factory', 'junior' => 'Junior'] as $slug => $name) {
         Division::firstOrCreate(['slug' => $slug], ['name' => $name, 'is_active' => true]);
     }
 
@@ -79,6 +79,10 @@ beforeEach(function () {
                 'old_event_id' => 229, 'saprf_number' => '9999', 'name' => 'New Person',
                 'division' => 'open', 'membership_type' => 'full', 'fee' => 550,
             ],
+            [
+                'old_event_id' => 229, 'saprf_number' => '8888', 'name' => 'Young Gun',
+                'division' => 'junior', 'membership_type' => 'full', 'fee' => 350,
+            ],
         ],
     ];
 
@@ -124,8 +128,8 @@ it('creates a stub user + membership for a missing entrant', function () {
 it('creates confirmed + paid registrations for every entrant', function () {
     $report = runImport($this->dataset, $this->phases);
 
-    expect($report['registrations']['created'])->toBe(2)
-        ->and(MatchRegistration::count())->toBe(2);
+    expect($report['registrations']['created'])->toBe(3)
+        ->and(MatchRegistration::count())->toBe(3);
 
     $reg = MatchRegistration::where('user_id', $this->russell->id)->first();
     expect($reg->registration_status)->toBe('confirmed')
@@ -133,13 +137,22 @@ it('creates confirmed + paid registrations for every entrant', function () {
         ->and((float) $reg->fee_amount)->toBe(550.0);
 });
 
+it('sets the junior fee on the match and charges junior entrants the junior fee', function () {
+    runImport($this->dataset, $this->phases);
+
+    expect((float) $this->match->refresh()->junior_fee)->toBe(350.0);
+
+    $junior = MatchRegistration::whereHas('user', fn ($q) => $q->where('name', 'Young Gun'))->first();
+    expect((float) $junior->fee_amount)->toBe(350.0);
+});
+
 it('is idempotent — a second run creates no new registrations', function () {
     runImport($this->dataset, $this->phases);
     $report = runImport($this->dataset, $this->phases);
 
     expect($report['registrations']['created'])->toBe(0)
-        ->and($report['registrations']['skipped_existing'])->toBe(2)
-        ->and(MatchRegistration::count())->toBe(2);
+        ->and($report['registrations']['skipped_existing'])->toBe(3)
+        ->and(MatchRegistration::count())->toBe(3);
 });
 
 it('only runs the requested phase', function () {

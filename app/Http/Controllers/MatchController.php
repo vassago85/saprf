@@ -467,7 +467,14 @@ class MatchController extends Controller
 
         $divisions = $match->availableDivisions();
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions'));
+        // Junior-division entries may carry a discounted fee — surface both the
+        // normal and junior totals so the form can switch the price live.
+        $juniorPricing = $match->junior_fee !== null
+            ? app(RegistrationPricingService::class)->determineCategoryAndFee($match, $shooter, $match->match_date, 'junior')
+            : null;
+        $juniorDivisionId = $divisions->firstWhere('slug', 'junior')?->id;
+
+        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
@@ -500,8 +507,10 @@ class MatchController extends Controller
             'division_id.in' => 'The selected division is not available for this match.',
         ]);
 
+        $divisionSlug = \App\Models\Division::whereKey($validated['division_id'])->value('slug');
+
         $breakdown = app(RegistrationPricingService::class)
-            ->calculateBreakdown($match, $shooter, $match->match_date);
+            ->calculateBreakdown($match, $shooter, $match->match_date, $divisionSlug);
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'pending';
 

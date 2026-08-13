@@ -126,7 +126,8 @@ class ImportUpcomingEntriesCommand extends Command
             $this->info('--- Fees ---');
             foreach ($report['fees'] as $f) {
                 if ($f['action'] === 'set') {
-                    $this->line(sprintf('  match %d: R%s -> R%s', $f['match_id'], number_format($f['old'], 0), number_format($f['new'], 0)));
+                    $junior = ! empty($f['junior']) ? '  (junior R'.number_format($f['junior'], 0).')' : '';
+                    $this->line(sprintf('  match %d: R%s -> R%s%s', $f['match_id'], number_format($f['old'], 0), number_format($f['new'], 0), $junior));
                 } else {
                     $this->line(sprintf('  match %d: %s (%s)', $f['match_id'], $f['action'], $f['note'] ?? ''));
                 }

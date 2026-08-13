@@ -102,10 +102,15 @@
                     <input type="date" name="registration_close_date" id="registration_close_date" value="{{ old('registration_close_date', $match->registration_close_date?->format('Y-m-d')) }}" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label for="active_member_fee" class="block text-sm font-medium text-stone-700 mb-1">Match Entry Fee (ZAR) <span class="text-red-500">*</span></label>
                         <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee', $match->active_member_fee) }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    </div>
+                    <div>
+                        <label for="junior_fee" class="block text-sm font-medium text-stone-700 mb-1">Junior Fee (ZAR)</label>
+                        <input type="number" name="junior_fee" id="junior_fee" step="0.01" min="0" value="{{ old('junior_fee', $match->junior_fee) }}" placeholder="Leave blank = same as entry fee" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                        <p class="mt-1 text-xs text-stone-400">Charged for Junior-division entries.</p>
                     </div>
                     <div>
                         <label for="estimated_shooters" class="block text-sm font-medium text-stone-700 mb-1">Estimated Shooters</label>

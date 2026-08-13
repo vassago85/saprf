@@ -121,6 +121,36 @@ test('calculateBreakdown for non-member is the flat R50 SAPRF fee, no surcharge'
         ->and($result['md_net'])->toBe(189.25);
 });
 
+test('junior-division entry uses the junior fee when one is set', function () {
+    $this->match->update(['junior_fee' => 120.00]);
+
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-JNR-001',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+    $user->refresh();
+
+    $junior = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today(), 'junior');
+    $open = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today(), 'open');
+
+    expect($junior['fee'])->toBe(120.00)
+        ->and($junior['base_fee'])->toBe(120.00)
+        ->and($open['fee'])->toBe(250.00);
+});
+
+test('junior division falls back to the entry fee when no junior fee is set', function () {
+    $user = User::factory()->create();
+
+    $result = $this->service->determineCategoryAndFee($this->match, $user, Carbon::today(), 'junior');
+
+    expect($result['fee'])->toBe(250.00);
+});
+
 test('calculateBreakdown md_net equals total minus all deductions', function () {
     $user = User::factory()->create();
 

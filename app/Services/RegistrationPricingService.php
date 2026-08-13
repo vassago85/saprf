@@ -13,11 +13,11 @@ class RegistrationPricingService
         private readonly SettingsService $settingsService,
     ) {}
 
-    public function determineCategoryAndFee(MatchEvent $match, ?User $user, CarbonInterface $matchDate): array
+    public function determineCategoryAndFee(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null): array
     {
         $category = $this->membershipValidationService->classifyRegistrationCategory($user, $matchDate);
 
-        $baseFee = (float) $match->active_member_fee;
+        $baseFee = $this->baseFeeFor($match, $divisionSlug);
 
         $fee = match ($category) {
             'active_member' => $baseFee,
@@ -28,7 +28,21 @@ class RegistrationPricingService
         return [
             'category' => $category,
             'fee' => $fee,
+            'base_fee' => $baseFee,
         ];
+    }
+
+    /**
+     * Base entry fee for the entry: Junior-division entries use the match's
+     * junior_fee when one is set; everyone else pays the normal entry fee.
+     */
+    public function baseFeeFor(MatchEvent $match, ?string $divisionSlug): float
+    {
+        if ($divisionSlug === 'junior' && $match->junior_fee !== null) {
+            return (float) $match->junior_fee;
+        }
+
+        return (float) $match->active_member_fee;
     }
 
     /**
@@ -39,11 +53,11 @@ class RegistrationPricingService
      * Gateway fee is estimated from the total amount charged to the shooter.
      * MD net = total - SAPRF fee - platform fee - surcharge - estimated gateway fee.
      */
-    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate): array
+    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null): array
     {
-        $pricing = $this->determineCategoryAndFee($match, $user, $matchDate);
+        $pricing = $this->determineCategoryAndFee($match, $user, $matchDate, $divisionSlug);
 
-        $baseFee = (float) $match->active_member_fee;
+        $baseFee = (float) $pricing['base_fee'];
         $totalFee = $pricing['fee'];
         $category = $pricing['category'];
 

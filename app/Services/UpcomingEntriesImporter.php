@@ -192,7 +192,9 @@ class UpcomingEntriesImporter
             }
 
             $entryFee = $m['entry_fee'];
-            if ($entryFee === null) {
+            $juniorFee = $m['junior_fee'] ?? null;
+
+            if ($entryFee === null && $juniorFee === null) {
                 $report['fees'][] = [
                     'match_id' => $match->id,
                     'action' => 'skip',
@@ -201,19 +203,26 @@ class UpcomingEntriesImporter
                 continue;
             }
 
-            $base = (float) $entryFee;
-            $newNon = $base + $nonMemberSurcharge;
-            $newLapsed = $base + $lapsedSurcharge;
+            $old = (float) $match->active_member_fee;
 
-            $changed = (float) $match->active_member_fee !== $base
-                || (float) $match->non_member_fee !== $newNon
-                || (float) $match->lapsed_member_fee !== $newLapsed;
+            if ($entryFee !== null) {
+                $base = (float) $entryFee;
+                $match->active_member_fee = $base;
+                $match->non_member_fee = $base + $nonMemberSurcharge;
+                $match->lapsed_member_fee = $base + $lapsedSurcharge;
+            }
 
-            if (! $changed) {
+            // Only store a junior fee when it actually differs from the entry
+            // fee — an identical junior price is just the normal fee.
+            if ($juniorFee !== null && $entryFee !== null && (float) $juniorFee !== (float) $entryFee) {
+                $match->junior_fee = (float) $juniorFee;
+            }
+
+            if (! $match->isDirty()) {
                 $report['fees'][] = [
                     'match_id' => $match->id,
                     'action' => 'unchanged',
-                    'note' => 'already R'.number_format($base, 0),
+                    'note' => 'already R'.number_format($old, 0),
                 ];
                 continue;
             }
@@ -221,13 +230,11 @@ class UpcomingEntriesImporter
             $report['fees'][] = [
                 'match_id' => $match->id,
                 'action' => 'set',
-                'old' => (float) $match->active_member_fee,
-                'new' => $base,
+                'old' => $old,
+                'new' => (float) $match->active_member_fee,
+                'junior' => $match->junior_fee !== null ? (float) $match->junior_fee : null,
             ];
 
-            $match->active_member_fee = $base;
-            $match->non_member_fee = $newNon;
-            $match->lapsed_member_fee = $newLapsed;
             $match->save();
         }
     }
@@ -368,7 +375,7 @@ class UpcomingEntriesImporter
                 continue;
             }
 
-            $fees = $this->buildFees($match, $user, (float) ($e['fee'] ?? 0));
+            $fees = $this->buildFees($match, $user, (float) ($e['fee'] ?? 0), $e['division'] ?? null);
 
             MatchRegistration::query()->create([
                 'match_id' => $match->id,
@@ -398,9 +405,9 @@ class UpcomingEntriesImporter
      * authoritative for the total; the SAPRF/platform cuts come from the
      * live rate settings, and the MD net is whatever is left over.
      */
-    private function buildFees(MatchEvent $match, User $user, float $sheetFee): array
+    private function buildFees(MatchEvent $match, User $user, float $sheetFee, ?string $divisionSlug = null): array
     {
-        $breakdown = $this->pricing->calculateBreakdown($match, $user, $match->match_date ?? now());
+        $breakdown = $this->pricing->calculateBreakdown($match, $user, $match->match_date ?? now(), $divisionSlug);
 
         $base = (float) $breakdown['base_fee'];
         $total = $sheetFee > 0 ? $sheetFee : (float) $breakdown['total_fee'];
