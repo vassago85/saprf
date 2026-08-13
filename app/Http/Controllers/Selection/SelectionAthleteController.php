@@ -11,6 +11,7 @@ use App\Services\AuditLogService;
 use App\Services\Selection\EligibilityEvaluator;
 use App\Services\Selection\ParticipationEvaluator;
 use App\Services\Selection\SelectionAthleteStateService;
+use App\Services\Selection\SelectionCriteriaStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +25,7 @@ class SelectionAthleteController extends Controller
         private readonly EligibilityEvaluator $elg,
         private readonly ParticipationEvaluator $part,
         private readonly SelectionAthleteStateService $state,
+        private readonly SelectionCriteriaStatus $criteria,
     ) {}
 
     public function index(Request $request, SelectionCycle $cycle): View
@@ -34,7 +36,10 @@ class SelectionAthleteController extends Controller
         $divisionId = $request->get('division_id');
 
         $query = SelectionAthlete::forCycle($cycle->id)
-            ->with(['user:id,name,email,province_id,club_id', 'claimedDivision:id,name']);
+            ->with([
+                'user.membership', 'user.club', 'declaration',
+                'participationSnapshot', 'claimedDivision:id,name',
+            ]);
         if ($state) {
             $query->inState($state);
         }
@@ -49,7 +54,17 @@ class SelectionAthleteController extends Controller
             ->groupBy('state')
             ->pluck('total', 'state');
 
-        return view('selection.athletes.index', compact('cycle', 'athletes', 'divisions', 'state', 'divisionId', 'stateCounts'));
+        $progress = $athletes->getCollection()->mapWithKeys(function (SelectionAthlete $a) {
+            $c = $this->criteria->for($a);
+
+            return [$a->id => [
+                'met' => $c['overall_met'],
+                'total' => $c['overall_total'],
+                'pct' => $c['overall_pct'],
+            ]];
+        });
+
+        return view('selection.athletes.index', compact('cycle', 'athletes', 'divisions', 'state', 'divisionId', 'stateCounts', 'progress'));
     }
 
     public function create(SelectionCycle $cycle): View
@@ -102,16 +117,10 @@ class SelectionAthleteController extends Controller
             'participationSnapshot', 'waivers.decidedBy', 'appeals.decidedBy',
         ]);
 
-        $latestEvaluations = $athlete->ruleEvaluations()
-            ->orderByDesc('evaluated_at')
-            ->orderByDesc('id')
-            ->get()
-            ->groupBy('rule_id')
-            ->map(fn ($rows) => $rows->first());
-
         $divisions = Division::orderBy('display_order')->get();
+        $criteria = $this->criteria->for($athlete);
 
-        return view('selection.athletes.show', compact('cycle', 'athlete', 'latestEvaluations', 'divisions'));
+        return view('selection.athletes.show', compact('cycle', 'athlete', 'divisions', 'criteria'));
     }
 
     public function update(Request $request, SelectionCycle $cycle, SelectionAthlete $athlete): RedirectResponse

@@ -3,18 +3,16 @@
          inside an inline PHP directive would be compiled into the component
          slot closure, which PHP does not permit. --}}
     @php
-        $outcomeBadge = function (?string $outcome): string {
-            return match ($outcome) {
-                \App\Models\SelectionRuleEvaluation::OUTCOME_PASS => 'bg-emerald-100 text-emerald-800',
-                \App\Models\SelectionRuleEvaluation::OUTCOME_FAIL => 'bg-red-100 text-red-800',
-                \App\Models\SelectionRuleEvaluation::OUTCOME_MANUAL => 'bg-amber-100 text-amber-800',
-                \App\Models\SelectionRuleEvaluation::OUTCOME_BLOCKED => 'bg-stone-800 text-white',
-                \App\Models\SelectionRuleEvaluation::OUTCOME_NA => 'bg-stone-100 text-stone-600',
-                default => 'bg-stone-100 text-stone-500',
-            };
+        $statusBadge = fn (string $status): string => match ($status) {
+            \App\Services\Selection\SelectionCriteriaStatus::STATUS_MET => 'bg-emerald-100 text-emerald-800',
+            \App\Services\Selection\SelectionCriteriaStatus::STATUS_NOT_MET => 'bg-red-100 text-red-800',
+            default => 'bg-amber-100 text-amber-800',
         };
-        $elgRules = ['ELG-01', 'ELG-02', 'ELG-03', 'ELG-04', 'ELG-05', 'ELG-06', 'ELG-07'];
-        $partRules = ['PART-01', 'PART-02', 'PART-03', 'PART-04', 'PART-05', 'PART-06'];
+        $statusLabel = fn (string $status): string => match ($status) {
+            \App\Services\Selection\SelectionCriteriaStatus::STATUS_MET => 'Met',
+            \App\Services\Selection\SelectionCriteriaStatus::STATUS_NOT_MET => 'Not met',
+            default => 'Needs review',
+        };
         $snap = $athlete->participationSnapshot;
     @endphp
     <div class="space-y-6">
@@ -42,53 +40,81 @@
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
         @endif
 
+        @if ($cycle->isAssumeQualified())
+            <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+                This cycle auto-qualifies everyone for progression — the criteria status below is <strong>informational</strong> (computed live from real results and membership data) and does not block the athlete.
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-                <h2 class="text-sm font-semibold text-stone-700 mb-3">Eligibility (ELG)</h2>
-                <table class="min-w-full text-sm">
-                    <tbody class="divide-y divide-stone-100">
-                        @foreach ($elgRules as $ruleId)
-                            @php($ev = $latestEvaluations[$ruleId] ?? null)
-                            <tr>
-                                <td class="py-2 pr-2 font-mono text-xs text-stone-500">{{ $ruleId }}</td>
-                                <td class="py-2"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $outcomeBadge($ev?->outcome) }}">{{ $ev?->outcome ?? '—' }}</span></td>
-                                <td class="py-2 pl-2 text-xs text-stone-500">{{ $ev?->evaluated_at?->format('Y-m-d H:i') ?? '' }}</td>
-                            </tr>
-                            @if ($ev && $ev->detail)
-                                <tr><td colspan="3" class="py-1 text-xs text-stone-500"><pre class="whitespace-pre-wrap font-mono">{{ json_encode($ev->detail, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre></td></tr>
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="text-sm font-semibold text-stone-700">Eligibility (ELG)</h2>
+                    <span class="text-xs font-semibold text-stone-500">{{ $criteria['eligibility_met'] }} / {{ $criteria['eligibility_total'] }} met</span>
+                </div>
+                @php($elgPct = $criteria['eligibility_total'] > 0 ? (int) round($criteria['eligibility_met'] / $criteria['eligibility_total'] * 100) : 0)
+                <div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                    <div class="h-full rounded-full bg-emerald-500 transition-all" style="width: {{ $elgPct }}%"></div>
+                </div>
+                <ul class="divide-y divide-stone-100">
+                    @foreach ($criteria['eligibility'] as $rule)
+                        <li class="py-2">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <span class="font-mono text-xs text-stone-400">{{ $rule['code'] }}</span>
+                                    <span class="text-sm text-stone-700">· {{ $rule['name'] }}</span>
+                                </div>
+                                <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $statusBadge($rule['status']) }}">{{ $statusLabel($rule['status']) }}</span>
+                            </div>
+                            @if (! empty($rule['detail']))
+                                <details class="mt-1">
+                                    <summary class="cursor-pointer text-xs text-stone-400 hover:text-stone-600">details</summary>
+                                    <pre class="mt-1 whitespace-pre-wrap font-mono text-xs text-stone-500">{{ json_encode($rule['detail'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                </details>
                             @endif
-                        @endforeach
-                    </tbody>
-                </table>
+                        </li>
+                    @endforeach
+                </ul>
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-                <h2 class="text-sm font-semibold text-stone-700 mb-3">Participation (PART)</h2>
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="text-sm font-semibold text-stone-700">Participation (PART)</h2>
+                    <span class="text-xs font-semibold text-stone-500">{{ $criteria['participation_met'] }} / {{ $criteria['participation_total'] }} met</span>
+                </div>
+                @php($partPct = $criteria['participation_total'] > 0 ? (int) round($criteria['participation_met'] / $criteria['participation_total'] * 100) : 0)
+                <div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                    <div class="h-full rounded-full bg-emerald-500 transition-all" style="width: {{ $partPct }}%"></div>
+                </div>
                 @if ($snap)
                     <div class="mb-4 grid grid-cols-3 gap-3 text-center">
-                        <div><div class="text-2xl font-bold">{{ $snap->provincial_1d_count }}</div><div class="text-xs text-stone-500">Prov. 1-day</div></div>
-                        <div><div class="text-2xl font-bold">{{ $snap->national_2d_count }}</div><div class="text-xs text-stone-500">Nat. 2-day</div></div>
-                        <div><div class="text-2xl font-bold">{{ $snap->international_2d_count }}</div><div class="text-xs text-stone-500">Int'l 2-day</div></div>
-                        <div><div class="text-2xl font-bold">{{ $snap->out_of_home_province_2d_count }}</div><div class="text-xs text-stone-500">Out-of-home 2-day</div></div>
+                        <div><div class="text-2xl font-bold">{{ $snap->provincial_1d_count }}<span class="text-sm font-normal text-stone-400"> / 3</span></div><div class="text-xs text-stone-500">Prov. 1-day</div></div>
+                        <div><div class="text-2xl font-bold">{{ $snap->national_2d_count + $snap->international_2d_count }}<span class="text-sm font-normal text-stone-400"> / 2</span></div><div class="text-xs text-stone-500">2-day (nat+int'l)</div></div>
+                        <div><div class="text-2xl font-bold">{{ $snap->out_of_home_province_2d_count }}<span class="text-sm font-normal text-stone-400"> / 1</span></div><div class="text-xs text-stone-500">Out-of-home 2-day</div></div>
                         <div><div class="text-2xl font-bold">{{ $snap->sa_champs_shot ? 'Yes' : 'No' }}</div><div class="text-xs text-stone-500">SA Champs</div></div>
-                        <div><div class="text-xs text-stone-500">Computed<br>{{ $snap->computed_at?->format('Y-m-d H:i') }}</div></div>
+                        <div class="col-span-2"><div class="text-xs text-stone-500">Computed {{ $snap->computed_at?->format('Y-m-d H:i') }}</div></div>
                     </div>
                 @else
                     <p class="text-sm text-stone-500 mb-3">No snapshot yet — re-evaluate to compute.</p>
                 @endif
-                <table class="min-w-full text-sm">
-                    <tbody class="divide-y divide-stone-100">
-                        @foreach ($partRules as $ruleId)
-                            @php($ev = $latestEvaluations[$ruleId] ?? null)
-                            @php($waived = $athlete->waivers->firstWhere(fn ($w) => $w->waived_rule_id === $ruleId && $w->outcome === \App\Models\SelectionWaiver::OUTCOME_GRANTED))
-                            <tr>
-                                <td class="py-2 pr-2 font-mono text-xs text-stone-500">{{ $ruleId }}</td>
-                                <td class="py-2"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $outcomeBadge($ev?->outcome) }}">{{ $ev?->outcome ?? '—' }}</span> @if ($waived) <span class="ml-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">waived</span> @endif</td>
-                                <td class="py-2 pl-2 text-xs text-stone-500">{{ $ev?->evaluated_at?->format('Y-m-d H:i') ?? '' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                <ul class="divide-y divide-stone-100">
+                    @foreach ($criteria['participation'] as $rule)
+                        @php($waived = $athlete->waivers->firstWhere(fn ($w) => $w->waived_rule_id === $rule['code'] && $w->outcome === \App\Models\SelectionWaiver::OUTCOME_GRANTED))
+                        <li class="py-2 flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <span class="font-mono text-xs text-stone-400">{{ $rule['code'] }}</span>
+                                <span class="text-sm text-stone-700">· {{ $rule['name'] }}</span>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1.5">
+                                @if (! $rule['boolean'] && $rule['required'] !== null)
+                                    <span class="text-xs font-medium text-stone-500">{{ $rule['current'] }} / {{ $rule['required'] }}</span>
+                                @endif
+                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $statusBadge($rule['status']) }}">{{ $statusLabel($rule['status']) }}</span>
+                                @if ($waived) <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">waived</span> @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
             </div>
         </div>
 

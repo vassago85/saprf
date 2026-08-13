@@ -16,4 +16,13 @@ interface EligibilityRuleset
      * @return array<string, array{outcome: string, detail: array<string, mixed>}>
      */
     public function evaluate(SelectionAthlete $athlete): array;
+
+    /**
+     * Compute the rule → outcome map WITHOUT persisting any
+     * SelectionRuleEvaluation rows. Used for read-only status/progress
+     * displays that must never mutate the audit trail or the gate.
+     *
+     * @return array<string, array{outcome: string, detail: array<string, mixed>}>
+     */
+    public function assess(SelectionAthlete $athlete): array;
 }

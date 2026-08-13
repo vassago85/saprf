@@ -97,6 +97,23 @@ class RulesetResolver
         return app($classes['participation']);
     }
 
+    /**
+     * Resolve the engine-specific ("strict") eligibility ruleset for the
+     * cycle, bypassing the assume_qualified short-circuit. Lets a read-only
+     * status display compute the real ELG-* outcomes (via assess()) even
+     * while the cycle auto-passes everyone for gating purposes.
+     */
+    public function strictEligibilityForCycle(?SelectionCycle $cycle): EligibilityRuleset
+    {
+        $engine = $this->resolveEngineKey($cycle);
+        $classes = self::ENGINES[$engine] ?? null;
+        if (! $classes) {
+            throw new RuntimeException("No rulesets registered for engine '{$engine}'. Register it in RulesetResolver::ENGINES or set spec.engine on the policy JSON.");
+        }
+
+        return app($classes['eligibility']);
+    }
+
     public function resolveEngineKey(?SelectionCycle $cycle): string
     {
         $spec = $cycle?->activePolicy?->spec_json['spec'] ?? [];

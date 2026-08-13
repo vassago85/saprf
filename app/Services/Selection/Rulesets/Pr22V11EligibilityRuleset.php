@@ -29,25 +29,32 @@ class Pr22V11EligibilityRuleset implements EligibilityRuleset
 
     public function evaluate(SelectionAthlete $athlete): array
     {
+        $results = $this->assess($athlete);
+        if ($results === []) {
+            return [];
+        }
+
+        $policyVersion = $athlete->cycle?->activePolicy?->version ?? 'unknown';
+        $this->persist($athlete, $results, $policyVersion);
+
+        return $results;
+    }
+
+    public function assess(SelectionAthlete $athlete): array
+    {
         $cycle = $athlete->cycle;
         $user = $athlete->user;
         if (! $cycle || ! $user) {
             return [];
         }
 
-        $policyVersion = $cycle->activePolicy?->version ?? 'unknown';
-
-        $results = [
+        return [
             'ELG-01' => $this->evaluateElg01($user, $cycle),
             'ELG-02' => $this->evaluateElg02($user),
             'ELG-03' => $this->evaluateElg03($user),
             'ELG-04' => $this->evaluateElg04($user, $cycle),
             'ELG-05' => $this->evaluateElg05($athlete),
         ];
-
-        $this->persist($athlete, $results, $policyVersion);
-
-        return $results;
     }
 
     private function evaluateElg01(User $user, SelectionCycle $cycle): array
@@ -194,7 +201,7 @@ class Pr22V11EligibilityRuleset implements EligibilityRuleset
 
     private function evaluateElg05(SelectionAthlete $athlete): array
     {
-        $declaration = $athlete->declaration()->first();
+        $declaration = $athlete->declaration;
         if (! $declaration) {
             return [
                 'outcome' => SelectionRuleEvaluation::OUTCOME_MANUAL,

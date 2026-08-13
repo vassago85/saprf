@@ -22,15 +22,38 @@ class AutoPassEligibilityRuleset implements EligibilityRuleset
 {
     public function evaluate(SelectionAthlete $athlete): array
     {
+        $results = $this->assess($athlete);
+        if ($results === []) {
+            return [];
+        }
+
+        $policyVersion = $athlete->cycle?->activePolicy?->version ?? 'auto-pass';
+
+        DB::transaction(function () use ($athlete, $results, $policyVersion) {
+            $now = now();
+            foreach ($results as $ruleId => $result) {
+                SelectionRuleEvaluation::create([
+                    'selection_athlete_id' => $athlete->id,
+                    'rule_id' => $ruleId,
+                    'outcome' => $result['outcome'],
+                    'detail' => $result['detail'],
+                    'policy_version' => $policyVersion,
+                    'evaluated_at' => $now,
+                ]);
+            }
+        });
+
+        return $results;
+    }
+
+    public function assess(SelectionAthlete $athlete): array
+    {
         $cycle = $athlete->cycle;
         if (! $cycle) {
             return [];
         }
 
-        $policy = $cycle->activePolicy;
-        $policyVersion = $policy?->version ?? 'auto-pass';
-
-        $ruleIds = collect($policy?->spec_json['eligibility']['rules'] ?? [])
+        $ruleIds = collect($cycle->activePolicy?->spec_json['eligibility']['rules'] ?? [])
             ->pluck('id')
             ->filter()
             ->values()
@@ -46,20 +69,6 @@ class AutoPassEligibilityRuleset implements EligibilityRuleset
                 'detail' => ['reason' => 'auto_pass_mode'],
             ];
         }
-
-        DB::transaction(function () use ($athlete, $results, $policyVersion) {
-            $now = now();
-            foreach ($results as $ruleId => $result) {
-                SelectionRuleEvaluation::create([
-                    'selection_athlete_id' => $athlete->id,
-                    'rule_id' => $ruleId,
-                    'outcome' => $result['outcome'],
-                    'detail' => $result['detail'],
-                    'policy_version' => $policyVersion,
-                    'evaluated_at' => $now,
-                ]);
-            }
-        });
 
         return $results;
     }
