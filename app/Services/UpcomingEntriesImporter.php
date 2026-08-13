@@ -195,11 +195,30 @@ class UpcomingEntriesImporter
             $juniorFee = $m['junior_fee'] ?? null;
 
             if ($entryFee === null && $juniorFee === null) {
-                $report['fees'][] = [
-                    'match_id' => $match->id,
-                    'action' => 'skip',
-                    'note' => 'no fee in sheet ("not set")',
-                ];
+                // No fee in the sheet. If the match has no real fee configured
+                // either, mark it explicitly "not set" (null) so it reads as
+                // not-ready and stays closed for sign-up. Never wipe a positive
+                // fee that's already been configured on the platform.
+                $current = $match->active_member_fee;
+
+                if ($current !== null && (float) $current <= 0) {
+                    $match->active_member_fee = null;
+                    $report['fees'][] = [
+                        'match_id' => $match->id,
+                        'action' => 'unset',
+                        'note' => 'no fee in sheet -> marked "not set" (closed for sign-up)',
+                    ];
+                    $match->save();
+                } else {
+                    $report['fees'][] = [
+                        'match_id' => $match->id,
+                        'action' => 'skip',
+                        'note' => $current === null
+                            ? 'no fee in sheet (already "not set")'
+                            : 'no fee in sheet; kept existing R'.number_format((float) $current, 0),
+                    ];
+                }
+
                 continue;
             }
 

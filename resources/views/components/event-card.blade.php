@@ -147,6 +147,10 @@
                    class="flex-1 text-center px-4 py-2 rounded-xl bg-stone-50 text-stone-600 text-sm font-semibold ring-1 ring-inset ring-stone-200 hover:bg-stone-100 transition">
                     View Results
                 </a>
+            @elseif($regStatus === 'setup_incomplete')
+                <span class="flex-1 text-center px-4 py-2 rounded-xl bg-stone-50 text-stone-400 text-sm font-medium ring-1 ring-inset ring-stone-200 cursor-default">
+                    Not Open Yet
+                </span>
             @else
                 <span class="flex-1 text-center px-4 py-2 rounded-xl bg-stone-50 text-stone-400 text-sm font-medium ring-1 ring-inset ring-stone-200 cursor-default">
                     Registration Closed

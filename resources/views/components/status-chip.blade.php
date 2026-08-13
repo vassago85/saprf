@@ -9,6 +9,7 @@
         'waitlist' => ['label' => 'Waitlist', 'class' => 'bg-amber-50 text-amber-700 ring-amber-600/20'],
         'cancelled' => ['label' => 'Cancelled', 'class' => 'bg-red-50 text-red-600 ring-red-500/20'],
         'completed' => ['label' => 'Completed', 'class' => 'bg-sky-50 text-sky-700 ring-sky-600/20'],
+        'setup_incomplete' => ['label' => 'Not Open Yet', 'class' => 'bg-amber-50 text-amber-700 ring-amber-600/20'],
         default => ['label' => ucfirst($status ?? 'Unknown'), 'class' => 'bg-stone-100 text-stone-500 ring-stone-400/20'],
     };
 @endphp

@@ -25,6 +25,7 @@ beforeEach(function () {
         'match_date' => Carbon::today()->addMonth(),
         'status' => 'open',
         'published' => true,
+        'match_director' => 'Test Director',
         'active_member_fee' => 0,
         'non_member_fee' => 0,
         'created_by' => User::factory()->create()->id,
@@ -109,6 +110,7 @@ it('blocks a division change once registration has closed', function () {
         'registration_close_date' => Carbon::yesterday(),
         'status' => 'open',
         'published' => true,
+        'match_director' => 'Test Director',
         'active_member_fee' => 0,
         'created_by' => User::factory()->create()->id,
     ]);

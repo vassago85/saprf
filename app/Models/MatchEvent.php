@@ -163,6 +163,9 @@ class MatchEvent extends Model
             if ($this->status === 'completed') {
                 return 'closed';
             }
+            if (! $this->hasRequiredSetup()) {
+                return 'setup_incomplete';
+            }
             if ($this->registration_close_date && $this->registration_close_date->isPast()) {
                 return 'closed';
             }
@@ -245,6 +248,16 @@ class MatchEvent extends Model
         return $this->registrations()
             ->whereIn('registration_status', ['confirmed', 'pending'])
             ->count() >= $this->max_competitors;
+    }
+
+    /**
+     * A match only accepts sign-ups once it is fully set up: a named match
+     * director and a configured entry fee. A NULL fee means "not set yet"
+     * (stays closed); R0 is a valid free match and passes this check.
+     */
+    public function hasRequiredSetup(): bool
+    {
+        return filled($this->match_director) && $this->active_member_fee !== null;
     }
 
     public function isRegistrationOpen(): bool

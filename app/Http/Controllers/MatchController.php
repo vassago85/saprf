@@ -71,6 +71,12 @@ class MatchController extends Controller
         $validated['created_by'] = $request->user()->id;
         $validated['published'] = ($validated['status'] ?? 'draft') !== 'draft';
 
+        // Every match needs a named director; default to the creating account so
+        // the match can be opened for sign-up without an extra step.
+        if (empty($validated['match_director'])) {
+            $validated['match_director'] = $request->user()->name;
+        }
+
         $match = MatchEvent::query()->create($validated);
 
         $match->divisions()->sync($divisionIds);
@@ -448,6 +454,11 @@ class MatchController extends Controller
                 ->with('info', $this->isManagedShooter($shooter, $parent)
                     ? $shooter->name . ' is already registered for this match.'
                     : 'You are already registered for this match.');
+        }
+
+        if (! $match->hasRequiredSetup()) {
+            return redirect()->route('events.show', $match)
+                ->with('info', 'This match isn’t open for sign-up yet — the match director still needs to set the entry fee and details.');
         }
 
         $pricing = app(RegistrationPricingService::class)

@@ -58,6 +58,11 @@ class EventRegistrationCta extends Component
             $this->label = 'Cancelled';
             $this->url = '#';
             $this->disabled = true;
+        } elseif ($regStatus === 'setup_incomplete') {
+            $this->variant = 'muted';
+            $this->label = 'Not Open Yet';
+            $this->url = '#';
+            $this->disabled = true;
         } else {
             $this->variant = 'muted';
             $this->label = 'Registration Closed';
