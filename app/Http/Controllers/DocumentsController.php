@@ -46,6 +46,20 @@ class DocumentsController extends Controller
     {
         return [
             [
+                'heading' => 'Help & Information',
+                'blurb' => 'Getting-started guides for members, shooters and clubs.',
+                'items' => [
+                    [
+                        'title' => 'Frequently Asked Questions',
+                        'subtitle' => 'Membership, matches, divisions & your SAPRF number',
+                        'description' => 'Short answers to the questions we get most often — whether you need a SAPRF number to shoot, how to become a full member, what a Primary Club is, how divisions work, and where to find your SAPRF number.',
+                        'url' => route('faq.index'),
+                        'badge' => ['label' => 'Start here', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/faq.md'),
+                    ],
+                ],
+            ],
+            [
                 'heading' => 'Team Selection',
                 'blurb' => 'How SAPRF selects South Africa\'s international precision-rifle teams for IPRF-sanctioned World Championships.',
                 'items' => [

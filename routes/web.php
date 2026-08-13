@@ -45,6 +45,9 @@ Route::get('/code-of-conduct', [\App\Http\Controllers\LegalController::class, 'c
 Route::get('/conflict-of-interest', [\App\Http\Controllers\LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
 Route::get('/constitution', [\App\Http\Controllers\LegalController::class, 'constitution'])->name('legal.constitution');
 
+// Public FAQ. Markdown source at docs/faq.md; controller splits on H2 for accordion rendering.
+Route::get('/faq', [\App\Http\Controllers\FaqController::class, 'index'])->name('faq.index');
+
 // Public contact form (with honeypot + time-trap in the controller).
 // Deliberately unauthenticated so anyone can reach the federation.
 Route::get('/contact', [\App\Http\Controllers\ContactController::class, 'create'])->name('contact.create');
