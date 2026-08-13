@@ -102,6 +102,15 @@ services:
         condition: service_healthy
     networks:
       - saprf-internal
+    # Overrides the app image's `curl /up` healthcheck (there's no HTTP server
+    # in this container). Probes for a live queue:work process instead, which
+    # is what "healthy" actually means for a worker.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   scheduler:
     image: saprf-app:latest
@@ -132,6 +141,16 @@ services:
         condition: service_healthy
     networks:
       - saprf-internal
+    # Overrides the app image's `curl /up` healthcheck (there's no HTTP server
+    # in this container). The scheduler loop wraps `php artisan schedule:run`
+    # in a shell `while true`; probing for the shell parent proves the loop is
+    # alive even between per-minute artisan invocations.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:run' > /dev/null || pgrep -f 'sleep 60' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 networks:
   saprf-internal:
