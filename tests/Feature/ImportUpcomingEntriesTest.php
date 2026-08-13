@@ -155,6 +155,28 @@ it('is idempotent — a second run creates no new registrations', function () {
         ->and(MatchRegistration::count())->toBe(3);
 });
 
+it('resolves a director override by SAPRF number or email', function () {
+    $hendrie = User::factory()->create(['name' => 'Hendrie Brink', 'email' => 'hendriebrink@gmail.com']);
+    Membership::create([
+        'user_id' => $hendrie->id,
+        'saprf_number' => '381',
+        'membership_type' => 'free',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+    ]);
+
+    $importer = app(UpcomingEntriesImporter::class);
+    $mdOnly = ['fees' => false, 'md' => true, 'registrations' => false];
+
+    $importer->run($this->dataset, ['matches' => [], 'directors' => ['229' => 'saprf:381']], $mdOnly);
+    expect($this->match->refresh()->created_by)->toBe($hendrie->id);
+
+    $this->match->update(['created_by' => $this->owner->id]);
+
+    $importer->run($this->dataset, ['matches' => [], 'directors' => ['229' => 'hendriebrink@gmail.com']], $mdOnly);
+    expect($this->match->refresh()->created_by)->toBe($hendrie->id);
+});
+
 it('only runs the requested phase', function () {
     $report = runImport($this->dataset, ['fees' => true, 'md' => false, 'registrations' => false]);
 

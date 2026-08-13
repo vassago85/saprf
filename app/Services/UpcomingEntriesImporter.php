@@ -309,8 +309,9 @@ class UpcomingEntriesImporter
 
     private function resolveDirector(int $oldId, string $mdName, array $saprfByName, array $overrideMap): ?User
     {
-        if (isset($overrideMap[(string) $oldId]) || isset($overrideMap[$oldId])) {
-            return User::find((int) ($overrideMap[(string) $oldId] ?? $overrideMap[$oldId]));
+        $override = $overrideMap[(string) $oldId] ?? $overrideMap[$oldId] ?? null;
+        if ($override !== null) {
+            return $this->resolveOverrideUser($override);
         }
 
         // Reliable path: the MD is also an entrant, so we have their SAPRF #.
@@ -326,6 +327,32 @@ class UpcomingEntriesImporter
         $byName = User::whereRaw('LOWER(name) = ?', [strtolower(trim($mdName))])->get();
         if ($byName->count() === 1) {
             return $byName->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve a director override value, which may be a numeric platform user
+     * id, an email address, or a "saprf:NNN" membership-number reference — the
+     * last two being unambiguous ways to point at a specific person.
+     */
+    private function resolveOverrideUser(int|string $value): ?User
+    {
+        if (is_int($value) || ctype_digit((string) $value)) {
+            return User::find((int) $value);
+        }
+
+        $value = trim((string) $value);
+
+        if (str_contains($value, '@')) {
+            return User::where('email', $value)->first();
+        }
+
+        if (str_starts_with($value, 'saprf:')) {
+            $saprf = trim(substr($value, strlen('saprf:')));
+
+            return Membership::where('saprf_number', $saprf)->first()?->user;
         }
 
         return null;
