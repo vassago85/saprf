@@ -187,13 +187,14 @@ class MatchController extends Controller
 
         $match->divisions()->sync($divisionIds);
 
-        // The edit form can change how a match's scores are pooled and ranked
-        // (e.g. re-tagging a National match as Provincial). When any of those
-        // fields move, rebuild the affected standings from the persisted
-        // scores — otherwise the points stay in the old pool until someone
-        // runs saprf:recalc-standings by hand.
+        // Season logs are derived from a published match's scores, and almost
+        // any edit (level, type, province, date, division awards, dual-count
+        // flags…) can change how those scores rank or pool. Rather than guess
+        // which fields matter, ANY edit to a published match rebuilds the
+        // affected season logs (national + every provincial table) from the
+        // persisted scores. Draft matches have no standings yet, so skip them.
         $recalculated = false;
-        if ($match->wasChanged(['series_level', 'match_type', 'series', 'province_id', 'match_date', 'season'])) {
+        if ($match->published) {
             $this->standings->recalculateForMatch($match);
             $recalculated = true;
         }
