@@ -6,6 +6,8 @@ use App\Services\AuditLogService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class SiteSettingsController extends Controller
@@ -107,5 +109,61 @@ class SiteSettingsController extends Controller
 
         return redirect()->route('site-settings.index')
             ->with('success', 'Settings updated successfully.');
+    }
+
+    /**
+     * Send a one-off test email to an address of the admin's choosing so they
+     * can confirm the Mailgun credentials actually deliver. Uses the mail config
+     * already applied from saved settings (AppServiceProvider::applyMailgunSettings)
+     * and sends directly via Mail::raw — so it bypasses the notifications master
+     * switch (this is a deliberate manual test, not a queued notification) and
+     * surfaces the real transport error on failure for easy debugging.
+     */
+    public function sendTestEmail(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $to = $validated['test_email'];
+        $fromName = Config::get('mail.from.name') ?: 'SAPRF';
+
+        try {
+            Mail::raw(
+                "This is a test email from the SAPRF platform.\n\n"
+                    ."If you received this, your Mailgun email settings are working correctly.\n\n"
+                    .'Sent: '.now()->toDayDateTimeString().' (SAST)',
+                function ($message) use ($to, $fromName) {
+                    $message->to($to)
+                        ->subject('SAPRF test email — '.$fromName);
+                }
+            );
+        } catch (\Throwable $e) {
+            $this->auditLogService->log(
+                $request->user(),
+                'settings_test_email_failed',
+                'Setting',
+                null,
+                null,
+                ['to' => $to, 'error' => $e->getMessage()],
+                'Test email failed to send',
+            );
+
+            return redirect()->route('site-settings.index')
+                ->with('test_email_error', "Test email to {$to} failed: ".$e->getMessage());
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'settings_test_email_sent',
+            'Setting',
+            null,
+            null,
+            ['to' => $to],
+            'Test email sent',
+        );
+
+        return redirect()->route('site-settings.index')
+            ->with('test_email_success', "Test email sent to {$to}. Check the inbox (and spam folder).");
     }
 }

@@ -375,5 +375,40 @@
 
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Settings</button>
         </form>
+
+        {{-- Test email. A separate form (HTML forms can't nest) so it can be
+             submitted without saving the whole settings page. Sends directly via
+             Mail::raw, bypassing the notifications master switch. --}}
+        <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+            <div>
+                <h2 class="font-heading text-lg font-semibold text-stone-900">Send a test email</h2>
+                <p class="text-sm text-stone-500">Send a one-off test message to any address to confirm your Mailgun settings actually deliver. Save your settings above first if you just changed them.</p>
+            </div>
+
+            @if (session('test_email_success'))
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    {{ session('test_email_success') }}
+                </div>
+            @endif
+            @if (session('test_email_error'))
+                <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {{ session('test_email_error') }}
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('site-settings.test-email') }}" class="flex flex-col sm:flex-row sm:items-end gap-3">
+                @csrf
+                <div class="flex-1">
+                    <label for="test_email" class="block text-sm font-medium text-stone-700">Recipient address</label>
+                    <input type="email" name="test_email" id="test_email" required value="{{ old('test_email') }}" placeholder="you@example.com"
+                        class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('test_email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.27 3.13a.6.6 0 0 1 .82-.72l16.5 8.25a.6.6 0 0 1 0 1.08l-16.5 8.25a.6.6 0 0 1-.82-.72L6 12Zm0 0h6"/></svg>
+                    Send test email
+                </button>
+            </form>
+        </div>
     </div>
 </x-layouts.app>

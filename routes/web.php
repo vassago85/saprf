@@ -328,6 +328,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::middleware(['role:developer|exco|owner'])->group(function (): void {
         Route::get('/site-settings', [SiteSettingsController::class, 'index'])->name('site-settings.index');
         Route::put('/site-settings', [SiteSettingsController::class, 'update'])->name('site-settings.update');
+        Route::post('/site-settings/test-email', [SiteSettingsController::class, 'sendTestEmail'])->name('site-settings.test-email');
 
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
         Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
