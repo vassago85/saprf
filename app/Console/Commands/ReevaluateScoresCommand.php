@@ -36,6 +36,7 @@ use Illuminate\Console\Command;
 class ReevaluateScoresCommand extends Command
 {
     protected $signature = 'scores:reevaluate
+        {--user= : Re-evaluate only this user ID and rebuild just their affected matches (skips global fixes)}
         {--skip-free-fix : Do not touch free memberships payment_status}
         {--skip-expiry-fix : Do not expire memberships whose expiry_date has passed}
         {--skip-match-ranking : Do not recompute per-match normalized scores and ranks}
@@ -52,6 +53,14 @@ class ReevaluateScoresCommand extends Command
         $this->info('=== scores:reevaluate ===');
         $this->line('Dry run: '.($dryRun ? 'YES (nothing will be written)' : 'no'));
         $this->newLine();
+
+        // Scoped single-shooter path: re-evaluate just this user's scores and
+        // rebuild only the matches whose status changed. Used to reconcile one
+        // shooter after an admin corrects their membership (e.g. backdated
+        // start_date / extended expiry) without sweeping the whole table.
+        if ($this->option('user') !== null) {
+            return $this->handleSingleUser((int) $this->option('user'), $scoreValidation, $standings, $dryRun);
+        }
 
         if (! $this->option('skip-free-fix')) {
             // Legacy imports sometimes stamped real paid members as type=free.
@@ -181,6 +190,61 @@ class ReevaluateScoresCommand extends Command
 
         $this->newLine();
         $this->info($dryRun ? 'Dry run complete.' : 'Done.');
+
+        return self::SUCCESS;
+    }
+
+    private function handleSingleUser(
+        int $userId,
+        ScoreValidationService $scoreValidation,
+        StandingsCalculationService $standings,
+        bool $dryRun,
+    ): int {
+        $user = \App\Models\User::with('membership')->find($userId);
+        if (! $user) {
+            $this->error("No user found with ID {$userId}.");
+
+            return self::FAILURE;
+        }
+
+        $this->info("Scoped re-evaluation for #{$user->id} — {$user->name}");
+        $membership = $user->membership;
+        $this->line('  Membership: '.($membership
+            ? "type={$membership->membership_type}, payment={$membership->payment_status}, status={$membership->status}, "
+                .'window='.($membership->start_date?->toDateString() ?? 'null').' → '.($membership->expiry_date?->toDateString() ?? 'null')
+            : 'none on file'));
+
+        $scores = Score::with('match')->where('user_id', $userId)->get();
+        $this->info("Found {$scores->count()} score(s).");
+
+        if ($dryRun) {
+            $membershipService = app(\App\Services\MembershipValidationService::class);
+            foreach ($scores as $score) {
+                $wouldBeValid = $membershipService->isUserValidForOfficialPurposes($user, \Carbon\Carbon::parse($score->match_date));
+                $this->line(sprintf(
+                    '  [%s] %s — current: %s → would be valid: %s',
+                    $score->match_date,
+                    $score->match?->name ?? 'match #'.$score->match_id,
+                    $score->status,
+                    $wouldBeValid ? 'YES' : 'no',
+                ));
+            }
+            $this->newLine();
+            $this->info('Dry run complete — nothing written.');
+
+            return self::SUCCESS;
+        }
+
+        $affected = $scoreValidation->reevaluateScoresForUser($userId);
+        $this->line('  '.count($affected).' match(es) had a score status change.');
+
+        foreach (MatchEvent::whereIn('id', $affected)->get() as $match) {
+            $this->line("  Rebuilding standings for: {$match->name}");
+            $standings->recalculateForMatch($match);
+        }
+
+        $this->newLine();
+        $this->info('Done.');
 
         return self::SUCCESS;
     }

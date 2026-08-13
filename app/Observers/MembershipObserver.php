@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Log;
  * AND expiry_date in the future), retroactively promote any of that shooter's
  * 'pending' scores that fall within their new membership window.
  *
+ * NOTE: this only ever promotes 'pending' scores — shooters who HAD a membership
+ * that lapsed on match day and then renewed inside the grace window. It
+ * deliberately does NOT touch 'non_member' scores (shot with no membership on
+ * file): joining/paying now must not retroactively backdate credit for matches
+ * shot as a genuine non-member. To reconcile a shooter who was genuinely
+ * eligible but misclassified (e.g. their membership dates were wrong and an
+ * admin has since corrected them), use the explicit, audited correction path:
+ * `php artisan scores:reevaluate --user=<id>` or a per-score status override.
+ *
  * This covers both the PayFast webhook (PaymentController) and admin manual
  * updates — both go through Membership::save().
  */

@@ -148,6 +148,39 @@ class ScoreValidationService
         return array_values($affectedMatchIds);
     }
 
+    /**
+     * Re-evaluate EVERY score for one shooter, regardless of its current status
+     * (valid / pending / lapsed / non_member). Used when a membership is created
+     * or edited in a way that could change the shooter's historical validity —
+     * e.g. an admin backdates the start_date or extends the expiry_date to cover
+     * matches the shooter previously shot as a non-member. Unlike
+     * resolvePendingScoresForUser() (which only touches 'pending'), this promotes
+     * 'non_member' / 'lapsed' scores to 'valid' too when the corrected window now
+     * covers the match date. Returns the affected MatchEvent IDs so the caller can
+     * rebuild those standings.
+     *
+     * @return array<int, int>
+     */
+    public function reevaluateScoresForUser(int $userId): array
+    {
+        $affectedMatchIds = [];
+
+        Score::query()
+            ->where('user_id', $userId)
+            ->with(['user.membership', 'match'])
+            ->chunkById(200, function ($scores) use (&$affectedMatchIds) {
+                foreach ($scores as $score) {
+                    $before = $score->status;
+                    $this->evaluateScoreStatus($score);
+                    if ($score->status !== $before && $score->match_id) {
+                        $affectedMatchIds[$score->match_id] = $score->match_id;
+                    }
+                }
+            });
+
+        return array_values($affectedMatchIds);
+    }
+
     public function overrideScoreStatus(Score $score, string $newStatus, string $reason, User $admin): Score
     {
         return DB::transaction(function () use ($score, $newStatus, $reason, $admin) {
