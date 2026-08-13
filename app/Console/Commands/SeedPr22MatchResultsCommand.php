@@ -14,10 +14,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Seed PR22 match scores from a Practiscore-style CSV export into an existing
- * MatchEvent. Complements ImportScrapedPr22Command (which handles the scraped
- * precisionrifle.co.za batches). Use this when a match director sends you a
- * one-off results CSV and you already know which match_id it belongs to.
+ * Seed PR22 or PRS match scores from a Practiscore-style CSV export into an
+ * existing MatchEvent. Complements ImportScrapedPr22Command / ImportScrapedPrsCommand
+ * (which handle the scraped precisionrifle.co.za batches). Use this when a
+ * match director sends you a one-off results CSV and you already know which
+ * match_id it belongs to.
  *
  * Expected CSV columns (header row required, exact case-insensitive names):
  *   Rank, Competitor, Username, Impacts, Success Rate, Dropped, Score,
@@ -43,13 +44,21 @@ use Illuminate\Support\Str;
 class SeedPr22MatchResultsCommand extends Command
 {
     protected $signature = 'pr22:seed-match-results
-        {match : ID of the target MatchEvent (must exist and be series=PR22)}
+        {match : ID of the target MatchEvent (must exist and be series=PR22 or PRS)}
         {csv : Path to the Practiscore-style CSV (absolute, or relative to base_path)}
         {--dry-run : Parse and validate the CSV but write nothing}
         {--force-replace : Wipe existing scores on the match before importing (default: refuse if scores exist)}
         {--create-stubs : Create stub users + waived memberships for names that do not match a real user (default: warn and skip)}';
 
-    protected $description = 'Seed PR22 scores from a Practiscore-style CSV into a specific MatchEvent';
+    protected $description = 'Seed PR22 or PRS scores from a Practiscore-style CSV into a specific MatchEvent';
+
+    /**
+     * Both PR22 (rimfire) and PRS (centrefire) match directors export from
+     * the same Practiscore backend and their CSV columns are identical.
+     * Reject anything else so a wrong match_id doesn't silently seed the
+     * wrong series' log.
+     */
+    private const SUPPORTED_SERIES = ['PR22', 'PRS'];
 
     /**
      * Practiscore exports from different match directors spell divisions
@@ -87,8 +96,8 @@ class SeedPr22MatchResultsCommand extends Command
             $this->error("MatchEvent #{$matchId} not found.");
             return self::FAILURE;
         }
-        if ($match->series !== 'PR22') {
-            $this->error("MatchEvent #{$matchId} has series='{$match->series}'. This command only handles PR22 matches.");
+        if (! in_array($match->series, self::SUPPORTED_SERIES, true)) {
+            $this->error("MatchEvent #{$matchId} has series='{$match->series}'. This command only handles ".implode(' or ', self::SUPPORTED_SERIES)." matches.");
             return self::FAILURE;
         }
 

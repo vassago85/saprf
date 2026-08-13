@@ -193,12 +193,38 @@ it('wipes and re-imports when --force-replace is passed', function () {
     expect((float) $scores->first()->raw_score)->toBe(120.0);
 });
 
-it('rejects a non-PR22 match', function () {
+it('accepts a PRS match — the Practiscore CSV format is shared with PR22', function () {
     $lp = Province::where('abbreviation', 'LP')->firstOrFail();
     $prsMatch = MatchEvent::create([
-        'name' => 'Limpopo PRS Nat',
+        'name' => 'Limpopo PRS 2-Day National',
         'match_type' => 'PRS',
         'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'province_id' => $lp->id,
+        'match_date' => '2026-08-08',
+        'status' => 'completed',
+        'created_by' => User::factory()->create()->id,
+        'published' => true,
+    ]);
+    $shooter = User::factory()->create(['name' => 'Piet Prs']);
+    $csv = writePracticalScoresCsv([
+        [1, 'Piet Prs', 'piet', 100, '74.63%', -34, '83.33%', 'Open', '13 / 13', '130 / 134'],
+    ]);
+
+    $this->artisan('pr22:seed-match-results', ['match' => $prsMatch->id, 'csv' => $csv])
+        ->assertSuccessful();
+
+    expect(Score::where('match_id', $prsMatch->id)->count())->toBe(1);
+    expect(Score::where('user_id', $shooter->id)->value('raw_score'))->toEqual(100);
+});
+
+it('rejects a match whose series is neither PR22 nor PRS', function () {
+    $lp = Province::where('abbreviation', 'LP')->firstOrFail();
+    $other = MatchEvent::create([
+        'name' => 'Some IPSC event',
+        'match_type' => 'IPSC',
+        'series' => 'IPSC',
         'series_level' => 'national',
         'season' => '2026',
         'province_id' => $lp->id,
@@ -211,7 +237,7 @@ it('rejects a non-PR22 match', function () {
         [1, 'Someone', 'x', 100, '74.63%', -34, '83.33%', 'Open', '13 / 13', '130 / 134'],
     ]);
 
-    $this->artisan('pr22:seed-match-results', ['match' => $prsMatch->id, 'csv' => $csv])
+    $this->artisan('pr22:seed-match-results', ['match' => $other->id, 'csv' => $csv])
         ->assertFailed();
 });
 
