@@ -86,6 +86,67 @@ test('the constitution page has a TOC over its 33 numbered clauses', function ()
         ->assertSee('On this page');
 });
 
+test('the constitution page splits clause numbers into a gutter span with data-depth', function () {
+    $response = $this->get(route('legal.constitution'))->assertOk();
+    $body = $response->getContent();
+
+    // Every paragraph starting with an N.N. number should be lifted into the
+    // .clause structure. Spot-check across depths 2 → 5.
+    expect($body)
+        ->toContain('class="clause-num">1.1.</span>')                  // depth 2
+        ->toContain('class="clause-num">2.1.1.</span>')                // depth 3
+        ->toContain('class="clause-num">14.5.2.5.4.</span>')           // depth 5, from a paragraph
+        ->toContain('data-depth="2"')
+        ->toContain('data-depth="3"')
+        ->toContain('data-depth="5"')
+        ->toContain('class="clause-body"');
+
+    // Clause markup applied to <li> too — the 14.6.2.1 bulleted list.
+    expect($body)->toContain('class="clause-num">14.6.2.1.</span>');
+});
+
+test('the constitution page injects hover-revealed anchor links on every heading', function () {
+    $response = $this->get(route('legal.constitution'))->assertOk();
+    $body = $response->getContent();
+
+    // At least one .heading-anchor per H2 id, pointing at its own #id.
+    expect($body)
+        ->toContain('class="heading-anchor" aria-label="Link to this section"')
+        ->toContain('href="#14-membership" class="heading-anchor"');
+});
+
+test('the constitution page wraps tables in a horizontal-scroll container', function () {
+    $response = $this->get(route('legal.constitution'))->assertOk();
+
+    // The §3.7 Interpretation definitions table should sit inside .table-scroll
+    // so it doesn't blow out the 68ch reading measure on narrow viewports.
+    $response->assertSee('class="table-scroll"', false)
+        ->assertSee('Administrative Officer'); // sanity: the actual table renders inside it
+});
+
+test('the constitution header pill row surfaces version and effective date', function () {
+    $response = $this->get(route('legal.constitution'))->assertOk();
+
+    $response->assertSee('Version 2.0')
+        ->assertSee('Effective 2 November 2025')
+        ->assertSee('Print / Save as PDF');
+});
+
+test('the constitution page renders sticky ToC + scroll-spy scaffolding', function () {
+    $response = $this->get(route('legal.constitution'))->assertOk();
+    $body = $response->getContent();
+
+    // Alpine wiring: the wrapper component + progress bar + back-to-top +
+    // ToC filter search box must all be present so client-side polish
+    // doesn't silently regress.
+    expect($body)
+        ->toContain("Alpine.data('legalDoc'")
+        ->toContain('legal-doc-progress')
+        ->toContain('legal-doc-back-to-top')
+        ->toContain('id="toc-search"')
+        ->toContain('aria-label="Table of contents"');
+});
+
 test('the documents index lists all five legal + governance documents', function () {
     $response = $this->get(route('documents.index'))->assertOk();
 

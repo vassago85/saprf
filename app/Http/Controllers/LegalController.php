@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\MembershipFeeTier;
-use Illuminate\Support\Str;
+use App\Support\MarkdownDocument;
 use Illuminate\View\View;
-use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 /**
  * Serves the SAPRF legal + governance documents (Constitution/MOI, T&Cs,
@@ -16,6 +15,11 @@ use League\CommonMark\GithubFlavoredMarkdownConverter;
  * performs is the `{{LIABILITY_CAP}}` placeholder in the T&Cs, resolved to
  * the current highest annual membership fee so the cap tracks fee changes
  * without needing manual edits.
+ *
+ * The heavy lifting (heading ids, ToC extraction, clause-number gutter,
+ * table wrapping) is delegated to App\Support\MarkdownDocument so that the
+ * PublicSelectionPolicyController produces identically-structured output
+ * for the shared <x-legal-document> Blade component.
  */
 class LegalController extends Controller
 {
@@ -51,86 +55,31 @@ class LegalController extends Controller
 
     /**
      * Load a verbatim markdown document from disk and prepare the props every
-     * legal page needs. Optional `$replacements` are applied to the raw
-     * markdown before rendering — used for dynamic placeholders like the
-     * T&Cs liability cap.
+     * legal page needs.
      *
      * @param  array<string,string>  $replacements
-     * @return array{html:string, toc:array<int,array{id:string,text:string}>, source_path:string, last_updated:?\Carbon\Carbon}
+     * @return array{
+     *   html:string,
+     *   toc:array<int,array{id:string,text:string,children:array<int,array{id:string,text:string}>}>,
+     *   source_path:string,
+     *   last_updated:?\Carbon\Carbon
+     * }
      */
     private function loadMarkdownDocument(string $relPath, array $replacements = []): array
     {
         $absPath = base_path($relPath);
         $markdown = is_file($absPath) ? (string) file_get_contents($absPath) : '';
 
-        if ($replacements !== []) {
-            $markdown = strtr($markdown, $replacements);
-        }
-
-        [$html, $toc] = $this->renderWithToc($markdown);
+        $rendered = MarkdownDocument::render($markdown, $replacements);
 
         return [
-            'html' => $html,
-            'toc' => $toc,
+            'html' => $rendered['html'],
+            'toc' => $rendered['toc'],
             'source_path' => $relPath,
             'last_updated' => is_file($absPath)
                 ? \Carbon\Carbon::createFromTimestamp(filemtime($absPath))
                 : null,
         ];
-    }
-
-    /**
-     * Render markdown to HTML and extract an H2-level table of contents.
-     * Each H2 element gets a unique, URL-safe id assigned so the TOC links
-     * (#anchor) actually jump. Backing this into the controller (rather
-     * than a CommonMark extension) keeps the dependency surface small.
-     *
-     * @return array{0: string, 1: array<int, array{id: string, text: string}>}
-     */
-    private function renderWithToc(string $markdown): array
-    {
-        $html = (new GithubFlavoredMarkdownConverter([
-            'html_input' => 'escape',
-            'allow_unsafe_links' => false,
-        ]))->convert($markdown)->getContent();
-
-        if (trim($html) === '') {
-            return ['', []];
-        }
-
-        $doc = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8"?><div>'.$html.'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
-        libxml_clear_errors();
-
-        $toc = [];
-        $usedIds = [];
-        foreach ($doc->getElementsByTagName('h2') as $h2) {
-            $text = trim((string) $h2->textContent);
-            if ($text === '') {
-                continue;
-            }
-            $baseId = Str::slug($text);
-            if ($baseId === '') {
-                continue;
-            }
-            $id = $baseId;
-            $suffix = 2;
-            while (isset($usedIds[$id])) {
-                $id = $baseId.'-'.$suffix++;
-            }
-            $usedIds[$id] = true;
-            $h2->setAttribute('id', $id);
-            $toc[] = ['id' => $id, 'text' => $text];
-        }
-
-        $wrapper = $doc->documentElement;
-        $inner = '';
-        foreach ($wrapper->childNodes as $child) {
-            $inner .= $doc->saveHTML($child);
-        }
-
-        return [$inner, $toc];
     }
 
     /**

@@ -7,6 +7,11 @@
    browser default. */
 @plugin '@tailwindcss/typography';
 
+/* Scoped .legal-doc typography, clause gutter, and print stylesheet.
+   Import AFTER Tailwind + Typography so anything in this file wins the
+   cascade against `prose-*` utilities on the same node. */
+@import './legal-doc.css';
+
 [x-cloak] { display: none !important; }
 
 /* Guard against accidental horizontal overflow on small screens. Applied to
