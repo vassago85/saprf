@@ -215,6 +215,30 @@ it('rejects a non-PR22 match', function () {
         ->assertFailed();
 });
 
+it('normalizes plural division names (Seniors/Juniors) to their singular DB slugs', function () {
+    Division::firstOrCreate(['slug' => 'senior'], ['name' => 'Senior', 'display_order' => 7]);
+    Division::firstOrCreate(['slug' => 'junior'], ['name' => 'Junior', 'display_order' => 6]);
+
+    $match = makePr22NationalMatch();
+    $senior = User::factory()->create(['name' => 'Trevor Graham']);
+    $junior = User::factory()->create(['name' => 'MC van Tonder']);
+
+    // Practiscore exports often say 'Seniors'/'Juniors' (plural) while the DB
+    // uses 'senior'/'junior' — the command must resolve both automatically.
+    $csv = writePracticalScoresCsv([
+        [1, 'Trevor Graham', 'TrevorG',  78, '81.25%', -18, '93.98%', 'Seniors', '8 / 8', '94 / 96'],
+        [2, 'MC van Tonder', 'Tjoppies', 59, '61.46%', -37, '71.08%', 'Juniors', '8 / 8', '96 / 96'],
+    ]);
+
+    $this->artisan('pr22:seed-match-results', ['match' => $match->id, 'csv' => $csv])
+        ->assertSuccessful();
+
+    expect(Score::where('user_id', $senior->id)->value('division_id'))
+        ->toBe(Division::where('slug', 'senior')->value('id'));
+    expect(Score::where('user_id', $junior->id)->value('division_id'))
+        ->toBe(Division::where('slug', 'junior')->value('id'));
+});
+
 it('supports --dry-run without writing anything', function () {
     $match = makePr22NationalMatch();
     User::factory()->create(['name' => 'Johan Nel']);

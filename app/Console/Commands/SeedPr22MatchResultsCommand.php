@@ -51,6 +51,22 @@ class SeedPr22MatchResultsCommand extends Command
 
     protected $description = 'Seed PR22 scores from a Practiscore-style CSV into a specific MatchEvent';
 
+    /**
+     * Practiscore exports from different match directors spell divisions
+     * inconsistently (Seniors vs Senior, Juniors vs Junior, Stock vs Factory,
+     * etc.). Normalize to the canonical DB slug before lookup so the CSV
+     * never has to be hand-cleaned.
+     *
+     * @var array<string, string>
+     */
+    private const DIVISION_ALIASES = [
+        'seniors' => 'senior',
+        'juniors' => 'junior',
+        'lady' => 'ladies',
+        'female' => 'ladies',
+        'stock' => 'factory',
+    ];
+
     public function handle(StandingsCalculationService $standings): int
     {
         $matchId = (int) $this->argument('match');
@@ -174,7 +190,7 @@ class SeedPr22MatchResultsCommand extends Command
             if ($name === '') {
                 continue;
             }
-            $divRaw = strtolower(trim((string) ($row['division'] ?? '')));
+            $divRaw = $this->normalizeDivision((string) ($row['division'] ?? ''));
             if ($divRaw !== '' && ! $divisions->has($divRaw) && ! $divisionsByName->has($divRaw)) {
                 $missingDivisions[] = $divRaw;
             }
@@ -286,7 +302,7 @@ class SeedPr22MatchResultsCommand extends Command
                 continue;
             }
 
-            $divRaw = strtolower(trim((string) ($row['division'] ?? '')));
+            $divRaw = $this->normalizeDivision((string) ($row['division'] ?? ''));
             $divisionId = $divisions->get($divRaw)?->id
                 ?? $divisionsByName->get($divRaw)?->id
                 ?? null;
@@ -369,6 +385,12 @@ class SeedPr22MatchResultsCommand extends Command
     private function cleanName(string $name): string
     {
         return trim(preg_replace('/\s+/', ' ', $name));
+    }
+
+    private function normalizeDivision(string $raw): string
+    {
+        $lower = strtolower(trim($raw));
+        return self::DIVISION_ALIASES[$lower] ?? $lower;
     }
 
     /**
