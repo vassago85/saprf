@@ -1,5 +1,14 @@
 services:
   app:
+    # Single image built once, reused by `queue` and `scheduler` below via
+    # `image: saprf-app:latest`. This keeps all three PHP containers in
+    # lock-step: `docker compose build --no-cache app` rebuilds one image,
+    # and `up -d --force-recreate app queue scheduler` picks it up
+    # everywhere. Do NOT add separate `build:` blocks to queue/scheduler
+    # unless you also want three separate image builds and the class-desync
+    # bug that comes with them (queue container running stale code that the
+    # app container has since moved past).
+    image: saprf-app:latest
     build:
       context: .
       dockerfile: docker/prod/Dockerfile
@@ -65,9 +74,7 @@ services:
       - saprf-internal
 
   queue:
-    build:
-      context: .
-      dockerfile: docker/prod/Dockerfile
+    image: saprf-app:latest
     container_name: saprf-queue
     restart: unless-stopped
     env_file:
@@ -97,9 +104,7 @@ services:
       - saprf-internal
 
   scheduler:
-    build:
-      context: .
-      dockerfile: docker/prod/Dockerfile
+    image: saprf-app:latest
     container_name: saprf-scheduler
     restart: unless-stopped
     env_file:
