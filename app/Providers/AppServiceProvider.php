@@ -25,10 +25,14 @@ use App\Policies\Selection\SelectionAppealPolicy;
 use App\Policies\Selection\SelectionAthletePolicy;
 use App\Policies\Selection\SelectionCyclePolicy;
 use App\Policies\Selection\SelectionWaiverPolicy;
+use App\Listeners\AuthAuditListener;
 use App\Models\Setting;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\SettingsService;
+use Illuminate\Auth\Events\Failed as AuthFailedEvent;
+use Illuminate\Auth\Events\Login as AuthLoginEvent;
+use Illuminate\Auth\Events\Logout as AuthLogoutEvent;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -79,6 +83,19 @@ class AppServiceProvider extends ServiceProvider
 
         $this->applyMailgunSettings();
         $this->registerNotificationsToggle();
+        $this->registerAuthAuditListener();
+    }
+
+    /**
+     * Every successful login, logout, and failed login attempt lands in the
+     * audit log with request IP + user-agent, so admins can spot suspicious
+     * activity and see who was on the platform when.
+     */
+    private function registerAuthAuditListener(): void
+    {
+        Event::listen(AuthLoginEvent::class, [AuthAuditListener::class, 'handleLogin']);
+        Event::listen(AuthLogoutEvent::class, [AuthAuditListener::class, 'handleLogout']);
+        Event::listen(AuthFailedEvent::class, [AuthAuditListener::class, 'handleFailed']);
     }
 
     /**
