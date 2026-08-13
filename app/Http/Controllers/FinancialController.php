@@ -9,8 +9,10 @@ use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
 use App\Models\Sponsor;
 use App\Services\AuditLogService;
+use App\Services\FinancialResetService;
 use App\Services\FinancialService;
 use App\Services\SettingsService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -22,6 +24,7 @@ class FinancialController extends Controller
         private readonly FinancialService $financials,
         private readonly AuditLogService $audit,
         private readonly SettingsService $settingsService,
+        private readonly FinancialResetService $reset,
     ) {}
 
     // ── Platform Dashboard ──
@@ -49,6 +52,38 @@ class FinancialController extends Controller
         $financials = $this->financials->matchFinancials($match);
 
         return view('financials.match-report', compact('match', 'financials'));
+    }
+
+    // ── Clear Finance Data (developer only) ──
+
+    public function confirmReset(): View
+    {
+        return view('financials.reset', [
+            'preview' => $this->reset->preview(),
+        ]);
+    }
+
+    public function reset(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'confirmation' => ['required', 'in:CLEAR FINANCE'],
+        ], [
+            'confirmation.in' => 'Type CLEAR FINANCE exactly to confirm.',
+        ]);
+
+        $result = $this->reset->wipe();
+
+        $this->audit->log(
+            $request->user(),
+            'financial_data_cleared',
+            'financials',
+            null,
+            $result['before'] + ['paid_registrations' => $result['paid_registrations']],
+            ['registrations_reset' => $result['registrations_reset']],
+        );
+
+        return redirect()->route('financials.dashboard')
+            ->with('success', "Finance data cleared. Reset {$result['registrations_reset']} registration(s) and emptied all ledgers — the platform is starting fresh.");
     }
 
     // ── Payouts ──

@@ -290,6 +290,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Financials (Admin + Owner)
     Route::middleware(['role:developer|exco|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
         Route::get('/', [FinancialController::class, 'dashboard'])->name('dashboard');
+
+        // Clear Finance Data — irreversible, developer only.
+        Route::middleware('role:developer')->group(function (): void {
+            Route::get('/reset', [FinancialController::class, 'confirmReset'])->name('reset');
+            Route::post('/reset', [FinancialController::class, 'reset'])->name('reset.perform');
+        });
+
         Route::get('/match/{match}', [FinancialController::class, 'matchReport'])->name('match-report');
         Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
         Route::get('/payouts/create', [FinancialController::class, 'createPayout'])->name('payouts.create');
