@@ -255,7 +255,12 @@ class MatchController extends Controller
         $status = $request->input('status');
         $dateRange = $request->input('date_range');
         $search = $request->input('search');
-        $sort = $request->input('sort', 'date_asc');
+        // Default sort depends on which tab you're looking at: the Upcoming
+        // tab wants soonest-first (what's next?), the Results tab wants
+        // latest-first (nobody scrolls back to the January opener looking
+        // for last weekend's match). The explicit ?sort= param always wins.
+        $defaultSort = $tab === 'results' ? 'date_desc' : 'date_asc';
+        $sort = $request->input('sort', $defaultSort);
         $view = $request->input('view', 'list');
         $season = $request->input('season', (string) now()->year);
 
