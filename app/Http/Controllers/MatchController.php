@@ -11,6 +11,7 @@ use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
+use App\Services\StandingsCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class MatchController extends Controller
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly SettingsService $settingsService,
+        private readonly StandingsCalculationService $standings,
     ) {}
 
     // ── Admin CRUD (authenticated) ──
@@ -185,6 +187,17 @@ class MatchController extends Controller
 
         $match->divisions()->sync($divisionIds);
 
+        // The edit form can change how a match's scores are pooled and ranked
+        // (e.g. re-tagging a National match as Provincial). When any of those
+        // fields move, rebuild the affected standings from the persisted
+        // scores — otherwise the points stay in the old pool until someone
+        // runs saprf:recalc-standings by hand.
+        $recalculated = false;
+        if ($match->wasChanged(['series_level', 'match_type', 'series', 'province_id', 'match_date', 'season'])) {
+            $this->standings->recalculateForMatch($match);
+            $recalculated = true;
+        }
+
         $this->auditLogService->log(
             $request->user(),
             'match.updated',
@@ -195,7 +208,7 @@ class MatchController extends Controller
         );
 
         return redirect()->route('matches.show', $match)
-            ->with('success', 'Match updated successfully.');
+            ->with('success', 'Match updated successfully.'.($recalculated ? ' Standings were recalculated.' : ''));
     }
 
     public function exportImpactScoringCsv(MatchEvent $match): StreamedResponse
