@@ -295,6 +295,7 @@
                         </thead>
                         <tbody class="divide-y divide-stone-100">
                             @foreach($recentMatches as $score)
+                                @php $rank = $score->displayRank(); @endphp
                                 <tr class="hover:bg-stone-50">
                                     <td class="px-5 py-3 text-stone-600 whitespace-nowrap">{{ $score->match?->match_date?->format('d M Y') }}</td>
                                     <td class="px-5 py-3 font-medium text-stone-900">
@@ -305,8 +306,8 @@
                                         @endif
                                     </td>
                                     <td class="px-5 py-3 text-stone-600">{{ $score->match?->province?->abbreviation ?? '—' }}</td>
-                                    <td class="px-5 py-3 text-right font-mono font-bold {{ $score->placement && $score->placement <= 3 ? 'text-amber-600' : 'text-stone-900' }}">
-                                        {{ $score->placement ? '#'.$score->placement : '—' }}
+                                    <td class="px-5 py-3 text-right font-mono font-bold {{ $rank && $rank <= 3 ? 'text-amber-600' : 'text-stone-900' }}">
+                                        {{ $rank ? '#'.$rank : '—' }}
                                     </td>
                                     <td class="px-5 py-3 text-right font-mono text-stone-700">{{ $score->raw_score ?? '—' }}</td>
                                 </tr>

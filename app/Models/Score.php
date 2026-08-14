@@ -108,4 +108,18 @@ class Score extends Model
     {
         return $this->belongsTo(Division::class);
     }
+
+    /**
+     * The rank we show to the shooter for this row: the raw placement from the
+     * source CSV when present, otherwise the overall_rank computed by
+     * StandingsCalculationService. Day-1 dual-count provincial rows never
+     * carry a raw placement (the CSV only ever has one for the "real" row), so
+     * without this fallback they would show a blank "—" in the recent-match
+     * history table even though the shooter clearly placed somewhere. Returns
+     * null when nothing is known.
+     */
+    public function displayRank(): ?int
+    {
+        return $this->placement ?? $this->overall_rank;
+    }
 }
