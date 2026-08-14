@@ -253,4 +253,48 @@ it('shows every division a shooter placed in — not just the first', function (
     // Factory (only Factory shooter → #1) and comes 2nd in Open.
     $response->assertSeeInOrder(['Open', '#2'], false);
     $response->assertSeeInOrder(['Factory', '#1'], false);
+
+    // Per-division breakdown panel is shown whenever the shooter placed in
+    // more than one division for a series — it tells the shooter WHICH
+    // matches contributed to each division rank (Open 80.00 came from the
+    // Open Match, Factory 100.00 came from the Factory Match). Without
+    // this the shooter sees "Open #2, Factory #1" as unexplained numbers.
+    $response->assertSee('National Division Breakdown', false);
+    // Each division's own match rows are listed inside its mini-panel so
+    // the shooter can verify the maths.
+    $response->assertSee('PRS Open Match', false);
+    $response->assertSee('PRS Factory Match', false);
+});
+
+it('does not render the per-division breakdown panel when the shooter only competed in one division', function () {
+    // Single-division shooters would just see the overall breakdown
+    // repeated inside a per-division panel — visually noisy for no gain.
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    \App\Models\QualificationRule::create([
+        'series' => 'PRS', 'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'best_of_count' => 3, 'total_qualifying_matches' => 3, 'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create(['name' => 'Single Division Sam']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'T-400', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid', 'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $service = app(\App\Services\StandingsCalculationService::class);
+    $match = makeMatch('PRS Solo Match', 'PRS', 'national', '2026-03-15');
+    Score::create([
+        'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
+        'division_id' => $open->id, 'raw_score' => 90,
+        'status' => 'valid', 'is_member' => true, 'match_date' => $match->match_date,
+    ]);
+    $service->recalculateForMatch($match);
+
+    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+
+    $response->assertOk();
+    $response->assertDontSee('National Division Breakdown', false);
+    $response->assertDontSee('Provincial Division Breakdown', false);
 });

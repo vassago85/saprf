@@ -395,6 +395,66 @@
                         @endif
                     @endif
 
+                    {{-- Per-division breakdowns. The overall breakdowns above
+                         show which matches contributed to the shooter's
+                         *overall* National/Provincial totals (best-N across
+                         every division). These panels answer the natural
+                         follow-up question — "how did I get Open #2
+                         (279.45) and Factory #2 (292.14)?" — by listing the
+                         counted matches restricted to each division
+                         cohort. Only shown when the shooter placed in more
+                         than one division for the series (single-division
+                         shooters would just see the overall breakdown
+                         repeated). Rendered OUTSIDE the annual_log /
+                         best_of_n / weighted_pools mode chain above so
+                         every series (PRS annual_log, PR22 weighted_pools,
+                         plain best_of_n) benefits from it. --}}
+                    @if($entry)
+                        @php
+                            $natDivs = collect($entry['divisions'] ?? [])->filter(fn ($d) => ! empty($d['pool_breakdown']))->values();
+                            $provDivs = collect($entry['provincial_divisions'] ?? [])->filter(fn ($d) => ! empty($d['pool_breakdown']))->values();
+                        @endphp
+
+                        @if($natDivs->count() > 1)
+                            <div class="px-6 py-5 border-b border-stone-100 bg-emerald-50/10">
+                                <div class="flex items-baseline justify-between mb-3">
+                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-emerald-700">National Division Breakdown</h3>
+                                    <span class="text-[10px] text-stone-400">Which of your matches counted toward each division rank</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    @foreach($natDivs as $div)
+                                        <x-division-breakdown-panel
+                                            :division="$div"
+                                            accent="emerald"
+                                        />
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($provDivs->count() > 1)
+                            <div class="px-6 py-5 border-b border-stone-100 bg-blue-50/10">
+                                <div class="flex items-baseline justify-between mb-3">
+                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                                        Provincial Division Breakdown
+                                        @if($entry['province_name'])
+                                            <span class="text-blue-400 font-normal normal-case">&middot; {{ $entry['province_name'] }}</span>
+                                        @endif
+                                    </h3>
+                                    <span class="text-[10px] text-stone-400">Which of your matches counted toward each division rank</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    @foreach($provDivs as $div)
+                                        <x-division-breakdown-panel
+                                            :division="$div"
+                                            accent="blue"
+                                        />
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    @endif
+
                     <div class="px-6 py-4 border-b border-stone-50 bg-stone-50/30">
                         <div class="grid grid-cols-1 @if(!empty($entry['has_provincial'])) md:grid-cols-2 @endif gap-4">
                             {{-- National standing rank/points --}}

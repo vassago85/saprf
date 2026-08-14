@@ -31,13 +31,13 @@ class ShooterStandingsSummaryService
      *     overall_rank: int|null,
      *     overall_points: float|null,
      *     pool_breakdown: array|null,
-     *     divisions: list<array{name: ?string, rank: int, points: float}>,
+     *     divisions: list<array{name: ?string, rank: int, points: float, pool_breakdown: array|null}>,
      *     has_provincial: bool,
      *     province_name: ?string,
      *     provincial_rank: int|null,
      *     provincial_points: float|null,
      *     provincial_pool_breakdown: array|null,
-     *     provincial_divisions: list<array{name: ?string, rank: int, points: float}>,
+     *     provincial_divisions: list<array{name: ?string, rank: int, points: float, pool_breakdown: array|null}>,
      * }>
      */
     public function build(User $user, string $season, array $seriesList = ['PRS', 'PR22']): Collection
@@ -88,7 +88,7 @@ class ShooterStandingsSummaryService
     }
 
     /**
-     * @return array{0: Standing|null, 1: list<array{name: ?string, rank: int, points: float}>}
+     * @return array{0: Standing|null, 1: list<array{name: ?string, rank: int, points: float, pool_breakdown: array|null}>}
      */
     private function loadProvincial(User $user, string $series, string $season): array
     {
@@ -115,7 +115,13 @@ class ShooterStandingsSummaryService
      * table. Sorted by the division's display_order so the UI presentation
      * is stable and matches the standings tables.
      *
-     * @return list<array{name: ?string, rank: int, points: float}>
+     * `pool_breakdown` is included so consumers can render a per-division
+     * "which matches contributed to this rank" list — the shooter can then
+     * see, e.g., that Open 279.45 came from three specific Open matches and
+     * Factory 292.14 came from three specific Factory matches, rather than
+     * only seeing the aggregated overall total.
+     *
+     * @return list<array{name: ?string, rank: int, points: float, pool_breakdown: array|null}>
      */
     private function loadDivisions(User $user, string $series, string $season, ?int $provinceId): array
     {
@@ -136,6 +142,7 @@ class ShooterStandingsSummaryService
                 'name' => $s->division?->name,
                 'rank' => (int) $s->rank,
                 'points' => (float) $s->points,
+                'pool_breakdown' => $s->pool_breakdown,
             ])
             ->all();
     }

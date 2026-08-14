@@ -70,6 +70,44 @@ it('exposes national division breakdown ordered by division display_order', func
     expect($entry['divisions'][1]['rank'])->toBe(26);
 });
 
+it('exposes each division standing pool_breakdown so the view can list its counted matches', function () {
+    // The per-division breakdown panels on the shooter profile need to know
+    // WHICH matches contributed to each division rank (e.g. Open 279.45
+    // came from these 3 Open matches). The service must forward the
+    // standing's pool_breakdown for every division row, not just the
+    // overall row.
+    $user = User::factory()->create();
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+
+    $breakdown = [
+        'mode' => 'best_of_n',
+        'best_of' => 3,
+        'scores_counted' => 2,
+        'total' => 179.45,
+        'matches' => [
+            ['match_id' => 11, 'match_name' => 'PR22 GP Provincial', 'pct' => 100.00, 'counted' => true, 'contribution' => 100.00],
+            ['match_id' => 12, 'match_name' => 'PR22 WC Provincial', 'pct' => 79.45, 'counted' => true, 'contribution' => 79.45],
+        ],
+    ];
+
+    Standing::create([
+        'user_id' => $user->id, 'series' => 'PR22', 'season' => '2026',
+        'points' => 179.45, 'rank' => 2,
+    ]);
+    Standing::create([
+        'user_id' => $user->id, 'series' => 'PR22', 'season' => '2026',
+        'division_id' => $open->id, 'points' => 179.45, 'rank' => 2,
+        'pool_breakdown' => $breakdown,
+    ]);
+
+    $entry = $this->service->build($user, '2026')->first();
+
+    expect($entry['divisions'][0]['pool_breakdown'])->not->toBeNull();
+    expect($entry['divisions'][0]['pool_breakdown']['mode'])->toBe('best_of_n');
+    expect($entry['divisions'][0]['pool_breakdown']['matches'])->toHaveCount(2);
+    expect($entry['divisions'][0]['pool_breakdown']['matches'][0]['match_name'])->toBe('PR22 GP Provincial');
+});
+
 it('includes provincial standing and division breakdown for shooters with a province', function () {
     $province = Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
     $user = User::factory()->create(['province_id' => $province->id]);
