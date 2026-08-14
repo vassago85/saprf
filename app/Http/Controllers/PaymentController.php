@@ -273,6 +273,58 @@ class PaymentController extends Controller
         return redirect()->route('payments.redirect', $payment);
     }
 
+    public function payRegistration(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($registration->user_id !== $user->id && ! $user->hasAnyRole(['owner', 'admin'])) {
+            abort(403);
+        }
+
+        if ($registration->registration_status === 'cancelled') {
+            return redirect()->route('registrations.show', $registration)
+                ->with('error', 'This registration has been cancelled and can no longer be paid.');
+        }
+
+        if ($registration->payment_status === 'paid') {
+            return redirect()->route('registrations.show', $registration)
+                ->with('info', 'This registration is already paid.');
+        }
+
+        $fee = (float) $registration->fee_amount;
+
+        if ($fee <= 0) {
+            return redirect()->route('registrations.show', $registration)
+                ->with('info', 'This registration has no fee to pay.');
+        }
+
+        if (! $this->payFastService->isEnabled()) {
+            return redirect()->back()
+                ->with('error', 'Online payments are not currently available.');
+        }
+
+        // Reuse an existing pending payment (initial attempt still open in
+        // another tab) — PayFast's m_payment_id is single-use, so we don't
+        // touch cancelled/failed rows and instead create a fresh one.
+        $payment = Payment::where('payable_type', MatchRegistration::class)
+            ->where('payable_id', $registration->id)
+            ->where('status', 'pending')
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            $payment = Payment::create([
+                'payable_type' => MatchRegistration::class,
+                'payable_id' => $registration->id,
+                'user_id' => $user->id,
+                'amount' => $fee,
+                'm_payment_id' => Payment::generateReference('REG'),
+            ]);
+        }
+
+        return redirect()->route('payments.redirect', $payment);
+    }
+
     /**
      * Price for a membership fee tier, falling back to the legacy global
      * annual fee setting when no tier is configured (fresh installs, etc.).

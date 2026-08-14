@@ -207,19 +207,11 @@
                         <h2 class="font-heading text-lg font-semibold text-emerald-800">Payment Required</h2>
                         <p class="text-sm text-emerald-700 mt-1">Complete your payment of <strong>R {{ number_format($registration->fee_amount, 2) }}</strong> to confirm your entry.</p>
                     </div>
-                    <form method="POST" action="{{ url('/events/' . $registration->match_id . '/register') }}">
+                    <form method="POST" action="{{ route('payments.registration', $registration) }}">
                         @csrf
-                        @php
-                            $existingPayment = \App\Models\Payment::where('payable_type', \App\Models\MatchRegistration::class)
-                                ->where('payable_id', $registration->id)
-                                ->where('status', 'pending')
-                                ->first();
-                        @endphp
-                        @if($existingPayment)
-                            <a href="{{ route('payments.redirect', $existingPayment) }}" class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
-                                Pay Now — R {{ number_format($registration->fee_amount, 2) }}
-                            </a>
-                        @endif
+                        <button type="submit" class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
+                            Pay Now — R {{ number_format($registration->fee_amount, 2) }}
+                        </button>
                     </form>
                 </div>
             @endif
@@ -228,12 +220,13 @@
         {{-- Cancellation details (if cancelled) --}}
         @if($registration->registration_status === 'cancelled' && $registration->cancelled_at)
             @php
-                // A free-entry withdrawal has no financial line items — collapse
-                // the details block so we don't display a nonsensical
-                // "Admin Fee: R 100.00" beside a R 0.00 refund on a R 0.00 event.
-                $wasFreeEntry = ((float) $registration->fee_amount) <= 0
-                    && ((float) ($registration->refund_amount ?? 0)) === 0.0
+                // Collapse the refund/admin-fee lines whenever no money changed
+                // hands — either a free entry, or an unpaid withdrawal where
+                // the card never went through. Otherwise we'd show a nonsense
+                // "Admin Fee: R 0.00" beside a "Refund: R 0.00" row.
+                $noFinancialImpact = ((float) ($registration->refund_amount ?? 0)) === 0.0
                     && ((float) ($registration->admin_fee_charged ?? 0)) === 0.0;
+                $wasFreeEntry = $noFinancialImpact && ((float) $registration->fee_amount) <= 0;
             @endphp
             <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Withdrawal Details</h2>
@@ -242,10 +235,10 @@
                         <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Cancelled At</dt>
                         <dd class="mt-1 text-sm text-red-800">{{ $registration->cancelled_at->format('d M Y H:i') }}</dd>
                     </div>
-                    @if($wasFreeEntry)
+                    @if($noFinancialImpact)
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Financial Impact</dt>
-                            <dd class="mt-1 text-sm text-red-800">Free entry — none.</dd>
+                            <dd class="mt-1 text-sm text-red-800">{{ $wasFreeEntry ? 'Free entry — none.' : 'No payment was collected — none.' }}</dd>
                         </div>
                     @else
                         <div>
@@ -280,6 +273,11 @@
                             @case('free_entry')
                                 <p class="text-sm text-amber-700 mt-1">
                                     This is a <strong>free entry</strong> — you can withdraw at any time with no financial impact.
+                                </p>
+                                @break
+                            @case('unpaid')
+                                <p class="text-sm text-amber-700 mt-1">
+                                    No payment has been collected yet, so withdrawing carries <strong>no financial impact</strong>.
                                 </p>
                                 @break
                             @case('before_deadline')

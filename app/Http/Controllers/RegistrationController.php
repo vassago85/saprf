@@ -275,6 +275,7 @@ class RegistrationController extends Controller
 
         $message = match ($refundCalc['reason']) {
             'free_entry'      => 'Registration withdrawn. This was a free entry — no financial impact.',
+            'unpaid'          => 'Registration withdrawn. No payment was collected, so no refund is due.',
             'past_deadline'   => 'Registration withdrawn. No refund — withdrawal was after the deadline.',
             'before_deadline' => $refundCalc['refund'] > 0
                 ? 'Registration withdrawn. Refund of R ' . number_format($refundCalc['refund'], 2) . ' (minus R ' . number_format($refundCalc['admin_fee'], 2) . ' admin fee).'

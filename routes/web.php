@@ -168,6 +168,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/payments/return', [PaymentController::class, 'returnFromGateway'])->name('payments.return');
     Route::get('/payments/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
     Route::post('/payments/membership/{membership}', [PaymentController::class, 'payMembership'])->name('payments.membership');
+    Route::post('/payments/registration/{registration}', [PaymentController::class, 'payRegistration'])->name('payments.registration');
     Route::post('/membership/join', [PaymentController::class, 'joinMembership'])->name('membership.join');
     Route::get('/my-membership', [MembershipController::class, 'myMembership'])->name('my-membership');
     Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])->name('membership.certificate');

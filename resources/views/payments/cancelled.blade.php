@@ -32,7 +32,11 @@
 
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
                     @if($payment && $payment->payable_type === 'App\\Models\\MatchRegistration')
-                        <a href="{{ route('registrations.show', $payment->payable_id) }}" class="px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition">View Registration</a>
+                        <form method="POST" action="{{ route('payments.registration', $payment->payable_id) }}">
+                            @csrf
+                            <button type="submit" class="w-full px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition">Try Payment Again</button>
+                        </form>
+                        <a href="{{ route('registrations.show', $payment->payable_id) }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">View Registration</a>
                     @endif
                     <a href="{{ url('/events') }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">Back to Events</a>
                 </div>

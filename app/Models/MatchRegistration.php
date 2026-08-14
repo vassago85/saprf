@@ -174,6 +174,17 @@ class MatchRegistration extends Model
             ];
         }
 
+        // Nothing was ever collected (card failed, gateway cancelled, or the
+        // member simply never completed checkout). Withdrawing must not quote
+        // a refund or an admin fee against money that never arrived.
+        if ($this->payment_status !== 'paid') {
+            return [
+                'refund' => 0,
+                'admin_fee' => 0,
+                'reason' => 'unpaid',
+            ];
+        }
+
         if (! $this->isBeforeDeadline()) {
             return [
                 'refund' => 0,
