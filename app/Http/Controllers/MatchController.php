@@ -355,7 +355,12 @@ class MatchController extends Controller
     public function publicShow(MatchEvent $match): View
     {
         $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
-        $match->loadCount(['registrations', 'scores']);
+        // "Registered" must exclude withdrawn/cancelled entries so the stat matches
+        // the public entrant list (which already hides cancelled registrations).
+        $match->loadCount([
+            'registrations' => fn ($q) => $q->where('registration_status', '!=', 'cancelled'),
+            'scores',
+        ]);
 
         $userRegistration = Auth::check()
             ? $match->userRegistration(Auth::user())

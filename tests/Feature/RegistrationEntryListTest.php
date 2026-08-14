@@ -68,6 +68,16 @@ it('lists registered shooters on the public event page', function () {
         ->assertDontSee('Withdrawn Wally');
 });
 
+it('excludes withdrawn entries from the registered count on the event page', function () {
+    registerShooter($this->match, 'Active One');
+    registerShooter($this->match, 'Active Two');
+    registerShooter($this->match, 'Withdrawn One', ['registration_status' => 'cancelled']);
+
+    $response = $this->get(route('events.show', $this->match))->assertOk();
+
+    expect($response->viewData('match')->registrations_count)->toBe(2);
+});
+
 it('hides fee and payment details from ordinary members on the entry list', function () {
     registerShooter($this->match, 'Jane Marksman', ['fee_amount' => 1500.00]);
 

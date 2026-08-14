@@ -3,7 +3,12 @@
 @php
     $regStatus = $match->registration_status;
     $effectiveEnd = $match->match_end_date ?? $match->match_date;
-    $daysAway = $match->match_date->isFuture() ? (int) now()->diffInDays($match->match_date, false) : null;
+    // Count whole calendar days so an evening "now" doesn't truncate a 2-days-out
+    // match down to "Tomorrow" (compare date-to-date, ignoring time of day).
+    $matchDay = $match->match_date->copy()->startOfDay();
+    $daysAway = $matchDay->gte(now()->startOfDay())
+        ? (int) now()->startOfDay()->diffInDays($matchDay)
+        : null;
     $userReg = auth()->check() ? $match->userRegistration(auth()->user()) : null;
 @endphp
 
