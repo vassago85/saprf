@@ -170,8 +170,9 @@ class MatchController extends Controller
 
         $provinces = Province::orderBy('name')->get();
         $venues = Venue::active()->with('province')->orderBy('name')->get();
+        $settings = $this->settingsService->all();
 
-        return view('matches.edit', compact('match', 'provinces', 'venues'));
+        return view('matches.edit', compact('match', 'provinces', 'venues', 'settings'));
     }
 
     public function update(UpdateMatchRequest $request, MatchEvent $match): RedirectResponse
@@ -188,6 +189,19 @@ class MatchController extends Controller
 
         $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
         $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
+
+        // Fee overrides are exco/developer only. Silently drop the fields for
+        // anyone else so an ordinary MD tampering with the payload can't
+        // rewrite the split. Read-only UI already keeps them from being able
+        // to submit these, but defence-in-depth.
+        if (! $request->user()->hasAnyRole(['exco', 'developer'])) {
+            unset(
+                $validated['platform_fee_type'],
+                $validated['platform_fee_value'],
+                $validated['saprf_fee_type'],
+                $validated['saprf_fee_value'],
+            );
+        }
 
         $match->update($validated);
 

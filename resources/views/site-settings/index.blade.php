@@ -186,6 +186,25 @@
                     </div>
                     @endrole
 
+                    {{-- Platform operator (payee) — owner/developer choose who gets the
+                         monthly platform-fee payout. Empty = payouts can't be generated. --}}
+                    <div>
+                        <label for="platform_operator_user_id" class="block text-sm font-medium text-stone-700">
+                            Platform Operator (payee)
+                        </label>
+                        <select name="platform_operator_user_id" id="platform_operator_user_id"
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="">— Not set —</option>
+                            @foreach($platformOperatorCandidates as $candidate)
+                                <option value="{{ $candidate->id }}"
+                                    @selected((string) old('platform_operator_user_id', $settings['platform_operator_user_id'] ?? '') === (string) $candidate->id)>
+                                    {{ $candidate->name }} ({{ $candidate->email }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-stone-400">Who receives the monthly platform-fee payout. Only owner and developer accounts are listed.</p>
+                    </div>
+
                     <div>
                         <label for="estimated_gateway_fee_percentage" class="block text-sm font-medium text-stone-700">Est. Gateway Fee (%)</label>
                         <input type="number" step="0.1" min="0" max="20" name="estimated_gateway_fee_percentage" id="estimated_gateway_fee_percentage" value="{{ old('estimated_gateway_fee_percentage', $settings['estimated_gateway_fee_percentage'] ?? '3.5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">

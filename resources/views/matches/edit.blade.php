@@ -122,6 +122,94 @@
 
                 @include('matches._cost-estimator')
 
+                {{-- Per-match fee overrides. Restricted to exco + developer
+                     because touching these directly rewrites the split
+                     between SAPRF, the platform operator, and the MD.
+                     Owner + admin see the values but can't change them. --}}
+                @php
+                    $canEditFeeOverrides = auth()->user()?->hasAnyRole(['exco', 'developer']);
+                    $canSeeFeeOverrides = auth()->user()?->hasAnyRole(['exco', 'developer', 'owner', 'admin']);
+                    $globalPlatformType = $settings['platform_fee_type'] ?? 'fixed';
+                    $globalPlatformValue = (float) ($settings['platform_fee_value'] ?? 0);
+                    $globalSaprfType = $settings['saprf_fee_type'] ?? 'fixed';
+                    $globalSaprfValue = (float) ($settings['saprf_fee_value'] ?? 50);
+                    $formatGlobal = fn ($type, $value) => $type === 'fixed'
+                        ? 'R ' . number_format((float) $value, 2) . ' per shooter'
+                        : rtrim(rtrim(number_format((float) $value, 2), '0'), '.') . '% of match fee';
+                @endphp
+                @if($canSeeFeeOverrides)
+                <div class="sm:col-span-2 rounded-lg border border-violet-200 bg-violet-50/40 p-4">
+                    <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                        <div>
+                            <h3 class="text-sm font-semibold text-violet-900">Fee Overrides</h3>
+                            <p class="mt-0.5 text-xs text-violet-700">
+                                Leave blank to inherit the global rate.
+                                Override to charge a different SAPRF or platform fee for this match — e.g. R0 for matches that don't run through the platform.
+                            </p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-300">
+                            {{ $canEditFeeOverrides ? 'Exco / Developer' : 'Read-only' }}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {{-- Platform Fee override --}}
+                        <div x-data="{
+                                type: '{{ old('platform_fee_type', $match->platform_fee_type ?? '') }}',
+                                value: '{{ old('platform_fee_value', $match->platform_fee_value ?? '') }}',
+                            }">
+                            <label class="block text-xs font-medium text-stone-600 mb-1">Platform Fee override</label>
+                            <div class="flex gap-2">
+                                <select name="platform_fee_type" x-model="type" @change="if (!type) value = ''"
+                                        @disabled(!$canEditFeeOverrides)
+                                        class="rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-100 disabled:text-stone-500">
+                                    <option value="">Inherit ({{ $formatGlobal($globalPlatformType, $globalPlatformValue) }})</option>
+                                    <option value="fixed">R fixed / shooter</option>
+                                    <option value="percentage">% of match fee</option>
+                                </select>
+                                <div class="relative flex-1">
+                                    <input type="number" name="platform_fee_value" step="0.01" min="0" x-model="value"
+                                           :required="!!type"
+                                           :disabled="!type || {{ $canEditFeeOverrides ? 'false' : 'true' }}"
+                                           placeholder="—"
+                                           class="block w-full rounded-lg border border-stone-300 text-sm py-2 pr-8 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-100 disabled:text-stone-400">
+                                    <span class="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-400" x-text="type === 'percentage' ? '%' : (type === 'fixed' ? 'R' : '')"></span>
+                                </div>
+                            </div>
+                            @error('platform_fee_type') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('platform_fee_value') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        {{-- SAPRF Fee override --}}
+                        <div x-data="{
+                                type: '{{ old('saprf_fee_type', $match->saprf_fee_type ?? '') }}',
+                                value: '{{ old('saprf_fee_value', $match->saprf_fee_value ?? '') }}',
+                            }">
+                            <label class="block text-xs font-medium text-stone-600 mb-1">SAPRF Fee override</label>
+                            <div class="flex gap-2">
+                                <select name="saprf_fee_type" x-model="type" @change="if (!type) value = ''"
+                                        @disabled(!$canEditFeeOverrides)
+                                        class="rounded-lg border border-stone-300 text-sm py-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-100 disabled:text-stone-500">
+                                    <option value="">Inherit ({{ $formatGlobal($globalSaprfType, $globalSaprfValue) }})</option>
+                                    <option value="fixed">R fixed / shooter</option>
+                                    <option value="percentage">% of match fee</option>
+                                </select>
+                                <div class="relative flex-1">
+                                    <input type="number" name="saprf_fee_value" step="0.01" min="0" x-model="value"
+                                           :required="!!type"
+                                           :disabled="!type || {{ $canEditFeeOverrides ? 'false' : 'true' }}"
+                                           placeholder="—"
+                                           class="block w-full rounded-lg border border-stone-300 text-sm py-2 pr-8 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-stone-100 disabled:text-stone-400">
+                                    <span class="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-400" x-text="type === 'percentage' ? '%' : (type === 'fixed' ? 'R' : '')"></span>
+                                </div>
+                            </div>
+                            @error('saprf_fee_type') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('saprf_fee_value') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50/50 p-4">
                     <h3 class="text-sm font-semibold text-stone-700 mb-3">Capacity &amp; Waitlist</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

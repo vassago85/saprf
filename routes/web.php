@@ -287,6 +287,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/contact-messages/{contactMessage}/reopen', [\App\Http\Controllers\ContactController::class, 'reopen'])->name('contact-messages.reopen');
     });
 
+    // The per-match report is separately reachable by the match director who
+    // created it (so they can see their own P&L), in addition to the finance
+    // roles. Authorization is enforced inside the controller.
+    Route::get('/financials/match/{match}', [FinancialController::class, 'matchReport'])
+        ->name('financials.match-report');
+
     // Financials (Admin + Owner)
     Route::middleware(['role:developer|exco|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
         Route::get('/', [FinancialController::class, 'dashboard'])->name('dashboard');
@@ -296,11 +302,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/reset', [FinancialController::class, 'confirmReset'])->name('reset');
             Route::post('/reset', [FinancialController::class, 'reset'])->name('reset.perform');
         });
-
-        Route::get('/match/{match}', [FinancialController::class, 'matchReport'])->name('match-report');
         Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
         Route::get('/payouts/create', [FinancialController::class, 'createPayout'])->name('payouts.create');
         Route::post('/payouts', [FinancialController::class, 'storePayout'])->name('payouts.store');
+        Route::get('/payouts/platform/create', [FinancialController::class, 'createPlatformPayout'])->name('payouts.platform.create');
+        Route::post('/payouts/platform', [FinancialController::class, 'storePlatformPayout'])->name('payouts.platform.store');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
         Route::get('/transactions', [FinancialController::class, 'transactions'])->name('transactions');
 

@@ -63,10 +63,23 @@ class RegistrationPricingService
 
         $surcharge = $totalFee - $baseFee;
 
-        $saprfType = (string) $this->settingsService->get('saprf_fee_type', 'fixed');
-        $saprfValue = (float) $this->settingsService->get('saprf_fee_value', 50);
-        $platformType = (string) $this->settingsService->get('platform_fee_type', 'fixed');
-        $platformValue = (float) $this->settingsService->get('platform_fee_value', 0);
+        // Per-match overrides beat the global setting. Only apply the override
+        // when BOTH type and value are set — a half-set override would silently
+        // pair the match's type with the global value (or vice-versa) and
+        // produce numbers no one asked for. Imported matches use this to book
+        // R0 platform fee; exco/developer can set it manually per match.
+        [$saprfType, $saprfValue] = $this->resolveRate(
+            $match->saprf_fee_type,
+            $match->saprf_fee_value,
+            $this->settingsService->get('saprf_fee_type', 'fixed'),
+            $this->settingsService->get('saprf_fee_value', 50),
+        );
+        [$platformType, $platformValue] = $this->resolveRate(
+            $match->platform_fee_type,
+            $match->platform_fee_value,
+            $this->settingsService->get('platform_fee_type', 'fixed'),
+            $this->settingsService->get('platform_fee_value', 0),
+        );
         $gatewayPct = (float) $this->settingsService->get('estimated_gateway_fee_percentage', 3.5);
         $gatewayFlat = (float) $this->settingsService->get('estimated_gateway_flat_fee', 2.00);
 
@@ -101,5 +114,20 @@ class RegistrationPricingService
         return $type === 'fixed'
             ? round($value, 2)
             : round($baseFee * ($value / 100), 2);
+    }
+
+    /**
+     * Pick either the per-match override (only when both type and value are
+     * set) or fall back to the global rate. Returns [type, value].
+     *
+     * @return array{0: string, 1: float}
+     */
+    private function resolveRate(mixed $matchType, mixed $matchValue, mixed $globalType, mixed $globalValue): array
+    {
+        if ($matchType !== null && $matchValue !== null) {
+            return [(string) $matchType, (float) $matchValue];
+        }
+
+        return [(string) $globalType, (float) $globalValue];
     }
 }

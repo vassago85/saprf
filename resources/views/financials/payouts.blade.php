@@ -6,11 +6,16 @@
                 <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight mt-2">Payouts</h1>
                 <p class="mt-1 text-sm text-stone-500">Track settlements to match directors and SAPRF revenue.</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <a href="{{ route('financials.payouts.create') }}"
                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    Create Payout
+                    MD Payout
+                </a>
+                <a href="{{ route('financials.payouts.platform.create') }}"
+                   class="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 transition">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    Platform Payout
                 </a>
                 <a href="{{ route('financials.export.payouts-csv') }}"
                    class="inline-flex items-center gap-2 rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">
@@ -18,6 +23,29 @@
                 </a>
             </div>
         </div>
+
+        @if(!empty($unsettledMonths))
+        <div class="rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="text-sm font-semibold text-violet-900">Unsettled platform fees</p>
+                    <p class="mt-1 text-xs text-violet-800">
+                        Paid registrations exist in these months without a platform payout on file:
+                    </p>
+                    <ul class="mt-2 space-y-1 text-sm text-violet-900">
+                        @foreach($unsettledMonths as $unsettled)
+                        <li>
+                            <span class="font-medium">{{ $unsettled['month']->format('F Y') }}</span>
+                            <span class="text-violet-700">— R{{ number_format($unsettled['platform_fees'], 2) }} across {{ $unsettled['entry_count'] }} entries</span>
+                            <a href="{{ route('financials.payouts.platform.create', ['month' => $unsettled['month']->format('Y-m')]) }}"
+                               class="ml-2 text-violet-700 hover:text-violet-900 underline underline-offset-2">Generate</a>
+                        </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+        @endif
 
         {{-- Summary --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -36,17 +64,35 @@
         </div>
 
         {{-- Filters --}}
-        <div class="flex gap-2">
-            <a href="{{ route('financials.payouts') }}"
-               class="rounded-lg px-3 py-1.5 text-sm font-medium {{ !$status ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
-                All
-            </a>
-            @foreach(['pending', 'partial', 'paid'] as $s)
-            <a href="{{ route('financials.payouts', ['status' => $s]) }}"
-               class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $status === $s ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
-                {{ ucfirst($s) }}
-            </a>
-            @endforeach
+        <div class="flex flex-wrap gap-3">
+            <div class="flex gap-2">
+                <span class="self-center text-xs font-semibold uppercase text-stone-400">Status</span>
+                <a href="{{ route('financials.payouts', ['type' => $type]) }}"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {{ !$status ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
+                    All
+                </a>
+                @foreach(['pending', 'partial', 'paid'] as $s)
+                <a href="{{ route('financials.payouts', ['status' => $s, 'type' => $type]) }}"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $status === $s ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
+                    {{ ucfirst($s) }}
+                </a>
+                @endforeach
+            </div>
+            <div class="flex gap-2">
+                <span class="self-center text-xs font-semibold uppercase text-stone-400">Type</span>
+                <a href="{{ route('financials.payouts', ['status' => $status]) }}"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {{ !$type ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
+                    All
+                </a>
+                <a href="{{ route('financials.payouts', ['status' => $status, 'type' => 'match_director']) }}"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $type === 'match_director' ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
+                    Match Director
+                </a>
+                <a href="{{ route('financials.payouts', ['status' => $status, 'type' => 'platform_operator']) }}"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $type === 'platform_operator' ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }} transition">
+                    Platform Operator
+                </a>
+            </div>
         </div>
 
         {{-- Payouts Table --}}
@@ -58,7 +104,7 @@
                             <th class="py-3 px-4">Reference</th>
                             <th class="py-3 px-4">Type</th>
                             <th class="py-3 px-4">Payee</th>
-                            <th class="py-3 px-4">Match</th>
+                            <th class="py-3 px-4">Match / Period</th>
                             <th class="py-3 px-4 text-right">Net Due</th>
                             <th class="py-3 px-4 text-right">Paid</th>
                             <th class="py-3 px-4 text-right">Outstanding</th>
@@ -72,12 +118,20 @@
                         <tr class="border-b border-stone-100 hover:bg-stone-50" x-data="{ open: false }">
                             <td class="py-3 px-4 font-mono text-xs text-stone-600">{{ $payout->reference }}</td>
                             <td class="py-3 px-4">
-                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-stone-100 text-stone-600">
-                                    {{ ucfirst(str_replace('_', ' ', $payout->payee_type)) }}
-                                </span>
+                                @if($payout->payee_type === 'platform_operator')
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-violet-50 text-violet-700">Platform Operator</span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-stone-100 text-stone-600">Match Director</span>
+                                @endif
                             </td>
                             <td class="py-3 px-4 text-stone-700">{{ $payout->payeeUser?->name ?? 'SAPRF' }}</td>
-                            <td class="py-3 px-4 text-stone-600">{{ $payout->match?->name ?? '—' }}</td>
+                            <td class="py-3 px-4 text-stone-600">
+                                @if($payout->payee_type === 'platform_operator' && $payout->period_start)
+                                    {{ $payout->period_start->format('F Y') }}
+                                @else
+                                    {{ $payout->match?->name ?? '—' }}
+                                @endif
+                            </td>
                             <td class="py-3 px-4 text-right font-medium">R{{ number_format($payout->net_amount, 2) }}</td>
                             <td class="py-3 px-4 text-right text-emerald-700">R{{ number_format($payout->paid_amount, 2) }}</td>
                             <td class="py-3 px-4 text-right {{ $payout->outstandingBalance() > 0 ? 'text-red-600 font-semibold' : 'text-stone-400' }}">

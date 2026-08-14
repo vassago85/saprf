@@ -31,6 +31,14 @@ class UpdateMatchRequest extends FormRequest
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['nullable', 'numeric', 'min:0'],
             'junior_fee' => ['nullable', 'numeric', 'min:0'],
+            // Fee overrides: must come as a matched pair (either both set or
+            // both blank) so we never mix a match-level type with a global
+            // value. Only exco/developer are allowed to submit these — the
+            // controller silently drops them for anyone else.
+            'platform_fee_type' => ['nullable', 'in:fixed,percentage', 'required_with:platform_fee_value'],
+            'platform_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99', 'required_with:platform_fee_type'],
+            'saprf_fee_type' => ['nullable', 'in:fixed,percentage', 'required_with:saprf_fee_value'],
+            'saprf_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99', 'required_with:saprf_fee_type'],
             'status' => ['nullable', Rule::in(['draft', 'open', 'closed', 'completed', 'cancelled'])],
             'max_competitors' => ['nullable', 'integer', 'min:1', 'max:999'],
             'waitlist_enabled' => ['boolean'],

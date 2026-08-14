@@ -55,6 +55,14 @@ class SettingsSeeder extends Seeder
             ['value' => '0', 'description' => 'Platform fee value (interpreted by platform_fee_type)'],
         );
 
+        // Payee for the monthly platform-fee payout. Left null on install — the
+        // owner picks the user in Site Settings once, then monthly platform
+        // payouts get generated from Financials → Payouts.
+        Setting::firstOrCreate(
+            ['key' => 'platform_operator_user_id'],
+            ['value' => '', 'description' => 'User ID who receives monthly platform-fee payouts'],
+        );
+
         // Legacy keys kept for backward compatibility; fee resolution falls back to these
         // when the new type/value keys are absent.
         Setting::firstOrCreate(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +22,14 @@ class SiteSettingsController extends Controller
     {
         $settings = $this->settingsService->all();
 
-        return view('site-settings.index', compact('settings'));
+        // Owner + developer are the only people who could reasonably receive
+        // the platform-fee payout — restrict the picker so we don't offer
+        // random shooter accounts.
+        $platformOperatorCandidates = User::role(['developer', 'owner'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return view('site-settings.index', compact('settings', 'platformOperatorCandidates'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -37,6 +45,7 @@ class SiteSettingsController extends Controller
             'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'platform_fee_type' => ['nullable', 'in:percentage,fixed'],
             'platform_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'platform_operator_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'membership_platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:50'],
             'estimated_gateway_fee_percentage' => ['required', 'numeric', 'min:0', 'max:20'],
             'estimated_gateway_flat_fee' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -71,6 +80,17 @@ class SiteSettingsController extends Controller
         if ($request->user()->hasRole('developer') && isset($validated['platform_fee_type'], $validated['platform_fee_value'])) {
             $this->settingsService->set('platform_fee_type', $validated['platform_fee_type'], 'Platform fee type: percentage of match fee or fixed rand amount per shooter');
             $this->settingsService->set('platform_fee_value', $validated['platform_fee_value'], 'Platform fee value (interpreted by platform_fee_type)');
+        }
+
+        // Owner + developer can nominate who receives the platform-fee payout.
+        // Empty string wipes the setting so payout generation refuses to run
+        // until an operator is picked again.
+        if (array_key_exists('platform_operator_user_id', $validated)) {
+            $this->settingsService->set(
+                'platform_operator_user_id',
+                $validated['platform_operator_user_id'] ?? '',
+                'User ID who receives monthly platform-fee payouts',
+            );
         }
         $this->settingsService->set('membership_platform_fee_pct', $validated['membership_platform_fee_pct'], 'Platform fee % on membership and other non-match transactions');
         $this->settingsService->set('estimated_gateway_fee_percentage', $validated['estimated_gateway_fee_percentage'], 'Estimated PayFast gateway fee % (for reporting only)');

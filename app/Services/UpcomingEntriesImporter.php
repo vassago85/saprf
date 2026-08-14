@@ -191,6 +191,8 @@ class UpcomingEntriesImporter
                 continue;
             }
 
+            $this->ensureImportedPlatformFeeOverride($match);
+
             $entryFee = $m['entry_fee'];
             $juniorFee = $m['junior_fee'] ?? null;
 
@@ -429,6 +431,11 @@ class UpcomingEntriesImporter
                 continue;
             }
 
+            // Belt-and-braces: if only the registrations phase is run without
+            // fees, buildFees below still needs the R0 platform override in
+            // place so imported entries never book a platform fee.
+            $this->ensureImportedPlatformFeeOverride($match);
+
             $fees = $this->buildFees($match, $user, (float) ($e['fee'] ?? 0), $e['division'] ?? null, $sheetCategory);
 
             MatchRegistration::query()->create([
@@ -452,6 +459,26 @@ class UpcomingEntriesImporter
 
             $report['registrations']['created']++;
         }
+    }
+
+    /**
+     * Imported matches never went through the platform, so no platform fee
+     * should be booked against them. Once set the override sticks — if a
+     * re-import ever writes to this match, the per-match override keeps the
+     * platform fee at R0 for any future entries. Only sets it when neither
+     * override field has been touched, so a subsequent manual admin override
+     * (e.g. bringing an imported match back onto the platform) isn't undone.
+     */
+    private function ensureImportedPlatformFeeOverride(MatchEvent $match): void
+    {
+        if ($match->platform_fee_type !== null || $match->platform_fee_value !== null) {
+            return;
+        }
+
+        $match->forceFill([
+            'platform_fee_type' => 'fixed',
+            'platform_fee_value' => 0,
+        ])->save();
     }
 
     /**

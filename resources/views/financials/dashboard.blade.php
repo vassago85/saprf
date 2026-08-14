@@ -99,6 +99,71 @@
             </div>
         </div>
 
+        {{-- Platform Operator Payouts — monthly settlement tracker --}}
+        <div class="rounded-xl border border-violet-200 bg-white shadow-sm p-6">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-sm font-semibold text-violet-800 uppercase tracking-wide">Platform Operator Payouts</h2>
+                    <p class="mt-1 text-xs text-stone-500">
+                        Platform fees are settled monthly, grouped by the date each shooter paid.
+                        The current month runs until the last day — it becomes billable on the 1st of next month.
+                    </p>
+                </div>
+                @if($platformOperatorConfigured)
+                <a href="{{ route('financials.payouts.platform.create') }}"
+                   class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 transition">
+                    Generate Payout
+                </a>
+                @else
+                <a href="{{ route('site-settings.index') }}"
+                   class="shrink-0 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 transition">
+                    Set Operator
+                </a>
+                @endif
+            </div>
+
+            <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
+                    <dt class="text-xs uppercase text-stone-500">This Month ({{ now()->format('M Y') }})</dt>
+                    <dd class="mt-1 text-xl font-bold text-stone-900">R{{ number_format($mtdPreview['platform_fees'], 2) }}</dd>
+                    <dd class="text-xs text-stone-500">{{ $mtdPreview['entry_count'] }} paid registrations so far</dd>
+                </div>
+                @php
+                    $unsettledTotal = collect($unsettledMonths)->sum('platform_fees');
+                    $unsettledCount = count($unsettledMonths);
+                @endphp
+                <div class="rounded-lg border {{ $unsettledCount > 0 ? 'border-amber-200 bg-amber-50' : 'border-stone-200 bg-stone-50' }} p-4">
+                    <dt class="text-xs uppercase {{ $unsettledCount > 0 ? 'text-amber-700' : 'text-stone-500' }}">Unsettled (past months)</dt>
+                    <dd class="mt-1 text-xl font-bold {{ $unsettledCount > 0 ? 'text-amber-900' : 'text-stone-900' }}">R{{ number_format($unsettledTotal, 2) }}</dd>
+                    <dd class="text-xs {{ $unsettledCount > 0 ? 'text-amber-700' : 'text-stone-500' }}">
+                        {{ $unsettledCount }} {{ Str::plural('month', $unsettledCount) }} outstanding
+                    </dd>
+                </div>
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                    <dt class="text-xs uppercase text-emerald-700">Total Platform Fees (Filter)</dt>
+                    <dd class="mt-1 text-xl font-bold text-emerald-900">R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
+                    <dd class="text-xs text-emerald-700">In the selected date range</dd>
+                </div>
+            </dl>
+
+            @if($unsettledCount > 0)
+            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold text-amber-900 uppercase">Outstanding months</p>
+                <ul class="mt-2 flex flex-wrap gap-2 text-xs">
+                    @foreach($unsettledMonths as $unsettled)
+                    <li>
+                        <a href="{{ route('financials.payouts.platform.create', ['month' => $unsettled['month']->format('Y-m')]) }}"
+                           class="inline-flex items-center gap-1 rounded-full bg-white border border-amber-300 px-3 py-1 text-amber-900 hover:bg-amber-100 transition">
+                            {{ $unsettled['month']->format('M Y') }}
+                            <span class="text-amber-700">R{{ number_format($unsettled['platform_fees'], 0) }}</span>
+                        </a>
+                    </li>
+                    @endforeach
+                </ul>
+            </div>
+            @endif
+        </div>
+
         {{-- Revenue Breakdown --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">

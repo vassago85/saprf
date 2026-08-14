@@ -11,8 +11,9 @@
             </p>
         </div>
 
-        {{-- Summary Cards --}}
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {{-- Summary Cards. Profit/Loss uses the MD's private expense ledger, so
+             it only renders for the MD themselves. --}}
+        <div class="grid grid-cols-2 {{ $viewerIsMatchDirector ? 'sm:grid-cols-4' : 'sm:grid-cols-3' }} gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase">Registrations</p>
                 <p class="mt-1 text-2xl font-bold text-stone-900">{{ $financials['total_registrations'] }}</p>
@@ -26,13 +27,18 @@
                 <p class="text-xs font-medium text-emerald-700 uppercase">MD Net Payout</p>
                 <p class="mt-1 text-2xl font-bold text-emerald-800">R{{ number_format($financials['md_net'], 2) }}</p>
             </div>
+            @if($viewerIsMatchDirector)
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase">Profit / Loss</p>
                 <p class="mt-1 text-2xl font-bold {{ $financials['profit_loss'] >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
                     R{{ number_format($financials['profit_loss'], 2) }}
                 </p>
-                <p class="mt-1 text-xs text-stone-400">After expenses</p>
+                <p class="mt-1 text-xs text-stone-400">
+                    After expenses
+                    <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Only you see this</span>
+                </p>
             </div>
+            @endif
         </div>
 
         {{-- Entry Breakdown --}}
@@ -88,22 +94,24 @@
                         <dt class="font-semibold text-stone-700">Net to MD</dt>
                         <dd class="font-bold text-stone-900">R{{ number_format($financials['md_net'], 2) }}</dd>
                     </div>
-                    <div class="flex justify-between">
-                        <dt class="font-semibold text-stone-700">Match Expenses</dt>
-                        <dd class="font-bold text-red-600">-R{{ number_format($financials['total_expenses'], 2) }}</dd>
-                    </div>
-                    <div class="flex justify-between border-t border-stone-200 pt-2">
-                        <dt class="font-semibold text-stone-700">Profit / Loss</dt>
-                        <dd class="font-bold {{ $financials['profit_loss'] >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
-                            R{{ number_format($financials['profit_loss'], 2) }}
-                        </dd>
-                    </div>
+                    @if($viewerIsMatchDirector)
+                        <div class="flex justify-between">
+                            <dt class="font-semibold text-stone-700">Match Expenses</dt>
+                            <dd class="font-bold text-red-600">-R{{ number_format($financials['total_expenses'], 2) }}</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-stone-200 pt-2">
+                            <dt class="font-semibold text-stone-700">Profit / Loss</dt>
+                            <dd class="font-bold {{ $financials['profit_loss'] >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                                R{{ number_format($financials['profit_loss'], 2) }}
+                            </dd>
+                        </div>
+                    @endif
                 </dl>
             </div>
         </div>
 
-        {{-- Match Expenses --}}
-        @if($match->expenses->isNotEmpty())
+        {{-- Match Expenses — MD's private ledger. --}}
+        @if($viewerIsMatchDirector && $match->expenses->isNotEmpty())
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
             <div class="p-6 border-b border-stone-100">
                 <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Match Expenses</h2>

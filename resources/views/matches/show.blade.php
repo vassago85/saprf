@@ -207,11 +207,16 @@
                 </div>
             @endif
 
-            {{-- Expense Tracker --}}
-            @can('update', $match)
+            {{-- Expense Tracker + P&L are the MD's private ledger. Only the
+                 match creator sees them, even when owner/admin have edit rights
+                 on the match itself. --}}
+            @if(auth()->id() === $match->created_by)
                 <div x-data="{ editing: null, showAdd: false }" class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-stone-900">Match Expenses</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-semibold text-stone-900">Match Expenses</h2>
+                            <span class="inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Only you see this</span>
+                        </div>
                         <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ $expenses->count() }} {{ Str::plural('item', $expenses->count()) }}</span>
                     </div>
 
@@ -385,8 +390,17 @@
                     @endphp
                     <div class="rounded-xl border {{ $profitLoss >= 0 ? 'border-emerald-200 bg-emerald-50/30' : 'border-red-200 bg-red-50/30' }} shadow-sm p-6">
                         <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-lg font-semibold text-stone-900">Profit & Loss</h2>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-lg font-semibold text-stone-900">Profit & Loss</h2>
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Only you see this</span>
+                            </div>
                             <span class="inline-flex items-center rounded-full {{ $hasActual ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-blue-50 text-blue-700 ring-blue-600/20' }} px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset">{{ $pnlLabel }}</span>
+                        </div>
+                        <div class="mb-4">
+                            <a href="{{ route('financials.match-report', $match) }}"
+                               class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800">
+                                Full financial report &rarr;
+                            </a>
                         </div>
 
                         <div class="space-y-3">
@@ -416,7 +430,7 @@
                         </div>
                     </div>
                 @endif
-            @endcan
+            @endif
         </div>
 
         <div class="space-y-6">

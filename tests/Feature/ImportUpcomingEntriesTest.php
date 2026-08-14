@@ -216,3 +216,51 @@ it('only runs the requested phase', function () {
         ->and(MatchRegistration::count())->toBe(0)
         ->and($report['directors'])->toBe([]);
 });
+
+// Imported matches never went through the platform, so no platform fee
+// should be booked against them. The importer sets a per-match override
+// of R0 so both historical and any-future entries stay at R0 platform fee.
+it('sets a R0 platform fee override on newly-imported matches', function () {
+    runImport($this->dataset, $this->phases);
+
+    $match = $this->match->refresh();
+    expect($match->platform_fee_type)->toBe('fixed');
+    expect((float) $match->platform_fee_value)->toBe(0.0);
+});
+
+it('books R0 platform fee on the registrations it creates for imported matches', function () {
+    runImport($this->dataset, $this->phases);
+
+    $regs = MatchRegistration::all();
+    expect($regs)->toHaveCount(3);
+    foreach ($regs as $reg) {
+        expect((float) $reg->platform_fee)->toBe(0.0);
+    }
+});
+
+it('does not overwrite an existing platform-fee override on re-import', function () {
+    // A developer has already set a custom platform fee for this match — say
+    // it's actually going through the platform now. Re-importing must not
+    // clobber their override back to R0.
+    $this->match->update(['platform_fee_type' => 'percentage', 'platform_fee_value' => 2.5]);
+
+    runImport($this->dataset, $this->phases);
+
+    $match = $this->match->refresh();
+    expect($match->platform_fee_type)->toBe('percentage');
+    expect((float) $match->platform_fee_value)->toBe(2.5);
+});
+
+it('still sets the R0 override when only the registrations phase is run', function () {
+    // Fees phase off, registrations phase on: buildFees still needs the
+    // override in place before it calculates each row's platform_fee.
+    runImport($this->dataset, ['fees' => false, 'md' => false, 'registrations' => true]);
+
+    $match = $this->match->refresh();
+    expect($match->platform_fee_type)->toBe('fixed');
+    expect((float) $match->platform_fee_value)->toBe(0.0);
+
+    foreach (MatchRegistration::all() as $reg) {
+        expect((float) $reg->platform_fee)->toBe(0.0);
+    }
+});

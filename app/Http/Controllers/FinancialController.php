@@ -11,11 +11,14 @@ use App\Models\Sponsor;
 use App\Services\AuditLogService;
 use App\Services\FinancialResetService;
 use App\Services\FinancialService;
+use App\Services\PlatformPayoutService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinancialController extends Controller
@@ -25,6 +28,7 @@ class FinancialController extends Controller
         private readonly AuditLogService $audit,
         private readonly SettingsService $settingsService,
         private readonly FinancialResetService $reset,
+        private readonly PlatformPayoutService $platformPayouts,
     ) {}
 
     // ── Platform Dashboard ──
@@ -39,19 +43,49 @@ class FinancialController extends Controller
         $seasons = range(now()->year, now()->year - 3);
         $settings = $this->settingsService->all();
 
+        // Platform operator's own dashboard block: what have they earned this
+        // month (not yet billable — current month), what's outstanding for
+        // completed months, and are they even wired up?
+        $mtdPreview = $this->platformPayouts->preview(now());
+        $unsettledMonths = $this->platformPayouts->unsettledMonths();
+        $platformOperatorConfigured = $mtdPreview['operator_user_id'] !== null;
+
         return view('financials.dashboard', compact(
             'summary', 'matchBreakdown', 'monthlyTrend', 'seasons', 'from', 'to', 'settings',
+            'mtdPreview', 'unsettledMonths', 'platformOperatorConfigured',
         ));
     }
 
     // ── Match Financial Report ──
 
-    public function matchReport(MatchEvent $match): View
+    public function matchReport(Request $request, MatchEvent $match): View
     {
+        $user = $request->user();
+
+        // The report is reachable by either finance staff or the MD who created
+        // this match. Anyone else — including MDs looking at someone else's
+        // match — is bounced.
+        abort_unless(
+            $user && (
+                $user->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
+                || $user->id === $match->created_by
+            ),
+            403,
+        );
+
         $match->load(['registrations', 'expenses', 'user']);
         $financials = $this->financials->matchFinancials($match);
 
-        return view('financials.match-report', compact('match', 'financials'));
+        // Expenses + P&L are the MD's private ledger. Owner, admin, exco, and
+        // developer only see the amount the federation owes the MD (md_net).
+        // Everything below the payout line — expenses table, profit/loss,
+        // "match expenses" row — is fenced off unless the viewer created the
+        // match.
+        $viewerIsMatchDirector = $user->id === $match->created_by;
+
+        return view('financials.match-report', compact(
+            'match', 'financials', 'viewerIsMatchDirector',
+        ));
     }
 
     // ── Clear Finance Data (developer only) ──
@@ -91,16 +125,26 @@ class FinancialController extends Controller
     public function payouts(Request $request): View
     {
         $status = $request->input('status');
+        $type = $request->input('type');
+
         $payouts = Payout::query()
             ->with(['payeeUser', 'match', 'creator'])
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($type, fn ($q) => $q->where('payee_type', $type))
             ->orderByDesc('created_at')
-            ->paginate(25);
+            ->paginate(25)
+            ->withQueryString();
 
         $pendingTotal = Payout::where('status', 'pending')->sum('net_amount');
         $paidTotal = Payout::where('status', 'paid')->sum('paid_amount');
 
-        return view('financials.payouts', compact('payouts', 'pendingTotal', 'paidTotal', 'status'));
+        // Unsettled months surface a hint above the listing so the operator
+        // knows there's money outstanding without having to go digging.
+        $unsettledMonths = $this->platformPayouts->unsettledMonths();
+
+        return view('financials.payouts', compact(
+            'payouts', 'pendingTotal', 'paidTotal', 'status', 'type', 'unsettledMonths',
+        ));
     }
 
     public function createPayout(Request $request): View
@@ -157,6 +201,77 @@ class FinancialController extends Controller
 
         return redirect()->route('financials.payouts')
             ->with('success', "Payout {$payout->reference} created for R" . number_format($payout->net_amount, 2));
+    }
+
+    // ── Platform Operator Payouts ──
+
+    public function createPlatformPayout(Request $request): View
+    {
+        $monthInput = $request->input('month');
+        $month = $this->parseMonth($monthInput) ?? now()->subMonthNoOverflow()->startOfMonth();
+
+        $preview = $this->platformPayouts->preview($month);
+        $unsettledMonths = $this->platformPayouts->unsettledMonths();
+        $operatorConfigured = $preview['operator_user_id'] !== null;
+
+        return view('financials.create-platform-payout', compact(
+            'preview', 'month', 'unsettledMonths', 'operatorConfigured',
+        ));
+    }
+
+    public function storePlatformPayout(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ], [
+            'month.regex' => 'Pick a valid month (YYYY-MM).',
+        ]);
+
+        $month = $this->parseMonth($validated['month']);
+        if (! $month) {
+            return back()->withErrors(['month' => 'Pick a valid month.'])->withInput();
+        }
+
+        try {
+            $payout = $this->platformPayouts->createForMonth($month, $request->user(), $validated['notes'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['month' => $e->getMessage()])->withInput();
+        }
+
+        FinancialTransaction::create([
+            'type' => 'payout',
+            'source_type' => 'payout',
+            'source_id' => $payout->id,
+            'user_id' => $request->user()->id,
+            'amount' => $payout->net_amount,
+            'description' => "Platform payout {$payout->reference} created for {$month->format('F Y')}",
+        ]);
+
+        $this->audit->log(
+            $request->user(),
+            'platform_payout_created',
+            'payout',
+            $payout->id,
+            null,
+            $payout->toArray(),
+        );
+
+        return redirect()->route('financials.payouts')
+            ->with('success', "Platform payout {$payout->reference} created for {$month->format('F Y')} (R" . number_format($payout->net_amount, 2) . ').');
+    }
+
+    private function parseMonth(?string $value): ?Carbon
+    {
+        if (! $value || ! preg_match('/^\d{4}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', $value . '-01')->startOfMonth();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function markPaid(Request $request, Payout $payout)
