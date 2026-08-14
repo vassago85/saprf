@@ -56,7 +56,7 @@ class UpcomingEntriesImporter
             'fees' => [],
             'directors' => [],
             'users' => ['found' => 0, 'created' => 0, 'details' => []],
-            'registrations' => ['created' => 0, 'skipped_existing' => 0, 'skipped_no_match' => 0, 'details' => []],
+            'registrations' => ['created' => 0, 'skipped_existing' => 0, 'skipped_no_match' => 0, 'relabelled' => 0, 'details' => []],
             'unresolved' => ['matches' => [], 'directors' => [], 'divisions' => []],
         ];
 
@@ -410,8 +410,16 @@ class UpcomingEntriesImporter
 
             $user = $this->userForSaprf((string) $e['saprf_number'], $e, $report);
 
-            if ($match->userRegistration($user)) {
-                $report['registrations']['skipped_existing']++;
+            $existing = $match->userRegistration($user);
+            $sheetCategory = $this->sheetFeeCategory($e['membership_type'] ?? null);
+
+            if ($existing) {
+                if ($existing->membership_fee_category !== $sheetCategory) {
+                    $existing->update(['membership_fee_category' => $sheetCategory]);
+                    $report['registrations']['relabelled']++;
+                } else {
+                    $report['registrations']['skipped_existing']++;
+                }
                 continue;
             }
 
@@ -421,7 +429,7 @@ class UpcomingEntriesImporter
                 continue;
             }
 
-            $fees = $this->buildFees($match, $user, (float) ($e['fee'] ?? 0), $e['division'] ?? null);
+            $fees = $this->buildFees($match, $user, (float) ($e['fee'] ?? 0), $e['division'] ?? null, $sheetCategory);
 
             MatchRegistration::query()->create([
                 'match_id' => $match->id,
@@ -447,11 +455,24 @@ class UpcomingEntriesImporter
     }
 
     /**
+     * Category for an imported entry, taken from the old-site sheet rather
+     * than inferred from the shooter's current platform membership window.
+     * Sheet "full" = they were a member on the old site when they entered;
+     * we honour that by stamping active_member. If their platform membership
+     * has lapsed by match day, the score simply will not count — the fee
+     * category is a signup fact, not a match-day promise.
+     */
+    private function sheetFeeCategory(?string $sheetMembershipType): string
+    {
+        return $sheetMembershipType === 'free' ? 'non_member' : 'active_member';
+    }
+
+    /**
      * Fee split for an imported (already-paid) entry. The sheet fee is
      * authoritative for the total; the SAPRF/platform cuts come from the
      * live rate settings, and the MD net is whatever is left over.
      */
-    private function buildFees(MatchEvent $match, User $user, float $sheetFee, ?string $divisionSlug = null): array
+    private function buildFees(MatchEvent $match, User $user, float $sheetFee, ?string $divisionSlug = null, ?string $category = null): array
     {
         $breakdown = $this->pricing->calculateBreakdown($match, $user, $match->match_date ?? now(), $divisionSlug);
 
@@ -464,7 +485,7 @@ class UpcomingEntriesImporter
         $mdNet = round($total - (float) $breakdown['saprf_fee'] - (float) $breakdown['platform_fee'] - $surcharge - $gateway, 2);
 
         return [
-            'category' => $breakdown['category'],
+            'category' => $category ?? $breakdown['category'],
             'total' => $total,
             'surcharge' => $surcharge,
             'saprf_fee' => (float) $breakdown['saprf_fee'],

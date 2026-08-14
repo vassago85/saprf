@@ -57,7 +57,7 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $registration->feeCategoryLabel() }}</td>
                         @if($canViewFinancials)
                             <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">
                                 {{ $registration->fee_amount ? 'R ' . number_format($registration->fee_amount, 2) : '—' }}

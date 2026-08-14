@@ -128,3 +128,25 @@ test('classifyRegistrationCategory returns non_member for no membership', functi
     $user = User::factory()->create();
     expect($this->service->classifyRegistrationCategory($user, Carbon::today()))->toBe('non_member');
 });
+
+test('classifyRegistrationCategory is based on signup date, not the match date', function () {
+    // Member is valid TODAY (signup) but their membership expires BEFORE the
+    // future match. Category must still be active_member — score validation
+    // handles the match-day check separately and will downgrade the score if
+    // they never renew.
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-SIGNUP',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subMonths(6),
+        'expiry_date' => Carbon::today()->addMonth(),
+    ]);
+    $user->refresh();
+
+    $futureMatch = Carbon::today()->addMonths(3);
+
+    expect($this->service->classifyRegistrationCategory($user, $futureMatch))->toBe('active_member');
+});

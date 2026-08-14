@@ -54,6 +54,18 @@ class MatchRegistration extends Model
         ];
     }
 
+    public function feeCategoryLabel(): string
+    {
+        return match ($this->membership_fee_category) {
+            'active_member' => 'Active Member',
+            'lapsed_member' => 'Lapsed Member',
+            'non_member' => 'Non-member',
+            default => $this->membership_fee_category
+                ? str_replace('_', ' ', $this->membership_fee_category)
+                : '—',
+        };
+    }
+
     // ── Relationships ──
 
     public function match(): BelongsTo

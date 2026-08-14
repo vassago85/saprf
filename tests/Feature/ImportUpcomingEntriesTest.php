@@ -134,7 +134,37 @@ it('creates confirmed + paid registrations for every entrant', function () {
     $reg = MatchRegistration::where('user_id', $this->russell->id)->first();
     expect($reg->registration_status)->toBe('confirmed')
         ->and($reg->payment_status)->toBe('paid')
+        ->and($reg->membership_fee_category)->toBe('active_member')
+        ->and($reg->feeCategoryLabel())->toBe('Active Member')
         ->and((float) $reg->fee_amount)->toBe(550.0);
+});
+
+it('labels old-site full members as active even when their platform membership has since lapsed', function () {
+    // The old-site sheet vouches for their membership at signup. Match-day
+    // score validation will separately downgrade the score if they never
+    // renew — the fee category is a signup fact, not a match-day promise.
+    $this->russell->membership->update([
+        'status' => 'lapsed',
+        'expiry_date' => now()->subMonth(),
+    ]);
+
+    runImport($this->dataset, $this->phases);
+
+    $reg = MatchRegistration::where('user_id', $this->russell->id)->first();
+    expect($reg->membership_fee_category)->toBe('active_member')
+        ->and($reg->feeCategoryLabel())->toBe('Active Member');
+});
+
+it('relabels an already-imported lapsed_member row on a second run', function () {
+    runImport($this->dataset, $this->phases);
+
+    $reg = MatchRegistration::where('user_id', $this->russell->id)->first();
+    $reg->update(['membership_fee_category' => 'lapsed_member']);
+
+    $report = runImport($this->dataset, $this->phases);
+
+    expect($report['registrations']['relabelled'])->toBe(1)
+        ->and($reg->refresh()->membership_fee_category)->toBe('active_member');
 });
 
 it('sets the junior fee on the match and charges junior entrants the junior fee', function () {

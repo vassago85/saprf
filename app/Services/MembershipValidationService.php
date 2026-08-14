@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Membership;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
 class MembershipValidationService
@@ -98,7 +99,17 @@ class MembershipValidationService
         return $this->isMembershipValidOnDate($user->membership, $date);
     }
 
-    public function classifyRegistrationCategory(?User $user, CarbonInterface $matchDate): string
+    /**
+     * Category for a registration entry — answers "were they a full member
+     * when they signed up?", not "will they still be a member on match day?".
+     * Match-day membership is enforced later by ScoreValidationService when the
+     * score is entered; if they let their membership expire before the match,
+     * the score simply will not count toward the season log.
+     *
+     * The $matchDate argument is retained for call-site compatibility but is
+     * intentionally unused — signup category is a today-fact.
+     */
+    public function classifyRegistrationCategory(?User $user, ?CarbonInterface $matchDate = null): string
     {
         if (! $user || ! $user->membership) {
             return 'non_member';
@@ -108,7 +119,7 @@ class MembershipValidationService
             return 'non_member';
         }
 
-        if ($this->isMembershipValidOnDate($user->membership, $matchDate)) {
+        if ($this->isMembershipValidOnDate($user->membership, Carbon::today())) {
             return 'active_member';
         }
 

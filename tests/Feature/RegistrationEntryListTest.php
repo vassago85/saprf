@@ -68,6 +68,20 @@ it('lists registered shooters on the public event page', function () {
         ->assertDontSee('Withdrawn Wally');
 });
 
+it('shows active member as the category on the registration details page for imported entries', function () {
+    $registration = registerShooter($this->match, 'Bosman Le Roux', [
+        'membership_fee_category' => 'active_member',
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+    ]);
+
+    $this->actingAs($registration->user)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertSee('Active Member')
+        ->assertDontSee('Lapsed Member');
+});
+
 it('excludes withdrawn entries from the registered count on the event page', function () {
     registerShooter($this->match, 'Active One');
     registerShooter($this->match, 'Active Two');

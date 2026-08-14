@@ -115,8 +115,15 @@
                         <dt class="text-stone-600">Gross Revenue</dt>
                         <dd class="font-semibold">R{{ number_format($summary['match_revenue']['gross'], 2) }}</dd>
                     </div>
+                    @php
+                        $platformFeeType = $settings['platform_fee_type'] ?? 'fixed';
+                        $platformFeeValue = (float) ($settings['platform_fee_value'] ?? 0);
+                        $platformFeeRateLabel = $platformFeeType === 'fixed'
+                            ? 'R' . number_format($platformFeeValue, 2) . ' / shooter'
+                            : rtrim(rtrim(number_format($platformFeeValue, 2), '0'), '.') . '%';
+                    @endphp
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">Platform Fees (6.5%)</dt>
+                        <dt class="text-stone-500">Platform Fees ({{ $platformFeeRateLabel }})</dt>
                         <dd class="text-red-600">-R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
                     </div>
                     <div class="flex justify-between">

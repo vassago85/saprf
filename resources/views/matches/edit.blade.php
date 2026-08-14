@@ -106,6 +106,7 @@
                     <div>
                         <label for="active_member_fee" class="block text-sm font-medium text-stone-700 mb-1">Match Entry Fee (ZAR) <span class="text-red-500">*</span></label>
                         <input type="number" name="active_member_fee" id="active_member_fee" step="0.01" value="{{ old('active_member_fee', $match->active_member_fee) }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                        <p class="mt-1 text-xs text-stone-400">Applies to <strong>new</strong> sign-ups only. Shooters already registered keep the price they paid, so payouts stay accurate.</p>
                     </div>
                     <div>
                         <label for="junior_fee" class="block text-sm font-medium text-stone-700 mb-1">Junior Fee (ZAR)</label>

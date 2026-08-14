@@ -171,15 +171,7 @@
                                     @if($reg->membership_fee_category === 'active_member') bg-emerald-50 text-emerald-700
                                     @elseif($reg->membership_fee_category === 'lapsed_member') bg-amber-50 text-amber-700
                                     @else bg-red-50 text-red-700 @endif">
-                                    @php
-                                        $categoryLabel = match($reg->membership_fee_category) {
-                                            'active_member' => 'Member',
-                                            'lapsed_member' => 'Lapsed',
-                                            'non_member' => 'Non-member',
-                                            default => 'Unknown',
-                                        };
-                                    @endphp
-                                    {{ $categoryLabel }}
+                                    {{ $reg->feeCategoryLabel() }}
                                 </span>
                             </td>
                             <td class="py-2 px-4">

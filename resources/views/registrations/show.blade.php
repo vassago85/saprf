@@ -34,7 +34,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Category</dt>
-                    <dd class="mt-1 text-sm text-stone-900 capitalize">{{ str_replace('_', ' ', $registration->membership_fee_category ?? '—') }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->feeCategoryLabel() }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Fee</dt>

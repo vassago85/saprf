@@ -35,7 +35,7 @@
                 <h2 class="font-heading text-lg font-semibold text-stone-900">Match Fee Surcharges</h2>
                 <p class="text-sm text-stone-500">
                     These amounts are added <strong class="text-stone-700">on top</strong> of the base match entry fee set by the Match Director.
-                    Active members pay only the base fee.
+                    Active members pay only the base fee. Surcharges go 100% to <strong class="text-stone-700">SAPRF</strong>, not to the Match Director.
                 </p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -52,9 +52,9 @@
 
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">Example:</strong> If the match entry fee is R500:</p>
-                    <p>Active member pays: <span class="font-semibold text-stone-900">R500</span></p>
-                    <p>Lapsed member pays: <span class="font-semibold text-stone-900">R500 + R{{ number_format((float)($settings['lapsed_member_surcharge'] ?? 150), 0) }} = R{{ number_format(500 + (float)($settings['lapsed_member_surcharge'] ?? 150), 0) }}</span></p>
-                    <p>Non-member pays: <span class="font-semibold text-stone-900">R500 + R{{ number_format((float)($settings['non_member_surcharge'] ?? 250), 0) }} = R{{ number_format(500 + (float)($settings['non_member_surcharge'] ?? 250), 0) }}</span></p>
+                    <p>Active member pays: <span class="font-semibold text-stone-900">R500</span> <span class="text-stone-400">(R500 to MD)</span></p>
+                    <p>Lapsed member pays: <span class="font-semibold text-stone-900">R500 + R{{ number_format((float)($settings['lapsed_member_surcharge'] ?? 150), 0) }} = R{{ number_format(500 + (float)($settings['lapsed_member_surcharge'] ?? 150), 0) }}</span> <span class="text-stone-400">(R500 to MD, R{{ number_format((float)($settings['lapsed_member_surcharge'] ?? 150), 0) }} to SAPRF)</span></p>
+                    <p>Non-member pays: <span class="font-semibold text-stone-900">R500 + R{{ number_format((float)($settings['non_member_surcharge'] ?? 250), 0) }} = R{{ number_format(500 + (float)($settings['non_member_surcharge'] ?? 250), 0) }}</span> <span class="text-stone-400">(R500 to MD, R{{ number_format((float)($settings['non_member_surcharge'] ?? 250), 0) }} to SAPRF)</span></p>
                 </div>
             </div>
 
