@@ -16,6 +16,7 @@
 </head>
 <body class="force-light min-h-screen bg-stone-50" style="color-scheme: light;"
     x-data="{ sidebarOpen: false }"
+    x-init="$el.querySelectorAll('[data-flux-sidebar-cloak]').forEach((n) => n.removeAttribute('data-flux-sidebar-cloak'))"
     x-effect="sidebarOpen ? $el.setAttribute('data-sidebar-open', '') : $el.removeAttribute('data-sidebar-open')"
     @flux-sidebar-toggle.window="sidebarOpen = !sidebarOpen"
     @keydown.escape.window="sidebarOpen = false"

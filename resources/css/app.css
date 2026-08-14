@@ -37,18 +37,29 @@ html {
  * ───────────────────────────────────────────────────────────────────── */
 @media (max-width: 1023px) {
     [data-flux-sidebar] {
+        /* Beat Flux Free's `max-lg:data-flux-sidebar-cloak:hidden` — the
+           <ui-sidebar> custom element (Flux Pro) is what would otherwise
+           remove the cloak, so without this the drawer stays display:none. */
+        display: flex !important;
+        visibility: visible !important;
         position: fixed !important;
         inset: 0 auto 0 0;
-        z-index: 40;
+        z-index: 50 !important; /* above the z-30 backdrop; Flux ships z-20! */
         width: 17rem;
         max-width: 85vw;
         transform: translateX(-100%);
         transition: transform 200ms ease-out;
         max-height: 100dvh;
         overflow-y: auto;
+        pointer-events: auto;
     }
     body[data-sidebar-open] [data-flux-sidebar] {
-        transform: translateX(0);
+        transform: translateX(0) !important;
+    }
+    /* Flux Free also renders a <ui-sidebar-toggle> backdrop that never
+       activates without Pro JS. Hide it so it cannot sit on top of links. */
+    [data-flux-sidebar-backdrop] {
+        display: none !important;
     }
 }
 @media (min-width: 1024px) {
