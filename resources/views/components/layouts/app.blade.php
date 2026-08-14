@@ -8,6 +8,8 @@
     <title>{{ $title ?? 'SAPRF' }}</title>
     <link rel="icon" type="image/png" href="/favicon.png">
 
+    <x-pwa-meta />
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|barlow-condensed:600,700,800&display=swap" rel="stylesheet" />
 

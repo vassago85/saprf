@@ -1,4 +1,5 @@
 import './bootstrap';
+import './pwa';
 
 if (document.body?.classList.contains('force-light')) {
     document.documentElement.classList.remove('dark');
