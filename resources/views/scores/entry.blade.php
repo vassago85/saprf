@@ -57,7 +57,7 @@
                     <thead>
                         <tr class="border-b-2 border-stone-200 bg-stone-50">
                             <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Shooter</th>
-                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 hidden sm:table-cell">Division</th>
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Division</th>
                             <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-500 w-40">
                                 {{ $isTwoDay ? 'Day 1 Impacts' : 'Impacts' }}
                             </th>
@@ -87,7 +87,15 @@
                                     <div class="text-sm font-medium text-stone-900">{{ $row['name'] }}</div>
                                     <input type="hidden" name="entries[{{ $idx }}][user_id]" value="{{ $row['user_id'] }}">
                                 </td>
-                                <td class="px-5 py-3 hidden sm:table-cell text-xs text-stone-500">{{ $row['division'] ?? '—' }}</td>
+                                <td class="px-5 py-3">
+                                    <select name="entries[{{ $idx }}][division_id]"
+                                            class="w-full min-w-32 rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                        <option value="">—</option>
+                                        @foreach($divisions as $division)
+                                            <option value="{{ $division->id }}" @selected((int) old("entries.$idx.division_id", $row['division_id'] ?? null) === (int) $division->id)>{{ $division->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
                                 <td class="px-5 py-3 text-right">
                                     <input type="number" step="0.001" min="0"
                                         name="entries[{{ $idx }}][day1]"
@@ -129,7 +137,7 @@
             <div class="mt-6 flex items-center justify-between gap-3">
                 <p class="text-xs text-stone-500">
                     {{ $rows->count() }} shooter{{ $rows->count() === 1 ? '' : 's' }}.
-                    Leave blank to skip a row.
+                    Leave scores blank to skip a row. Division changes still save.
                 </p>
                 <button type="submit"
                         class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">

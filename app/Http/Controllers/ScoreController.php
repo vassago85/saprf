@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Score;
+use App\Models\User;
 use App\Services\ScoreValidationService;
 use App\Services\StandingsCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ScoreController extends Controller
@@ -53,13 +57,14 @@ class ScoreController extends Controller
     /**
      * MD score-entry screen: shows every registered shooter for a match plus
      * any existing score rows, letting the MD enter/adjust Day 1 and Day 2
-     * (Day 2 only for 2-day matches) with a single Save.
+     * (Day 2 only for 2-day matches) and correct the shooter's division
+     * with a single Save.
      */
     public function entry(MatchEvent $match): View
     {
         $this->authorize('update', $match);
 
-        $match->load(['registrations.user.division']);
+        $match->load(['registrations.user.division', 'registrations.division']);
 
         // Pull all existing scores for this match keyed by user_id so we can
         // pre-populate the form. Also include "orphan" scores (imported CSV rows
@@ -76,11 +81,14 @@ class ScoreController extends Controller
             if (! $registration->user_id) {
                 continue;
             }
+            $score = $scoresByUserId->get($registration->user_id);
             $rows->push([
                 'user_id' => $registration->user_id,
                 'name' => $registration->user?->name ?? $registration->shooter_name,
-                'division' => $registration->user?->division?->name,
-                'score' => $scoresByUserId->get($registration->user_id),
+                'division_id' => $score?->division_id
+                    ?? $registration->division_id
+                    ?? $registration->user?->division_id,
+                'score' => $score,
             ]);
         }
 
@@ -90,7 +98,7 @@ class ScoreController extends Controller
                 $rows->push([
                     'user_id' => $score->user_id,
                     'name' => $score->user?->name ?? $score->shooter_name,
-                    'division' => $score->division?->name,
+                    'division_id' => $score->division_id,
                     'score' => $score,
                 ]);
             }
@@ -98,9 +106,22 @@ class ScoreController extends Controller
 
         $rows = $rows->sortBy(fn ($r) => strtolower((string) $r['name']))->values();
 
+        $divisions = $match->availableDivisions();
+        $missingDivisionIds = $rows->pluck('division_id')
+            ->filter()
+            ->unique()
+            ->diff($divisions->pluck('id'));
+        if ($missingDivisionIds->isNotEmpty()) {
+            $divisions = $divisions
+                ->concat(Division::query()->whereIn('id', $missingDivisionIds)->get())
+                ->unique('id')
+                ->values();
+        }
+
         return view('scores.entry', [
             'match' => $match,
             'rows' => $rows,
+            'divisions' => $divisions,
             'isTwoDay' => $match->isMultiDay(),
             'orphanScores' => $existingScores->whereNull('user_id')->values(),
         ]);
@@ -108,17 +129,22 @@ class ScoreController extends Controller
 
     /**
      * Save the manual score entries for a match. Rows with no day1/day2 input
-     * are skipped. Any existing score with the same match+user is updated.
+     * skip the score write, but a submitted division still updates the
+     * registration (and any existing score). Any existing score with the
+     * same match+user is updated.
      */
     public function storeEntry(Request $request, MatchEvent $match): RedirectResponse
     {
         $this->authorize('update', $match);
+
+        $allowedDivisionIds = $this->allowedScoreEntryDivisionIds($match);
 
         $validated = $request->validate([
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.user_id' => ['required', 'integer', 'exists:users,id'],
             'entries.*.day1' => ['nullable', 'numeric', 'min:0'],
             'entries.*.day2' => ['nullable', 'numeric', 'min:0'],
+            'entries.*.division_id' => ['nullable', 'integer', Rule::in($allowedDivisionIds)],
         ]);
 
         $isTwoDay = $match->isMultiDay();
@@ -132,14 +158,44 @@ class ScoreController extends Controller
                 $day2 = $isTwoDay && isset($entry['day2']) && $entry['day2'] !== '' && $entry['day2'] !== null
                     ? (float) $entry['day2']
                     : null;
+                $divisionId = isset($entry['division_id']) && $entry['division_id'] !== '' && $entry['division_id'] !== null
+                    ? (int) $entry['division_id']
+                    : null;
 
-                // Skip completely empty rows.
-                if ($day1 === null && $day2 === null) {
+                $user = User::with('division')->find($entry['user_id']);
+                if (! $user) {
                     continue;
                 }
 
-                $user = \App\Models\User::with('division')->find($entry['user_id']);
-                if (! $user) {
+                $registration = MatchRegistration::query()
+                    ->where('match_id', $match->id)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                $rowTouched = false;
+
+                if ($registration && $divisionId !== null && (int) $registration->division_id !== $divisionId) {
+                    $registration->update(['division_id' => $divisionId]);
+                    $rowTouched = true;
+                }
+
+                // Skip score writes when both day fields are empty, but still
+                // apply a division correction to an existing score row.
+                if ($day1 === null && $day2 === null) {
+                    $existing = Score::query()
+                        ->where('match_id', $match->id)
+                        ->where('user_id', $user->id)
+                        ->first();
+
+                    if ($existing && $divisionId !== null && (int) $existing->division_id !== $divisionId) {
+                        $existing->update(['division_id' => $divisionId]);
+                        $rowTouched = true;
+                    }
+
+                    if ($rowTouched) {
+                        $touched++;
+                    }
+
                     continue;
                 }
 
@@ -152,7 +208,7 @@ class ScoreController extends Controller
                     'shooter_name' => $user->name,
                     'day1_raw_score' => $day1,
                     'day2_raw_score' => $day2,
-                    'division_id' => $score->division_id ?? $user->division_id,
+                    'division_id' => $divisionId ?? $score->division_id ?? $registration?->division_id ?? $user->division_id,
                     'status' => 'pending',
                     'is_member' => true,
                     'match_date' => $match->match_date,
@@ -194,5 +250,24 @@ class ScoreController extends Controller
 
         return redirect()->route('scores.show', $score)
             ->with('success', 'Score status overridden.');
+    }
+
+    /**
+     * Divisions the MD may assign on the score-entry form: those offered by
+     * the match, plus any already stored on a registration or score so a
+     * stale value can be kept or corrected without failing validation.
+     *
+     * @return list<int>
+     */
+    private function allowedScoreEntryDivisionIds(MatchEvent $match): array
+    {
+        return $match->availableDivisions()
+            ->pluck('id')
+            ->merge($match->registrations()->pluck('division_id'))
+            ->merge(Score::query()->where('match_id', $match->id)->pluck('division_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 }
