@@ -155,6 +155,11 @@
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
                                     <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
                                 </div>
+                                @if($match->everyone_counts)
+                                    <p class="mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1.5 inline-block">
+                                        All shooters count for this match regardless of membership status on the day.
+                                    </p>
+                                @endif
                                 <div class="flex flex-wrap gap-2">
                                     <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
                                         <button @click="setFilter('overall')" :class="mode === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>

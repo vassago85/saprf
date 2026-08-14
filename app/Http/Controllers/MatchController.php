@@ -203,6 +203,14 @@ class MatchController extends Controller
             );
         }
 
+        // "Everyone counts" bypasses the membership check on every score in
+        // this match, so an MD flipping it on their own match could grant
+        // themselves eligibility they wouldn't otherwise have. Restrict to
+        // owner/admin/exco/developer; drop the field silently for anyone else.
+        if (! $request->user()->hasAnyRole(['owner', 'admin', 'exco', 'developer'])) {
+            unset($validated['everyone_counts']);
+        }
+
         $match->update($validated);
 
         $match->divisions()->sync($divisionIds);

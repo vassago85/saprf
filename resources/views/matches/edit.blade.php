@@ -250,6 +250,19 @@
                     </label>
                 </div>
 
+                @role('owner|admin|exco|developer')
+                    <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50/50 p-4">
+                        <label class="flex items-start gap-2.5">
+                            <input type="hidden" name="everyone_counts" value="0">
+                            <input type="checkbox" name="everyone_counts" value="1" @checked(old('everyone_counts', $match->everyone_counts)) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <span>
+                                <span class="block text-sm font-medium text-stone-800">All shooters count regardless of membership</span>
+                                <span class="mt-1 block text-xs text-stone-500">Use for imported historical matches (e.g. Day-1 provincial extracts) where the organiser ruled everyone counts. Every score on this match evaluates to Eligible on save/re-import/re-evaluation, instead of running the usual membership check.</span>
+                            </span>
+                        </label>
+                    </div>
+                @endrole
+
                 {{-- Provincial dual-count (national matches only) --}}
                 <div class="sm:col-span-2" x-data="{ dualCount: {{ old('also_counts_for_provincial', $match->also_counts_for_provincial) ? 'true' : 'false' }} }">
                     <label class="flex items-center gap-2 mb-2">

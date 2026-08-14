@@ -48,6 +48,31 @@ class ScoreValidationService
             return $score;
         }
 
+        // Match-level opt-out from the membership check. Used for imported
+        // Day-1 provincial extracts and similar events where the organiser
+        // ruled that every shooter counts regardless of membership state on
+        // the day. Without this short-circuit, any subsequent re-evaluation
+        // (MD save, bulk reevaluate, re-import) would demote these scores.
+        $score->loadMissing('match');
+        if ($score->match?->everyone_counts) {
+            $score->status = 'valid';
+            $score->is_member = true;
+            $score->validation_reason = 'Match rule: all shooters count regardless of membership state on the day.';
+            $score->save();
+            $this->syncOfficialLog($score);
+
+            $this->auditLogService->log(
+                auth()->user(),
+                'score.status.evaluated',
+                'Score',
+                $score->id,
+                $old,
+                $score->only(['status', 'is_member', 'validation_reason'])
+            );
+
+            return $score;
+        }
+
         $user = User::query()->with('membership')->find($score->user_id);
         $isValid = $this->membershipValidationService->isUserValidForOfficialPurposes($user, $matchDate);
         $isFreeRegistrant = ($user?->membership?->membership_type ?? null) === 'free';

@@ -151,6 +151,79 @@ test('score without user_id → status=invalid (orphan)', function () {
         ->and($result->validation_reason)->toBe('No linked member account.');
 });
 
+test('everyone_counts match forces valid regardless of membership state', function () {
+    $matchDate = Carbon::today()->subDays(30);
+    $everyoneMatch = MatchEvent::create([
+        'name' => 'Day-1 Provincial (Everyone Counts)',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->match->province_id,
+        'match_date' => $matchDate,
+        'status' => 'completed',
+        'active_member_fee' => 0,
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'created_by' => $this->match->created_by,
+        'everyone_counts' => true,
+    ]);
+
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-EVERYONE-001',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+        'expiry_date' => $matchDate->copy()->subYear(),
+    ]);
+
+    $result = $this->service->evaluateScoreStatus(makeScore($everyoneMatch, $user, 'pending', $matchDate));
+
+    expect($result->status)->toBe('valid')
+        ->and($result->is_member)->toBeTrue()
+        ->and($result->validation_reason)->toContain('all shooters count');
+});
+
+test('everyone_counts flag does not affect a normal match with the same shooter', function () {
+    $matchDate = Carbon::today()->subDays(30);
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-EVERYONE-002',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+        'expiry_date' => $matchDate->copy()->subYear(),
+    ]);
+
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
+
+    expect($result->status)->toBe('lapsed')
+        ->and($result->is_member)->toBeFalse();
+});
+
+test('everyone_counts still marks orphan (no user_id) scores as invalid', function () {
+    $everyoneMatch = MatchEvent::create([
+        'name' => 'Day-1 Provincial (Orphan Test)',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->match->province_id,
+        'match_date' => Carbon::today(),
+        'status' => 'completed',
+        'active_member_fee' => 0,
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'created_by' => $this->match->created_by,
+        'everyone_counts' => true,
+    ]);
+
+    $result = $this->service->evaluateScoreStatus(makeScore($everyoneMatch, null));
+
+    expect($result->status)->toBe('invalid');
+});
+
 test('resolvePendingScoresForUser reclassifies pending scores in isolation', function () {
     $user = User::factory()->create();
     Membership::create([

@@ -47,6 +47,7 @@ class UpdateMatchRequest extends FormRequest
             'division_awards_enabled' => ['boolean'],
             'estimated_shooters' => ['nullable', 'integer', 'min:1', 'max:999'],
             'also_counts_for_provincial' => ['boolean'],
+            'everyone_counts' => ['boolean'],
             'provincial_stage_columns' => ['nullable', 'string', 'max:1000'],
         ];
     }
