@@ -15,6 +15,7 @@ use App\Models\Standing;
 use App\Models\User;
 use App\Services\QualificationService;
 use App\Services\SettingsService;
+use App\Services\ShooterStandingsSummaryService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class DashboardController extends Controller
     public function __construct(
         private QualificationService $qualificationService,
         private SettingsService $settingsService,
+        private ShooterStandingsSummaryService $shooterStandingsSummary,
     ) {}
 
     public function index(Request $request): View
@@ -209,6 +211,14 @@ class DashboardController extends Controller
 
         $qualificationProgress = $this->qualificationService->getDashboardProgress($user, $season);
 
+        // National + provincial rankings for the season, one row per series
+        // the shooter placed in, with a per-division breakdown (Open,
+        // Factory, Senior, Ladies, ...) so the shooter can see at a glance
+        // where they stand in every cohort they've competed in. Shared with
+        // the public shooter profile page via the service so both views
+        // always agree.
+        $seasonRankings = $this->shooterStandingsSummary->build($user, $season);
+
         $seasonScores = $user->scores()
             ->whereHas('match', fn ($q) => $q->whereYear('match_date', $season))
             ->with('match')
@@ -283,6 +293,7 @@ class DashboardController extends Controller
             'rifles' => $rifles,
             'rifleCount' => $rifleCount,
             'recentMatches' => $recentMatches,
+            'seasonRankings' => $seasonRankings,
         ]);
     }
 }

@@ -8,12 +8,17 @@ use App\Models\Province;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
+use App\Services\ShooterStandingsSummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class StandingController extends Controller
 {
+    public function __construct(
+        private readonly ShooterStandingsSummaryService $standingsSummary,
+    ) {}
+
     // ── Authenticated Dashboard Standings ──
 
     public function index(Request $request): View
@@ -174,103 +179,25 @@ class StandingController extends Controller
             ->sortByDesc(fn ($s) => optional($s->match?->match_date)->timestamp ?? 0)
             ->values();
 
-        $standingsSummary = [];
+        // Summary of where the shooter stands this season (per series,
+        // national + provincial + one row per division they competed in).
+        // Shared with the member dashboard rank cards via the service so both
+        // views always show the same numbers from the same source.
+        $standingsSummary = $this->standingsSummary->build($user, $season)->all();
+
         // Per-match contribution map, keyed by match_id. Each entry describes
         // whether that match counted toward the shooter's national and/or
-        // provincial standing, and the points it contributed. Populated below
-        // from the persisted pool_breakdown of each Standing row.
+        // provincial standing, and the points it contributed. Only the
+        // profile page needs this (the dashboard doesn't display per-match
+        // pool contributions), so it stays inline rather than moving into
+        // the summary service.
         $contributionByMatch = [];
-        foreach (['PRS', 'PR22'] as $series) {
-            $overall = Standing::where('user_id', $user->id)
-                ->where('season', $season)
-                ->where('series', $series)
-                ->whereNull('province_id')
-                ->whereNull('division_id')
-                ->first();
-
-            $seriesRule = \App\Models\QualificationRule::where('season', $season)
-                ->where('series', $series)
-                ->first();
-
-            // Provincial standing — BOTH PRS and PR22 have provincial standings
-            // now (sum of shooter's best-N provincial-level scores). Loaded
-            // regardless of whether there's a national row yet, so a shooter
-            // who has only shot provincials still gets a summary tile and
-            // per-match provincial contributions.
-            $provincial = null;
-            $provincialDivisions = collect();
-            if ($user->province_id) {
-                $provincial = Standing::where('user_id', $user->id)
-                    ->where('season', $season)
-                    ->where('series', $series)
-                    ->where('province_id', $user->province_id)
-                    ->whereNull('division_id')
-                    ->first();
-
-                // ALL provincial division standings — a shooter may compete
-                // in multiple divisions across the season (e.g. Open in one
-                // match, Factory in another) and gets a separate ranking in
-                // each. `->first()` silently hid every division past the
-                // first. Sort by the division's display_order so the UI
-                // presentation is stable and matches the standings tables.
-                $provincialDivisions = Standing::where('user_id', $user->id)
-                    ->where('season', $season)
-                    ->where('series', $series)
-                    ->where('province_id', $user->province_id)
-                    ->whereNotNull('division_id')
-                    ->with('division')
-                    ->get()
-                    ->sortBy(fn (Standing $s) => $s->division?->display_order ?? 999)
-                    ->values();
-
-                if ($provincial) {
-                    $this->mergeProvincialContributions($contributionByMatch, $provincial->pool_breakdown);
-                }
+        foreach ($standingsSummary as $entry) {
+            if (! empty($entry['pool_breakdown'])) {
+                $this->mergeNationalContributions($contributionByMatch, $entry['series'], $entry['pool_breakdown']);
             }
-
-            if ($overall || $provincial) {
-                // Same treatment for national division standings — load all
-                // divisions the shooter placed in, not just the first row.
-                $divisionStandings = $overall
-                    ? Standing::where('user_id', $user->id)
-                        ->where('season', $season)
-                        ->where('series', $series)
-                        ->whereNull('province_id')
-                        ->whereNotNull('division_id')
-                        ->with('division')
-                        ->get()
-                        ->sortBy(fn (Standing $s) => $s->division?->display_order ?? 999)
-                        ->values()
-                    : collect();
-
-                $standingsSummary[] = [
-                    'series' => $series,
-                    // National standing
-                    'overall_rank' => $overall?->rank,
-                    'overall_points' => $overall?->points,
-                    'pool_breakdown' => $overall?->pool_breakdown,
-                    'scoring_mode' => $seriesRule?->scoring_mode ?? 'best_of_n',
-                    'divisions' => $divisionStandings->map(fn (Standing $s) => [
-                        'name' => $s->division?->name,
-                        'rank' => $s->rank,
-                        'points' => $s->points,
-                    ])->all(),
-                    // Provincial standing (PR22 only)
-                    'has_provincial' => (bool) $provincial,
-                    'province_name' => $user->province?->name,
-                    'provincial_rank' => $provincial?->rank,
-                    'provincial_points' => $provincial?->points,
-                    'provincial_pool_breakdown' => $provincial?->pool_breakdown,
-                    'provincial_divisions' => $provincialDivisions->map(fn (Standing $s) => [
-                        'name' => $s->division?->name,
-                        'rank' => $s->rank,
-                        'points' => $s->points,
-                    ])->all(),
-                ];
-
-                if ($overall) {
-                    $this->mergeNationalContributions($contributionByMatch, $series, $overall->pool_breakdown);
-                }
+            if (! empty($entry['provincial_pool_breakdown'])) {
+                $this->mergeProvincialContributions($contributionByMatch, $entry['provincial_pool_breakdown']);
             }
         }
 

@@ -108,6 +108,17 @@ class MembershipValidationService
      *
      * The $matchDate argument is retained for call-site compatibility but is
      * intentionally unused — signup category is a today-fact.
+     *
+     * IMPORTANT: this MUST use the same lenient today-check that the admin
+     * membership listing uses to render the "Active" pill
+     * (Membership::isActiveMember()), NOT the strict historical check that
+     * powers score validity. The strict check requires
+     * payment_status IN ('paid','waived'), which imported/legacy records
+     * often fail even when they clearly have status='active' and a valid
+     * expiry — the shooter is then greeted with "Active" in the admin panel
+     * and "Lapsed Member" on the registration form, with no way to
+     * reconcile the two. isMembershipValidOnDate() stays strict for
+     * historical questions like "was this score eligible on match day?".
      */
     public function classifyRegistrationCategory(?User $user, ?CarbonInterface $matchDate = null): string
     {
@@ -115,11 +126,13 @@ class MembershipValidationService
             return 'non_member';
         }
 
-        if ($user->membership->membership_type === 'free') {
+        $membership = $user->membership;
+
+        if ($membership->membership_type === 'free') {
             return 'non_member';
         }
 
-        if ($this->isMembershipValidOnDate($user->membership, Carbon::today())) {
+        if ($membership->isActiveMember()) {
             return 'active_member';
         }
 

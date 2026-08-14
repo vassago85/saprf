@@ -318,6 +318,87 @@
             </div>
         @endif
 
+        {{-- Season Rankings — one card per series (PRS / PR22) showing the
+             shooter's National and Provincial rank, plus a per-division
+             chip row (Open, Factory, Senior, Ladies, ...) because a single
+             shooter often ends up with a separate rank in each division they
+             competed in. Backed by the same ShooterStandingsSummaryService
+             that powers the public shooter profile page, so the numbers here
+             always match what appears on /standings/{year}/shooter/{user}. --}}
+        @if($seasonRankings->isNotEmpty())
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="font-heading text-xl font-bold text-stone-900">Season Rankings — {{ now()->year }}</h2>
+                        <p class="text-sm text-stone-500 mt-1">Your national and provincial position this season, plus how you're ranked in each division you've competed in.</p>
+                    </div>
+                    <a href="{{ route('standings.shooter', ['season' => now()->year, 'user' => $user->id]) }}"
+                       class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 whitespace-nowrap">
+                        Full profile &rarr;
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    @foreach($seasonRankings as $entry)
+                        <div class="rounded-lg border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-heading text-lg font-bold text-stone-900">{{ $entry['series'] }}</span>
+                                    <x-discipline-chip :discipline="$entry['series']" />
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-6 flex-wrap">
+                                {{-- National --}}
+                                @if($entry['overall_rank'] !== null)
+                                    <div class="flex-1 min-w-[140px]">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">National</p>
+                                        <div class="flex items-baseline gap-2">
+                                            <p class="text-3xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
+                                            <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 2) }} pts</p>
+                                        </div>
+                                        @if(!empty($entry['divisions']))
+                                            <div class="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                                                @foreach($entry['divisions'] as $div)
+                                                    <span class="text-[11px] text-stone-500">
+                                                        {{ $div['name'] }}:
+                                                        <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                {{-- Provincial --}}
+                                @if(!empty($entry['has_provincial']))
+                                    <div class="flex-1 min-w-[140px] {{ $entry['overall_rank'] !== null ? 'lg:border-l lg:border-stone-200 lg:pl-6' : '' }}">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+                                            Provincial @if($entry['province_name'])<span class="text-blue-400">&middot; {{ $entry['province_name'] }}</span>@endif
+                                        </p>
+                                        <div class="flex items-baseline gap-2">
+                                            <p class="text-3xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
+                                            <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['provincial_points'] ?? 0, 2) }} pts</p>
+                                        </div>
+                                        @if(!empty($entry['provincial_divisions']))
+                                            <div class="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                                                @foreach($entry['provincial_divisions'] as $div)
+                                                    <span class="text-[11px] text-stone-500">
+                                                        {{ $div['name'] }}:
+                                                        <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Qualification Progress — PRS + PR22 --}}
         @if(!empty($qualificationProgress))
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
