@@ -44,7 +44,7 @@ html {
         visibility: visible !important;
         position: fixed !important;
         inset: 0 auto 0 0;
-        z-index: 50 !important; /* above the z-30 backdrop; Flux ships z-20! */
+        z-index: 20; /* match Flux's z-20!; Alpine backdrop is z-10 so links stay tappable */
         width: 17rem;
         max-width: 85vw;
         transform: translateX(-100%);
@@ -183,4 +183,13 @@ html {
             background-color: var(--color-stone-50);
         }
     }
+}
+
+/* Unlayered, last in file so these beat Tailwind/Flux utilities.
+   Flux Free's <ui-sidebar-toggle> is position:fixed inset-0; if it
+   ever un-hides it eats every tap on the drawer. */
+ui-sidebar-toggle,
+[data-flux-sidebar-backdrop] {
+    display: none !important;
+    pointer-events: none !important;
 }

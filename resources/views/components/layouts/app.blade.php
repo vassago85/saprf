@@ -27,7 +27,7 @@
         x-transition.opacity.duration.150ms
         x-cloak
         @click="sidebarOpen = false"
-        class="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        class="fixed inset-0 z-10 bg-black/40 lg:hidden"
         aria-hidden="true"
     ></div>
 
