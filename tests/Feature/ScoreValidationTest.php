@@ -268,6 +268,113 @@ test('MembershipObserver auto-promotes pending scores when membership becomes va
     expect($score->fresh()->status)->toBe('valid');
 });
 
+test('MembershipObserver reclassifies scores from lapsed to non_member when the membership is flipped to free', function () {
+    // Regression: the De Villiers family were imported as paying members, then
+    // admin flipped their membership_type to "free" after realising they were
+    // one-off provincial registrants. Their scores stayed labelled LAPSED on
+    // the scoreboard until the observer learned to demote on that transition.
+    $matchDate = Carbon::today()->subDays(30);
+    $user = User::factory()->create();
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-DEMOTE-1',
+        'membership_type' => 'paid',
+        'status' => 'expired',
+        'payment_status' => 'unpaid',
+        'start_date' => Carbon::today()->subYear(),
+        // Expires BEFORE the score date, so evaluateScoreStatus picks 'lapsed'.
+        'expiry_date' => $matchDate->copy()->subDays(10),
+    ]);
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('lapsed');
+
+    $mship->update(['membership_type' => 'free']);
+
+    expect($score->fresh()->status)->toBe('non_member');
+});
+
+test('MembershipObserver reclassifies valid scores to non_member when membership is revoked', function () {
+    $matchDate = Carbon::today()->subDays(10);
+    $user = User::factory()->create();
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-DEMOTE-2',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYear(),
+        'expiry_date' => Carbon::today()->addYear(),
+    ]);
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('valid');
+
+    $mship->update(['status' => 'revoked']);
+
+    // isMembershipValidOnDate() short-circuits on revoked, so the score falls
+    // through the lapsed grace-window branch and lands on 'lapsed' (past
+    // grace) — but crucially it is no longer 'valid'.
+    expect($score->fresh()->status)->not->toBe('valid');
+});
+
+test('MembershipObserver reclassifies valid scores to lapsed when expiry_date is pulled back before the match', function () {
+    $matchDate = Carbon::today()->subDays(60);
+    $user = User::factory()->create();
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-DEMOTE-3',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYear(),
+        // Initial expiry AFTER the match: the score is valid.
+        'expiry_date' => Carbon::today()->subDays(30),
+    ]);
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('valid');
+
+    // Admin corrects the expiry backwards to BEFORE the match date.
+    $mship->update(['expiry_date' => $matchDate->copy()->subDays(1)]);
+
+    expect($score->fresh()->status)->not->toBe('valid');
+});
+
+test('MembershipObserver leaves scores alone when the paid window is extended forward (no auto-backdate)', function () {
+    // Anti-backdate guardrail: extending expiry into the future must NOT
+    // retroactively promote a shooter's older non_member scores. That
+    // expansion path stays behind the explicit `scores:reevaluate --user=`
+    // command so an admin has to consciously sign off on retroactive credit.
+    $matchDate = Carbon::today()->subDays(30);
+    $user = User::factory()->create();
+
+    // Shoot with no membership at all → non_member on the record.
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('non_member');
+
+    // Admin now creates a membership that covers the score date and extends.
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-DEMOTE-4',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYear(),
+        'expiry_date' => Carbon::today()->addMonths(6),
+    ]);
+
+    // Extending the paid window further into the future — observer must not
+    // reclassify non_member scores backwards.
+    $mship->update(['expiry_date' => Carbon::today()->addYear()]);
+
+    expect($score->fresh()->status)->toBe('non_member');
+});
+
 test('non_member scores never get promoted, even inside grace window', function () {
     $matchDate = Carbon::today()->subDays(2);
     $user = User::factory()->create();
