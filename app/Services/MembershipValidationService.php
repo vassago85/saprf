@@ -28,8 +28,24 @@ class MembershipValidationService
             return false;
         }
 
+        // Historical/imported members frequently arrive with
+        // payment_status='unpaid' despite being real paid-up federation members
+        // — their subscription simply predates the platform and the CSV they
+        // were imported from never captured the payment event. Trust a real
+        // (non-stub) SAPRF number as evidence of paidness in that case; the
+        // expiry_date window check below still enforces whether the shooter
+        // was actually paid up on the specific match date. If neither an
+        // explicit paid/waived flag nor a real SAPRF number is present, the
+        // person isn't a member for scoring purposes.
+        //
+        // This mirrors the lenient logic used by Membership::isActiveMember()
+        // for the admin panel, so a shooter can no longer show as "Active"
+        // there while their scores are silently demoted to Lapsed.
         $isPaid = in_array($membership->payment_status, ['paid', 'waived'], true);
-        if (! $isPaid) {
+        $hasRealSaprfNumber = filled($membership->saprf_number)
+            && ! str_starts_with((string) $membership->saprf_number, 'SAPRF-IMPORT-');
+
+        if (! $isPaid && ! $hasRealSaprfNumber) {
             return false;
         }
 

@@ -35,15 +35,81 @@ test('expired membership is not valid', function () {
     expect($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
 });
 
-test('unpaid membership is not valid', function () {
+test('unpaid membership with a stub SAPRF-IMPORT number is not valid', function () {
+    // Stub imports (SAPRF-IMPORT-*) represent shooters who were pulled in from
+    // a match extract without a real federation number — they must NOT be
+    // trusted as paid-up members just because the row exists.
     $user = User::factory()->create();
     $membership = Membership::create([
         'user_id' => $user->id,
-        'saprf_number' => 'SAPRF-TEST-003',
+        'saprf_number' => 'SAPRF-IMPORT-000123',
         'status' => 'active',
         'payment_status' => 'unpaid',
         'expiry_date' => Carbon::today()->addYear(),
     ]);
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
+});
+
+test('unpaid membership with a real SAPRF number IS valid inside its window', function () {
+    // Legacy/imported federation members frequently have payment_status='unpaid'
+    // in the platform DB because their payment predates the platform and the
+    // CSV they were imported from never captured it. If they carry a real
+    // (non-stub) SAPRF number, we trust that they are the federation member
+    // they claim to be — the expiry_date window check is what actually
+    // enforces "were they paid up on match day". This mirrors the lenient
+    // Membership::isActiveMember() check the admin panel uses, so a shooter
+    // can no longer show as "Active" in admin while their scores are silently
+    // demoted to Lapsed by the strict validator. See regression fix from the
+    // Day-1 provincial mass-lapsing incident.
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => '1065', // real federation number, not a stub
+        'membership_type' => 'full',
+        'status' => 'active',
+        'payment_status' => 'unpaid',
+        'start_date' => Carbon::parse('2026-01-01'),
+        'expiry_date' => Carbon::parse('2026-12-19'),
+    ]);
+
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::parse('2026-06-15')))->toBeTrue();
+});
+
+test('unpaid membership with a real SAPRF number is still rejected after its expiry_date', function () {
+    // The loose SAPRF-number fallback must not paper over an expired window —
+    // the expiry_date remains authoritative for the match date being asked
+    // about.
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => '25',
+        'membership_type' => 'full',
+        'status' => 'expired',
+        'payment_status' => 'unpaid',
+        'start_date' => Carbon::parse('2025-06-14'),
+        'expiry_date' => Carbon::parse('2026-06-13'),
+    ]);
+
+    // Inside window: valid.
+    expect($this->service->isMembershipValidOnDate($membership, Carbon::parse('2026-05-01')))->toBeTrue()
+        // Day after expiry: not valid.
+        ->and($this->service->isMembershipValidOnDate($membership, Carbon::parse('2026-06-14')))->toBeFalse();
+});
+
+test('revoked membership with a real SAPRF number is still rejected', function () {
+    // Revocation trumps the SAPRF-number fallback — someone who has been
+    // revoked never counts, even for scores inside their old paid window.
+    $user = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => '999',
+        'membership_type' => 'full',
+        'status' => 'revoked',
+        'payment_status' => 'unpaid',
+        'start_date' => Carbon::today()->subMonths(6),
+        'expiry_date' => Carbon::today()->addMonths(6),
+    ]);
+
     expect($this->service->isMembershipValidOnDate($membership, Carbon::today()))->toBeFalse();
 });
 

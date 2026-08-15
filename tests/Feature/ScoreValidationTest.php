@@ -303,9 +303,11 @@ test('resolvePendingScores classifies each pending score correctly', function ()
     Membership::create([
         'user_id' => $lapsedUser->id,
         'saprf_number' => 'SAPRF-SCORE-101',
-        'status' => 'active',
+        'status' => 'expired',
         'payment_status' => 'unpaid',
-        'expiry_date' => Carbon::today()->subDays(30),
+        // Expiry sits BEFORE the score date below so the shooter is
+        // genuinely lapsed on match day, not borderline in-window.
+        'expiry_date' => Carbon::today()->subDays(60),
     ]);
 
     makeScore($this->match, $validUser, 'pending', Carbon::today());
