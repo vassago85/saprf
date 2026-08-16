@@ -142,11 +142,6 @@
 
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-stone-700 mb-3">Declaration (DEC-01)</h2>
-                @php
-                    $formData = $athlete->declaration?->form_data ?? [];
-                    $attestations = $formData['attestations'] ?? null;
-                    $receivedChannel = $formData['received_channel'] ?? null;
-                @endphp
                 @if ($athlete->declaration)
                     <p class="text-sm text-stone-700">
                         Status: <span class="font-semibold">{{ $athlete->declaration->status }}</span><br>
