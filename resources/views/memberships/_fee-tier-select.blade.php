@@ -8,6 +8,9 @@
           x-data="{ tier: '{{ old('fee_tier_id', $selectedTier?->id) }}' }"
           class="rounded-lg bg-emerald-50 border border-emerald-200 p-5 space-y-4">
         @csrf
+        @foreach(($hidden ?? []) as $name => $value)
+            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @endforeach
         <p class="text-sm font-medium text-stone-700">Choose your membership</p>
 
         <div class="space-y-2">
@@ -45,6 +48,9 @@
         </div>
         <form method="POST" action="{{ $action }}">
             @csrf
+            @foreach(($hidden ?? []) as $name => $value)
+                <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+            @endforeach
             <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
                 {{ $buttonLabel }}
             </button>

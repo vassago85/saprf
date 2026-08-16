@@ -50,7 +50,7 @@
                     <p class="text-xs text-stone-400">Until {{ $membership->expiry_date?->format('d M Y') }}</p>
                 @else
                     <p class="mt-1 text-lg font-semibold text-stone-700">{{ $membership?->status ?? 'None' }}</p>
-                    <p class="text-xs text-stone-400">@if(!$membership) <a href="{{ route('memberships.create') }}?for_user={{ $junior->id }}" class="text-emerald-700 hover:underline">Apply for membership</a> @endif</p>
+                    <p class="text-xs text-stone-400">@if(!$membership) <a href="{{ route('my-membership', ['for_user' => $junior->id]) }}" class="text-emerald-700 hover:underline">Apply for membership</a> @endif</p>
                 @endif
             </div>
             <div class="rounded-xl border border-stone-200 bg-white p-4">

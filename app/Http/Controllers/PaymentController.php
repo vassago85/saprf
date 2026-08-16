@@ -140,7 +140,32 @@ class PaymentController extends Controller
         }
 
         return $payment->user_id === $user->id
+            || $user->findManagedAccount($payment->user_id) !== null
             || $user->hasAnyRole(self::PAYMENT_STAFF_ROLES);
+    }
+
+    /**
+     * The signed-in member, or one of their managed family accounts when
+     * `for_user` is present. Foreign accounts are rejected.
+     */
+    private function resolveManagedSubject(User $actor, mixed $forUserId): User
+    {
+        if ($forUserId === null || $forUserId === '') {
+            return $actor;
+        }
+
+        $subject = $actor->findManagedAccount($forUserId);
+        abort_unless($subject, 403, 'You can only manage your own family accounts.');
+
+        return $subject;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function membershipPageParams(User $subject, User $actor): array
+    {
+        return $subject->id === $actor->id ? [] : ['for_user' => $subject->id];
     }
 
     public function notify(Request $request): \Illuminate\Http\Response
@@ -231,12 +256,13 @@ class PaymentController extends Controller
 
     public function joinMembership(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        $payer = $request->user();
+        $user = $this->resolveManagedSubject($payer, $request->input('for_user'));
 
         $existing = Membership::where('user_id', $user->id)->latest()->first();
 
         if ($existing && $existing->status === 'active' && $existing->payment_status === 'paid') {
-            return redirect()->route('my-membership')
+            return redirect()->route('my-membership', $this->membershipPageParams($user, $payer))
                 ->with('info', 'You already have an active membership.');
         }
 
@@ -284,18 +310,18 @@ class PaymentController extends Controller
         $payment = Payment::create([
             'payable_type' => Membership::class,
             'payable_id' => $membership->id,
-            'user_id' => $user->id,
+            'user_id' => $payer->id,
             'amount' => $fee,
             'm_payment_id' => Payment::generateReference('MEM'),
         ]);
 
         $this->auditLogService->log(
-            $user,
+            $payer,
             'membership.self_service_join',
             'Membership',
             $membership->id,
             null,
-            ['membership_id' => $membership->id, 'amount' => $fee, 'fee_tier_id' => $tier?->id, 'fee_tier' => $tier?->name],
+            ['membership_id' => $membership->id, 'amount' => $fee, 'fee_tier_id' => $tier?->id, 'fee_tier' => $tier?->name, 'for_user_id' => $user->id],
         );
 
         return redirect()->route('payments.redirect', $payment);
@@ -305,12 +331,18 @@ class PaymentController extends Controller
     {
         $user = $request->user();
 
-        if ($membership->user_id !== $user->id && ! $user->hasRole(['owner', 'admin'])) {
+        $mayPay = $membership->user_id === $user->id
+            || $user->findManagedAccount($membership->user_id) !== null
+            || $user->hasRole(['owner', 'admin']);
+
+        if (! $mayPay) {
             abort(403);
         }
 
         if ($membership->payment_status === 'paid') {
-            return redirect()->route('my-membership')
+            $subject = $membership->user ?? $user;
+
+            return redirect()->route('my-membership', $this->membershipPageParams($subject, $user))
                 ->with('info', 'This membership is already paid.');
         }
 

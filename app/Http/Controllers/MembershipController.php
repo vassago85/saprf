@@ -28,7 +28,9 @@ class MembershipController extends Controller
 
     public function myMembership(Request $request): View
     {
-        $user = $request->user();
+        $actor = $request->user();
+        $user = $this->resolveManagedSubject($actor, $request->query('for_user'));
+        $managingFamily = $user->id !== $actor->id;
         $membership = Membership::with('feeTier')->where('user_id', $user->id)->latest()->first();
         $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
 
@@ -46,7 +48,7 @@ class MembershipController extends Controller
             $seasons = collect([(string) now()->year]);
         }
 
-        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'feeTiers', 'selectedTier', 'paymentsEnabled', 'seasons'));
+        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'feeTiers', 'selectedTier', 'paymentsEnabled', 'seasons', 'managingFamily'));
     }
 
     private const SORTABLE = [
@@ -482,7 +484,7 @@ class MembershipController extends Controller
 
     public function certificate(Request $request): Response
     {
-        $user = $request->user();
+        $user = $this->resolveManagedSubject($request->user(), $request->query('for_user'));
         $user->load('province');
         $membership = Membership::where('user_id', $user->id)
             ->where('status', 'active')
@@ -550,7 +552,7 @@ class MembershipController extends Controller
 
     public function activityReport(Request $request): Response
     {
-        $user = $request->user();
+        $user = $this->resolveManagedSubject($request->user(), $request->query('for_user'));
         $user->load('province');
         $membership = Membership::where('user_id', $user->id)->latest()->first();
 
@@ -756,6 +758,22 @@ class MembershipController extends Controller
                 'style' => $font['style'],
             ], $path);
         }
+    }
+
+    /**
+     * The signed-in member, or one of their managed family accounts when
+     * `for_user` is present. Foreign accounts are rejected.
+     */
+    private function resolveManagedSubject(User $actor, mixed $forUserId): User
+    {
+        if ($forUserId === null || $forUserId === '') {
+            return $actor;
+        }
+
+        $subject = $actor->findManagedAccount($forUserId);
+        abort_unless($subject, 403, 'You can only manage your own family accounts.');
+
+        return $subject;
     }
 
     private function certificateAssetDataUri(string $absolutePath): string

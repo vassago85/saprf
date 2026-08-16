@@ -362,6 +362,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * A managed family account this user is allowed to act for, or null.
+     */
+    public function findManagedAccount(int|string|null $id): ?self
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return $this->managedAccounts()
+            ->whereKey($id)
+            ->where('is_managed_account', true)
+            ->first();
+    }
+
+    /**
      * Backwards-compatible alias — historically all managed accounts were juniors.
      */
     public function juniors(): HasMany

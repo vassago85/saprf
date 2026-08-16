@@ -1,8 +1,13 @@
 <?php
 
 use App\Models\Division;
+use App\Models\Membership;
+use App\Models\MembershipFeeTier;
+use App\Models\Payment;
 use App\Models\Province;
 use App\Models\User;
+use App\Services\PayFastService;
+use App\Services\SettingsService;
 
 beforeEach(function () {
     seedRoles();
@@ -166,4 +171,101 @@ it('exposes all managed accounts and relationship labels', function () {
     expect($this->parent->managedAccounts()->count())->toBe(2)
         ->and($spouse->managedRelationshipLabel())->toBe('Spouse / Partner')
         ->and($spouse->isJuniorAccount())->toBeFalse();
+});
+
+it('lets a member open the add-family-member form', function () {
+    $this->actingAs($this->parent)
+        ->get(route('family.create'))
+        ->assertOk()
+        ->assertSee('Add a Family Member');
+});
+
+it('does not send members to the admin membership create page from a family profile', function () {
+    $junior = User::factory()->create([
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+        'date_of_birth' => now()->subYears(14)->toDateString(),
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('family.show', $junior))
+        ->assertOk()
+        ->assertSee(route('my-membership', ['for_user' => $junior->id]), false)
+        ->assertDontSee(route('memberships.create'), false);
+});
+
+it('lets a member apply for membership on behalf of a family account', function () {
+    $junior = User::factory()->create([
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('my-membership', ['for_user' => $junior->id]))
+        ->assertOk()
+        ->assertSee($junior->name)
+        ->assertDontSee('User does not have the right roles');
+});
+
+it('creates a membership for the family member and charges the parent', function () {
+    $junior = User::factory()->create([
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'spouse',
+        'province_id' => $this->province->id,
+    ]);
+
+    MembershipFeeTier::create([
+        'name' => 'Standard',
+        'slug' => 'standard',
+        'price' => 500,
+        'duration_months' => 12,
+        'is_active' => true,
+        'is_default' => true,
+        'display_order' => 1,
+    ]);
+
+    $stub = new class(true) extends PayFastService {
+        public function __construct(private readonly bool $enabled)
+        {
+            parent::__construct(app(SettingsService::class));
+        }
+
+        public function isEnabled(): bool
+        {
+            return $this->enabled;
+        }
+    };
+    app()->instance(PayFastService::class, $stub);
+
+    $this->actingAs($this->parent)
+        ->post(route('membership.join'), ['for_user' => $junior->id])
+        ->assertRedirect();
+
+    $membership = Membership::where('user_id', $junior->id)->first();
+    $payment = Payment::where('payable_type', Membership::class)->first();
+
+    expect($membership)->not->toBeNull()
+        ->and($membership->user_id)->toBe($junior->id)
+        ->and(Membership::where('user_id', $this->parent->id)->exists())->toBeFalse()
+        ->and($payment)->not->toBeNull()
+        ->and($payment->user_id)->toBe($this->parent->id)
+        ->and($payment->payable_id)->toBe($membership->id);
+});
+
+it('rejects applying for membership on someone else\'s family account', function () {
+    $otherParent = User::factory()->create(['province_id' => $this->province->id]);
+    $theirChild = User::factory()->create([
+        'parent_id' => $otherParent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('my-membership', ['for_user' => $theirChild->id]))
+        ->assertForbidden();
 });
