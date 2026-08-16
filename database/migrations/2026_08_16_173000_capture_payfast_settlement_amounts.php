@@ -11,15 +11,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('payments', function (Blueprint $table) {
-            $table->decimal('amount_gross', 10, 2)->nullable()->after('amount');
-            $table->decimal('amount_fee', 10, 2)->nullable()->after('amount_gross');
-            $table->decimal('amount_net', 10, 2)->nullable()->after('amount_fee');
-        });
+        if (! Schema::hasColumn('payments', 'amount_gross')) {
+            Schema::table('payments', function (Blueprint $table) {
+                $table->decimal('amount_gross', 10, 2)->nullable()->after('amount');
+            });
+        }
+        if (! Schema::hasColumn('payments', 'amount_fee')) {
+            Schema::table('payments', function (Blueprint $table) {
+                $table->decimal('amount_fee', 10, 2)->nullable()->after('amount_gross');
+            });
+        }
+        if (! Schema::hasColumn('payments', 'amount_net')) {
+            Schema::table('payments', function (Blueprint $table) {
+                $table->decimal('amount_net', 10, 2)->nullable()->after('amount_fee');
+            });
+        }
 
-        Schema::table('membership_payments', function (Blueprint $table) {
-            $table->decimal('gateway_fee', 10, 2)->nullable()->after('amount');
-        });
+        if (! Schema::hasColumn('membership_payments', 'gateway_fee')) {
+            Schema::table('membership_payments', function (Blueprint $table) {
+                $table->decimal('gateway_fee', 10, 2)->nullable()->after('amount');
+            });
+        }
 
         $this->backfillFromStoredItn();
     }
