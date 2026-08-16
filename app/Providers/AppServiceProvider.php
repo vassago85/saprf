@@ -151,10 +151,10 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Point Reply-To at the owner (or ExCo) inbox when a notification did
-     * not set its own. Contact-form mail already replyTo()s the enquirer
-     * and is left alone. This stops member "just reply to this email"
-     * threads landing on the technical From address (often admin@).
+     * Point Reply-To at the secretary inbox when a notification did not
+     * set its own. Contact-form mail already replyTo()s the enquirer and
+     * is left alone. Never ExCo or owner — admin@ forwards to the whole
+     * ExCo, so those must not be the public Reply-To.
      */
     private function registerMailReplyTo(): void
     {

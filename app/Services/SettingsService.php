@@ -55,11 +55,21 @@ class SettingsService
     }
 
     /**
-     * Address members should reply to. Owner inbox first, then ExCo.
+     * Dedicated secretary inbox from Site Settings, or null when unset / invalid.
+     */
+    public function secretaryEmail(): ?string
+    {
+        return $this->normalizedEmail('secretary_email');
+    }
+
+    /**
+     * Address members should reply to. Secretary only — never ExCo or
+     * owner. admin@precisionrifle.co.za forwards to the whole ExCo, so
+     * falling back there would put every member reply on that list.
      */
     public function replyToEmail(): ?string
     {
-        return $this->ownerEmail() ?? $this->excoEmail();
+        return $this->secretaryEmail();
     }
 
     private function normalizedEmail(string $key): ?string

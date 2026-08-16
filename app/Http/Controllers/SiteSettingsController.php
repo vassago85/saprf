@@ -60,6 +60,7 @@ class SiteSettingsController extends Controller
             'mail_from_name' => ['nullable', 'string', 'max:255'],
             'exco_email' => ['nullable', 'email', 'max:255'],
             'owner_email' => ['nullable', 'email', 'max:255'],
+            'secretary_email' => ['nullable', 'email', 'max:255'],
             'notifications_enabled' => ['required', 'boolean'],
         ]);
 
@@ -116,7 +117,8 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');
         $this->settingsService->set('exco_email', $validated['exco_email'] ?? '', 'ExCo inbox for eligibility forms and federation correspondence');
-        $this->settingsService->set('owner_email', $validated['owner_email'] ?? '', 'Owner inbox for contact-form and membership queries');
+        $this->settingsService->set('owner_email', $validated['owner_email'] ?? '', 'Owner inbox for owner-only correspondence');
+        $this->settingsService->set('secretary_email', $validated['secretary_email'] ?? '', 'Secretary inbox for contact-form enquiries and member Reply-To');
         $this->settingsService->set('notifications_enabled', $validated['notifications_enabled'], 'Send outgoing email notifications (1=yes, 0=paused). Auth OTP + password reset always send regardless.');
 
         $this->auditLogService->log(

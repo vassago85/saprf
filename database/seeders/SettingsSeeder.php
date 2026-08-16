@@ -113,7 +113,12 @@ class SettingsSeeder extends Seeder
 
         Setting::firstOrCreate(
             ['key' => 'owner_email'],
-            ['value' => '', 'description' => 'Owner inbox for contact-form and membership queries'],
+            ['value' => '', 'description' => 'Owner inbox for owner-only correspondence'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'secretary_email'],
+            ['value' => '', 'description' => 'Secretary inbox for contact-form enquiries and member Reply-To'],
         );
     }
 }

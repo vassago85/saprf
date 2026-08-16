@@ -180,9 +180,9 @@ class ContactController extends Controller
     }
 
     /**
-     * Notify the configured owner / ExCo inboxes (and developers). Falls
-     * back to every developer / owner / admin / exco user when those
-     * Site Settings addresses have not been set yet.
+     * Notify the configured secretary inbox (and developers). Falls
+     * back to every developer / owner / admin / exco user when that
+     * Site Settings address has not been set yet.
      */
     private function notifyAdmins(ContactMessage $message): void
     {
@@ -190,8 +190,7 @@ class ContactController extends Controller
             app(StaffInboxService::class)->notify(
                 new ContactMessageReceivedNotification($message),
                 ['developer', 'owner', 'admin', 'exco'],
-                includeExcoInbox: true,
-                includeOwnerInbox: true,
+                includeSecretaryInbox: true,
             );
         } catch (\Throwable $e) {
             // Notification failure must not swallow the user's message —

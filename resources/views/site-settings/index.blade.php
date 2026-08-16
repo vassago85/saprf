@@ -353,20 +353,26 @@
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4 space-y-4">
                     <div>
                         <h3 class="text-sm font-semibold text-stone-900">Federation inboxes</h3>
-                        <p class="mt-1 text-xs text-stone-500">Dedicated addresses for ExCo and the owner. Staff notifications go here instead of a shared admin@ mailbox. Member replies also land on the owner address (or ExCo if owner is blank).</p>
+                        <p class="mt-1 text-xs text-stone-500"><code class="text-stone-600">admin@precisionrifle.co.za</code> forwards to the whole ExCo. Use it only for ExCo mail. Contact-form enquiries and member replies go to the secretary so they do not land on that list.</p>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label for="exco_email" class="block text-sm font-medium text-stone-700">ExCo Email</label>
-                            <input type="email" name="exco_email" id="exco_email" value="{{ old('exco_email', $settings['exco_email'] ?? '') }}" placeholder="exco@precisionrifle.co.za"
+                            <input type="email" name="exco_email" id="exco_email" value="{{ old('exco_email', $settings['exco_email'] ?? '') }}" placeholder="admin@precisionrifle.co.za"
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <p class="mt-1 text-xs text-stone-400">Eligibility-to-Compete submissions and other ExCo correspondence.</p>
+                            <p class="mt-1 text-xs text-stone-400">Eligibility-to-Compete submissions. Can stay as the existing admin@ ExCo forwarder.</p>
+                        </div>
+                        <div>
+                            <label for="secretary_email" class="block text-sm font-medium text-stone-700">Secretary Email</label>
+                            <input type="email" name="secretary_email" id="secretary_email" value="{{ old('secretary_email', $settings['secretary_email'] ?? '') }}" placeholder="secretary@precisionrifle.co.za"
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <p class="mt-1 text-xs text-stone-400">Contact-form enquiries and the Reply-To on member emails. Use a mailbox that is not the ExCo forwarder.</p>
                         </div>
                         <div>
                             <label for="owner_email" class="block text-sm font-medium text-stone-700">Owner Email</label>
                             <input type="email" name="owner_email" id="owner_email" value="{{ old('owner_email', $settings['owner_email'] ?? '') }}" placeholder="owner@precisionrifle.co.za"
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <p class="mt-1 text-xs text-stone-400">Contact-form enquiries and the Reply-To on member emails.</p>
+                            <p class="mt-1 text-xs text-stone-400">Owner-only correspondence. Not used for contact-form or member replies.</p>
                         </div>
                     </div>
                 </div>

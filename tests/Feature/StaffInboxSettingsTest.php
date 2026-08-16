@@ -42,10 +42,11 @@ function validSiteSettings(array $overrides = []): array
         'mail_from_name' => 'SAPRF',
         'exco_email' => 'exco@precisionrifle.co.za',
         'owner_email' => 'owner@precisionrifle.co.za',
+        'secretary_email' => 'secretary@precisionrifle.co.za',
     ], $overrides);
 }
 
-it('lets an owner save the ExCo and owner inbox addresses', function () {
+it('lets an owner save the ExCo, secretary, and owner inbox addresses', function () {
     $owner = User::factory()->create();
     $owner->assignRole('owner');
 
@@ -55,10 +56,20 @@ it('lets an owner save the ExCo and owner inbox addresses', function () {
         ->assertSessionHas('success');
 
     expect(app(SettingsService::class)->excoEmail())->toBe('exco@precisionrifle.co.za')
-        ->and(app(SettingsService::class)->ownerEmail())->toBe('owner@precisionrifle.co.za');
+        ->and(app(SettingsService::class)->ownerEmail())->toBe('owner@precisionrifle.co.za')
+        ->and(app(SettingsService::class)->secretaryEmail())->toBe('secretary@precisionrifle.co.za')
+        ->and(app(SettingsService::class)->replyToEmail())->toBe('secretary@precisionrifle.co.za');
 });
 
-it('shows the ExCo and owner inbox fields on site settings', function () {
+it('does not use the ExCo forwarder as Reply-To when the secretary inbox is empty', function () {
+    setStaffInbox('exco_email', 'admin@precisionrifle.co.za');
+    setStaffInbox('owner_email', 'owner-inbox@precisionrifle.co.za');
+    setStaffInbox('secretary_email', '');
+
+    expect(app(SettingsService::class)->replyToEmail())->toBeNull();
+});
+
+it('shows the ExCo, secretary, and owner inbox fields on site settings', function () {
     $owner = User::factory()->create();
     $owner->assignRole('owner');
 
@@ -66,10 +77,12 @@ it('shows the ExCo and owner inbox fields on site settings', function () {
         ->get(route('site-settings.index'))
         ->assertOk()
         ->assertSee('ExCo Email')
+        ->assertSee('Secretary Email')
         ->assertSee('Owner Email');
 });
 
-it('sends contact-form mail to the configured inboxes instead of a shared admin address', function () {
+it('sends contact-form mail to the secretary inbox, not the owner or a shared admin address', function () {
+    setStaffInbox('secretary_email', 'secretary-inbox@precisionrifle.co.za');
     setStaffInbox('owner_email', 'owner-inbox@precisionrifle.co.za');
     setStaffInbox('exco_email', 'exco-inbox@precisionrifle.co.za');
 
@@ -90,12 +103,10 @@ it('sends contact-form mail to the configured inboxes instead of a shared admin 
     Notification::assertNotSentTo([$admin], ContactMessageReceivedNotification::class);
 
     Notification::assertSentOnDemand(ContactMessageReceivedNotification::class, function ($notification, $channels, $notifiable) {
-        return $notifiable->routes['mail'] === 'owner-inbox@precisionrifle.co.za';
+        return $notifiable->routes['mail'] === 'secretary-inbox@precisionrifle.co.za';
     });
 
-    Notification::assertSentOnDemand(ContactMessageReceivedNotification::class, function ($notification, $channels, $notifiable) {
-        return $notifiable->routes['mail'] === 'exco-inbox@precisionrifle.co.za';
-    });
+    Notification::assertSentOnDemandTimes(ContactMessageReceivedNotification::class, 1);
 });
 
 it('still notifies role users for contact forms when no dedicated inbox is set', function () {
