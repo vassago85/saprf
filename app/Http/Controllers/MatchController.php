@@ -211,6 +211,11 @@ class MatchController extends Controller
             unset($validated['everyone_counts']);
         }
 
+        // Keep the public listing flag in lockstep with status. store() already
+        // does this; without it here, reverting Open → Draft left the match
+        // on the public calendar with registration closed.
+        $validated['published'] = ($validated['status'] ?? $match->status) !== 'draft';
+
         $match->update($validated);
 
         $match->divisions()->sync($divisionIds);
@@ -376,6 +381,10 @@ class MatchController extends Controller
 
     public function publicShow(MatchEvent $match): View
     {
+        if ($match->status === 'draft' || ! $match->published) {
+            abort(404);
+        }
+
         $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
         // "Registered" must exclude withdrawn/cancelled entries so the stat matches
         // the public entrant list (which already hides cancelled registrations).

@@ -80,6 +80,10 @@ class MatchEvent extends Model
         static::creating(function (MatchEvent $match) {
             $match->slug = Str::slug($match->name) . '-' . Str::random(5);
         });
+
+        static::saving(function (MatchEvent $match) {
+            $match->published = $match->status !== 'draft';
+        });
     }
 
     // ── Relationships ──
@@ -299,7 +303,7 @@ class MatchEvent extends Model
 
     public function scopePublished(Builder $query): Builder
     {
-        return $query->where('published', true);
+        return $query->where('published', true)->where('status', '!=', 'draft');
     }
 
     public function scopeUpcoming(Builder $query): Builder
@@ -349,6 +353,7 @@ class MatchEvent extends Model
 
         foreach (['PRS', 'PR22'] as $series) {
             $match = static::query()
+                ->published()
                 ->where('match_type', $series)
                 ->whereIn('series_level', ['national', 'final'])
                 ->where(function (Builder $q) {
