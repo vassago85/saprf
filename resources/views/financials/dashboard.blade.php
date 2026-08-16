@@ -188,22 +188,26 @@
                             : rtrim(rtrim(number_format($platformFeeValue, 2), '0'), '.') . '%';
                     @endphp
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">Platform Fees ({{ $platformFeeRateLabel }})</dt>
-                        <dd class="text-red-600">-R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
+                        <dt class="text-stone-500">SAPRF Fees</dt>
+                        <dd class="text-emerald-600">+R{{ number_format($summary['match_revenue']['saprf_fees'], 2) }}</dd>
                     </div>
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">SAPRF Fees</dt>
-                        <dd class="text-red-600">-R{{ number_format($summary['match_revenue']['saprf_fees'], 2) }}</dd>
+                        <dt class="text-stone-500">Surcharges (to SAPRF)</dt>
+                        <dd class="text-emerald-600">+R{{ number_format($summary['match_revenue']['surcharges'], 2) }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-stone-500">Platform Fees ({{ $platformFeeRateLabel }})</dt>
+                        <dd class="text-stone-600">R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Gateway Fees</dt>
                         <dd class="text-red-600">-R{{ number_format($summary['match_revenue']['gateway_fees'], 2) }}</dd>
                     </div>
-                    <div class="flex justify-between">
-                        <dt class="text-stone-500">Surcharges</dt>
-                        <dd class="text-emerald-600">+R{{ number_format($summary['match_revenue']['surcharges'], 2) }}</dd>
-                    </div>
                     <div class="flex justify-between border-t border-stone-200 pt-2">
+                        <dt class="font-semibold text-emerald-800">SAPRF from matches</dt>
+                        <dd class="font-bold text-emerald-800">R{{ number_format($summary['match_revenue']['saprf_fees'] + $summary['match_revenue']['surcharges'], 2) }}</dd>
+                    </div>
+                    <div class="flex justify-between">
                         <dt class="font-semibold text-stone-700">Net to MDs</dt>
                         <dd class="font-bold text-stone-900">R{{ number_format($summary['match_revenue']['md_net'], 2) }}</dd>
                     </div>
@@ -345,7 +349,7 @@
                             <td class="py-3 px-4 text-stone-500">{{ \Carbon\Carbon::parse($m->match_date)->format('d M Y') }}</td>
                             <td class="py-3 px-4 text-right text-stone-700">{{ $m->entries }}</td>
                             <td class="py-3 px-4 text-right font-medium">R{{ number_format($m->gross, 2) }}</td>
-                            <td class="py-3 px-4 text-right text-red-600">R{{ number_format($m->saprf_fees, 2) }}</td>
+                            <td class="py-3 px-4 text-right text-emerald-700">R{{ number_format($m->saprf_fees, 2) }}</td>
                             <td class="py-3 px-4 text-right text-red-600">R{{ number_format($m->platform_fees, 2) }}</td>
                             <td class="py-3 px-4 text-right text-red-600">R{{ number_format($m->gateway_fees, 2) }}</td>
                             <td class="py-3 px-4 text-right font-semibold text-stone-900">R{{ number_format($m->md_net, 2) }}</td>
