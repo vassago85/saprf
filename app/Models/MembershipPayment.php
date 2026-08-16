@@ -10,6 +10,7 @@ class MembershipPayment extends Model
     protected $fillable = [
         'membership_id',
         'amount',
+        'gateway_fee',
         'payment_date',
         'payment_reference',
         'payment_method',
@@ -21,6 +22,7 @@ class MembershipPayment extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'gateway_fee' => 'decimal:2',
             'payment_date' => 'date',
         ];
     }

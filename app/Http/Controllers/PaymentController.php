@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\MembershipConfirmedNotification;
 use App\Notifications\PaymentReceivedNotification;
 use App\Services\AuditLogService;
+use App\Services\FinancialService;
 use App\Services\PayFastService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
@@ -212,11 +213,15 @@ class PaymentController extends Controller
         }
 
         $pfPaymentStatus = $data['payment_status'] ?? '';
+        $settlement = Payment::settlementFromItn($data);
         $payment->update([
             'gateway_payment_id' => $data['pf_payment_id'] ?? null,
             'gateway_response' => array_merge($data, $sandboxOverride ? ['sandbox_override' => true] : []),
             'status' => $pfPaymentStatus === 'COMPLETE' ? 'completed' : 'failed',
             'paid_at' => $pfPaymentStatus === 'COMPLETE' ? now() : null,
+            'amount_gross' => $settlement['gross'],
+            'amount_fee' => $settlement['fee'],
+            'amount_net' => $settlement['net'],
         ]);
 
         if ($pfPaymentStatus === 'COMPLETE') {
@@ -439,13 +444,22 @@ class PaymentController extends Controller
                 'registration_status' => $payable->registration_status === 'pending' ? 'confirmed' : $payable->registration_status,
             ]);
 
+            if ($payment->amount_fee !== null) {
+                $payable->applyActualGatewayFee((float) $payment->amount_fee);
+            }
+
             $this->auditLogService->log(
                 $payment->user,
                 'registration.payment.completed',
                 'MatchRegistration',
                 $payable->id,
                 ['payment_status' => 'unpaid'],
-                ['payment_status' => 'paid', 'payment_id' => $payment->id],
+                [
+                    'payment_status' => 'paid',
+                    'payment_id' => $payment->id,
+                    'gateway_fee' => $payment->amount_fee,
+                    'amount_net' => $payment->amount_net,
+                ],
             );
 
             FinancialTransaction::create([
@@ -460,6 +474,9 @@ class PaymentController extends Controller
                     'm_payment_id' => $payment->m_payment_id,
                     'gateway_payment_id' => $payment->gateway_payment_id,
                     'match_id' => $payable->match_id,
+                    'amount_gross' => $payment->amount_gross,
+                    'amount_fee' => $payment->amount_fee,
+                    'amount_net' => $payment->amount_net,
                 ],
             ]);
 
@@ -481,6 +498,7 @@ class PaymentController extends Controller
             $membershipPayment = MembershipPayment::create([
                 'membership_id' => $payable->id,
                 'amount' => $payment->amount,
+                'gateway_fee' => $payment->amount_fee,
                 'payment_date' => now()->toDateString(),
                 'payment_reference' => $payment->m_payment_id,
                 'payment_method' => 'payfast',
@@ -509,6 +527,9 @@ class PaymentController extends Controller
                     'm_payment_id' => $payment->m_payment_id,
                     'gateway_payment_id' => $payment->gateway_payment_id,
                     'saprf_number' => $payable->saprf_number,
+                    'amount_gross' => $payment->amount_gross,
+                    'amount_fee' => $payment->amount_fee,
+                    'amount_net' => $payment->amount_net,
                 ],
             ]);
 
@@ -521,5 +542,7 @@ class PaymentController extends Controller
                 }
             }
         }
+
+        app(FinancialService::class)->clearCache();
     }
 }

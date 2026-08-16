@@ -50,8 +50,9 @@ class RegistrationPricingService
      *
      * Surcharges (non-member / lapsed) go 100% to SAPRF.
      * SAPRF fee and platform fee are each a % of the base match fee.
-     * Gateway fee is estimated from the total amount charged to the shooter.
-     * MD net = total - SAPRF fee - platform fee - surcharge - estimated gateway fee.
+     * Gateway fee is the card-rate estimate (highest typical PayFast cost).
+     * PayFast ITN later overwrites it with the actual deducted fee.
+     * MD net = total - SAPRF fee - platform fee - surcharge - gateway fee.
      */
     public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null): array
     {

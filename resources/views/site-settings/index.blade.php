@@ -197,19 +197,19 @@
                     <div>
                         <label for="estimated_gateway_fee_percentage" class="block text-sm font-medium text-stone-700">Est. Gateway Fee (%)</label>
                         <input type="number" step="0.1" min="0" max="20" name="estimated_gateway_fee_percentage" id="estimated_gateway_fee_percentage" value="{{ old('estimated_gateway_fee_percentage', $settings['estimated_gateway_fee_percentage'] ?? '3.5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Estimated PayFast transaction fee (%). Used for MD payout projection.</p>
+                        <p class="mt-1 text-xs text-stone-400">Card-rate estimate for unpaid / cash / imported entries and revenue projections. Online PayFast payments use the actual fee from the ITN.</p>
                     </div>
 
                     <div>
                         <label for="estimated_gateway_flat_fee" class="block text-sm font-medium text-stone-700">Est. Gateway Flat Fee (ZAR)</label>
                         <input type="number" step="0.01" min="0" max="100" name="estimated_gateway_flat_fee" id="estimated_gateway_flat_fee" value="{{ old('estimated_gateway_flat_fee', $settings['estimated_gateway_flat_fee'] ?? '2.00') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Fixed per-transaction fee by PayFast (ZAR). Used for MD payout projection.</p>
+                        <p class="mt-1 text-xs text-stone-400">Fixed per-transaction estimate (ZAR). Same fallback as the percentage above.</p>
                     </div>
                 </div>
 
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">How it works:</strong></p>
-                    <p>SAPRF fee and platform fee are calculated on the <strong>base match fee</strong> (active member rate). Non-member and lapsed-member surcharges go 100% to SAPRF. The estimated gateway fee is deducted from the total to project the match director's net payout.</p>
+                    <p>SAPRF fee and platform fee are calculated on the <strong>base match fee</strong> (active member rate). Non-member and lapsed-member surcharges go 100% to SAPRF. The gateway estimate is used until PayFast reports the real fee, then MD net is recalculated.</p>
                 </div>
             </div>
 
@@ -227,7 +227,7 @@
                     </div>
 
                     <div class="flex items-end pb-1">
-                        <p class="text-sm text-stone-500">Gateway fees ({{ $settings['estimated_gateway_fee_percentage'] ?? '3.5' }}% + R{{ $settings['estimated_gateway_flat_fee'] ?? '2.00' }}) are shared across all transactions and configured above.</p>
+                        <p class="text-sm text-stone-500">PayFast online payments use the actual fee. The estimate ({{ $settings['estimated_gateway_fee_percentage'] ?? '3.5' }}% + R{{ $settings['estimated_gateway_flat_fee'] ?? '2.00' }}) is only a fallback for cash, imports, and projections.</p>
                     </div>
                 </div>
 

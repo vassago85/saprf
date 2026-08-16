@@ -155,12 +155,12 @@
                             </div>
                         @endif
                         <div class="flex items-center justify-between text-sm">
-                            <span class="text-stone-500">Est. Gateway Fee (PayFast)</span>
+                            <span class="text-stone-500">Gateway Fee (PayFast)</span>
                             <span class="text-red-600">− R {{ number_format($financeBreakdown['total_gateway_fee'], 2) }}</span>
                         </div>
                         <div class="border-t border-stone-200"></div>
                         <div class="flex items-center justify-between text-sm">
-                            <span class="font-semibold text-stone-900">Estimated MD Payout</span>
+                            <span class="font-semibold text-stone-900">MD Payout</span>
                             <span class="font-bold text-emerald-700">R {{ number_format($financeBreakdown['total_md_net'], 2) }}</span>
                         </div>
                     </div>

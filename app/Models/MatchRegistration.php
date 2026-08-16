@@ -156,6 +156,27 @@ class MatchRegistration extends Model
         return $this->match->match_date->copy()->subHours($hours);
     }
 
+    /**
+     * Replace the card-rate gateway estimate with the fee PayFast actually
+     * deducted, and rebalance MD net so the row still adds up.
+     */
+    public function applyActualGatewayFee(float $gatewayFee): void
+    {
+        $gatewayFee = round(abs($gatewayFee), 2);
+
+        $this->update([
+            'gateway_fee' => $gatewayFee,
+            'md_net_amount' => round(
+                (float) $this->fee_amount
+                - (float) $this->saprf_fee
+                - (float) $this->platform_fee
+                - (float) $this->surcharge_amount
+                - $gatewayFee,
+                2
+            ),
+        ]);
+    }
+
     public function calculateRefund(): array
     {
         $settings = app(SettingsService::class);

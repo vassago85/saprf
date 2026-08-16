@@ -111,7 +111,10 @@ class FinancialService
 
         $agg = $query->selectRaw('
             COUNT(*) as total_payments,
-            COALESCE(SUM(amount), 0) as gross
+            COALESCE(SUM(amount), 0) as gross,
+            COALESCE(SUM(gateway_fee), 0) as stored_gateway_fees,
+            SUM(CASE WHEN gateway_fee IS NULL THEN 1 ELSE 0 END) as estimated_count,
+            COALESCE(SUM(CASE WHEN gateway_fee IS NULL THEN amount ELSE 0 END), 0) as estimated_gross
         ')->first();
 
         $gross = (float) $agg->gross;
@@ -120,9 +123,10 @@ class FinancialService
         $gatewayFlat = (float) $this->settings->get('estimated_gateway_flat_fee', 2);
 
         $platformFees = round($gross * $membershipPlatformPct, 2);
-        $gatewayFees = $agg->total_payments > 0
-            ? ($gross * $gatewayPct) + ($gatewayFlat * (int) $agg->total_payments)
+        $estimatedGateway = (int) $agg->estimated_count > 0
+            ? ((float) $agg->estimated_gross * $gatewayPct) + ($gatewayFlat * (int) $agg->estimated_count)
             : 0;
+        $gatewayFees = (float) $agg->stored_gateway_fees + $estimatedGateway;
 
         return [
             'total_payments' => (int) $agg->total_payments,
