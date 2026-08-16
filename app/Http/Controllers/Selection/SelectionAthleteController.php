@@ -120,7 +120,16 @@ class SelectionAthleteController extends Controller
         $divisions = Division::orderBy('display_order')->get();
         $criteria = $this->criteria->for($athlete);
 
-        return view('selection.athletes.show', compact('cycle', 'athlete', 'divisions', 'criteria'));
+        // The "Eligibility to Compete" rule id is series-specific
+        // (ELG-05 for PR22, ELG-06 for PRS). We compute it here so the
+        // Blade view never has to reach into the policy JSON — doing that
+        // inside a component slot's @php block was silently swallowing
+        // the assignment on production and 500ing the page.
+        $policyElg = collect($cycle->activePolicy?->spec_json['eligibility']['rules'] ?? [])
+            ->firstWhere('check', 'declaration_form_received');
+        $formRuleId = $policyElg['id'] ?? ($cycle->series === 'PR22' ? 'ELG-05' : 'ELG-06');
+
+        return view('selection.athletes.show', compact('cycle', 'athlete', 'divisions', 'criteria', 'formRuleId'));
     }
 
     public function update(Request $request, SelectionCycle $cycle, SelectionAthlete $athlete): RedirectResponse

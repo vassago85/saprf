@@ -143,13 +143,6 @@
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-stone-700 mb-3">Declaration (DEC-01)</h2>
                 @php
-                    // Pull the actual form-rule id from the cycle policy JSON so
-                    // we display ELG-05 (PR22) / ELG-06 (PRS) verbatim from the
-                    // governing document, instead of the hard-coded ELG-07 that
-                    // was never in any policy.
-                    $policyElg = collect($cycle->activePolicy?->spec_json['eligibility']['rules'] ?? [])
-                        ->firstWhere('check', 'declaration_form_received');
-                    $formRuleId = $policyElg['id'] ?? ($cycle->series === 'PR22' ? 'ELG-05' : 'ELG-06');
                     $formData = $athlete->declaration?->form_data ?? [];
                     $attestations = $formData['attestations'] ?? null;
                     $receivedChannel = $formData['received_channel'] ?? null;
