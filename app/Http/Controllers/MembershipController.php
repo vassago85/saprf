@@ -720,9 +720,14 @@ class MembershipController extends Controller
             }
         }
 
-        // Remove any stale metrics DomPDF may have tried to write under resources/.
-        foreach (glob($sourceDir.DIRECTORY_SEPARATOR.'*.{ufm,json}', GLOB_BRACE) ?: [] as $stale) {
-            @unlink($stale);
+        // Remove any stale metrics DomPDF may have tried to write under
+        // resources/. Two plain globs beat GLOB_BRACE because Alpine's musl
+        // libc doesn't define it — PHP on Alpine leaves the constant unset
+        // and the whole certificate download 500s.
+        foreach (['*.ufm', '*.json'] as $pattern) {
+            foreach (glob($sourceDir.DIRECTORY_SEPARATOR.$pattern) ?: [] as $stale) {
+                @unlink($stale);
+            }
         }
 
         return $fontDir;
