@@ -26,14 +26,27 @@ beforeEach(function () {
 /**
  * Writes a CSV in the workspace's temp storage and returns its absolute path.
  * The command normally accepts project-relative paths; we pass absolute for isolation.
+ * afterEach() below deletes every members_*.csv so a failed assertion cannot leak
+ * identity-shaped fixtures onto disk.
  */
 function writeMembersCsv(string $body): string
 {
-    $path = storage_path('framework/testing/members_'.uniqid().'.csv');
-    if (!is_dir(dirname($path))) mkdir(dirname($path), 0777, true);
+    $dir = storage_path('framework/testing');
+    if (! is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+
+    $path = $dir.DIRECTORY_SEPARATOR.'members_'.uniqid().'.csv';
     file_put_contents($path, $body);
+
     return $path;
 }
+
+afterEach(function () {
+    foreach (glob(storage_path('framework/testing/members_*.csv')) ?: [] as $path) {
+        @unlink($path);
+    }
+});
 
 it('prints a canonical CSV template', function () {
     Artisan::call('users:import-members', ['--template' => true]);
