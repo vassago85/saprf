@@ -216,8 +216,8 @@ class MatchController extends Controller
         $match->divisions()->sync($divisionIds);
 
         // Season logs are derived from a published match's scores, and almost
-        // any edit (level, type, province, date, division awards, dual-count
-        // flags…) can change how those scores rank or pool. Rather than guess
+        // any edit (level, type, province, date, dual-count flags…) can
+        // change how those scores rank or pool. Rather than guess
         // which fields matter, ANY edit to a published match rebuilds the
         // affected season logs (national + every provincial table) from the
         // persisted scores. Draft matches have no standings yet, so skip them.

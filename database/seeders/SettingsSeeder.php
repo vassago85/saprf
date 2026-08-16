@@ -30,11 +30,6 @@ class SettingsSeeder extends Seeder
             ['value' => '1', 'description' => 'Restrict shooter to one division per match (1=yes, 0=no)'],
         );
 
-        Setting::firstOrCreate(
-            ['key' => 'division_awards_enabled'],
-            ['value' => '1', 'description' => 'Enable division awards and placements (1=yes, 0=no)'],
-        );
-
         // Fee Structure — type/value pair lets each fee be a percentage of the
         // match fee OR a fixed rand amount per shooter.
         Setting::firstOrCreate(

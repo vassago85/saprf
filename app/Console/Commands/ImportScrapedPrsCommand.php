@@ -370,7 +370,6 @@ class ImportScrapedPrsCommand extends Command
             'status' => $status,
             'created_by' => $creatorId,
             'published' => true,
-            'division_awards_enabled' => true,
             'also_counts_for_provincial' => false,
             'description' => trim(sprintf(
                 "Imported from precisionrifle.co.za event #%s\nMatch Director: %s\nContact: %s",

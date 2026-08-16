@@ -151,7 +151,6 @@ class ImportProvincialDay1Command extends Command
                 'status' => 'completed',
                 'created_by' => $creator->id,
                 'published' => true,
-                'division_awards_enabled' => true,
                 // Every shooter counts regardless of membership state on the
                 // day. Persisting this as a match-level flag stops any
                 // subsequent re-evaluation from silently demoting scores.

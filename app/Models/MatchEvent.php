@@ -48,7 +48,6 @@ class MatchEvent extends Model
         'estimated_shooters',
         'waitlist_enabled',
         'published',
-        'division_awards_enabled',
         'also_counts_for_provincial',
         'everyone_counts',
         'provincial_stage_columns',
@@ -71,7 +70,6 @@ class MatchEvent extends Model
             'estimated_shooters' => 'integer',
             'waitlist_enabled' => 'boolean',
             'published' => 'boolean',
-            'division_awards_enabled' => 'boolean',
             'also_counts_for_provincial' => 'boolean',
             'everyone_counts' => 'boolean',
         ];

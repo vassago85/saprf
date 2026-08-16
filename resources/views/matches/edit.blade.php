@@ -242,14 +242,6 @@
                     </select>
                 </div>
 
-                <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <label class="flex items-center gap-2">
-                        <input type="hidden" name="division_awards_enabled" value="0">
-                        <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $match->division_awards_enabled)) class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm text-stone-700">Enable division awards</span>
-                    </label>
-                </div>
-
                 @role('owner|admin|exco|developer')
                     <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50/50 p-4">
                         <label class="flex items-start gap-2.5">

@@ -97,24 +97,13 @@
                     Every shooter picks exactly one division.
                 </p>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                        <label class="flex items-center gap-2">
-                            <input type="hidden" name="division_single_select" value="0">
-                            <input type="checkbox" name="division_single_select" value="1" @checked(old('division_single_select', $settings['division_single_select'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">One division per match</span>
-                        </label>
-                        <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can only compete in one division per match.</p>
-                    </div>
-
-                    <div>
-                        <label class="flex items-center gap-2">
-                            <input type="hidden" name="division_awards_enabled" value="0">
-                            <input type="checkbox" name="division_awards_enabled" value="1" @checked(old('division_awards_enabled', $settings['division_awards_enabled'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-sm font-medium text-stone-700">Enable division awards</span>
-                        </label>
-                        <p class="mt-1 ml-6 text-xs text-stone-400">Award placements per division.</p>
-                    </div>
+                <div>
+                    <label class="flex items-center gap-2">
+                        <input type="hidden" name="division_single_select" value="0">
+                        <input type="checkbox" name="division_single_select" value="1" @checked(old('division_single_select', $settings['division_single_select'] ?? '1') == '1') class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm font-medium text-stone-700">One division per match</span>
+                    </label>
+                    <p class="mt-1 ml-6 text-xs text-stone-400">A shooter can only compete in one division per match.</p>
                 </div>
             </div>
 

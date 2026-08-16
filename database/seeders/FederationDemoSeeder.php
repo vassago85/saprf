@@ -284,7 +284,6 @@ class FederationDemoSeeder extends Seeder
                     'max_competitors' => $data['max'],
                     'waitlist_enabled' => $data['max'] <= 30,
                     'published' => true,
-                    'division_awards_enabled' => true,
                 ];
 
                 if (!empty($data['dual_provincial'])) {

@@ -37,7 +37,6 @@ class StoreMatchRequest extends FormRequest
             'waitlist_enabled' => ['boolean'],
             'divisions' => ['nullable', 'array'],
             'divisions.*' => ['exists:divisions,id'],
-            'division_awards_enabled' => ['boolean'],
             'estimated_shooters' => ['nullable', 'integer', 'min:1', 'max:999'],
             'also_counts_for_provincial' => ['boolean'],
             'provincial_stage_columns' => ['nullable', 'string', 'max:1000'],

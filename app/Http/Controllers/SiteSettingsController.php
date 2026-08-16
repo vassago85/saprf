@@ -40,7 +40,6 @@ class SiteSettingsController extends Controller
             'withdrawal_admin_fee' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'withdrawal_deadline_hours' => ['required', 'integer', 'min:0', 'max:720'],
             'division_single_select' => ['required', 'boolean'],
-            'division_awards_enabled' => ['required', 'boolean'],
             'saprf_fee_type' => ['required', 'in:percentage,fixed'],
             'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'platform_fee_type' => ['nullable', 'in:percentage,fixed'],
@@ -70,7 +69,6 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('withdrawal_deadline_hours', $validated['withdrawal_deadline_hours'], 'Hours before match date that withdrawal refunds are cut off');
 
         $this->settingsService->set('division_single_select', $validated['division_single_select'], 'Restrict shooter to one division per match (1=yes, 0=no)');
-        $this->settingsService->set('division_awards_enabled', $validated['division_awards_enabled'], 'Enable division awards and placements (1=yes, 0=no)');
 
         $this->settingsService->set('saprf_fee_type', $validated['saprf_fee_type'], 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter');
         $this->settingsService->set('saprf_fee_value', $validated['saprf_fee_value'], 'SAPRF fee value (interpreted by saprf_fee_type)');
