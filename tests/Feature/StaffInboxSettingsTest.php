@@ -40,13 +40,12 @@ function validSiteSettings(array $overrides = []): array
         'notifications_enabled' => '1',
         'mail_from_address' => 'noreply@saprf.co.za',
         'mail_from_name' => 'SAPRF',
-        'exco_email' => 'exco@precisionrifle.co.za',
         'owner_email' => 'owner@precisionrifle.co.za',
         'secretary_email' => 'secretary@precisionrifle.co.za',
     ], $overrides);
 }
 
-it('lets an owner save the ExCo, secretary, and owner inbox addresses', function () {
+it('lets an owner save the secretary and owner inbox addresses', function () {
     $owner = User::factory()->create();
     $owner->assignRole('owner');
 
@@ -55,8 +54,7 @@ it('lets an owner save the ExCo, secretary, and owner inbox addresses', function
         ->assertRedirect(route('site-settings.index'))
         ->assertSessionHas('success');
 
-    expect(app(SettingsService::class)->excoEmail())->toBe('exco@precisionrifle.co.za')
-        ->and(app(SettingsService::class)->ownerEmail())->toBe('owner@precisionrifle.co.za')
+    expect(app(SettingsService::class)->ownerEmail())->toBe('owner@precisionrifle.co.za')
         ->and(app(SettingsService::class)->secretaryEmail())->toBe('secretary@precisionrifle.co.za')
         ->and(app(SettingsService::class)->replyToEmail())->toBe('secretary@precisionrifle.co.za');
 });
@@ -69,14 +67,14 @@ it('does not use the ExCo forwarder as Reply-To when the secretary inbox is empt
     expect(app(SettingsService::class)->replyToEmail())->toBeNull();
 });
 
-it('shows the ExCo, secretary, and owner inbox fields on site settings', function () {
+it('shows the secretary and owner inbox fields on site settings', function () {
     $owner = User::factory()->create();
     $owner->assignRole('owner');
 
     $this->actingAs($owner)
         ->get(route('site-settings.index'))
         ->assertOk()
-        ->assertSee('ExCo Email')
+        ->assertDontSee('ExCo Email')
         ->assertSee('Secretary Email')
         ->assertSee('Owner Email');
 });

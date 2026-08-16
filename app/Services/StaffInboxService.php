@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\Notification as NotificationFacade;
 /**
  * Resolves who receives federation staff mail.
  *
- * Site Settings can name dedicated ExCo, secretary, and owner inboxes.
+ * Site Settings can name dedicated secretary and owner inboxes.
  * When those are set, they are the destinations (plus any developer
  * accounts so the platform operator still sees copies). Role users whose
  * personal address is not one of those inboxes are skipped — that is
  * what stops a shared admin@ address being the dump for every notification.
+ *
+ * Eligibility-form mail does not use a dedicated ExCo inbox: every user
+ * with the exco role already receives it at their own address.
  *
  * When no dedicated inbox is configured, every user holding the given
  * roles is notified, which is the original behaviour.
@@ -25,15 +28,10 @@ class StaffInboxService
     public function notify(
         Notification $notification,
         array $roles,
-        bool $includeExcoInbox = false,
         bool $includeOwnerInbox = false,
         bool $includeSecretaryInbox = false,
     ): void {
         $inboxes = collect();
-
-        if ($includeExcoInbox && ($email = $this->settings->excoEmail())) {
-            $inboxes->push($email);
-        }
 
         if ($includeOwnerInbox && ($email = $this->settings->ownerEmail())) {
             $inboxes->push($email);

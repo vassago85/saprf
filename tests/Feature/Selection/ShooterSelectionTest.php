@@ -227,18 +227,18 @@ it('notifies developer / owner / exco users when a form is submitted', function 
     Notification::assertNotSentTo([$member], SelectionDeclarationSubmittedNotification::class);
 });
 
-it('sends eligibility-form mail to the configured ExCo inbox instead of a shared admin address', function () {
+it('does not send a second eligibility-form copy to a dedicated ExCo inbox', function () {
     Setting::updateOrCreate(
         ['key' => 'exco_email'],
-        ['value' => 'exco-inbox@precisionrifle.co.za', 'description' => 'test'],
+        ['value' => 'admin@precisionrifle.co.za', 'description' => 'test'],
     );
     app(SettingsService::class)->clearCache();
 
     $cycle = makeShooterCycle();
     $user = makeShooterUser();
 
-    $owner = User::factory()->create(['email' => 'admin@precisionrifle.co.za', 'email_verified_at' => now()]);
-    $owner->assignRole('owner');
+    $exco = User::factory()->create(['email' => 'clive@example.com', 'email_verified_at' => now()]);
+    $exco->assignRole('exco');
 
     $this->actingAs($user)->post(route('iprf.opt-in', $cycle));
     $this->actingAs($user)->post(route('iprf.form', $cycle), [
@@ -249,10 +249,8 @@ it('sends eligibility-form mail to the configured ExCo inbox instead of a shared
         'signature' => $user->name,
     ]);
 
-    Notification::assertNotSentTo([$owner], SelectionDeclarationSubmittedNotification::class);
-    Notification::assertSentOnDemand(SelectionDeclarationSubmittedNotification::class, function ($notification, $channels, $notifiable) {
-        return $notifiable->routes['mail'] === 'exco-inbox@precisionrifle.co.za';
-    });
+    Notification::assertSentTo([$exco], SelectionDeclarationSubmittedNotification::class);
+    Notification::assertSentOnDemandTimes(SelectionDeclarationSubmittedNotification::class, 0);
 });
 
 it('lets a shooter withdraw and records the withdrawal in the audit log', function () {

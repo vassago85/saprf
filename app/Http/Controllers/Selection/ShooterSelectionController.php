@@ -308,7 +308,6 @@ class ShooterSelectionController extends Controller
             app(StaffInboxService::class)->notify(
                 new SelectionDeclarationSubmittedNotification($athlete),
                 ['developer', 'owner', 'exco'],
-                includeExcoInbox: true,
             );
         } catch (\Throwable $e) {
             // Delivery failure never invalidates the submission: the row is
