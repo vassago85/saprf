@@ -142,13 +142,45 @@
 
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-stone-700 mb-3">Declaration (DEC-01)</h2>
+                @php
+                    // Pull the actual form-rule id from the cycle policy JSON so
+                    // we display ELG-05 (PR22) / ELG-06 (PRS) verbatim from the
+                    // governing document, instead of the hard-coded ELG-07 that
+                    // was never in any policy.
+                    $policyElg = collect($cycle->activePolicy?->spec_json['eligibility']['rules'] ?? [])
+                        ->firstWhere('check', 'declaration_form_received');
+                    $formRuleId = $policyElg['id'] ?? ($cycle->series === 'PR22' ? 'ELG-05' : 'ELG-06');
+                    $formData = $athlete->declaration?->form_data ?? [];
+                    $attestations = $formData['attestations'] ?? null;
+                    $receivedChannel = $formData['received_channel'] ?? null;
+                @endphp
                 @if ($athlete->declaration)
                     <p class="text-sm text-stone-700">
                         Status: <span class="font-semibold">{{ $athlete->declaration->status }}</span><br>
                         Submitted: {{ $athlete->declaration->submitted_at?->format('Y-m-d H:i') ?? '—' }}<br>
                         Captured by: {{ optional($athlete->declaration->capturedBy)->name ?? '—' }}<br>
-                        ELG-07 form received: {{ ($athlete->declaration->form_data['eligibility_to_compete_received'] ?? false) ? 'Yes' : 'No' }}
+                        {{ $formRuleId }} form received: {{ ($formData['eligibility_to_compete_received'] ?? false) ? 'Yes' : 'No' }}
+                        @if ($receivedChannel === 'online_form')
+                            <span class="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-800">via online form</span>
+                        @endif
                     </p>
+                    @if ($attestations)
+                        <div class="mt-3 rounded-lg border border-stone-200 bg-stone-50/60 p-3 text-xs text-stone-700 space-y-1">
+                            <p class="font-semibold text-stone-600">Attestations submitted</p>
+                            <ul class="space-y-0.5">
+                                <li>{{ ($attestations['intention_to_participate'] ?? false) ? '✓' : '✗' }} Intention to participate</li>
+                                <li>{{ ($attestations['able_and_willing'] ?? false) ? '✓' : '✗' }} Able and willing to undertake the programme</li>
+                                <li>{{ ($attestations['satisfy_preconditions'] ?? false) ? '✓' : '✗' }} Will satisfy ExCo preconditions</li>
+                                <li>{{ ($attestations['no_impairment'] ?? false) ? '✓' : '✗' }} No impairment</li>
+                            </ul>
+                            @if (! empty($formData['signature']))
+                                <p class="mt-2 text-stone-500">Signature: <span class="font-mono">{{ $formData['signature'] }}</span></p>
+                            @endif
+                            @if (! empty($formData['notes']))
+                                <p class="mt-1 text-stone-500">Notes: {{ $formData['notes'] }}</p>
+                            @endif
+                        </div>
+                    @endif
                     @if ($athlete->declaration->signed_form_path)
                         <p class="mt-2 text-xs text-stone-500">Signed PDF on file: <span class="font-mono">{{ basename($athlete->declaration->signed_form_path) }}</span></p>
                     @endif
@@ -156,7 +188,7 @@
                     <p class="text-sm text-stone-500">Not yet on file.</p>
                 @endif
                 <details class="mt-4">
-                    <summary class="cursor-pointer text-sm font-medium text-emerald-700">Capture / update declaration</summary>
+                    <summary class="cursor-pointer text-sm font-medium text-emerald-700">Capture / update declaration (paper submission)</summary>
                     <form method="POST" action="{{ route('selection.cycles.athletes.declaration.store', [$cycle, $athlete]) }}" enctype="multipart/form-data" class="mt-3 space-y-3">
                         @csrf
                         <div>
@@ -166,7 +198,7 @@
                         <label class="flex items-center gap-2 text-sm text-stone-700">
                             <input type="hidden" name="eligibility_to_compete_received" value="0">
                             <input type="checkbox" name="eligibility_to_compete_received" value="1" @checked($athlete->declaration?->form_data['eligibility_to_compete_received'] ?? false)>
-                            ELG-07 "Eligibility to Compete" form received
+                            {{ $formRuleId }} "Eligibility to Compete" form received
                         </label>
                         <div>
                             <label class="block text-sm font-medium text-stone-700 mb-1">Notes</label>

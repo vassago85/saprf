@@ -223,8 +223,7 @@ class SelectionCriteriaStatus
             'ELG-03' => 'Resides in their affiliated province or is a member of a SAPRF-recognised club',
             'ELG-04' => 'Resides in South Africa (exception: SA citizens abroad who shot the SA Champs)',
             'ELG-05' => '"Eligibility to Compete" form completed and received by ExCo',
-            'ELG-06' => 'Declaration on file',
-            'ELG-07' => 'Declaration on file',
+            'ELG-06' => '"Eligibility to Compete" form completed and received by ExCo',
         ];
     }
 

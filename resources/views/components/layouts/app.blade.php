@@ -117,6 +117,16 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
+            {{-- Shooter-facing IPRF group. Every logged-in member sees this,
+                 whether they're a pure member or a staff user in shooter mode.
+                 The staff-only "IPRF Selection" admin group (further down)
+                 stays gated by role. --}}
+            <flux:navlist.group heading="IPRF" expandable :expanded="request()->routeIs('iprf.*')">
+                <flux:navlist.item icon="flag" :href="route('iprf.index')" :current="request()->routeIs('iprf.*')">
+                    Team Selection
+                </flux:navlist.item>
+            </flux:navlist.group>
+
             {{-- Everything below is hidden when a staff user has flipped to
                  Shooter mode, giving them a member-only sidebar. --}}
             @if($viewMode === 'admin')

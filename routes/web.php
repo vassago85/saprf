@@ -383,6 +383,17 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->where('path', '.*')->name('backups.download');
     });
 
+    // Shooter-facing IPRF dashboard. Any authenticated + verified member can
+    // reach this to opt into an open cycle, complete the combined DEC-01 /
+    // Eligibility-to-Compete form, and see their live ELG / PART status. The
+    // staff-only subsystem below is a separate group.
+    Route::prefix('iprf')->name('iprf.')->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'index'])->name('index');
+        Route::post('/{cycle}/opt-in', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'optIn'])->name('opt-in');
+        Route::post('/{cycle}/withdraw', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'withdraw'])->name('withdraw');
+        Route::post('/{cycle}/form', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'storeForm'])->name('form');
+    });
+
     // IPRF / national team selection subsystem.
     Route::middleware(['role:developer|exco|owner|admin|iprf_selector'])
         ->prefix('selection')
