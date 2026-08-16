@@ -5,9 +5,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.guest')] class extends Component {
+new #[Layout('components.layouts.guest')] #[Title('Activate Your Account — SAPRF')] class extends Component {
     public string $token = '';
     public string $password = '';
     public string $password_confirmation = '';
@@ -85,7 +86,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-8">
             @if ($valid)
-                <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Welcome to SAPRF</h2>
+                <h1 class="font-heading text-2xl font-bold text-stone-900 mb-1">Welcome to SAPRF</h1>
                 <p class="text-sm text-stone-500 mb-6">
                     Hi {{ $memberName }}, set a password to activate your account for
                     <span class="font-medium text-stone-700">{{ $memberEmail }}</span>.
@@ -103,7 +104,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
                     </button>
                 </form>
             @else
-                <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Invitation Unavailable</h2>
+                <h1 class="font-heading text-2xl font-bold text-stone-900 mb-1">Invitation Unavailable</h1>
                 <p class="text-sm text-stone-500 mb-6">
                     This invitation link is invalid, has expired, or has already been used.
                     If you have already activated your account, please sign in. Otherwise, ask an

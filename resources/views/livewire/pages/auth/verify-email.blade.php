@@ -3,9 +3,10 @@
 use App\Notifications\EmailOtpNotification;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\Auth;
 
-new #[Layout('components.layouts.guest')] class extends Component {
+new #[Layout('components.layouts.guest')] #[Title('Verify Your Email — SAPRF')] class extends Component {
     public string $otp = '';
     public string $status = '';
     public string $error = '';
@@ -79,7 +80,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
                 </div>
             </div>
 
-            <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1 text-center">Verify Your Email</h2>
+            <h1 class="font-heading text-2xl font-bold text-stone-900 mb-1 text-center">Verify Your Email</h1>
             <p class="text-sm text-stone-500 mb-6 text-center">
                 We sent a verification email to <strong class="text-stone-700">{{ Auth::user()->email }}</strong>.
                 Tap <strong>Verify Email Address</strong> in that email — it works on any phone or computer.

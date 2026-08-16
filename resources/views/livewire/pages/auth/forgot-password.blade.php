@@ -2,9 +2,10 @@
 
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\Password;
 
-new #[Layout('components.layouts.guest')] class extends Component {
+new #[Layout('components.layouts.guest')] #[Title('Forgot Password — SAPRF')] class extends Component {
     public string $email = '';
     public string $status = '';
 
@@ -41,7 +42,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
         </div>
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-8">
-            <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Forgot Password</h2>
+            <h1 class="font-heading text-2xl font-bold text-stone-900 mb-1">Forgot Password</h1>
             <p class="text-sm text-stone-500 mb-6">Enter your email and we'll send you a reset link.</p>
 
             @if($status)

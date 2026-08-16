@@ -39,19 +39,30 @@ class User extends Authenticatable implements MustVerifyEmail
         'province_id',
         'division_id',
         'club_id',
-        'email_otp',
-        'email_otp_expires_at',
         'email_verified_at',
         'parent_id',
         'is_managed_account',
         'managed_relationship',
-        'handover_email',
+    ];
+
+    /**
+     * Credential-bearing columns are deliberately NOT fillable: the e-mail OTP,
+     * the account-handover token and the invitation token are secrets, so they
+     * may only be written through the explicit helpers on this model (or a
+     * `forceFill()` in the flow that owns them). That way a future
+     * `fill($request->all())` can never mint or clear a login token.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'sa_id_number',
+        'passport_number',
+        'mil_le_number',
+        'email_otp',
         'handover_token',
-        'handover_expires_at',
         'invitation_token',
-        'invitation_sent_at',
-        'invitation_expires_at',
-        'invitation_accepted_at',
     ];
 
     /**
@@ -109,12 +120,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'indian',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-        'sa_id_number',
-    ];
-
     protected function casts(): array
     {
         return [
@@ -138,10 +143,10 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        $this->update([
+        $this->forceFill([
             'email_otp' => $otp,
             'email_otp_expires_at' => now()->addMinutes(30),
-        ]);
+        ])->save();
 
         return $otp;
     }
@@ -160,11 +165,11 @@ class User extends Authenticatable implements MustVerifyEmail
             return false;
         }
 
-        $this->update([
+        $this->forceFill([
             'email_verified_at' => now(),
             'email_otp' => null,
             'email_otp_expires_at' => null,
-        ]);
+        ])->save();
 
         return true;
     }

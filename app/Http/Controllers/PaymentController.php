@@ -8,6 +8,7 @@ use App\Models\Membership;
 use App\Models\MembershipFeeTier;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
+use App\Models\User;
 use App\Notifications\MembershipConfirmedNotification;
 use App\Notifications\PaymentReceivedNotification;
 use App\Services\AuditLogService;
@@ -26,8 +27,15 @@ class PaymentController extends Controller
         private readonly AuditLogService $auditLogService,
     ) {}
 
-    public function redirect(Payment $payment): View|RedirectResponse
+    /**
+     * Roles allowed to act on a payment that isn't theirs (support / reconciliation).
+     */
+    private const PAYMENT_STAFF_ROLES = ['developer', 'exco', 'owner', 'admin'];
+
+    public function redirect(Request $request, Payment $payment): View|RedirectResponse
     {
+        $this->authorizePayment($request, $payment);
+
         if (! $payment->isPending()) {
             return redirect()->route('registrations.index')
                 ->with('info', 'This payment has already been processed.');
@@ -47,20 +55,18 @@ class PaymentController extends Controller
 
     public function returnFromGateway(Request $request): View
     {
-        $mPaymentId = $request->query('m_payment_id');
-        $payment = $mPaymentId ? Payment::where('m_payment_id', $mPaymentId)->first() : null;
+        // m_payment_id arrives in the query string, so it is only a hint — resolve
+        // it against the signed-in user before putting anything in the view.
+        $payment = $this->ownedPaymentFromQuery($request);
 
         // Return URL is not authoritative (ITN is), but poll the success page so
         // the UI flips to Paid as soon as the webhook lands.
         return view('payments.success', compact('payment'));
     }
 
-    public function status(Payment $payment): \Illuminate\Http\JsonResponse
+    public function status(Request $request, Payment $payment): \Illuminate\Http\JsonResponse
     {
-        $user = request()->user();
-        if (! $user || ($payment->user_id !== $user->id && ! $user->hasAnyRole(['developer', 'exco', 'owner', 'admin']))) {
-            abort(403);
-        }
+        $this->authorizePayment($request, $payment);
 
         $payment->refresh();
 
@@ -74,14 +80,67 @@ class PaymentController extends Controller
 
     public function cancel(Request $request): View
     {
-        $mPaymentId = $request->query('m_payment_id');
-        $payment = $mPaymentId ? Payment::where('m_payment_id', $mPaymentId)->first() : null;
+        $payment = $this->ownedPaymentFromQuery($request);
 
         if ($payment && $payment->isPending()) {
             $payment->update(['status' => 'cancelled']);
         }
 
         return view('payments.cancelled', compact('payment'));
+    }
+
+    /**
+     * Resolve ?m_payment_id= to a payment the current user is allowed to see.
+     * Returns null rather than aborting: these are gateway landing pages, so a
+     * stale or foreign reference should render an empty state, not a 403.
+     */
+    private function ownedPaymentFromQuery(Request $request): ?Payment
+    {
+        $mPaymentId = $request->query('m_payment_id');
+
+        if (! is_string($mPaymentId) || $mPaymentId === '') {
+            return null;
+        }
+
+        $payment = Payment::where('m_payment_id', $mPaymentId)->first();
+
+        return $payment && $this->userMayActOn($request->user(), $payment) ? $payment : null;
+    }
+
+    /**
+     * PayFast posts the payer's name, email and signature with every ITN. We
+     * still want the audit trail, so keep the reference/amount/status fields
+     * and mask the rest rather than dropping the log line entirely.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function redactItn(array $data): array
+    {
+        $sensitive = ['name_first', 'name_last', 'email_address', 'cell_number', 'signature', 'token'];
+
+        foreach ($sensitive as $key) {
+            if (array_key_exists($key, $data) && $data[$key] !== null && $data[$key] !== '') {
+                $data[$key] = '[redacted]';
+            }
+        }
+
+        return $data;
+    }
+
+    private function authorizePayment(Request $request, Payment $payment): void
+    {
+        abort_unless($this->userMayActOn($request->user(), $payment), 403);
+    }
+
+    private function userMayActOn(?User $user, Payment $payment): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $payment->user_id === $user->id
+            || $user->hasAnyRole(self::PAYMENT_STAFF_ROLES);
     }
 
     public function notify(Request $request): \Illuminate\Http\Response
@@ -92,7 +151,7 @@ class PaymentController extends Controller
             $data = $request->request->all();
         }
 
-        Log::info('PayFast ITN received', ['data' => $data, 'ip' => $request->ip()]);
+        Log::info('PayFast ITN received', ['data' => $this->redactItn($data), 'ip' => $request->ip()]);
 
         $errors = $this->payFastService->validateItnRequest($data, $request->ip());
         $sandboxOverride = false;
@@ -108,7 +167,7 @@ class PaymentController extends Controller
                     'm_payment_id' => $data['m_payment_id'] ?? null,
                 ]);
             } else {
-                Log::warning('PayFast ITN validation failed', ['errors' => $errors, 'data' => $data]);
+                Log::warning('PayFast ITN validation failed', ['errors' => $errors, 'data' => $this->redactItn($data)]);
 
                 return response('INVALID', 400)
                     ->header('Content-Type', 'text/plain');

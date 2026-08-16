@@ -182,11 +182,11 @@ class FamilyController extends Controller
         $plainToken = Str::random(60);
         $hashedToken = hash('sha256', $plainToken);
 
-        $junior->update([
+        $junior->forceFill([
             'handover_email' => $data['handover_email'],
             'handover_token' => $hashedToken,
             'handover_expires_at' => now()->addDays(self::HANDOVER_TTL_DAYS),
-        ]);
+        ])->save();
 
         try {
             $junior->notify(new AccountHandoverInvitationNotification(
@@ -239,11 +239,11 @@ class FamilyController extends Controller
         DB::transaction(function () use ($junior) {
             // Clear any lingering handover token before soft-deleting.
             if ($junior->handover_token) {
-                $junior->update([
+                $junior->forceFill([
                     'handover_email' => null,
                     'handover_token' => null,
                     'handover_expires_at' => null,
-                ]);
+                ])->save();
             }
 
             $junior->delete(); // Soft delete — the User model uses SoftDeletes.
@@ -268,11 +268,11 @@ class FamilyController extends Controller
 
         $old = $junior->only(['handover_email']);
 
-        $junior->update([
+        $junior->forceFill([
             'handover_email' => null,
             'handover_token' => null,
             'handover_expires_at' => null,
-        ]);
+        ])->save();
 
         $this->auditLogService->log(
             $request->user(),
@@ -309,7 +309,7 @@ class FamilyController extends Controller
 
         $oldEmail = $junior->email;
 
-        $junior->update([
+        $junior->forceFill([
             'email' => $junior->handover_email,
             'password' => Hash::make($data['password']),
             'phone' => $data['phone'] ?? $junior->phone,
@@ -319,7 +319,7 @@ class FamilyController extends Controller
             'handover_token' => null,
             'handover_expires_at' => null,
             'email_verified_at' => now(),
-        ]);
+        ])->save();
 
         $this->auditLogService->log(
             $junior,

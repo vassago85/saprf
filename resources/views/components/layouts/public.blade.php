@@ -5,12 +5,14 @@
     {{ $slot }}
 </x-layouts.app>
 @else
-<x-layouts.guest>
+<x-layouts.guest :main="false">
     <x-slot:title>{{ $title }}</x-slot:title>
 
     <x-public-nav :current="$current" />
 
-    {{ $slot }}
+    <main id="main">
+        {{ $slot }}
+    </main>
 
     @if($sponsorPlacement)
         <x-sponsors-strip :placement="$sponsorPlacement" class="border-t border-stone-200" />

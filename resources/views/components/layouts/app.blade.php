@@ -23,6 +23,8 @@
     @flux-sidebar-toggle.window="sidebarOpen = !sidebarOpen"
     @keydown.escape.window="sidebarOpen = false"
     @click="if ($event.target.closest('[data-flux-sidebar] a')) sidebarOpen = false">
+    <x-skip-link />
+
     {{-- Mobile sidebar backdrop (Flux Free doesn't ship this). --}}
     <div
         x-show="sidebarOpen"
@@ -291,7 +293,7 @@
         </a>
     </flux:header>
 
-    <flux:main class="bg-stone-50">
+    <flux:main id="main" class="bg-stone-50">
         @if (session('success'))
             <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                 {{ session('success') }}

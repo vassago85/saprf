@@ -1,3 +1,8 @@
+{{--
+    `main` is false when the caller supplies its own <main> landmark — the public
+    layout does, because its nav and footer must sit outside it.
+--}}
+@props(['main' => true])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -16,7 +21,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="force-light min-h-screen bg-white antialiased font-sans" style="color: #1c1917;">
-    {{ $slot }}
+    <x-skip-link />
+
+    @if($main)
+        <main id="main">{{ $slot }}</main>
+    @else
+        {{ $slot }}
+    @endif
 
     @fluxScripts
 </body>

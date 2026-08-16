@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Membership;
 use App\Models\Province;
 use App\Models\User;
+use Database\Seeders\Concerns\ResolvesSeedPassword;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Hash;
  */
 class MembershipDemoSeeder extends Seeder
 {
+    use ResolvesSeedPassword;
+
     public function run(): void
     {
         $provinces = Province::all()->keyBy('abbreviation');
@@ -56,7 +59,7 @@ class MembershipDemoSeeder extends Seeder
                 ['email' => $email],
                 [
                     'name' => $data['name'],
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make($this->seedPassword($email)),
                     'province_id' => $province->id,
                     'email_verified_at' => now(),
                     'must_change_password' => false,

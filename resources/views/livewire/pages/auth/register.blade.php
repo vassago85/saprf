@@ -5,11 +5,12 @@ use App\Models\User;
 use App\Notifications\EmailOtpNotification;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
-new #[Layout('components.layouts.guest')] class extends Component {
+new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] class extends Component {
     public string $name = '';
     public string $email = '';
     public string $phone = '';
@@ -123,7 +124,7 @@ new #[Layout('components.layouts.guest')] class extends Component {
         </div>
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-8">
-            <h2 class="font-heading text-2xl font-bold text-stone-900 mb-1">Create Account</h2>
+            <h1 class="font-heading text-2xl font-bold text-stone-900 mb-1">Create Account</h1>
             <p class="text-sm text-stone-500 mb-6">Join SAPRF. Fields marked <span class="text-red-600">*</span> are required.</p>
 
             <form wire:submit="register" class="space-y-6">

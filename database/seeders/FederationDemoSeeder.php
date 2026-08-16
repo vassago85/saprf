@@ -11,12 +11,15 @@ use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\User;
 use App\Services\StandingsCalculationService;
+use Database\Seeders\Concerns\ResolvesSeedPassword;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class FederationDemoSeeder extends Seeder
 {
+    use ResolvesSeedPassword;
+
     public function run(): void
     {
         DB::transaction(function () {
@@ -146,7 +149,7 @@ class FederationDemoSeeder extends Seeder
                     ['email' => $data['email']],
                     [
                         'name' => $data['name'],
-                        'password' => Hash::make('password'),
+                        'password' => Hash::make($this->seedPassword($data['email'])),
                         'province_id' => $provinces[$data['prov']]->id,
                         'date_of_birth' => $data['dob'],
                         'email_verified_at' => now(),

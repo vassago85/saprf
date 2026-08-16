@@ -86,7 +86,7 @@
                             {{-- Upcoming Matches --}}
                             <div class="p-4 sm:p-5">
                                 <div class="flex items-center justify-between mb-3.5">
-                                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-stone-500">Next Matches</h3>
+                                    <h2 class="text-[11px] font-bold uppercase tracking-wider text-stone-500">Next Matches</h2>
                                     <a href="/events" class="text-[11px] text-emerald-600 font-semibold hover:text-emerald-700 transition">All &rarr;</a>
                                 </div>
 
@@ -130,6 +130,9 @@
 
                             {{-- Standings with Tabs --}}
                             <div class="p-4 sm:p-5">
+                                {{-- The tab group is this panel's visible title; screen readers
+                                     still need a heading to sit between it and the page h1. --}}
+                                <h2 class="sr-only">Standings snapshot</h2>
                                 <div class="flex items-center justify-between mb-3.5">
                                     <div class="flex items-center gap-0.5 rounded-lg bg-stone-100 p-0.5 border border-stone-200">
                                         <button type="button"
