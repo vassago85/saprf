@@ -3,12 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContactMessage;
-use App\Models\User;
 use App\Notifications\ContactMessageReceivedNotification;
+use App\Services\StaffInboxService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
@@ -181,22 +180,19 @@ class ContactController extends Controller
     }
 
     /**
-     * Notify every developer / owner / admin / exco user via mail. Uses
-     * Notification::send() rather than a shared inbox so if you rotate
-     * staff nobody has to remember to update a mailing list.
+     * Notify the configured owner / ExCo inboxes (and developers). Falls
+     * back to every developer / owner / admin / exco user when those
+     * Site Settings addresses have not been set yet.
      */
     private function notifyAdmins(ContactMessage $message): void
     {
-        $recipients = User::role(['developer', 'owner', 'admin', 'exco'])
-            ->whereNotNull('email')
-            ->get();
-
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
         try {
-            Notification::send($recipients, new ContactMessageReceivedNotification($message));
+            app(StaffInboxService::class)->notify(
+                new ContactMessageReceivedNotification($message),
+                ['developer', 'owner', 'admin', 'exco'],
+                includeExcoInbox: true,
+                includeOwnerInbox: true,
+            );
         } catch (\Throwable $e) {
             // Notification failure must not swallow the user's message —
             // the row is already persisted so admins can still see it in

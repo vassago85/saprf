@@ -4,9 +4,11 @@ use App\Models\AuditLog;
 use App\Models\SelectionAthlete;
 use App\Models\SelectionCycle;
 use App\Models\SelectionDeclaration;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\SelectionDeclarationSubmittedNotification;
 use App\Services\Selection\PolicyImportService;
+use App\Services\SettingsService;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -223,6 +225,34 @@ it('notifies developer / owner / exco users when a form is submitted', function 
 
     Notification::assertSentTo([$exco], SelectionDeclarationSubmittedNotification::class);
     Notification::assertNotSentTo([$member], SelectionDeclarationSubmittedNotification::class);
+});
+
+it('sends eligibility-form mail to the configured ExCo inbox instead of a shared admin address', function () {
+    Setting::updateOrCreate(
+        ['key' => 'exco_email'],
+        ['value' => 'exco-inbox@precisionrifle.co.za', 'description' => 'test'],
+    );
+    app(SettingsService::class)->clearCache();
+
+    $cycle = makeShooterCycle();
+    $user = makeShooterUser();
+
+    $owner = User::factory()->create(['email' => 'admin@precisionrifle.co.za', 'email_verified_at' => now()]);
+    $owner->assignRole('owner');
+
+    $this->actingAs($user)->post(route('iprf.opt-in', $cycle));
+    $this->actingAs($user)->post(route('iprf.form', $cycle), [
+        'intention_to_participate' => '1',
+        'able_and_willing' => '1',
+        'satisfy_preconditions' => '1',
+        'no_impairment' => '1',
+        'signature' => $user->name,
+    ]);
+
+    Notification::assertNotSentTo([$owner], SelectionDeclarationSubmittedNotification::class);
+    Notification::assertSentOnDemand(SelectionDeclarationSubmittedNotification::class, function ($notification, $channels, $notifiable) {
+        return $notifiable->routes['mail'] === 'exco-inbox@precisionrifle.co.za';
+    });
 });
 
 it('lets a shooter withdraw and records the withdrawal in the audit log', function () {

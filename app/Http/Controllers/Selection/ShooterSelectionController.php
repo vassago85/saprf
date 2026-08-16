@@ -14,10 +14,10 @@ use App\Services\Selection\EligibilityEvaluator;
 use App\Services\Selection\ParticipationEvaluator;
 use App\Services\Selection\SelectionAthleteStateService;
 use App\Services\Selection\SelectionCriteriaStatus;
+use App\Services\StaffInboxService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 
 /**
@@ -304,16 +304,12 @@ class ShooterSelectionController extends Controller
 
     private function notifyExco(SelectionAthlete $athlete): void
     {
-        $recipients = User::role(['developer', 'owner', 'exco'])
-            ->whereNotNull('email')
-            ->get();
-
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
         try {
-            Notification::send($recipients, new SelectionDeclarationSubmittedNotification($athlete));
+            app(StaffInboxService::class)->notify(
+                new SelectionDeclarationSubmittedNotification($athlete),
+                ['developer', 'owner', 'exco'],
+                includeExcoInbox: true,
+            );
         } catch (\Throwable $e) {
             // Delivery failure never invalidates the submission: the row is
             // saved, the audit log is written, and the admin page shows the

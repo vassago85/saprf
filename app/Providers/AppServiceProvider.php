@@ -33,6 +33,7 @@ use App\Services\SettingsService;
 use Illuminate\Auth\Events\Failed as AuthFailedEvent;
 use Illuminate\Auth\Events\Login as AuthLoginEvent;
 use Illuminate\Auth\Events\Logout as AuthLogoutEvent;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -83,6 +84,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->applyMailgunSettings();
         $this->registerNotificationsToggle();
+        $this->registerMailReplyTo();
         $this->registerAuthAuditListener();
     }
 
@@ -145,6 +147,31 @@ class AppServiceProvider extends ServiceProvider
             ]);
 
             return false;
+        });
+    }
+
+    /**
+     * Point Reply-To at the owner (or ExCo) inbox when a notification did
+     * not set its own. Contact-form mail already replyTo()s the enquirer
+     * and is left alone. This stops member "just reply to this email"
+     * threads landing on the technical From address (often admin@).
+     */
+    private function registerMailReplyTo(): void
+    {
+        Event::listen(function (MessageSending $event) {
+            if ($event->message->getReplyTo()) {
+                return;
+            }
+
+            try {
+                $reply = app(SettingsService::class)->replyToEmail();
+            } catch (\Throwable) {
+                return;
+            }
+
+            if ($reply) {
+                $event->message->replyTo($reply);
+            }
         });
     }
 

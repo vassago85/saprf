@@ -37,4 +37,37 @@ class SettingsService
     {
         Cache::forget(self::CACHE_KEY);
     }
+
+    /**
+     * Dedicated ExCo inbox from Site Settings, or null when unset / invalid.
+     */
+    public function excoEmail(): ?string
+    {
+        return $this->normalizedEmail('exco_email');
+    }
+
+    /**
+     * Dedicated owner inbox from Site Settings, or null when unset / invalid.
+     */
+    public function ownerEmail(): ?string
+    {
+        return $this->normalizedEmail('owner_email');
+    }
+
+    /**
+     * Address members should reply to. Owner inbox first, then ExCo.
+     */
+    public function replyToEmail(): ?string
+    {
+        return $this->ownerEmail() ?? $this->excoEmail();
+    }
+
+    private function normalizedEmail(string $key): ?string
+    {
+        $email = trim((string) $this->get($key, ''));
+
+        return $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)
+            ? $email
+            : null;
+    }
 }

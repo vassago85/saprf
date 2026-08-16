@@ -350,6 +350,27 @@
                     </div>
                 </div>
 
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-4 space-y-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-stone-900">Federation inboxes</h3>
+                        <p class="mt-1 text-xs text-stone-500">Dedicated addresses for ExCo and the owner. Staff notifications go here instead of a shared admin@ mailbox. Member replies also land on the owner address (or ExCo if owner is blank).</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label for="exco_email" class="block text-sm font-medium text-stone-700">ExCo Email</label>
+                            <input type="email" name="exco_email" id="exco_email" value="{{ old('exco_email', $settings['exco_email'] ?? '') }}" placeholder="exco@precisionrifle.co.za"
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <p class="mt-1 text-xs text-stone-400">Eligibility-to-Compete submissions and other ExCo correspondence.</p>
+                        </div>
+                        <div>
+                            <label for="owner_email" class="block text-sm font-medium text-stone-700">Owner Email</label>
+                            <input type="email" name="owner_email" id="owner_email" value="{{ old('owner_email', $settings['owner_email'] ?? '') }}" placeholder="owner@precisionrifle.co.za"
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <p class="mt-1 text-xs text-stone-400">Contact-form enquiries and the Reply-To on member emails.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">Setup:</strong> Create a Mailgun account, add and verify your domain, then paste the API key and domain here. The <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">.env</code> values will be used as fallback if these fields are left blank.</p>
                 </div>

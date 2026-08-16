@@ -105,5 +105,15 @@ class SettingsSeeder extends Seeder
             ['key' => 'payments_enabled'],
             ['value' => '1', 'description' => 'Enable online payments (1=yes, 0=no)'],
         );
+
+        Setting::firstOrCreate(
+            ['key' => 'exco_email'],
+            ['value' => '', 'description' => 'ExCo inbox for eligibility forms and federation correspondence'],
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'owner_email'],
+            ['value' => '', 'description' => 'Owner inbox for contact-form and membership queries'],
+        );
     }
 }
