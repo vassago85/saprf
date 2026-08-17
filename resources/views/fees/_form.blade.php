@@ -41,6 +41,20 @@
             class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('description', $tier?->description) }}</textarea>
     </div>
 
+    <div>
+        <label for="min_age" class="block text-sm font-medium text-stone-700 mb-1">Minimum age <span class="text-stone-400 font-normal">(optional)</span></label>
+        <input type="number" name="min_age" id="min_age" min="0" max="120" value="{{ old('min_age', $tier?->min_age) }}" placeholder="e.g. 65 for Senior"
+            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+        <p class="mt-1 text-xs text-stone-400">Blank = no lower age limit.</p>
+    </div>
+
+    <div>
+        <label for="max_age" class="block text-sm font-medium text-stone-700 mb-1">Maximum age <span class="text-stone-400 font-normal">(optional)</span></label>
+        <input type="number" name="max_age" id="max_age" min="0" max="120" value="{{ old('max_age', $tier?->max_age) }}" placeholder="e.g. 17 for Junior"
+            class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+        <p class="mt-1 text-xs text-stone-400">Blank = no upper age limit.</p>
+    </div>
+
     <div class="sm:col-span-2 flex flex-col gap-3 pt-1">
         <label class="inline-flex items-center gap-2">
             <input type="hidden" name="is_active" value="0">

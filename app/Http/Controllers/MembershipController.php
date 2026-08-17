@@ -26,7 +26,7 @@ class MembershipController extends Controller
         private readonly AuditLogService $auditLogService,
     ) {}
 
-    public function myMembership(Request $request): View
+    public function myMembership(Request $request): View|RedirectResponse
     {
         $actor = $request->user();
         $user = $this->resolveManagedSubject($actor, $request->query('for_user'));
@@ -34,8 +34,23 @@ class MembershipController extends Controller
         $membership = Membership::with('feeTier')->where('user_id', $user->id)->latest()->first();
         $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
 
-        $feeTiers = MembershipFeeTier::active()->ordered()->get();
-        $selectedTier = $membership?->feeTier ?? MembershipFeeTier::defaultTier();
+        // Age gate: joining/renewing requires a DOB on the applicant so we
+        // can pick the correct tier (Junior under 18, Senior 65+, otherwise
+        // Adult/Mil-LEO). Skip the redirect when the applicant already has
+        // an active paid membership — they're viewing history, not renewing.
+        $requiresPurchase = $paymentsEnabled
+            && ! ($membership && $membership->status === 'active' && $membership->payment_status === 'paid');
+
+        if ($requiresPurchase && ! $user->date_of_birth) {
+            return $this->missingDobRedirect($user, $actor);
+        }
+
+        $feeTiers = MembershipFeeTier::availableForUser($user);
+        $selectedTier = ($membership?->feeTier && $membership->feeTier->isAvailableForAge(
+            $user->date_of_birth ? $user->getAgeOn(now()) : null
+        ))
+            ? $membership->feeTier
+            : MembershipFeeTier::cheapestForUser($user);
 
         // Amount shown on the pay/renew card: the membership's own tier if one
         // is stored, otherwise the default tier, otherwise the legacy setting.
@@ -49,6 +64,25 @@ class MembershipController extends Controller
         }
 
         return view('memberships.my-membership', compact('membership', 'user', 'fee', 'feeTiers', 'selectedTier', 'paymentsEnabled', 'seasons', 'managingFamily'));
+    }
+
+    /**
+     * Redirect the applicant to the correct place to set their DOB before
+     * we let them apply for membership. A managed junior goes to their
+     * family-member edit page (the parent's the one holding the form); the
+     * actor themselves goes to their own profile.
+     */
+    private function missingDobRedirect(User $subject, User $actor): RedirectResponse
+    {
+        $message = $subject->id === $actor->id
+            ? 'Please set your date of birth before applying for membership so we can offer the correct rate.'
+            : 'Please set '.$subject->name."'s date of birth before applying for membership so we can offer the correct rate.";
+
+        $target = $subject->id === $actor->id
+            ? route('profile')
+            : route('family.edit', $subject);
+
+        return redirect()->to($target)->with('error', $message);
     }
 
     private const SORTABLE = [

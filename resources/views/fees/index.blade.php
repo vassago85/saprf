@@ -25,6 +25,7 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Fee</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Term</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Age range</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Amount</th>
                         <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
@@ -47,6 +48,17 @@
                             <td class="px-6 py-4 text-sm text-stone-600">
                                 {{ $tier->duration_months == 12 ? '1 Year' : $tier->duration_months . ' months' }}
                             </td>
+                            <td class="px-6 py-4 text-sm text-stone-600">
+                                @if ($tier->min_age !== null && $tier->max_age !== null)
+                                    {{ $tier->min_age }}–{{ $tier->max_age }}
+                                @elseif ($tier->min_age !== null)
+                                    {{ $tier->min_age }}+
+                                @elseif ($tier->max_age !== null)
+                                    Under {{ $tier->max_age + 1 }}
+                                @else
+                                    <span class="text-stone-400">Any</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 text-right text-sm font-semibold text-stone-900">R {{ number_format((float) $tier->price, 2) }}</td>
                             <td class="px-6 py-4 text-center">
                                 @if ($tier->is_active)
@@ -68,7 +80,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-sm text-stone-400">
+                            <td colspan="6" class="px-6 py-12 text-center text-sm text-stone-400">
                                 No membership fees defined yet. Add one to get started.
                             </td>
                         </tr>

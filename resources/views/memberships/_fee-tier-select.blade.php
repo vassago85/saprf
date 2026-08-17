@@ -1,9 +1,42 @@
 {{--
     Membership fee selection for the join / renew cards.
-    Expects: $feeTiers (collection), $selectedTier (model|null), $fee (float),
-             $action (route url), $buttonLabel (string)
+    Expects: $feeTiers (collection of tiers the applicant qualifies for),
+             $selectedTier (model|null), $fee (float), $action (route url),
+             $buttonLabel (string).
+
+    Tiers are pre-filtered by age in the controller. When the applicant
+    qualifies for exactly one tier (typical Junior case), we skip the
+    radio group and show a read-only summary card explaining that the
+    tier is picked from their date of birth.
 --}}
-@if($feeTiers->isNotEmpty())
+@if($feeTiers->count() === 1)
+    @php($only = $feeTiers->first())
+    <form method="POST" action="{{ $action }}"
+          class="rounded-lg bg-emerald-50 border border-emerald-200 p-5 space-y-4">
+        @csrf
+        @foreach(($hidden ?? []) as $name => $value)
+            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @endforeach
+        <input type="hidden" name="fee_tier_id" value="{{ $only->id }}">
+
+        <div class="flex items-center justify-between rounded-lg bg-white border border-emerald-200 p-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Selected by age</p>
+                <p class="text-sm font-medium text-stone-900 mt-1">{{ $only->name }} Membership</p>
+                @if($only->description)
+                    <p class="text-xs text-stone-500 mt-1">{{ $only->description }}</p>
+                @endif
+            </div>
+            <p class="text-2xl font-bold text-stone-900 whitespace-nowrap">R {{ number_format((float) $only->price, 2) }}</p>
+        </div>
+
+        <p class="text-xs text-stone-400">Tier is set automatically from date of birth. Valid for 12 months from date of payment.</p>
+
+        <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+            {{ $buttonLabel }}
+        </button>
+    </form>
+@elseif($feeTiers->isNotEmpty())
     <form method="POST" action="{{ $action }}"
           x-data="{ tier: '{{ old('fee_tier_id', $selectedTier?->id) }}' }"
           class="rounded-lg bg-emerald-50 border border-emerald-200 p-5 space-y-4">
@@ -32,7 +65,7 @@
             @endforeach
         </div>
 
-        <p class="text-xs text-stone-400">Valid for 12 months from date of payment. Proof of eligibility may be required for discounted rates.</p>
+        <p class="text-xs text-stone-400">Available tiers are filtered by date of birth. Proof of eligibility may be required for discounted rates. Valid for 12 months from date of payment.</p>
 
         <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
             {{ $buttonLabel }}

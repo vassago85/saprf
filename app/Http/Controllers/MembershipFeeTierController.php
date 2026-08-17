@@ -103,7 +103,7 @@ class MembershipFeeTierController extends Controller
 
     private function validateTier(Request $request, ?MembershipFeeTier $tier = null): array
     {
-        return $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:100'],
             'slug' => [
                 'nullable', 'string', 'alpha_dash', 'max:50',
@@ -115,6 +115,12 @@ class MembershipFeeTierController extends Controller
             'display_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
             'is_default' => ['sometimes', 'boolean'],
+            'min_age' => ['nullable', 'integer', 'between:0,120'],
+            'max_age' => ['nullable', 'integer', 'between:0,120', 'gte:min_age'],
+        ];
+
+        return $request->validate($rules, [
+            'max_age.gte' => 'Maximum age must be greater than or equal to minimum age.',
         ]);
     }
 
@@ -125,6 +131,8 @@ class MembershipFeeTierController extends Controller
             : Str::slug($validated['name']);
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['is_default'] = $request->boolean('is_default');
+        $validated['min_age'] = $validated['min_age'] ?? null;
+        $validated['max_age'] = $validated['max_age'] ?? null;
 
         return $validated;
     }

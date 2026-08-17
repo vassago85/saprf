@@ -212,21 +212,16 @@ it('lets a member apply for membership on behalf of a family account', function 
 });
 
 it('creates a membership for the family member and charges the parent', function () {
+    // Junior with a DOB in range so the age-gated tier picker resolves to
+    // the seeded Junior tier at R150. Historic form of this test used a
+    // hand-rolled R500 "Standard" tier on a spouse account with no DOB —
+    // both the tier picker and the DOB gate now block that path.
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,
         'is_managed_account' => true,
-        'managed_relationship' => 'spouse',
+        'managed_relationship' => 'junior',
         'province_id' => $this->province->id,
-    ]);
-
-    MembershipFeeTier::create([
-        'name' => 'Standard',
-        'slug' => 'standard',
-        'price' => 500,
-        'duration_months' => 12,
-        'is_active' => true,
-        'is_default' => true,
-        'display_order' => 1,
+        'date_of_birth' => now()->subYears(14)->toDateString(),
     ]);
 
     $stub = new class(true) extends PayFastService {
@@ -246,15 +241,18 @@ it('creates a membership for the family member and charges the parent', function
         ->post(route('membership.join'), ['for_user' => $junior->id])
         ->assertRedirect();
 
+    $juniorTier = MembershipFeeTier::where('slug', 'junior')->firstOrFail();
     $membership = Membership::where('user_id', $junior->id)->first();
     $payment = Payment::where('payable_type', Membership::class)->first();
 
     expect($membership)->not->toBeNull()
         ->and($membership->user_id)->toBe($junior->id)
+        ->and($membership->fee_tier_id)->toBe($juniorTier->id)
         ->and(Membership::where('user_id', $this->parent->id)->exists())->toBeFalse()
         ->and($payment)->not->toBeNull()
         ->and($payment->user_id)->toBe($this->parent->id)
-        ->and($payment->payable_id)->toBe($membership->id);
+        ->and($payment->payable_id)->toBe($membership->id)
+        ->and((float) $payment->amount)->toBe(150.0);
 });
 
 it('rejects applying for membership on someone else\'s family account', function () {

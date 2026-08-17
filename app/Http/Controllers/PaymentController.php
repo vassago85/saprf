@@ -276,16 +276,44 @@ class PaymentController extends Controller
                 ->with('error', 'Online payments are not currently available. Please contact the administrator.');
         }
 
+        // Age-gated pricing: without a DOB we can't decide between Adult,
+        // Junior, and Senior tiers. Bounce them to set it first rather than
+        // silently defaulting to Adult (R850) for a shooter who should pay
+        // R150 as a junior.
+        if (! $user->date_of_birth) {
+            $target = $user->id === $payer->id
+                ? route('profile')
+                : route('family.edit', $user);
+            $message = $user->id === $payer->id
+                ? 'Please set your date of birth before applying for membership so we can offer the correct rate.'
+                : 'Please set '.$user->name."'s date of birth before applying for membership so we can offer the correct rate.";
+
+            return redirect()->to($target)->with('error', $message);
+        }
+
         $validated = $request->validate([
             'fee_tier_id' => [
                 'nullable',
                 Rule::exists('membership_fee_tiers', 'id')->where('is_active', true),
+                function (string $attribute, mixed $value, \Closure $fail) use ($user) {
+                    if ($value !== null && ! MembershipFeeTier::isTierAllowedForUser((int) $value, $user)) {
+                        $fail('The selected tier is not available for the applicant\'s age.');
+                    }
+                },
             ],
         ]);
 
         $tier = isset($validated['fee_tier_id'])
             ? MembershipFeeTier::find($validated['fee_tier_id'])
-            : MembershipFeeTier::defaultTier();
+            : MembershipFeeTier::cheapestForUser($user);
+
+        // Nothing the user qualifies for — every active tier was age-gated
+        // out. Kick back to the picker with a clear message rather than
+        // charging R0 on the fallback and silently activating them.
+        if (! $tier) {
+            return redirect()->route('my-membership', $this->membershipPageParams($user, $payer))
+                ->with('error', 'No membership tier is currently available for the applicant. Please contact the administrator.');
+        }
 
         $fee = $this->resolveFee($tier);
         $expiry = now()->addMonths($tier?->duration_months ?? 12)->toDateString();
