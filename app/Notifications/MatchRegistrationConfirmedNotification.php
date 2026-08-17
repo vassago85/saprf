@@ -67,7 +67,7 @@ class MatchRegistrationConfirmedNotification extends Notification implements Sho
             ->line('**Match:** ' . $match->name)
             ->line('**Date:** ' . $match->formatted_date)
             ->line('**Venue:** ' . trim(($match->venue_name ?: '—') . ', ' . ($match->location_display ?: '')))
-            ->line('**Discipline:** ' . $match->match_type . ' &middot; ' . ucfirst((string) $match->series_level));
+            ->line('**Discipline:** ' . $match->match_type . ' · ' . ucfirst((string) $match->series_level));
 
         if ((float) $registration->fee_amount > 0) {
             $paymentLabel = $registration->payment_status === 'paid' ? 'Paid' : 'Outstanding';
