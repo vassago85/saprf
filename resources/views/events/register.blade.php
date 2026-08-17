@@ -176,7 +176,13 @@
                             </p>
                             <div>
                                 <label for="new_shooter_name_input" class="block text-xs font-medium text-stone-600 mb-1">Shooter's full name <span class="text-red-500">*</span></label>
-                                <input type="text" id="new_shooter_name_input" x-model.trim="newShooterName" required minlength="2" maxlength="100"
+                                {{-- Deliberately NOT `required`/`minlength`: this input lives inside the
+                                     outer registration <form>, but the Continue button navigates via
+                                     window.location instead of submitting. The browser would otherwise
+                                     block the outer "Register me" submit because the required field is
+                                     x-show-hidden and un-focusable. Min-2-chars is enforced by the
+                                     Continue button's :disabled binding below. --}}
+                                <input type="text" id="new_shooter_name_input" x-model.trim="newShooterName" maxlength="100"
                                        placeholder="e.g. Jane Doe"
                                        class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 focus:ring-sky-500 focus:border-sky-500" />
                             </div>
