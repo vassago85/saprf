@@ -1,10 +1,10 @@
-name,email,phone,saprf_number,membership_type,status,payment_status,start_date,expiry_date,province,division,role,is_active
-Mark Elliott,mark.a.elliott00@gmail.com,,50,paid,expired,paid,2024-01-01,2024-12-31,Western Cape,Open,member,1
-Jeanette Coetzee,,,1342,paid,active,paid,,,,Ladies,member,1
-Rennie Brink,,,1999,free,pending,unpaid,,,,Open,member,1
-Christopher Cloete,,,1259,paid,active,paid,,,,Open,member,1
-Malcolm Coetzee,,,935,paid,active,paid,,,,Open,member,1
-Michael Olivier,,,2135,free,pending,unpaid,,,,Open,member,1
-Gerhard Slabbert,,,1065,paid,active,paid,,,,Open,member,1
-Christoff Snyman,,,456,paid,active,paid,,,,Open,member,1
-DeWalt Theron,,,2138,free,pending,unpaid,,,,Open,member,1
+name,email,phone,sa_id_number,date_of_birth,saprf_number,membership_type,status,payment_status,start_date,expiry_date,province,division,club,role,is_active
+Mark Elliott,mark.a.elliott00@gmail.com,,,1989-12-14,50,paid,expired,paid,,2024-12-30,Western Cape,Open,Atlantis Precision Rifle Club,member,1
+Jeanette Coetzee,,,,,1342,paid,active,paid,,,,Ladies,,member,1
+Rennie Brink,,,,,1999,free,active,unpaid,,,,Open,,member,1
+Christopher Cloete,christophercloete@vodamail.co.za,0823276327,7703105104089,1977-03-10,1259,paid,expired,paid,,2026-01-26,Western Cape,Open,SA Hunters - Tafelberg,member,1
+Malcolm Coetzee,mrcoetzee101@gmail.com,0744354226,9004225231086,1990-04-22,935,paid,active,paid,,2026-09-15,Western Cape,Open,,member,1
+Michael Olivier,michael.olivier01@gmail.com,0823010646,8606045116080,1986-06-04,2135,free,active,unpaid,,2027-08-13,Western Cape,Open,SA Hunters - Tafelberg,member,1
+Gerhard Slabbert,slabbertgerhard2@gmail.com,0714078473,8307290000000,1983-07-28,1065,paid,active,paid,,2026-12-19,Western Cape,Open,Kraaifontein Shooting Club,member,1
+Christoff Snyman,christoff880704@gmail.com,0834687977,8807045063088,1988-07-04,456,paid,expired,paid,,2024-11-02,Western Cape,Open,SA Hunters - Tafelberg,member,1
+DeWalt Theron,dewalt.theron@gmail.com,0842663333,9411305090086,1994-11-30,2138,free,active,unpaid,,2027-08-14,Western Cape,Open,SA Hunters - Tafelberg,member,1
