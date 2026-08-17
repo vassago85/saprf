@@ -1,0 +1,10 @@
+name,email,phone,saprf_number,membership_type,status,payment_status,start_date,expiry_date,province,division,role,is_active
+Mark Elliott,mark.a.elliott00@gmail.com,,50,paid,expired,paid,2024-01-01,2024-12-31,Western Cape,Open,member,1
+Jeanette Coetzee,,,1342,paid,active,paid,,,,Ladies,member,1
+Rennie Brink,,,1999,free,pending,unpaid,,,,Open,member,1
+Christopher Cloete,,,1259,paid,active,paid,,,,Open,member,1
+Malcolm Coetzee,,,935,paid,active,paid,,,,Open,member,1
+Michael Olivier,,,2135,free,pending,unpaid,,,,Open,member,1
+Gerhard Slabbert,,,1065,paid,active,paid,,,,Open,member,1
+Christoff Snyman,,,456,paid,active,paid,,,,Open,member,1
+DeWalt Theron,,,2138,free,pending,unpaid,,,,Open,member,1

@@ -162,6 +162,62 @@ it('accepts --user as an alternative to --membership', function () {
     expect(MatchRegistration::where('user_id', $this->member->id)->count())->toBe(1);
 });
 
+it('accepts --saprf as an alternative that resolves via memberships.saprf_number', function () {
+    // Operators paste SAPRF numbers off paper entry sheets; the command
+    // must find the shooter by that number without needing anyone to look
+    // up the internal user/membership IDs.
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--saprf' => $this->membership->saprf_number,
+        '--division' => 'ladies',
+        '--force' => true,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    expect(MatchRegistration::where('user_id', $this->member->id)->count())->toBe(1);
+});
+
+it('strips leading zeros on --saprf so 00050 resolves to 50', function () {
+    // Paper sheets often left-pad SAPRF numbers ("050", "00050"); the DB
+    // stores them without padding, so the command must match either form.
+    $this->membership->update(['saprf_number' => '50']);
+
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--saprf' => '00050',
+        '--division' => 'ladies',
+        '--force' => true,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    expect(MatchRegistration::where('user_id', $this->member->id)->count())->toBe(1);
+});
+
+it('errors clearly when --saprf does not resolve to any membership', function () {
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--saprf' => '99999999',
+        '--division' => 'ladies',
+        '--force' => true,
+        '--apply' => true,
+    ])
+        ->expectsOutputToContain("SAPRF number '99999999' has no matching membership.")
+        ->assertFailed();
+
+    expect(MatchRegistration::count())->toBe(0);
+});
+
+it('rejects the run when neither --membership, --user, nor --saprf is supplied', function () {
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--division' => 'ladies',
+        '--force' => true,
+        '--apply' => true,
+    ])
+        ->expectsOutputToContain('Required: --match, --division, and one of --membership / --user / --saprf.')
+        ->assertFailed();
+});
+
 it('supports --payment=waived for comp\'d entries', function () {
     $this->artisan('registrations:seed', [
         '--match' => $this->match->id,

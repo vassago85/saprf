@@ -27,6 +27,7 @@ class SeedMatchRegistrationCommand extends Command
                             {--match= : MatchEvent ID}
                             {--membership= : Membership ID (used to look up the shooter)}
                             {--user= : User ID (alternative to --membership)}
+                            {--saprf= : SAPRF membership number (alternative to --membership/--user; resolves via memberships.saprf_number)}
                             {--division= : Division slug (e.g. ladies, open, factory)}
                             {--payment=paid : payment_status to store (paid|waived|pending)}
                             {--category= : Force the fee bracket (active_member|lapsed_member|non_member); bypasses the classifier. Requires --reason.}
@@ -43,6 +44,10 @@ class SeedMatchRegistrationCommand extends Command
         $matchId = (int) $this->option('match');
         $membershipId = $this->option('membership') ? (int) $this->option('membership') : null;
         $userIdOpt = $this->option('user') ? (int) $this->option('user') : null;
+        $saprfNumber = $this->option('saprf') !== null ? trim((string) $this->option('saprf')) : null;
+        if ($saprfNumber === '') {
+            $saprfNumber = null;
+        }
         $divisionSlug = (string) $this->option('division');
         $paymentStatus = (string) $this->option('payment');
         $forcedCategory = $this->option('category') !== null ? (string) $this->option('category') : null;
@@ -50,8 +55,8 @@ class SeedMatchRegistrationCommand extends Command
         $apply = (bool) $this->option('apply');
         $force = (bool) $this->option('force');
 
-        if ($matchId <= 0 || $divisionSlug === '' || (! $membershipId && ! $userIdOpt)) {
-            $this->error('Required: --match, --division, and one of --membership or --user.');
+        if ($matchId <= 0 || $divisionSlug === '' || (! $membershipId && ! $userIdOpt && $saprfNumber === null)) {
+            $this->error('Required: --match, --division, and one of --membership / --user / --saprf.');
 
             return self::FAILURE;
         }
@@ -101,9 +106,12 @@ class SeedMatchRegistrationCommand extends Command
             return self::FAILURE;
         }
 
-        $user = $this->resolveUser($membershipId, $userIdOpt);
+        $user = $this->resolveUser($membershipId, $userIdOpt, $saprfNumber);
         if (! $user) {
-            $this->error('User could not be resolved from the supplied --membership/--user option.');
+            $lookupHint = $saprfNumber !== null
+                ? "SAPRF number '{$saprfNumber}' has no matching membership."
+                : 'User could not be resolved from the supplied --membership/--user option.';
+            $this->error($lookupHint);
 
             return self::FAILURE;
         }
@@ -207,14 +215,36 @@ class SeedMatchRegistrationCommand extends Command
         return self::SUCCESS;
     }
 
-    private function resolveUser(?int $membershipId, ?int $userId): ?User
+    /**
+     * Resolution precedence: explicit --user wins, then --membership,
+     * then --saprf (looked up on memberships.saprf_number, which is unique
+     * per shooter). The SAPRF number lookup is loose: leading zeros and
+     * whitespace are stripped so operators can paste values from paper
+     * entry sheets ("00050", " 50 ") without failing to match.
+     */
+    private function resolveUser(?int $membershipId, ?int $userId, ?string $saprfNumber): ?User
     {
         if ($userId) {
             return User::find($userId);
         }
 
-        $membership = Membership::find($membershipId);
+        if ($membershipId) {
+            return Membership::find($membershipId)?->user;
+        }
 
-        return $membership?->user;
+        if ($saprfNumber !== null) {
+            $normalised = ltrim(trim($saprfNumber), '0');
+            if ($normalised === '') {
+                // "0"/"00" — legal SAPRF numbers are always positive, so
+                // treat as a lookup miss rather than fall through and
+                // load every membership with saprf_number = ''.
+                return null;
+            }
+
+            return Membership::where('saprf_number', $normalised)->first()?->user
+                ?? Membership::where('saprf_number', $saprfNumber)->first()?->user;
+        }
+
+        return null;
     }
 }
