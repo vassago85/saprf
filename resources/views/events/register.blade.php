@@ -91,8 +91,30 @@
                         <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
                     @endif
 
-                    {{-- Sponsor entry (search any other member by name or SAPRF number) --}}
+                    {{-- Sponsor entry (search any other member by name or SAPRF number).
+                         Collapsed by default so the common "register myself" path isn't
+                         cluttered by a search widget the user doesn't need. Auto-expanded
+                         when the URL already put them in sponsor mode (?for_user=... or
+                         ?new_shooter_name=...) so the "Cancel sponsor" affordance stays
+                         visible without the user having to open the panel again. --}}
+                    <div x-data="{ sponsorPanelOpen: {{ $isSponsoredEntry ? 'true' : 'false' }} }">
+                        <button type="button"
+                                x-show="!sponsorPanelOpen"
+                                @click="sponsorPanelOpen = true"
+                                x-cloak
+                                class="w-full flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/50 px-4 py-3 text-left hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 transition">
+                            <div>
+                                <p class="text-sm font-medium text-sky-800">Register someone else instead?</p>
+                                <p class="text-xs text-stone-500 mt-0.5">Pay for another shooter from your account.</p>
+                            </div>
+                            <svg class="size-4 shrink-0 text-sky-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </button>
+
                     <div id="sponsor" class="rounded-xl border border-sky-200 bg-sky-50/50 p-4"
+                         x-show="sponsorPanelOpen"
+                         x-cloak
                          x-data="sponsorSearch({
                             searchUrl: '{{ route('events.members.search', $match) }}',
                             registerUrl: '{{ $registerUrl }}',
@@ -107,7 +129,19 @@
                             </div>
                             @if($isSponsoredEntry)
                                 <a href="{{ $registerUrl }}"
-                                   class="text-xs font-medium text-sky-700 hover:text-sky-800">Cancel sponsor</a>
+                                   class="text-xs font-medium text-sky-700 hover:text-sky-800 whitespace-nowrap">Cancel sponsor</a>
+                            @else
+                                {{-- Close-panel button lives outside this Alpine scope so
+                                     we jump up to the parent via $dispatch. Kept in the
+                                     header row for symmetry with "Cancel sponsor" above. --}}
+                                <button type="button"
+                                        @click="sponsorPanelOpen = false; showNewShooter = false; query = ''; results = []"
+                                        aria-label="Close sponsor panel"
+                                        class="text-stone-400 hover:text-stone-600 -mt-0.5 -mr-1">
+                                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             @endif
                         </div>
 
@@ -205,6 +239,7 @@
                             </div>
                         </div>
                     </div>
+                    </div>{{-- /sponsorPanelOpen wrapper --}}
                     <script>
                         document.addEventListener('alpine:init', () => {
                             Alpine.data('sponsorSearch', (config) => ({
