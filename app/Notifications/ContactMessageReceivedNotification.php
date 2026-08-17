@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Emailed to admin recipients when a fresh /contact form submission
@@ -23,6 +24,15 @@ class ContactMessageReceivedNotification extends Notification implements ShouldQ
     public function via(object $notifiable): array
     {
         return ['mail'];
+    }
+
+    /**
+     * Route every send through the shared "mail" limiter (5/sec, 300/min)
+     * registered in AppServiceProvider::registerMailRateLimiter().
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('mail')];
     }
 
     public function toMail(object $notifiable): MailMessage

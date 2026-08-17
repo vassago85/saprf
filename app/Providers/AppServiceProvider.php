@@ -33,12 +33,14 @@ use App\Services\SettingsService;
 use Illuminate\Auth\Events\Failed as AuthFailedEvent;
 use Illuminate\Auth\Events\Login as AuthLoginEvent;
 use Illuminate\Auth\Events\Logout as AuthLogoutEvent;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -85,7 +87,28 @@ class AppServiceProvider extends ServiceProvider
         $this->applyMailgunSettings();
         $this->registerNotificationsToggle();
         $this->registerMailReplyTo();
+        $this->registerMailRateLimiter();
         $this->registerAuthAuditListener();
+    }
+
+    /**
+     * Global outgoing-mail throttle used by every non-auth notification via
+     * the RateLimited queue middleware. Values are per-worker; we run one
+     * queue worker in prod so this is effectively the site-wide send rate.
+     *
+     * 5/sec keeps us comfortably under Mailgun connection-pool contention
+     * for any plan tier; 300/min is a burst ceiling so a runaway loop or a
+     * match-director broadcast to hundreds of shooters can't punch through
+     * before an operator notices. When a limit is hit, RateLimited releases
+     * the job with the correct wait time — attempts are NOT incremented on
+     * release, so `--tries=3` on the worker command is safe.
+     */
+    private function registerMailRateLimiter(): void
+    {
+        RateLimiter::for('mail', fn () => [
+            Limit::perSecond(5),
+            Limit::perMinute(300),
+        ]);
     }
 
     /**

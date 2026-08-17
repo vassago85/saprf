@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Invites an existing member to activate their account on the new SAPRF
@@ -23,6 +24,15 @@ class MemberInvitationNotification extends Notification implements ShouldQueue
     public function via(object $notifiable): array
     {
         return ['mail'];
+    }
+
+    /**
+     * Route every send through the shared "mail" limiter (5/sec, 300/min)
+     * registered in AppServiceProvider::registerMailRateLimiter().
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('mail')];
     }
 
     public function toMail(object $notifiable): MailMessage

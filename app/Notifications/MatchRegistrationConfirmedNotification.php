@@ -5,10 +5,12 @@ namespace App\Notifications;
 use App\Models\MatchRegistration;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Middleware\RateLimited;
 
-class MatchRegistrationConfirmedNotification extends Notification
+class MatchRegistrationConfirmedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -29,6 +31,15 @@ class MatchRegistrationConfirmedNotification extends Notification
     public function via(object $notifiable): array
     {
         return ['mail'];
+    }
+
+    /**
+     * Route every send through the shared "mail" limiter (5/sec, 300/min)
+     * registered in AppServiceProvider::registerMailRateLimiter().
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('mail')];
     }
 
     public function toMail(object $notifiable): MailMessage
