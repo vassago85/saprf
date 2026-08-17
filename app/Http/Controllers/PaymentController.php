@@ -373,10 +373,9 @@ class PaymentController extends Controller
     {
         $user = $request->user();
 
-        if ($registration->user_id !== $user->id && ! $user->hasAnyRole(['owner', 'admin'])) {
-            abort(403);
-        }
-
+        // Any authenticated member may pay an outstanding registration.
+        // Sponsors picked up from the search endpoint land here for
+        // someone else's entry — the receipt still ties back to the payer.
         if ($registration->registration_status === 'cancelled') {
             return redirect()->route('registrations.show', $registration)
                 ->with('error', 'This registration has been cancelled and can no longer be paid.');
@@ -399,12 +398,14 @@ class PaymentController extends Controller
                 ->with('error', 'Online payments are not currently available.');
         }
 
-        // Reuse an existing pending payment (initial attempt still open in
-        // another tab) — PayFast's m_payment_id is single-use, so we don't
-        // touch cancelled/failed rows and instead create a fresh one.
+        // Reuse a pending payment only if it belongs to the same payer —
+        // PayFast's m_payment_id is single-use and the receipt is emailed to
+        // the account on the payment row, so a sponsor must never inherit
+        // another member's pending checkout.
         $payment = Payment::where('payable_type', MatchRegistration::class)
             ->where('payable_id', $registration->id)
             ->where('status', 'pending')
+            ->where('user_id', $user->id)
             ->latest('id')
             ->first();
 
@@ -485,6 +486,19 @@ class PaymentController extends Controller
                     $payment->user->notify(new PaymentReceivedNotification($payment, 'registration'));
                 } catch (\Throwable $e) {
                     Log::warning('Failed to send registration payment notification', ['error' => $e->getMessage()]);
+                }
+
+                // If a sponsor paid for someone else's entry, let the shooter
+                // know their spot is now covered — the standard payment
+                // receipt above only reaches the sponsor.
+                if ($payable->user && $payment->user_id !== $payable->user_id) {
+                    try {
+                        $payable->user->notify(
+                            new \App\Notifications\SponsoredEntryPaidNotification($payable, $payment, $payment->user)
+                        );
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to send sponsored entry paid notification', ['error' => $e->getMessage()]);
+                    }
                 }
             }
         }

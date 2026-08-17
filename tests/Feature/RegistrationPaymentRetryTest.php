@@ -164,17 +164,55 @@ it('rejects a cancelled registration', function () {
     expect(Payment::where('payable_id', $registration->id)->count())->toBe(0);
 });
 
-it('forbids paying another member\'s registration', function () {
+it('lets any member sponsor another member\'s unpaid registration', function () {
     stubPayFastEnabled();
 
-    $owner = User::factory()->create(['email_verified_at' => now()]);
-    $owner->assignRole('member');
+    $shooter = User::factory()->create(['email_verified_at' => now()]);
+    $shooter->assignRole('member');
 
-    $registration = makeRegistration($owner, $this->match);
+    $registration = makeRegistration($shooter, $this->match);
+
+    $response = $this->actingAs($this->member)
+        ->post(route('payments.registration', $registration));
+
+    // Sponsor gets their own fresh payment row, not the shooter's pending one.
+    $payment = Payment::where('payable_id', $registration->id)
+        ->where('user_id', $this->member->id)
+        ->firstOrFail();
+
+    $response->assertRedirect(route('payments.redirect', $payment));
+});
+
+it('does not saddle a sponsor with someone else\'s pending payment reference', function () {
+    stubPayFastEnabled();
+
+    $shooter = User::factory()->create(['email_verified_at' => now()]);
+    $shooter->assignRole('member');
+
+    $registration = makeRegistration($shooter, $this->match);
+
+    // Shooter has a pending payment sitting around; a sponsor coming in must
+    // not inherit it — PayFast's m_payment_id is single-use and the receipt
+    // would be attributed to the wrong account.
+    $shooterPayment = Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => $registration->id,
+        'user_id' => $shooter->id,
+        'amount' => 1100.00,
+        'm_payment_id' => 'REG-SHOOTER-PENDING',
+        'status' => 'pending',
+    ]);
 
     $this->actingAs($this->member)
         ->post(route('payments.registration', $registration))
-        ->assertForbidden();
+        ->assertRedirect();
+
+    $sponsorPayment = Payment::where('payable_id', $registration->id)
+        ->where('user_id', $this->member->id)
+        ->firstOrFail();
+
+    expect($sponsorPayment->id)->not->toBe($shooterPayment->id)
+        ->and($sponsorPayment->m_payment_id)->not->toBe('REG-SHOOTER-PENDING');
 });
 
 it('lets an admin pay on behalf of a member', function () {

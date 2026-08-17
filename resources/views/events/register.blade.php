@@ -43,31 +43,151 @@
                     >
                     @csrf
 
+                    @php
+                        $registerUrl = url('/events/' . $match->id . '/register');
+                        // Distinguish "family member" (managed junior owned by the actor)
+                        // from a sponsored member (any other independent member).
+                        $isSponsoredEntry = $shooter->id !== auth()->id()
+                            && ! ($shooter->is_managed_account && $shooter->parent_id === auth()->id());
+                        $isFamilyEntry = $shooter->id !== auth()->id() && ! $isSponsoredEntry;
+                        $sectionHeading = match (true) {
+                            $isSponsoredEntry => 'Sponsored Registration',
+                            $isFamilyEntry => 'Family Member Registration',
+                            default => 'Your Registration',
+                        };
+                    @endphp
+
                     {{-- Register-as Selector (only shown when the user manages family members) --}}
                     @if(isset($juniors) && $juniors->isNotEmpty())
-                        @php $registerUrl = url('/events/' . $match->id . '/register'); @endphp
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
                             <label for="for_user" class="block text-sm font-semibold text-stone-900 mb-2">Registering for</label>
                             <select id="for_user"
                                     data-register-url="{{ $registerUrl }}"
                                     onchange="window.location.href = this.dataset.registerUrl + (this.value ? '?for_user=' + this.value : '')"
                                     class="w-full rounded-lg border-stone-300 bg-white text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
-                                <option value="" @selected(!request('for_user') && $shooter->id === auth()->id())>Myself ({{ auth()->user()->name }})</option>
+                                <option value="" @selected(!$isSponsoredEntry && $shooter->id === auth()->id())>Myself ({{ auth()->user()->name }})</option>
                                 @foreach($juniors as $j)
-                                    <option value="{{ $j->id }}" @selected((string) request('for_user') === (string) $j->id)>
+                                    <option value="{{ $j->id }}" @selected(! $isSponsoredEntry && (string) $shooter->id === (string) $j->id)>
                                         {{ $j->name }}@if($j->managed_relationship) ({{ $j->managed_relationship }})@endif
                                     </option>
                                 @endforeach
                             </select>
-                            {{-- Carry the selected for_user through to POST submission --}}
-                            <input type="hidden" name="for_user" value="{{ request('for_user') }}">
                             <p class="mt-1.5 text-xs text-stone-500">Choose whether this entry is for yourself or a family member you manage — you'll pay for it from your account.</p>
                         </div>
                     @endif
+                    {{-- Carry the resolved shooter (family or sponsored member) through to POST. --}}
+                    <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
+
+                    {{-- Sponsor entry (search any other member by name or SAPRF number) --}}
+                    <div id="sponsor" class="rounded-xl border border-sky-200 bg-sky-50/50 p-4"
+                         x-data="sponsorSearch({
+                            searchUrl: '{{ route('events.members.search', $match) }}',
+                            registerUrl: '{{ $registerUrl }}',
+                            payUrlTemplate: '{{ url('/payments/registration') }}/__ID__',
+                            csrf: '{{ csrf_token() }}',
+                         })"
+                         x-init="init()">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-900">Enter or pay for someone else</h3>
+                                <p class="text-xs text-stone-500 mt-0.5">Sponsor another member by name or SAPRF number. You'll pay from your account.</p>
+                            </div>
+                            @if($isSponsoredEntry)
+                                <a href="{{ $registerUrl }}"
+                                   class="text-xs font-medium text-sky-700 hover:text-sky-800">Cancel sponsor</a>
+                            @endif
+                        </div>
+
+                        <div class="mt-3 relative">
+                            <input type="search"
+                                   x-model.debounce.300ms="query"
+                                   @input="search()"
+                                   placeholder="Name or SAPRF number (min 2 characters)"
+                                   class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 pr-9 focus:ring-sky-500 focus:border-sky-500" />
+                            <div x-show="loading" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">…</div>
+                        </div>
+
+                        <div x-show="results.length > 0" x-cloak class="mt-3 space-y-2">
+                            <template x-for="r in results" :key="r.id">
+                                <div class="flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-stone-900" x-text="r.name"></p>
+                                        <p class="text-[11px] text-stone-500">
+                                            <span x-text="r.saprf_number ? 'SAPRF ' + r.saprf_number : 'No SAPRF number'"></span>
+                                            <template x-if="r.province"><span> · <span x-text="r.province"></span></span></template>
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0">
+                                        <template x-if="r.entry_state === 'none' || r.entry_state === 'cancelled'">
+                                            <button type="button"
+                                                    @click="pickSponsor(r)"
+                                                    class="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800 transition">
+                                                Enter &amp; Pay
+                                            </button>
+                                        </template>
+                                        <template x-if="r.entry_state === 'unpaid'">
+                                            <form method="POST" :action="payUrlFor(r)" class="m-0">
+                                                <input type="hidden" name="_token" :value="csrf" />
+                                                <button type="submit"
+                                                        class="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition">
+                                                    Pay Entry
+                                                </button>
+                                            </form>
+                                        </template>
+                                        <template x-if="r.entry_state === 'paid'">
+                                            <span class="text-[11px] text-emerald-700 font-semibold">Already paid</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <p x-show="!loading && query.length >= 2 && results.length === 0" x-cloak
+                           class="mt-3 text-xs text-stone-500">No matching members found.</p>
+                    </div>
+                    <script>
+                        document.addEventListener('alpine:init', () => {
+                            Alpine.data('sponsorSearch', (config) => ({
+                                query: '',
+                                results: [],
+                                loading: false,
+                                searchUrl: config.searchUrl,
+                                registerUrl: config.registerUrl,
+                                payUrlTemplate: config.payUrlTemplate,
+                                csrf: config.csrf,
+                                _abort: null,
+                                init() {},
+                                search() {
+                                    if (this.query.trim().length < 2) {
+                                        this.results = [];
+                                        return;
+                                    }
+                                    if (this._abort) { this._abort.abort(); }
+                                    this._abort = new AbortController();
+                                    this.loading = true;
+                                    fetch(this.searchUrl + '?q=' + encodeURIComponent(this.query.trim()), {
+                                        headers: { 'Accept': 'application/json' },
+                                        credentials: 'same-origin',
+                                        signal: this._abort.signal,
+                                    })
+                                        .then(r => r.ok ? r.json() : Promise.reject(r))
+                                        .then(data => { this.results = data.results || []; })
+                                        .catch(() => { /* ignored: transient network / abort */ })
+                                        .finally(() => { this.loading = false; });
+                                },
+                                pickSponsor(member) {
+                                    window.location.href = this.registerUrl + '?for_user=' + encodeURIComponent(member.id);
+                                },
+                                payUrlFor(member) {
+                                    return this.payUrlTemplate.replace('__ID__', member.registration_id);
+                                },
+                            }));
+                        });
+                    </script>
 
                     {{-- Pricing Display --}}
                     <div class="rounded-xl border border-stone-200 p-4 space-y-3">
-                        <h3 class="text-sm font-semibold text-stone-700">{{ isset($shooter) && $shooter->id !== auth()->id() ? 'Family Member Registration' : 'Your Registration' }}</h3>
+                        <h3 class="text-sm font-semibold text-stone-700">{{ $sectionHeading }}</h3>
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-stone-600">{{ ($shooter ?? auth()->user())->name }}</p>

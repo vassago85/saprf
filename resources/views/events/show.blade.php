@@ -389,6 +389,19 @@
                             {{-- Smart CTA --}}
                             <x-event-registration-cta :match="$match" size="lg" class="w-full text-center" />
 
+                            {{-- Sponsor another member: same destination as Register, but hints
+                                 the extra action so a sponsor doesn't need to start their own
+                                 entry first. Only surfaced while sign-up is open. --}}
+                            @auth
+                                @if(in_array($match->registration_status, ['open', 'waitlist'], true))
+                                    <a href="{{ url('/events/' . $match->id . '/register') }}#sponsor"
+                                       class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 transition">
+                                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" /></svg>
+                                        Enter or pay for another member
+                                    </a>
+                                @endif
+                            @endauth
+
                             @if($match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
                                 <p class="mt-3 text-[11px] text-stone-400 text-center">Non-member scores may not count for season logs.</p>
                             @endif

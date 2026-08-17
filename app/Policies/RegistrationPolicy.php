@@ -12,17 +12,37 @@ class RegistrationPolicy
         return true;
     }
 
+    /**
+     * Who may open a registration's detail page:
+     *   - owner / admin — always
+     *   - match director — their own matches
+     *   - the shooter themselves
+     *   - the account that created the entry (parent, sponsor)
+     *   - anyone who has paid for it (sponsor paying an unpaid entry)
+     */
     public function view(User $user, MatchRegistration $registration): bool
     {
         if ($user->hasRole(['owner', 'admin'])) {
             return true;
         }
 
-        if ($user->hasRole('match_director')) {
-            return $registration->match?->created_by === $user->id;
+        if ($user->hasRole('match_director') && $registration->match?->created_by === $user->id) {
+            return true;
         }
 
-        return $user->hasRole('member') && $registration->user_id === $user->id;
+        if ($registration->user_id === $user->id) {
+            return true;
+        }
+
+        if ($registration->registered_by_user_id === $user->id) {
+            return true;
+        }
+
+        // Any past or in-flight payer of this entry can see it, so a sponsor
+        // who paid another member's fee can return to the receipt page.
+        return $registration->payments()
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     public function create(User $user): bool

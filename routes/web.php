@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\ProfileController;
@@ -162,6 +163,9 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Event Registration (auth required)
     Route::get('/events/{match}/register', [MatchController::class, 'showRegistration'])->name('events.register');
     Route::post('/events/{match}/register', [MatchController::class, 'storeRegistration'])->name('events.register.store');
+    // Sponsor search: look up another member by name or SAPRF number to enter
+    // or pay for them on this match. Auth-only; no PII beyond name/number.
+    Route::get('/events/{match}/members/search', [MemberSearchController::class, 'search'])->name('events.members.search');
 
     // Payments
     Route::get('/payments/{payment}/redirect', [PaymentController::class, 'redirect'])->name('payments.redirect');

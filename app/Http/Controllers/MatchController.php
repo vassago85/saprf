@@ -478,18 +478,21 @@ class MatchController extends Controller
 
     public function showRegistration(Request $request, MatchEvent $match): View|RedirectResponse
     {
-        /** @var \App\Models\User $parent */
-        $parent = $request->user();
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
 
-        // Resolve who we're registering: self, or one of the parent's juniors
-        $shooter = $this->resolveShooter($parent, $request->input('for_user'));
+        // Resolve who we're registering: self, one of the actor's managed
+        // family accounts, or an independent member the actor is sponsoring.
+        $shooter = $this->resolveShooter($actor, $request->input('for_user'));
 
         $existing = $match->userRegistration($shooter);
         if ($existing) {
+            $isSelf = $shooter->id === $actor->id;
+
             return redirect()->route('registrations.show', $existing)
-                ->with('info', $this->isManagedShooter($shooter, $parent)
-                    ? $shooter->name . ' is already registered for this match.'
-                    : 'You are already registered for this match.');
+                ->with('info', $isSelf
+                    ? 'You are already registered for this match.'
+                    : $shooter->name . ' is already registered for this match.');
         }
 
         if (! $match->hasRequiredSetup()) {
@@ -500,9 +503,10 @@ class MatchController extends Controller
         $pricing = app(RegistrationPricingService::class)
             ->determineCategoryAndFee($match, $shooter, $match->match_date);
 
-        // Rifles: managed accounts use the parent's rifles since juniors typically
-        // shoot the parent's setup. Independent users use their own.
-        $rifleOwner = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
+        // Managed juniors typically shoot the parent's setup, so we show the
+        // actor's own rifles for that flow. Independent shooters — self and
+        // sponsored — pick from their own list.
+        $rifleOwner = $this->isManagedShooter($shooter, $actor) ? $actor : $shooter;
 
         $rifles = $rifleOwner->rifleConfigurations()
             ->where('is_active', true)
@@ -510,7 +514,7 @@ class MatchController extends Controller
             ->orderByDesc('is_primary')
             ->get();
 
-        $juniors = $parent->managedAccounts()->orderBy('name')->get();
+        $juniors = $actor->managedAccounts()->orderBy('name')->get();
 
         $divisions = $match->availableDivisions();
 
@@ -526,17 +530,19 @@ class MatchController extends Controller
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
     {
-        /** @var \App\Models\User $parent */
-        $parent = $request->user();
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
 
-        $shooter = $this->resolveShooter($parent, $request->input('for_user'));
+        $shooter = $this->resolveShooter($actor, $request->input('for_user'));
 
         $existing = $match->userRegistration($shooter);
         if ($existing) {
+            $isSelf = $shooter->id === $actor->id;
+
             return redirect()->route('registrations.show', $existing)
-                ->with('info', $this->isManagedShooter($shooter, $parent)
-                    ? $shooter->name . ' is already registered for this match.'
-                    : 'You are already registered for this match.');
+                ->with('info', $isSelf
+                    ? 'You are already registered for this match.'
+                    : $shooter->name . ' is already registered for this match.');
         }
 
         if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
@@ -561,14 +567,28 @@ class MatchController extends Controller
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'pending';
 
-        // For managed juniors, we contact the parent (placeholder email won't deliver).
-        $contactEmail = $this->isManagedShooter($shooter, $parent) ? $parent->email : $shooter->email;
-        $contactPhone = $this->isManagedShooter($shooter, $parent) ? ($parent->phone ?: $shooter->phone) : $shooter->phone;
+        $isManaged = $this->isManagedShooter($shooter, $actor);
+        $isSelf = $shooter->id === $actor->id;
+        // Sponsor = a logged-in member entering another independent member
+        // (not themselves, not one of their own managed family accounts).
+        $isSponsored = ! $isSelf && ! $isManaged;
+
+        // Managed juniors carry a placeholder email — we contact the parent
+        // instead. Sponsored shooters are real accounts, so we contact them
+        // directly (with a cc to the sponsor implied by the sponsor's own
+        // notification path).
+        $contactEmail = $isManaged ? $actor->email : $shooter->email;
+        $contactPhone = $isManaged ? ($actor->phone ?: $shooter->phone) : $shooter->phone;
+
+        // Track the account that took the action, so the registration page can
+        // surface "Entered by …" for sponsors and parents.
+        $registeredById = $isSelf ? null : $actor->id;
 
         $registration = \App\Models\MatchRegistration::query()->create([
             'match_id' => $match->id,
             'user_id' => $shooter->id,
-            'rifle_configuration_id' => $request->input('rifle_configuration_id'),
+            'registered_by_user_id' => $registeredById,
+            'rifle_configuration_id' => $isSponsored ? null : $request->input('rifle_configuration_id'),
             'division_id' => $validated['division_id'],
             'shooter_name' => $shooter->name,
             'email' => $contactEmail,
@@ -586,22 +606,29 @@ class MatchController extends Controller
         ]);
 
         $this->auditLogService->log(
-            $parent,
+            $actor,
             'registration.created',
             'MatchRegistration',
             $registration->id,
             null,
             array_merge($registration->toArray(), [
                 'registered_for_user_id' => $shooter->id,
-                'registered_by_parent_id' => $this->isManagedShooter($shooter, $parent) ? $parent->id : null,
+                'registered_by_parent_id' => $isManaged ? $actor->id : null,
+                'registered_by_sponsor_id' => $isSponsored ? $actor->id : null,
             ]),
         );
 
         try {
-            // Notify the parent for managed juniors (junior has placeholder email);
-            // notify the shooter directly otherwise.
-            $recipient = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
-            $recipient->notify(new MatchRegistrationConfirmedNotification($registration));
+            // Managed juniors: notify the parent (junior has placeholder email).
+            // Sponsored: notify the shooter directly and mention the sponsor.
+            // Self: notify the shooter (which is the actor).
+            if ($isManaged) {
+                $actor->notify(new MatchRegistrationConfirmedNotification($registration));
+            } elseif ($isSponsored) {
+                $shooter->notify(new MatchRegistrationConfirmedNotification($registration, $actor));
+            } else {
+                $shooter->notify(new MatchRegistrationConfirmedNotification($registration));
+            }
         } catch (\Throwable $e) {
             Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
         }
@@ -609,8 +636,10 @@ class MatchController extends Controller
         $payFastService = app(\App\Services\PayFastService::class);
 
         if ($payFastService->isEnabled() && $breakdown['total_fee'] > 0) {
-            // Payment is always made by the parent for managed juniors.
-            $payer = $this->isManagedShooter($shooter, $parent) ? $parent : $shooter;
+            // Payment is made by whoever initiated the entry: the parent for a
+            // managed junior, the sponsor when sponsoring, or the shooter
+            // themselves. Never a stranger.
+            $payer = $isSelf ? $shooter : $actor;
 
             $payment = \App\Models\Payment::create([
                 'payable_type' => \App\Models\MatchRegistration::class,
@@ -666,27 +695,49 @@ class MatchController extends Controller
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Resolve the actual shooter for a registration. Defaults to the
-     * authenticated user, but may be a managed junior they're registering on
-     * behalf of (when `for_user` is supplied and points to one of their juniors).
+     * Resolve the shooter for a registration. Three cases:
+     *
+     *  1. `for_user` empty → the actor themselves.
+     *  2. `for_user` is one of the actor's managed family accounts → that
+     *     junior. Family semantics apply (parent contact, parent's rifles).
+     *  3. `for_user` is any other active, non-managed member → sponsor path.
+     *     The actor is entering / paying for someone else on this match.
+     *
+     * Managed accounts owned by a different parent are never allowed —
+     * they belong to that other family, not to the actor.
      */
-    private function resolveShooter(\App\Models\User $parent, ?string $forUserId): \App\Models\User
+    private function resolveShooter(\App\Models\User $actor, ?string $forUserId): \App\Models\User
     {
-        if (! $forUserId) {
-            return $parent;
+        if (! $forUserId || (string) $forUserId === (string) $actor->id) {
+            return $actor;
         }
 
-        $junior = \App\Models\User::query()
+        $target = \App\Models\User::query()
             ->where('id', $forUserId)
-            ->where('parent_id', $parent->id)
-            ->where('is_managed_account', true)
             ->first();
 
-        if (! $junior) {
+        if (! $target) {
+            abort(404, 'Member not found.');
+        }
+
+        // A managed account is either the actor's own family member (allowed)
+        // or someone else's junior (never allowed via this endpoint).
+        if ($target->is_managed_account) {
+            if ($target->parent_id === $actor->id) {
+                return $target;
+            }
+
             abort(403, 'You can only register your own family accounts.');
         }
 
-        return $junior;
+        // Sponsor path: any active, non-managed member the actor picks by
+        // name/SAPRF number. Inactive accounts are excluded so a sponsor
+        // cannot resurrect a lapsed record.
+        if (! $target->is_active) {
+            abort(403, 'That member is not currently active.');
+        }
+
+        return $target;
     }
 
     private function isManagedShooter(\App\Models\User $shooter, \App\Models\User $parent): bool

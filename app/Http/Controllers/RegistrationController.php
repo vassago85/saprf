@@ -96,7 +96,26 @@ class RegistrationController extends Controller
 
     public function show(Request $request, MatchRegistration $registration): View
     {
-        $registration->load(['match', 'user', 'division', 'rifleConfiguration.make', 'rifleConfiguration.model', 'rifleConfiguration.calibre']);
+        $this->authorize('view', $registration);
+
+        $registration->load([
+            'match',
+            'user',
+            'registeredBy',
+            'division',
+            'rifleConfiguration.make',
+            'rifleConfiguration.model',
+            'rifleConfiguration.calibre',
+        ]);
+
+        // Payer for the confirmed entry (if any). Ordered so the completed payment wins
+        // over stale pending rows created when checkout was abandoned then retried.
+        $payer = $registration->payments()
+            ->with('user')
+            ->orderByRaw("CASE WHEN status = 'completed' THEN 0 ELSE 1 END")
+            ->latest('id')
+            ->first()
+            ?->user;
 
         $rifles = $request->user()->rifleConfigurations()
             ->active()
@@ -106,7 +125,7 @@ class RegistrationController extends Controller
 
         $divisions = $registration->match?->availableDivisions() ?? collect();
 
-        return view('registrations.show', compact('registration', 'rifles', 'divisions'));
+        return view('registrations.show', compact('registration', 'rifles', 'divisions', 'payer'));
     }
 
     public function updateRifle(Request $request, MatchRegistration $registration): RedirectResponse

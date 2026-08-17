@@ -13,6 +13,7 @@ class MatchRegistration extends Model
     protected $fillable = [
         'match_id',
         'user_id',
+        'registered_by_user_id',
         'rifle_configuration_id',
         'division_id',
         'ammo_load_id',
@@ -81,6 +82,15 @@ class MatchRegistration extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The account that created the entry (parent, sponsor, or self).
+     * Null on classic self-entries created before the field existed.
+     */
+    public function registeredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'registered_by_user_id');
     }
 
     public function rifleConfiguration(): BelongsTo

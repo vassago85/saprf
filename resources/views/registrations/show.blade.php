@@ -22,6 +22,23 @@
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Shooter</dt>
                     <dd class="mt-1 text-sm text-stone-900">{{ $registration->user->name }}</dd>
                 </div>
+                @php
+                    $enteredBy = $registration->registeredBy;
+                    $showEnteredBy = $enteredBy && $enteredBy->id !== $registration->user_id;
+                    $showPaidBy = ($payer ?? null) && $payer->id !== $registration->user_id;
+                @endphp
+                @if($showEnteredBy)
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Entered by</dt>
+                        <dd class="mt-1 text-sm text-stone-900">{{ $enteredBy->name }}</dd>
+                    </div>
+                @endif
+                @if($showPaidBy)
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Paid by</dt>
+                        <dd class="mt-1 text-sm text-stone-900">{{ $payer->name }}</dd>
+                    </div>
+                @endif
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Division</dt>
                     <dd class="mt-1.5">
