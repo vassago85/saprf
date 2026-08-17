@@ -272,9 +272,18 @@ class DashboardController extends Controller
 
         $rifleCount = RifleConfiguration::forUser($user->id)->active()->count();
 
+        // Order past matches chronologically (most recent match first) so
+        // the shooter sees their season in the order they actually shot it,
+        // not in upload/import order. Uses a correlated subquery on the
+        // matches table so the 10-row cap picks the newest-shot matches
+        // rather than the 10 most recently uploaded scores.
         $recentMatches = $user->scores()
             ->with(['match.province'])
-            ->orderByDesc('created_at')
+            ->orderByDesc(
+                MatchEvent::select('match_date')
+                    ->whereColumn('matches.id', 'scores.match_id')
+                    ->limit(1)
+            )
             ->limit(10)
             ->get();
 

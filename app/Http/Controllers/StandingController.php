@@ -216,6 +216,18 @@ class StandingController extends Controller
         $matchesShot = $scores->count();
         $bestNormalized = $scores->max('normalized_score');
 
+        // match_id => match_date map, so the breakdown lists can show WHEN
+        // each match was shot next to its name. pool_breakdown JSON stores
+        // only match_name (the shape predates this feature), so we look
+        // dates up from $scores at render time rather than re-serialising
+        // every historical standing. Any pool_breakdown row that references
+        // a match the shooter no longer has a visible score for simply
+        // renders without a date.
+        $matchDates = $scores
+            ->pluck('match.match_date', 'match_id')
+            ->filter()
+            ->all();
+
         return view('standings.shooter', [
             'shooter' => $user,
             'season' => $season,
@@ -229,6 +241,7 @@ class StandingController extends Controller
             'bestNormalized' => $bestNormalized ? round($bestNormalized, 2) : null,
             'bestOf' => $bestOf,
             'rule' => $rule,
+            'matchDates' => $matchDates,
         ]);
     }
 

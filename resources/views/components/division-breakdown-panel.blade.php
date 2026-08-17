@@ -10,6 +10,11 @@
     // needs to see the full class names for purging to work, so all
     // possible classes are spelled out below.
     'accent' => 'emerald',
+    // Optional [match_id => Carbon date] map so each row can show WHEN
+    // the match was shot next to its name. pool_breakdown JSON only stores
+    // match_name, so dates are resolved from the shooter's scores at
+    // render time. Rows without a matching date simply omit it.
+    'matchDates' => [],
 ])
 
 @php
@@ -75,13 +80,23 @@
         <div class="mt-1 space-y-1 text-[11px] text-stone-500">
             @foreach($pb['regular'] ?? [] as $reg)
                 <div class="flex items-center justify-between gap-2">
-                    <span class="truncate">{{ $reg['match_name'] ?? ('Match #'.($reg['match_id'] ?? '?')) }}</span>
+                    <span class="truncate">
+                        {{ $reg['match_name'] ?? ('Match #'.($reg['match_id'] ?? '?')) }}
+                        @if(!empty($matchDates[$reg['match_id'] ?? null]))
+                            <span class="text-stone-400">&middot; {{ $matchDates[$reg['match_id']]->format('d M Y') }}</span>
+                        @endif
+                    </span>
                     <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($reg['pct'] ?? 0), 2) }}</span>
                 </div>
             @endforeach
             @if(!empty($pb['champs']))
                 <div class="flex items-center justify-between gap-2 pt-1 border-t border-stone-100">
-                    <span class="truncate text-amber-700">SA Champs &middot; {{ $pb['champs']['match_name'] ?? '?' }}</span>
+                    <span class="truncate text-amber-700">
+                        SA Champs &middot; {{ $pb['champs']['match_name'] ?? '?' }}
+                        @if(!empty($matchDates[$pb['champs']['match_id'] ?? null]))
+                            <span class="text-stone-400">&middot; {{ $matchDates[$pb['champs']['match_id']]->format('d M Y') }}</span>
+                        @endif
+                    </span>
                     <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($pb['champs']['pct'] ?? 0), 2) }}</span>
                 </div>
             @endif
@@ -92,7 +107,12 @@
         <div class="mt-1 space-y-1 text-[11px] text-stone-500">
             @forelse($counted as $m)
                 <div class="flex items-center justify-between gap-2">
-                    <span class="truncate">{{ $m['match_name'] ?? ('Match #'.($m['match_id'] ?? '?')) }}</span>
+                    <span class="truncate">
+                        {{ $m['match_name'] ?? ('Match #'.($m['match_id'] ?? '?')) }}
+                        @if(!empty($matchDates[$m['match_id'] ?? null]))
+                            <span class="text-stone-400">&middot; {{ $matchDates[$m['match_id']]->format('d M Y') }}</span>
+                        @endif
+                    </span>
                     <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($m['contribution'] ?? $m['pct'] ?? 0), 2) }}</span>
                 </div>
             @empty

@@ -183,7 +183,12 @@
                                     <div class="mt-2 space-y-1 text-[11px] text-stone-500">
                                         @forelse($pb['regular'] ?? [] as $reg)
                                             <div class="flex items-center justify-between gap-2">
-                                                <span class="truncate">{{ $reg['match_name'] ?? ('Match #'.$reg['match_id']) }}</span>
+                                                <span class="truncate">
+                                                    {{ $reg['match_name'] ?? ('Match #'.$reg['match_id']) }}
+                                                    @if(!empty($matchDates[$reg['match_id']]))
+                                                        <span class="text-stone-400">&middot; {{ $matchDates[$reg['match_id']]->format('d M Y') }}</span>
+                                                    @endif
+                                                </span>
                                                 <span class="font-mono">{{ number_format($reg['pct'], 2) }}%</span>
                                             </div>
                                         @empty
@@ -199,7 +204,12 @@
                                     </div>
                                     <div class="mt-2 text-[11px] text-stone-500">
                                         @if(!empty($pb['champs']))
-                                            <span class="truncate">{{ $pb['champs']['match_name'] ?? ('Match #'.$pb['champs']['match_id']) }}</span>
+                                            <span class="truncate">
+                                                {{ $pb['champs']['match_name'] ?? ('Match #'.$pb['champs']['match_id']) }}
+                                                @if(!empty($matchDates[$pb['champs']['match_id']]))
+                                                    <span class="text-stone-400">&middot; {{ $matchDates[$pb['champs']['match_id']]->format('d M Y') }}</span>
+                                                @endif
+                                            </span>
                                         @else
                                             <span class="text-stone-400">Champs not shot — fixed at 0 (cannot be replaced by a regular match).</span>
                                         @endif
@@ -254,6 +264,9 @@
                                         <div class="flex items-center justify-between gap-2">
                                             <span class="truncate">
                                                 {{ $row['match_name'] ?? ('Match #'.$row['match_id']) }}
+                                                @if(!empty($matchDates[$row['match_id']]))
+                                                    <span class="text-stone-400">&middot; {{ $matchDates[$row['match_id']]->format('d M Y') }}</span>
+                                                @endif
                                                 @if(!empty($row['series_level']))
                                                     <span class="text-stone-400">&middot; {{ ucfirst((string) $row['series_level']) }}</span>
                                                 @endif
@@ -377,7 +390,12 @@
                                     <div class="text-[11px] text-stone-500 space-y-1">
                                         @forelse($ppCounted as $m)
                                             <div class="flex items-center justify-between gap-2">
-                                                <span class="truncate">{{ $m['match_name'] ?? ('Match #'.$m['match_id']) }}</span>
+                                                <span class="truncate">
+                                                    {{ $m['match_name'] ?? ('Match #'.$m['match_id']) }}
+                                                    @if(!empty($matchDates[$m['match_id']]))
+                                                        <span class="text-stone-400">&middot; {{ $matchDates[$m['match_id']]->format('d M Y') }}</span>
+                                                    @endif
+                                                </span>
                                                 <span class="font-mono text-blue-800 font-semibold">{{ number_format((float) $m['contribution'], 2) }}</span>
                                             </div>
                                         @empty
@@ -425,6 +443,7 @@
                                     @foreach($natDivs as $div)
                                         <x-division-breakdown-panel
                                             :division="$div"
+                                            :matchDates="$matchDates"
                                             accent="emerald"
                                         />
                                     @endforeach
@@ -447,6 +466,7 @@
                                     @foreach($provDivs as $div)
                                         <x-division-breakdown-panel
                                             :division="$div"
+                                            :matchDates="$matchDates"
                                             accent="blue"
                                         />
                                     @endforeach
