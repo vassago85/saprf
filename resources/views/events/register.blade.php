@@ -45,12 +45,18 @@
 
                     @php
                         $registerUrl = url('/events/' . $match->id . '/register');
+                        $isNewShooter = $isNewShooter ?? false;
                         // Distinguish "family member" (managed junior owned by the actor)
                         // from a sponsored member (any other independent member).
-                        $isSponsoredEntry = $shooter->id !== auth()->id()
-                            && ! ($shooter->is_managed_account && $shooter->parent_id === auth()->id());
-                        $isFamilyEntry = $shooter->id !== auth()->id() && ! $isSponsoredEntry;
+                        // A brand-new shooter (not on the platform yet) counts as
+                        // sponsored — the actor is entering + paying for someone
+                        // whose account is about to be provisioned on POST.
+                        $isSponsoredEntry = $isNewShooter
+                            || ($shooter->id !== auth()->id()
+                                && ! ($shooter->is_managed_account && $shooter->parent_id === auth()->id()));
+                        $isFamilyEntry = ! $isNewShooter && $shooter->id !== auth()->id() && ! $isSponsoredEntry;
                         $sectionHeading = match (true) {
+                            $isNewShooter => 'New Shooter Registration',
                             $isSponsoredEntry => 'Sponsored Registration',
                             $isFamilyEntry => 'Family Member Registration',
                             default => 'Your Registration',
@@ -76,7 +82,14 @@
                         </div>
                     @endif
                     {{-- Carry the resolved shooter (family or sponsored member) through to POST. --}}
-                    <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
+                    @if($isNewShooter)
+                        {{-- No for_user; the backend provisions the stub from the
+                             name/email fields on POST via GuestShooterService. --}}
+                        <input type="hidden" name="new_shooter_name" value="{{ $shooter->name }}">
+                        <input type="hidden" name="new_shooter_email" value="{{ $shooter->email }}">
+                    @else
+                        <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
+                    @endif
 
                     {{-- Sponsor entry (search any other member by name or SAPRF number) --}}
                     <div id="sponsor" class="rounded-xl border border-sky-200 bg-sky-50/50 p-4"
@@ -90,7 +103,7 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-900">Enter or pay for someone else</h3>
-                                <p class="text-xs text-stone-500 mt-0.5">Sponsor another member by name or SAPRF number. You'll pay from your account.</p>
+                                <p class="text-xs text-stone-500 mt-0.5">Sponsor another shooter by name or SAPRF number. You'll pay from your account.</p>
                             </div>
                             @if($isSponsoredEntry)
                                 <a href="{{ $registerUrl }}"
@@ -98,7 +111,7 @@
                             @endif
                         </div>
 
-                        <div class="mt-3 relative">
+                        <div class="mt-3 relative" x-show="!showNewShooter" x-cloak>
                             <input type="search"
                                    x-model.debounce.300ms="query"
                                    @input="search()"
@@ -107,7 +120,7 @@
                             <div x-show="loading" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">…</div>
                         </div>
 
-                        <div x-show="results.length > 0" x-cloak class="mt-3 space-y-2">
+                        <div x-show="results.length > 0 && !showNewShooter" x-cloak class="mt-3 space-y-2">
                             <template x-for="r in results" :key="r.id">
                                 <div class="flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5">
                                     <div class="min-w-0">
@@ -142,8 +155,49 @@
                             </template>
                         </div>
 
-                        <p x-show="!loading && query.length >= 2 && results.length === 0" x-cloak
+                        <p x-show="!loading && query.length >= 2 && results.length === 0 && !showNewShooter" x-cloak
                            class="mt-3 text-xs text-stone-500">No matching members found.</p>
+
+                        {{-- Escape hatch: sponsor a shooter who isn't on the
+                             platform yet. Reloads the register page in
+                             "new shooter" mode so the pricing + division
+                             picker reflect a non-member entry. --}}
+                        <div class="mt-3 pt-3 border-t border-sky-100" x-show="!showNewShooter" x-cloak>
+                            <button type="button"
+                                    @click="showNewShooter = true"
+                                    class="text-xs font-medium text-sky-700 hover:text-sky-800">
+                                Can't find them? Enter a shooter who isn't on the platform →
+                            </button>
+                        </div>
+
+                        <div x-show="showNewShooter" x-cloak class="mt-3 space-y-3">
+                            <p class="text-xs text-stone-600">
+                                We'll create an unclaimed account for them. If you provide their email they can claim it later via Forgot Password.
+                            </p>
+                            <div>
+                                <label for="new_shooter_name_input" class="block text-xs font-medium text-stone-600 mb-1">Shooter's full name <span class="text-red-500">*</span></label>
+                                <input type="text" id="new_shooter_name_input" x-model.trim="newShooterName" required minlength="2" maxlength="100"
+                                       placeholder="e.g. Jane Doe"
+                                       class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 focus:ring-sky-500 focus:border-sky-500" />
+                            </div>
+                            <div>
+                                <label for="new_shooter_email_input" class="block text-xs font-medium text-stone-600 mb-1">Shooter's email <span class="text-stone-400 font-normal">(optional)</span></label>
+                                <input type="email" id="new_shooter_email_input" x-model.trim="newShooterEmail" maxlength="150"
+                                       placeholder="jane@example.com"
+                                       class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 focus:ring-sky-500 focus:border-sky-500" />
+                                <p class="mt-1 text-[11px] text-stone-400">Used to send the confirmation email and let them log in later.</p>
+                            </div>
+                            <div class="flex items-center justify-between pt-1">
+                                <button type="button" @click="showNewShooter = false; newShooterName = ''; newShooterEmail = ''"
+                                        class="text-xs text-stone-500 hover:text-stone-700">Back to search</button>
+                                <button type="button"
+                                        @click="pickNewShooter()"
+                                        :disabled="newShooterName.trim().length < 2"
+                                        class="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-semibold hover:bg-sky-800 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                                    Continue →
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <script>
                         document.addEventListener('alpine:init', () => {
@@ -151,6 +205,9 @@
                                 query: '',
                                 results: [],
                                 loading: false,
+                                showNewShooter: false,
+                                newShooterName: '',
+                                newShooterEmail: '',
                                 searchUrl: config.searchUrl,
                                 registerUrl: config.registerUrl,
                                 payUrlTemplate: config.payUrlTemplate,
@@ -177,6 +234,14 @@
                                 },
                                 pickSponsor(member) {
                                     window.location.href = this.registerUrl + '?for_user=' + encodeURIComponent(member.id);
+                                },
+                                pickNewShooter() {
+                                    const name = this.newShooterName.trim();
+                                    if (name.length < 2) { return; }
+                                    const params = new URLSearchParams({ new_shooter_name: name });
+                                    const email = this.newShooterEmail.trim();
+                                    if (email) { params.set('new_shooter_email', email); }
+                                    window.location.href = this.registerUrl + '?' + params.toString();
                                 },
                                 payUrlFor(member) {
                                     return this.payUrlTemplate.replace('__ID__', member.registration_id);
@@ -246,6 +311,13 @@
                                 @endforeach
                             </select>
                             <p class="mt-1 text-xs text-stone-400">Track performance stats per rifle configuration.</p>
+                        </div>
+                    @elseif($isNewShooter)
+                        {{-- The sponsor doesn't pick a rifle for someone else who
+                             isn't on the platform yet — the shooter chooses it
+                             themselves once they claim the account. --}}
+                        <div class="rounded-xl border border-dashed border-sky-300 bg-sky-50/40 p-4 text-center">
+                            <p class="text-sm text-stone-600">Rifle configuration will be selected by the shooter once they claim their account.</p>
                         </div>
                     @else
                         <div class="rounded-xl border border-dashed border-stone-300 p-4 text-center">

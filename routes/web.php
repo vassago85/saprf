@@ -222,6 +222,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
         Route::resource('matches', MatchController::class)->except(['destroy', 'show']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
+        // MD-side "add shooter" action from the match edit page. Seeds a
+        // confirmed + paid entry without touching PayFast; used when the
+        // fee was collected off-platform (cash, EFT, comp'd).
+        Route::post('/matches/{match}/entries', [MatchController::class, 'storeAdminEntry'])->name('matches.entries.store');
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
         Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');

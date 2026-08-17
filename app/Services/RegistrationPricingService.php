@@ -13,16 +13,32 @@ class RegistrationPricingService
         private readonly SettingsService $settingsService,
     ) {}
 
-    public function determineCategoryAndFee(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null): array
+    /**
+     * The three fee brackets a registration can fall into. Anything outside
+     * this list is a bug — pricing must always pick one deterministically.
+     */
+    public const CATEGORIES = ['active_member', 'lapsed_member', 'non_member'];
+
+    /**
+     * @param  string|null  $forcedCategory  Optional admin override that
+     *   bypasses the membership classifier. Used by tooling that seeds an
+     *   entry at a fee bracket the user does not currently qualify for —
+     *   e.g. a grace entry that waives a lapsed-member surcharge. The
+     *   caller is expected to record WHY on the registration
+     *   (`fee_override_reason`) so the audit trail explains the deviation.
+     */
+    public function determineCategoryAndFee(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null, ?string $forcedCategory = null): array
     {
-        $category = $this->membershipValidationService->classifyRegistrationCategory($user, $matchDate);
+        $category = $forcedCategory !== null
+            ? $this->assertValidCategory($forcedCategory)
+            : $this->membershipValidationService->classifyRegistrationCategory($user, $matchDate);
 
         $baseFee = $this->baseFeeFor($match, $divisionSlug);
 
         $fee = match ($category) {
             'active_member' => $baseFee,
             'lapsed_member' => $baseFee + (float) $this->settingsService->get('lapsed_member_surcharge', 0),
-            default => $baseFee + (float) $this->settingsService->get('non_member_surcharge', 0),
+            'non_member' => $baseFee + (float) $this->settingsService->get('non_member_surcharge', 0),
         };
 
         return [
@@ -30,6 +46,18 @@ class RegistrationPricingService
             'fee' => $fee,
             'base_fee' => $baseFee,
         ];
+    }
+
+    private function assertValidCategory(string $category): string
+    {
+        if (! in_array($category, self::CATEGORIES, true)) {
+            throw new \InvalidArgumentException(
+                "Invalid forced pricing category '{$category}'. Expected one of: "
+                . implode(', ', self::CATEGORIES)
+            );
+        }
+
+        return $category;
     }
 
     /**
@@ -54,9 +82,9 @@ class RegistrationPricingService
      * PayFast ITN later overwrites it with the actual deducted fee.
      * MD net = total - SAPRF fee - platform fee - surcharge - gateway fee.
      */
-    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null): array
+    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null, ?string $forcedCategory = null): array
     {
-        $pricing = $this->determineCategoryAndFee($match, $user, $matchDate, $divisionSlug);
+        $pricing = $this->determineCategoryAndFee($match, $user, $matchDate, $divisionSlug, $forcedCategory);
 
         $baseFee = (float) $pricing['base_fee'];
         $totalFee = $pricing['fee'];

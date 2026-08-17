@@ -176,3 +176,96 @@ it('supports --payment=waived for comp\'d entries', function () {
 
     expect($registration->payment_status)->toBe('waived');
 });
+
+it('zeroes the gateway fee for seeded entries and rebalances md_net', function () {
+    // Even for a normal, non-forced seed the entry never went through PayFast,
+    // so the estimated gateway fee that RegistrationPricingService bakes into
+    // the breakdown must not stick to the row — otherwise the MD is silently
+    // short the card-rate estimate on every manually seeded entry.
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--membership' => $this->membership->id,
+        '--division' => 'ladies',
+        '--force' => true,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    $registration = MatchRegistration::where('user_id', $this->member->id)->firstOrFail();
+
+    $expectedMdNet = round(
+        (float) $registration->fee_amount
+        - (float) $registration->saprf_fee
+        - (float) $registration->platform_fee
+        - (float) $registration->surcharge_amount,
+        2
+    );
+
+    expect((float) $registration->gateway_fee)->toBe(0.0)
+        ->and((float) $registration->md_net_amount)->toBe($expectedMdNet);
+});
+
+it('waives a lapsed-member surcharge when --category=active_member is forced with a reason', function () {
+    // Set up a lapsed member (expired) — natural classification would apply
+    // the lapsed-member surcharge on the entry fee.
+    $lapsed = User::factory()->create();
+    Membership::create([
+        'user_id' => $lapsed->id,
+        'saprf_number' => 'SAPRF-SEED-002',
+        'membership_type' => 'paid',
+        'status' => 'expired',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(2),
+        'expiry_date' => Carbon::today()->subMonths(6),
+    ]);
+
+    $reason = 'Grace: legacy provincial entry imported; lapsed surcharge waived one-off.';
+
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--user' => $lapsed->id,
+        '--division' => 'ladies',
+        '--category' => 'active_member',
+        '--reason' => $reason,
+        '--force' => true,
+        '--apply' => true,
+    ])->assertSuccessful();
+
+    $registration = MatchRegistration::where('user_id', $lapsed->id)->firstOrFail();
+
+    // Should be booked at the plain member fee with zero surcharge, and the
+    // reason must be persisted on the row so future auditors know WHY the
+    // shooter did not pay the lapsed rate their membership implied.
+    expect($registration->membership_fee_category)->toBe('active_member')
+        ->and((float) $registration->fee_amount)->toBe(1100.0)
+        ->and((float) $registration->surcharge_amount)->toBe(0.0)
+        ->and($registration->fee_override_reason)->toBe($reason);
+});
+
+it('rejects --category without --reason so overrides are never silent', function () {
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--membership' => $this->membership->id,
+        '--division' => 'ladies',
+        '--category' => 'active_member',
+        '--force' => true,
+        '--apply' => true,
+    ])
+        ->expectsOutputToContain('--category requires --reason')
+        ->assertFailed();
+
+    expect(MatchRegistration::where('match_id', $this->match->id)->count())->toBe(0);
+});
+
+it('rejects unknown --category values', function () {
+    $this->artisan('registrations:seed', [
+        '--match' => $this->match->id,
+        '--membership' => $this->membership->id,
+        '--division' => 'ladies',
+        '--category' => 'life_member',
+        '--reason' => 'nope',
+        '--force' => true,
+        '--apply' => true,
+    ])
+        ->expectsOutputToContain('--category must be one of')
+        ->assertFailed();
+});

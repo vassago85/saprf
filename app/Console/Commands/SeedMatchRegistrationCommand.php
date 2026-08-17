@@ -29,6 +29,8 @@ class SeedMatchRegistrationCommand extends Command
                             {--user= : User ID (alternative to --membership)}
                             {--division= : Division slug (e.g. ladies, open, factory)}
                             {--payment=paid : payment_status to store (paid|waived|pending)}
+                            {--category= : Force the fee bracket (active_member|lapsed_member|non_member); bypasses the classifier. Requires --reason.}
+                            {--reason= : Free-text explanation stored on the entry as fee_override_reason. Required with --category, optional otherwise.}
                             {--force : Skip the check that the division is offered by the match}
                             {--apply : Persist the change (otherwise dry-run only)}';
 
@@ -43,6 +45,8 @@ class SeedMatchRegistrationCommand extends Command
         $userIdOpt = $this->option('user') ? (int) $this->option('user') : null;
         $divisionSlug = (string) $this->option('division');
         $paymentStatus = (string) $this->option('payment');
+        $forcedCategory = $this->option('category') !== null ? (string) $this->option('category') : null;
+        $overrideReason = $this->option('reason') !== null ? trim((string) $this->option('reason')) : null;
         $apply = (bool) $this->option('apply');
         $force = (bool) $this->option('force');
 
@@ -54,6 +58,25 @@ class SeedMatchRegistrationCommand extends Command
 
         if (! in_array($paymentStatus, ['paid', 'waived', 'pending'], true)) {
             $this->error("--payment must be one of paid|waived|pending (got: {$paymentStatus}).");
+
+            return self::FAILURE;
+        }
+
+        if ($forcedCategory !== null && ! in_array($forcedCategory, RegistrationPricingService::CATEGORIES, true)) {
+            $this->error(
+                "--category must be one of " . implode('|', RegistrationPricingService::CATEGORIES)
+                . " (got: {$forcedCategory})."
+            );
+
+            return self::FAILURE;
+        }
+
+        // Forcing a bracket the member doesn't naturally qualify for is a
+        // policy deviation — refuse it silently and require the operator to
+        // spell out why, because that string is the only audit signal on the
+        // resulting registration row.
+        if ($forcedCategory !== null && ($overrideReason === null || $overrideReason === '')) {
+            $this->error('--category requires --reason (recorded on the entry as fee_override_reason).');
 
             return self::FAILURE;
         }
@@ -92,7 +115,22 @@ class SeedMatchRegistrationCommand extends Command
         }
 
         $matchDate = $match->match_date ?: now();
-        $breakdown = $pricingService->calculateBreakdown($match, $user, $matchDate, $divisionSlug);
+        $breakdown = $pricingService->calculateBreakdown($match, $user, $matchDate, $divisionSlug, $forcedCategory);
+
+        // Manually seeded entries never go through PayFast, so we must not
+        // book the card-rate gateway estimate — otherwise the MD's net for
+        // this entry would silently be short by ~3.5% + R2 with no card
+        // transaction to explain it. Rebalance md_net to keep the row
+        // arithmetically consistent (fee = saprf + platform + surcharge + gateway + md_net).
+        $gatewayFee = 0.00;
+        $mdNet = round(
+            (float) $breakdown['total_fee']
+            - (float) $breakdown['saprf_fee']
+            - (float) $breakdown['platform_fee']
+            - (float) $breakdown['surcharge']
+            - $gatewayFee,
+            2
+        );
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'confirmed';
 
@@ -102,10 +140,14 @@ class SeedMatchRegistrationCommand extends Command
             'user_id' => $user->id,
             'shooter' => $user->name,
             'division' => $division->name.' ('.$division->slug.')',
-            'category' => $breakdown['category'],
+            'category' => $breakdown['category'].($forcedCategory !== null ? ' (forced via --category)' : ''),
             'fee_amount' => number_format((float) $breakdown['total_fee'], 2),
+            'surcharge' => number_format((float) $breakdown['surcharge'], 2),
+            'gateway_fee' => number_format($gatewayFee, 2).' (zeroed: outside PayFast)',
+            'md_net_amount' => number_format($mdNet, 2),
             'payment_status' => $paymentStatus,
             'registration_status' => $regStatus,
+            'override_reason' => $overrideReason ?? '—',
         ];
 
         $this->info('=== registrations:seed ===');
@@ -132,8 +174,9 @@ class SeedMatchRegistrationCommand extends Command
             'surcharge_amount' => $breakdown['surcharge'],
             'saprf_fee' => $breakdown['saprf_fee'],
             'platform_fee' => $breakdown['platform_fee'],
-            'gateway_fee' => $breakdown['gateway_fee'],
-            'md_net_amount' => $breakdown['md_net'],
+            'gateway_fee' => $gatewayFee,
+            'md_net_amount' => $mdNet,
+            'fee_override_reason' => $overrideReason,
             'payment_status' => $paymentStatus,
             'registration_status' => $regStatus,
             'registered_at' => now(),
@@ -152,6 +195,8 @@ class SeedMatchRegistrationCommand extends Command
                 'payment_status' => $paymentStatus,
                 'registration_status' => $regStatus,
                 'fee_amount' => (float) $breakdown['total_fee'],
+                'forced_category' => $forcedCategory,
+                'fee_override_reason' => $overrideReason,
                 'reason' => 'manual_seed_via_artisan',
             ],
         );

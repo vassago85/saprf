@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMatchRequest;
 use App\Http\Requests\UpdateMatchRequest;
+use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Province;
+use App\Models\User;
 use App\Models\Venue;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Services\AuditLogService;
+use App\Services\GuestShooterService;
+use App\Services\MembershipValidationService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
@@ -17,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -481,18 +487,34 @@ class MatchController extends Controller
         /** @var \App\Models\User $actor */
         $actor = $request->user();
 
-        // Resolve who we're registering: self, one of the actor's managed
-        // family accounts, or an independent member the actor is sponsoring.
-        $shooter = $this->resolveShooter($actor, $request->input('for_user'));
+        // Sponsor path for a shooter not yet on the platform: display the
+        // register page with an in-memory User carrying the name/email the
+        // sponsor typed. We deliberately DO NOT persist the stub here —
+        // the record is only created on POST, so an abandoned preview
+        // doesn't leave a ghost account behind.
+        $newShooterName = trim((string) $request->input('new_shooter_name', ''));
+        $newShooterEmail = trim((string) $request->input('new_shooter_email', ''));
+        $isNewShooter = $newShooterName !== '' && ! $request->filled('for_user');
 
-        $existing = $match->userRegistration($shooter);
-        if ($existing) {
-            $isSelf = $shooter->id === $actor->id;
+        if ($isNewShooter) {
+            $shooter = new User([
+                'name' => $newShooterName,
+                'email' => $newShooterEmail !== '' ? $newShooterEmail : null,
+            ]);
+        } else {
+            // Resolve who we're registering: self, one of the actor's managed
+            // family accounts, or an independent member the actor is sponsoring.
+            $shooter = $this->resolveShooter($actor, $request->input('for_user'));
 
-            return redirect()->route('registrations.show', $existing)
-                ->with('info', $isSelf
-                    ? 'You are already registered for this match.'
-                    : $shooter->name . ' is already registered for this match.');
+            $existing = $match->userRegistration($shooter);
+            if ($existing) {
+                $isSelf = $shooter->id === $actor->id;
+
+                return redirect()->route('registrations.show', $existing)
+                    ->with('info', $isSelf
+                        ? 'You are already registered for this match.'
+                        : $shooter->name . ' is already registered for this match.');
+            }
         }
 
         if (! $match->hasRequiredSetup()) {
@@ -500,19 +522,28 @@ class MatchController extends Controller
                 ->with('info', 'This match isn’t open for sign-up yet — the match director still needs to set the entry fee and details.');
         }
 
+        // A brand-new stub carries no membership yet, so pricing must not
+        // consult it — pass null so the classifier returns `non_member`.
+        // Existing shooters use their real membership as usual.
+        $pricingSubject = $isNewShooter ? null : $shooter;
+
         $pricing = app(RegistrationPricingService::class)
-            ->determineCategoryAndFee($match, $shooter, $match->match_date);
+            ->determineCategoryAndFee($match, $pricingSubject, $match->match_date);
 
         // Managed juniors typically shoot the parent's setup, so we show the
         // actor's own rifles for that flow. Independent shooters — self and
-        // sponsored — pick from their own list.
-        $rifleOwner = $this->isManagedShooter($shooter, $actor) ? $actor : $shooter;
+        // sponsored — pick from their own list. A brand-new sponsored
+        // shooter obviously has no rifles yet; the sponsor picks a division
+        // and the shooter chooses their rifle later.
+        $rifleOwner = $isNewShooter ? null : ($this->isManagedShooter($shooter, $actor) ? $actor : $shooter);
 
-        $rifles = $rifleOwner->rifleConfigurations()
-            ->where('is_active', true)
-            ->with(['make', 'model', 'calibre'])
-            ->orderByDesc('is_primary')
-            ->get();
+        $rifles = $rifleOwner
+            ? $rifleOwner->rifleConfigurations()
+                ->where('is_active', true)
+                ->with(['make', 'model', 'calibre'])
+                ->orderByDesc('is_primary')
+                ->get()
+            : collect();
 
         $juniors = $actor->managedAccounts()->orderBy('name')->get();
 
@@ -521,11 +552,11 @@ class MatchController extends Controller
         // Junior-division entries may carry a discounted fee — surface both the
         // normal and junior totals so the form can switch the price live.
         $juniorPricing = $match->junior_fee !== null
-            ? app(RegistrationPricingService::class)->determineCategoryAndFee($match, $shooter, $match->match_date, 'junior')
+            ? app(RegistrationPricingService::class)->determineCategoryAndFee($match, $pricingSubject, $match->match_date, 'junior')
             : null;
         $juniorDivisionId = $divisions->firstWhere('slug', 'junior')?->id;
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId'));
+        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
@@ -533,7 +564,32 @@ class MatchController extends Controller
         /** @var \App\Models\User $actor */
         $actor = $request->user();
 
-        $shooter = $this->resolveShooter($actor, $request->input('for_user'));
+        // Two shooter-resolution paths on POST:
+        //   • existing account (self / managed / sponsored existing) via
+        //     the `for_user` field (empty means self)
+        //   • sponsor-of-someone-not-on-the-platform via `new_shooter_name`
+        //     (+ optional email). We eagerly find-or-create a stub only
+        //     now, not on the GET preview.
+        $newShooterName = trim((string) $request->input('new_shooter_name', ''));
+        $newShooterEmail = trim((string) $request->input('new_shooter_email', ''));
+        $isNewShooterSubmit = $newShooterName !== '' && ! $request->filled('for_user');
+
+        if ($isNewShooterSubmit) {
+            $request->validate([
+                'new_shooter_name' => ['required', 'string', 'min:2', 'max:100'],
+                'new_shooter_email' => ['nullable', 'email', 'max:150'],
+            ], [
+                'new_shooter_name.min' => 'A shooter name of at least 2 characters is required.',
+                'new_shooter_email.email' => 'Enter a valid email address (or leave it blank).',
+            ]);
+
+            $shooter = app(GuestShooterService::class)->findOrCreate(
+                $newShooterName,
+                $newShooterEmail !== '' ? $newShooterEmail : null,
+            );
+        } else {
+            $shooter = $this->resolveShooter($actor, $request->input('for_user'));
+        }
 
         $existing = $match->userRegistration($shooter);
         if ($existing) {
@@ -658,6 +714,170 @@ class MatchController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', $message);
+    }
+
+    /**
+     * Match-director / admin action from the match edit page: seed a shooter
+     * directly into the entry list as paid + confirmed. Never touches
+     * PayFast — used when the entry fee was collected off-platform (cash,
+     * EFT, comp'd by the MD, etc.). Optionally waives a lapsed-member
+     * surcharge if the operator supplies a written reason.
+     *
+     * Same policy gate as `update()`: MD-of-this-match, owner, admin,
+     * exco, developer.
+     */
+    public function storeAdminEntry(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $allowedDivisionIds = $match->availableDivisions()->pluck('id')->all();
+
+        // The MD picks EITHER an existing shooter (by user_id, typically
+        // returned from the member search) OR a brand-new shooter whose
+        // stub account we provision here (name required, email optional).
+        // Exactly one of user_id / new_shooter_name must be supplied.
+        $hasUserId = $request->filled('user_id');
+        $hasNewName = trim((string) $request->input('new_shooter_name', '')) !== '';
+
+        if (! $hasUserId && ! $hasNewName) {
+            return back()
+                ->withInput()
+                ->withErrors(['user_id' => 'Pick an existing shooter or enter a new one.']);
+        }
+
+        if ($hasUserId && $hasNewName) {
+            return back()
+                ->withInput()
+                ->withErrors(['user_id' => 'Choose only one: search for an existing shooter, OR add a new one.']);
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['nullable', 'required_without:new_shooter_name', 'integer', 'exists:users,id'],
+            'new_shooter_name' => ['nullable', 'required_without:user_id', 'string', 'min:2', 'max:100'],
+            'new_shooter_email' => ['nullable', 'email', 'max:150'],
+            'division_id' => ['required', 'integer', Rule::in($allowedDivisionIds)],
+            'waive_lapsed_surcharge' => ['sometimes', 'boolean'],
+            'fee_override_reason' => ['nullable', 'string', 'max:500'],
+        ], [
+            'division_id.in' => 'The selected division is not available for this match.',
+            'user_id.exists' => 'That member no longer exists.',
+            'new_shooter_name.min' => 'A shooter name of at least 2 characters is required.',
+            'new_shooter_email.email' => 'Enter a valid email address (or leave it blank).',
+        ]);
+
+        $waiveLapsed = (bool) ($validated['waive_lapsed_surcharge'] ?? false);
+        $reason = trim((string) ($validated['fee_override_reason'] ?? ''));
+
+        // Waiving a surcharge without a written reason leaves the entry
+        // indistinguishable from a normal paid one — reject early so the
+        // audit trail on the row explains WHY the shooter did not pay the
+        // rate their membership implied.
+        if ($waiveLapsed && $reason === '') {
+            return back()
+                ->withInput()
+                ->withErrors(['fee_override_reason' => 'A reason is required when waiving the lapsed-member surcharge.']);
+        }
+
+        if ($hasUserId) {
+            $shooter = User::query()->findOrFail($validated['user_id']);
+        } else {
+            // Brand-new sponsored/comp'd shooter. Provisions a minimal stub
+            // (unclaimed account, free membership, non-member fee bracket)
+            // that the shooter can later claim via forgot-password if a
+            // real email was supplied.
+            $newEmail = trim((string) ($validated['new_shooter_email'] ?? ''));
+            $shooter = app(GuestShooterService::class)->findOrCreate(
+                $validated['new_shooter_name'],
+                $newEmail !== '' ? $newEmail : null,
+            );
+        }
+
+        // Managed juniors belong to a family — a match director should not be
+        // able to reach around the parent to seed them. The family flow on the
+        // register page is the correct path for those accounts.
+        if ($shooter->is_managed_account) {
+            return back()
+                ->withInput()
+                ->withErrors(['user_id' => 'Managed family accounts (juniors, etc.) must be entered via their parent, not from here.']);
+        }
+
+        if (! $shooter->is_active) {
+            return back()
+                ->withInput()
+                ->withErrors(['user_id' => 'That member is inactive and cannot be entered.']);
+        }
+
+        if ($existing = $match->userRegistration($shooter)) {
+            return redirect()
+                ->route('matches.edit', $match)
+                ->with('info', $shooter->name . ' is already registered for this match (entry #' . $existing->id . ').');
+        }
+
+        // Only "force" the pricing bracket to active_member when the
+        // shooter is actually lapsed and the operator ticked the box.
+        // For non-members or already-active members we let the normal
+        // classification stand — waiving the box then does nothing, which
+        // is honest UX.
+        $currentCategory = app(MembershipValidationService::class)
+            ->classifyRegistrationCategory($shooter, $match->match_date);
+        $forcedCategory = ($waiveLapsed && $currentCategory === 'lapsed_member') ? 'active_member' : null;
+
+        $division = Division::findOrFail($validated['division_id']);
+        $divisionSlug = $division->slug;
+
+        $breakdown = app(RegistrationPricingService::class)
+            ->calculateBreakdown($match, $shooter, $match->match_date ?: now(), $divisionSlug, $forcedCategory);
+
+        // Manually seeded entries never pass through PayFast, so we must not
+        // book the card-rate gateway estimate — otherwise the MD's payout for
+        // this entry would silently be short by ~3.5% + R2 for money that was
+        // handed to them in cash / EFT. Rebalance md_net accordingly.
+        $gatewayFee = 0.00;
+        $mdNet = round(
+            (float) $breakdown['total_fee']
+            - (float) $breakdown['saprf_fee']
+            - (float) $breakdown['platform_fee']
+            - (float) $breakdown['surcharge']
+            - $gatewayFee,
+            2
+        );
+
+        $registration = MatchRegistration::query()->create([
+            'match_id' => $match->id,
+            'user_id' => $shooter->id,
+            'registered_by_user_id' => $request->user()->id,
+            'division_id' => $division->id,
+            'shooter_name' => $shooter->name,
+            'email' => $shooter->email,
+            'phone' => $shooter->phone,
+            'membership_fee_category' => $breakdown['category'],
+            'fee_amount' => $breakdown['total_fee'],
+            'surcharge_amount' => $breakdown['surcharge'],
+            'saprf_fee' => $breakdown['saprf_fee'],
+            'platform_fee' => $breakdown['platform_fee'],
+            'gateway_fee' => $gatewayFee,
+            'md_net_amount' => $mdNet,
+            'fee_override_reason' => $reason !== '' ? $reason : null,
+            'payment_status' => 'paid',
+            'registration_status' => 'confirmed',
+            'registered_at' => now(),
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.admin_added',
+            'MatchRegistration',
+            $registration->id,
+            null,
+            array_merge($registration->toArray(), [
+                'forced_category' => $forcedCategory,
+                'seeded_via' => 'match_edit_ui',
+            ]),
+        );
+
+        return redirect()
+            ->route('matches.edit', $match)
+            ->with('success', $shooter->name . ' added to the entry list (confirmed, paid).');
     }
 
     // ── API ──

@@ -293,3 +293,146 @@ it('notifies the shooter when a sponsor pays for their entry', function () {
     Notification::assertSentTo($this->shooter, SponsoredEntryPaidNotification::class);
     expect($registration->fresh()->payment_status)->toBe('paid');
 });
+
+// ── Free-type existing shooter (legacy imports) ──
+
+it('lets a sponsor enter a free-type existing member (legacy import)', function () {
+    // Legacy imports and one-time guests live on the platform as
+    // membership_type='free' accounts. The sponsor search must find
+    // them and the entry must classify as non_member (they haven't
+    // paid dues), which drives the non-member surcharge on top of the
+    // match's base fee.
+    stubPayFast();
+    \App\Models\Setting::updateOrCreate(['key' => 'non_member_surcharge'], ['value' => '200']);
+    app(SettingsService::class)->clearCache();
+
+    $freeShooter = User::factory()->create([
+        'name' => 'Ferdie Free',
+        'province_id' => $this->province->id,
+        'email_verified_at' => now(),
+    ]);
+    $freeShooter->assignRole('member');
+    Membership::create([
+        'user_id' => $freeShooter->id,
+        'saprf_number' => 'SAPRF-IMPORT-FREE1',
+        'membership_type' => 'free',
+        'status' => 'pending',
+        'payment_status' => 'unpaid',
+    ]);
+
+    // Search returns them.
+    $this->actingAs($this->sponsor)
+        ->getJson(route('events.members.search', ['match' => $this->match, 'q' => 'Ferdie']))
+        ->assertOk()
+        ->assertJsonFragment(['name' => 'Ferdie Free']);
+
+    // Sponsoring them creates a non-member entry: base R1000 + R200 surcharge.
+    $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'for_user' => $freeShooter->id,
+            'division_id' => $this->division->id,
+        ])->assertRedirect();
+
+    $registration = MatchRegistration::where('user_id', $freeShooter->id)->firstOrFail();
+    expect($registration->registered_by_user_id)->toBe($this->sponsor->id)
+        ->and($registration->membership_fee_category)->toBe('non_member')
+        ->and((float) $registration->fee_amount)->toBe(1200.00)
+        ->and((float) $registration->surcharge_amount)->toBe(200.00);
+});
+
+// ── Sponsor of a shooter not-on-the-platform ──
+
+it('shows the new-shooter preview from name + email query params', function () {
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'new_shooter_name' => 'Nell Newcomer', 'new_shooter_email' => 'nell@example.com']))
+        ->assertOk()
+        ->assertSee('Nell Newcomer')
+        ->assertSee('New Shooter Registration');
+
+    // The preview must NOT persist anything until POST.
+    expect(User::where('name', 'Nell Newcomer')->count())->toBe(0);
+});
+
+it('provisions a stub and creates the sponsored entry on POST of new_shooter_name', function () {
+    stubPayFast();
+    Notification::fake();
+    \App\Models\Setting::updateOrCreate(['key' => 'non_member_surcharge'], ['value' => '200']);
+    app(SettingsService::class)->clearCache();
+
+    $response = $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'new_shooter_name' => 'Nell Newcomer',
+            'new_shooter_email' => 'nell@example.com',
+            'division_id' => $this->division->id,
+        ]);
+
+    $stub = User::where('email', 'nell@example.com')->firstOrFail();
+    $registration = MatchRegistration::where('user_id', $stub->id)->firstOrFail();
+    $payment = Payment::where('payable_id', $registration->id)->firstOrFail();
+
+    expect($stub->name)->toBe('Nell Newcomer')
+        ->and($registration->registered_by_user_id)->toBe($this->sponsor->id)
+        // Fresh stub carries a free membership → classified as non_member.
+        ->and($registration->membership_fee_category)->toBe('non_member')
+        ->and((float) $registration->fee_amount)->toBe(1200.00)
+        ->and($payment->user_id)->toBe($this->sponsor->id);
+
+    $response->assertRedirect(route('payments.redirect', $payment));
+
+    Notification::assertSentTo($stub, MatchRegistrationConfirmedNotification::class);
+});
+
+it('provisions a stub with placeholder email when no email is supplied', function () {
+    stubPayFast();
+
+    $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'new_shooter_name' => 'Only Name Given',
+            'division_id' => $this->division->id,
+        ])->assertRedirect();
+
+    $stub = User::where('name', 'Only Name Given')->firstOrFail();
+    expect($stub->email)->toBe('only.given@import.saprf.local');
+});
+
+it('reuses an existing user when the sponsor supplies a matching email', function () {
+    // Sam typed a name (didn't recognise the shooter from search) but
+    // then added the shooter's real email — which happens to already
+    // belong to $this->shooter. The entry MUST land on $this->shooter.
+    stubPayFast();
+
+    $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'new_shooter_name' => 'Weird Alternate Name',
+            'new_shooter_email' => $this->shooter->email,
+            'division_id' => $this->division->id,
+        ])->assertRedirect();
+
+    // No duplicate user created.
+    expect(User::where('email', $this->shooter->email)->count())->toBe(1)
+        ->and(User::where('name', 'Weird Alternate Name')->count())->toBe(0);
+
+    $registration = MatchRegistration::where('user_id', $this->shooter->id)->firstOrFail();
+    expect($registration->registered_by_user_id)->toBe($this->sponsor->id);
+});
+
+it('rejects the sponsor new-shooter POST when the name is too short', function () {
+    $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'new_shooter_name' => 'x',
+            'division_id' => $this->division->id,
+        ])->assertSessionHasErrors('new_shooter_name');
+
+    expect(User::where('name', 'x')->count())->toBe(0);
+});
+
+it('rejects the sponsor new-shooter POST when the email is malformed', function () {
+    $this->actingAs($this->sponsor)
+        ->post(route('events.register.store', $this->match), [
+            'new_shooter_name' => 'Valid Name',
+            'new_shooter_email' => 'not-an-email',
+            'division_id' => $this->division->id,
+        ])->assertSessionHasErrors('new_shooter_email');
+
+    expect(User::where('name', 'Valid Name')->count())->toBe(0);
+});
