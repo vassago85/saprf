@@ -15,8 +15,14 @@ use Symfony\Component\HttpFoundation\Response;
  * moving to Alpine's CSP build first. Everything else — framing, sniffing,
  * base URI, plugin objects, and where forms may post — is locked down.
  *
- * `form-action` must list the Payfast process URLs because the checkout page
- * POSTs the signed payload straight to the gateway.
+ * `form-action` must list every Payfast host the browser can end up on during
+ * checkout. The initial POST goes to `www.payfast.co.za` (or the sandbox
+ * host), but Payfast immediately 302s to one of its redundancy hosts —
+ * `w1w.payfast.co.za` / `w2w.payfast.co.za`. Chrome enforces `form-action`
+ * across the entire redirect chain and, when a later hop is disallowed,
+ * blocks the request while reporting the violation against the *first* URL
+ * in the chain. So the allowlist must include every host in
+ * `config('payfast.valid_hosts')` plus the sandbox host used in dev.
  */
 class SecurityHeaders
 {
@@ -44,10 +50,7 @@ class SecurityHeaders
     private function contentSecurityPolicy(): string
     {
         $fonts = 'https://fonts.bunny.net';
-        $gateways = implode(' ', array_map(
-            fn (string $url): string => (string) parse_url($url, PHP_URL_SCHEME).'://'.parse_url($url, PHP_URL_HOST),
-            array_values((array) config('payfast.urls', [])),
-        ));
+        $gateways = $this->payfastFormActionSources();
 
         // `npm run dev` serves assets and the HMR socket from the Vite dev
         // server, so allow it only while the hot file is present.
@@ -67,5 +70,32 @@ class SecurityHeaders
         ];
 
         return implode('; ', $directives);
+    }
+
+    /**
+     * Every https:// host the browser can be navigated to during a Payfast
+     * checkout, deduplicated and space-separated for `form-action`.
+     */
+    private function payfastFormActionSources(): string
+    {
+        $hosts = [];
+
+        foreach ((array) config('payfast.urls', []) as $url) {
+            $host = parse_url((string) $url, PHP_URL_HOST);
+            if (is_string($host) && $host !== '') {
+                $hosts[$host] = true;
+            }
+        }
+
+        foreach ((array) config('payfast.valid_hosts', []) as $host) {
+            if (is_string($host) && $host !== '') {
+                $hosts[$host] = true;
+            }
+        }
+
+        return implode(' ', array_map(
+            static fn (string $host): string => 'https://'.$host,
+            array_keys($hosts),
+        ));
     }
 }

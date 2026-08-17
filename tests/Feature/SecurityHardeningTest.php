@@ -170,6 +170,19 @@ it('sends the hardening headers on public responses', function () {
         ->toContain('payfast.co.za');
 });
 
+it('allows form submissions to every Payfast host in the checkout redirect chain', function () {
+    // The initial POST goes to www.payfast.co.za or sandbox.payfast.co.za,
+    // but Payfast immediately 302s to w1w/w2w — Chrome enforces `form-action`
+    // across the whole chain, so every hop must be allow-listed.
+    $csp = $this->get('/')->headers->get('Content-Security-Policy');
+
+    expect($csp)
+        ->toContain('https://www.payfast.co.za')
+        ->toContain('https://sandbox.payfast.co.za')
+        ->toContain('https://w1w.payfast.co.za')
+        ->toContain('https://w2w.payfast.co.za');
+});
+
 // ── Mass assignment ───────────────────────────────────────────────────────
 
 it('refuses to mass-assign credential columns on a user', function () {
