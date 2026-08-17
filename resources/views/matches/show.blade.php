@@ -464,8 +464,49 @@
                         <flux:icon.arrow-up-tray class="size-5 text-stone-400" />
                         Score Imports
                     </a>
+                    @can('update', $match)
+                        @php
+                            $announcementRecipientCount = $match->registrations
+                                ->whereIn('registration_status', ['confirmed', 'waitlisted'])
+                                ->count();
+                        @endphp
+                        <a href="{{ route('matches.announcements.create', $match) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
+                            <flux:icon.envelope class="size-5 text-stone-400" />
+                            Message Entrants
+                            <span class="ml-auto inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">{{ $announcementRecipientCount }}</span>
+                        </a>
+                    @endcan
                 </div>
             </div>
+
+            @can('update', $match)
+                @php
+                    $recentAnnouncements = $match->announcements()
+                        ->with('sender:id,name')
+                        ->latest('sent_at')
+                        ->limit(5)
+                        ->get();
+                @endphp
+                @if($recentAnnouncements->isNotEmpty())
+                    <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                        <h2 class="text-lg font-semibold text-stone-900 mb-4">Recent Announcements</h2>
+                        <div class="divide-y divide-stone-100">
+                            @foreach($recentAnnouncements as $announcement)
+                                <div class="py-3 first:pt-0 last:pb-0">
+                                    <p class="text-sm font-medium text-stone-900 truncate">{{ $announcement->subject }}</p>
+                                    <p class="mt-1 text-xs text-stone-500">
+                                        {{ $announcement->sent_at?->format('d M Y H:i') }}
+                                        &middot; {{ $announcement->recipient_count }} {{ \Illuminate\Support\Str::plural('recipient', $announcement->recipient_count) }}
+                                        @if($announcement->sender)
+                                            &middot; {{ $announcement->sender->name }}
+                                        @endif
+                                    </p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endcan
         </div>
     </div>
 

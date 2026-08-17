@@ -143,6 +143,11 @@ class MatchEvent extends Model
         return $this->hasMany(MatchExpense::class, 'match_id');
     }
 
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(MatchAnnouncement::class, 'match_id');
+    }
+
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class, 'match_id');

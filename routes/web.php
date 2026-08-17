@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
@@ -226,6 +227,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // confirmed + paid entry without touching PayFast; used when the
         // fee was collected off-platform (cash, EFT, comp'd).
         Route::post('/matches/{match}/entries', [MatchController::class, 'storeAdminEntry'])->name('matches.entries.store');
+        // MD broadcast to entrants on the match's entry list. Both actions
+        // re-authorize via MatchPolicy::update so a match_director without
+        // ownership of the match hits 403 even if the middleware lets them in.
+        Route::get('/matches/{match}/announcements/create', [MatchAnnouncementController::class, 'create'])
+            ->name('matches.announcements.create');
+        Route::post('/matches/{match}/announcements', [MatchAnnouncementController::class, 'store'])
+            ->name('matches.announcements.store');
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
         Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');
