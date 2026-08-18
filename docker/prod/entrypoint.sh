@@ -3,6 +3,10 @@ set -e
 
 cd /var/www/html
 
+# Host-side `php artisan config:cache` can get COPY'd into the image and
+# pin a Laragon/dev DB_HOST (mysql). Drop it so this boot uses compose/.env.
+rm -f bootstrap/cache/config.php bootstrap/cache/routes-v7.php bootstrap/cache/events.php
+
 echo "Running migrations..."
 php artisan migrate --force
 
