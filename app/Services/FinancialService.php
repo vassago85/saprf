@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\FinancialTransaction;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
+use App\Models\Payout;
 use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -231,6 +234,47 @@ class FinancialService
             'profit_loss' => (float) $paid->sum('md_net_amount') - $totalExpenses,
             'refunds' => (float) $registrations->sum('refund_amount'),
         ];
+    }
+
+    /**
+     * Create a pending match-director payout for a completed match and record
+     * the matching finance-transaction ledger entry. Returns the fresh payout.
+     *
+     * Callers must guard against duplicate payouts (a match should never carry
+     * more than one MD payout row) and against un-completed matches. Both the
+     * admin "Create Payout" screen and the match-director "Complete & request
+     * payout" flow funnel through this method so amounts, references, and the
+     * transaction log stay consistent regardless of who initiated the payout.
+     */
+    public function createMdPayout(MatchEvent $match, User $creator, ?string $notes = null): Payout
+    {
+        $financials = $this->matchFinancials($match);
+
+        return DB::transaction(function () use ($match, $creator, $notes, $financials) {
+            $payout = Payout::create([
+                'reference' => Payout::generateReference(),
+                'payee_type' => 'match_director',
+                'payee_user_id' => $match->created_by,
+                'match_id' => $match->id,
+                'gross_amount' => $financials['gross_revenue'],
+                'fees_deducted' => $financials['platform_fees'] + $financials['saprf_fees'] + $financials['gateway_fees'],
+                'net_amount' => $financials['md_net'],
+                'status' => 'pending',
+                'notes' => $notes,
+                'created_by' => $creator->id,
+            ]);
+
+            FinancialTransaction::create([
+                'type' => 'payout',
+                'source_type' => 'payout',
+                'source_id' => $payout->id,
+                'user_id' => $creator->id,
+                'amount' => $payout->net_amount,
+                'description' => "Payout {$payout->reference} created for match: {$match->name}",
+            ]);
+
+            return $payout;
+        });
     }
 
     // ── Revenue by Match (for listing) ──

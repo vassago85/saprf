@@ -92,7 +92,7 @@ class ScoreImportController extends Controller
                 : 'Score import queued for processing.');
     }
 
-    public function show(ScoreImport $scoreImport): View
+    public function show(Request $request, ScoreImport $scoreImport): View
     {
         $scoreImport->load(['match', 'uploader']);
 
@@ -101,7 +101,24 @@ class ScoreImportController extends Controller
             ->orderBy('placement')
             ->paginate(30);
 
-        return view('score-imports.show', compact('scoreImport', 'scores'));
+        // Feeds the "complete match & request payout" prompt on the show page.
+        // The MD who owns this match can offer to close it out and file for
+        // payment straight from the successful-import screen, but only when
+        // the match isn't already completed and no payout has been requested
+        // yet.
+        $match = $scoreImport->match;
+        $user = $request->user();
+        $viewerOwnsMatch = $user && ($match->created_by === $user->id
+            || $user->hasAnyRole(['owner', 'admin', 'exco', 'developer']));
+
+        $canRequestMdPayout = $viewerOwnsMatch
+            && $scoreImport->import_status === 'completed'
+            && $match->status !== 'completed'
+            && ! $match->payouts()->where('payee_type', 'match_director')->exists();
+
+        return view('score-imports.show', compact(
+            'scoreImport', 'scores', 'canRequestMdPayout',
+        ));
     }
 
     /**

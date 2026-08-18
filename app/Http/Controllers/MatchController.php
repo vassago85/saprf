@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Venue;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Services\AuditLogService;
+use App\Services\FinancialService;
 use App\Services\GuestShooterService;
 use App\Services\MembershipValidationService;
 use App\Services\RegistrationPricingService;
@@ -249,6 +250,64 @@ class MatchController extends Controller
 
         return redirect()->route('matches.show', $match)
             ->with('success', 'Match updated successfully.'.($recalculated ? ' Standings were recalculated.' : ''));
+    }
+
+    /**
+     * Marks a match as completed AND creates a pending match-director payout in
+     * one step. Triggered from the score-import success page so an MD who has
+     * just uploaded results can close out the match and file for payment in a
+     * single click, instead of chasing an admin.
+     *
+     * Guarded so the same match can't be double-requested: if the match is
+     * already completed or already has an MD payout row, we short-circuit with
+     * a soft warning rather than creating a duplicate.
+     */
+    public function completeAndRequestPayout(
+        Request $request,
+        MatchEvent $match,
+        FinancialService $financials,
+    ): RedirectResponse {
+        $this->authorize('update', $match);
+
+        $back = url()->previous() ?: route('matches.show', $match);
+
+        $alreadyHasPayout = $match->payouts()
+            ->where('payee_type', 'match_director')
+            ->exists();
+
+        if ($alreadyHasPayout) {
+            return redirect($back)->with('success', 'A match director payout has already been requested for this match.');
+        }
+
+        $old = $match->only(['status', 'published']);
+
+        if ($match->status !== 'completed') {
+            $match->update(['status' => 'completed']);
+        }
+
+        $payout = $financials->createMdPayout(
+            $match,
+            $request->user(),
+            'Requested by match director after score upload.',
+        );
+
+        $this->auditLogService->log(
+            $request->user(),
+            'md_payout_requested',
+            'payout',
+            $payout->id,
+            $old,
+            [
+                'match_id' => $match->id,
+                'payout_reference' => $payout->reference,
+                'net_amount' => $payout->net_amount,
+            ],
+        );
+
+        return redirect($back)->with(
+            'success',
+            "Match marked completed and payout {$payout->reference} requested for R" . number_format($payout->net_amount, 2) . '. An admin will process the payment.',
+        );
     }
 
     public function exportImpactScoringCsv(MatchEvent $match): StreamedResponse

@@ -67,6 +67,43 @@
         </div>
     @endif
 
+    @if ($canRequestMdPayout)
+        <div
+            x-data="{ dismissed: false }"
+            x-show="!dismissed"
+            class="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5"
+        >
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 mt-0.5">
+                    <svg class="h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base font-semibold text-emerald-900">Scores are in — close out this match?</h3>
+                    <p class="mt-1 text-sm text-emerald-800">
+                        Mark <span class="font-medium">{{ $scoreImport->match->name }}</span> as
+                        <span class="font-medium">completed</span> and file your match-director payout request in one step.
+                        An admin will review it and settle payment.
+                    </p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <form method="POST" action="{{ route('matches.complete-and-request-payout', $scoreImport->match) }}">
+                            @csrf
+                            <button type="submit"
+                                class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                                Complete match &amp; request payout
+                            </button>
+                        </form>
+                        <button type="button" @click="dismissed = true"
+                            class="text-sm font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2">
+                            Not yet
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($scoreImport->import_status === 'processing' || $scoreImport->import_status === 'queued' || $scoreImport->import_status === 'pending')
         <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
             <div class="flex items-center gap-2">

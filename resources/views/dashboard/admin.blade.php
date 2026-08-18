@@ -60,6 +60,27 @@
                     Review Approvals
                 </a>
             </div>
+
+            <div class="rounded-xl border {{ ($pendingMdPayouts ?? 0) > 0 ? 'border-amber-200 bg-amber-50' : 'border-stone-200 bg-white' }} shadow-sm p-6 space-y-2">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm {{ ($pendingMdPayouts ?? 0) > 0 ? 'text-amber-800' : 'text-stone-500' }}">Pending MD Payouts</p>
+                    @if(($pendingMdPayouts ?? 0) > 0)
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-900">{{ $pendingMdPayouts }}</span>
+                    @endif
+                </div>
+                <p class="text-3xl font-bold {{ ($pendingMdPayouts ?? 0) > 0 ? 'text-amber-900' : 'text-stone-900' }}">
+                    {{ number_format($pendingMdPayouts ?? 0) }}
+                </p>
+                @if(($pendingMdPayouts ?? 0) > 0)
+                    <p class="text-xs {{ ($pendingMdPayouts ?? 0) > 0 ? 'text-amber-700' : 'text-stone-400' }}">
+                        R{{ number_format($pendingMdPayoutsTotal ?? 0, 2) }} outstanding
+                    </p>
+                @endif
+                <a href="{{ route('financials.payouts', ['type' => 'match_director', 'status' => 'pending']) }}"
+                   class="inline-flex items-center justify-center w-full rounded-lg border {{ ($pendingMdPayouts ?? 0) > 0 ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200' : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100' }} px-3 py-1.5 text-sm font-medium transition-colors">
+                    Review Payout Requests
+                </a>
+            </div>
         </div>
 
         <hr class="border-stone-200 my-6">

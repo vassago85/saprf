@@ -24,6 +24,101 @@
             </div>
         </div>
 
+        @if($pendingMdPayouts->isNotEmpty())
+        <div class="rounded-xl border-2 border-amber-300 bg-amber-50 shadow-sm">
+            <div class="px-5 py-4 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-amber-900 flex items-center gap-2">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                        Pending MD Payout Requests
+                        <span class="ml-1 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">
+                            {{ $pendingMdPayouts->count() }}
+                        </span>
+                    </h2>
+                    <p class="mt-0.5 text-xs text-amber-800">
+                        Match directors are waiting on
+                        <span class="font-semibold">R{{ number_format($pendingMdPayouts->sum('net_amount'), 2) }}</span>
+                        across {{ $pendingMdPayouts->count() }} {{ Str::plural('payout', $pendingMdPayouts->count()) }}.
+                    </p>
+                </div>
+                <a href="{{ route('financials.payouts', ['type' => 'match_director', 'status' => 'pending']) }}"
+                   class="text-sm font-semibold text-amber-900 hover:text-amber-950 underline underline-offset-2">
+                    View filtered &rarr;
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-amber-200 text-left text-xs uppercase text-amber-800">
+                            <th class="py-2.5 px-5">Reference</th>
+                            <th class="py-2.5 px-5">Match Director</th>
+                            <th class="py-2.5 px-5">Match</th>
+                            <th class="py-2.5 px-5 text-right">Net Due</th>
+                            <th class="py-2.5 px-5">Requested</th>
+                            <th class="py-2.5 px-5"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($pendingMdPayouts as $mdPayout)
+                        <tr class="border-b border-amber-100 last:border-b-0 hover:bg-amber-100/40" x-data="{ open: false }">
+                            <td class="py-3 px-5 font-mono text-xs text-amber-900">{{ $mdPayout->reference }}</td>
+                            <td class="py-3 px-5 text-amber-900">{{ $mdPayout->payeeUser?->name ?? '—' }}</td>
+                            <td class="py-3 px-5 text-amber-900">
+                                @if($mdPayout->match)
+                                    <a href="{{ route('financials.match-report', $mdPayout->match) }}" class="hover:underline">
+                                        {{ $mdPayout->match->name }}
+                                    </a>
+                                    <span class="block text-xs text-amber-700">{{ $mdPayout->match->match_date?->format('d M Y') }}</span>
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="py-3 px-5 text-right font-bold text-amber-900">R{{ number_format($mdPayout->net_amount, 2) }}</td>
+                            <td class="py-3 px-5 text-amber-800 text-xs">
+                                {{ $mdPayout->created_at->diffForHumans() }}
+                            </td>
+                            <td class="py-3 px-5 text-right">
+                                <button @click="open = !open"
+                                        class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">
+                                    Mark Paid
+                                </button>
+                            </td>
+                        </tr>
+                        <tr x-show="open" x-cloak class="bg-amber-100/40 border-b border-amber-100 last:border-b-0">
+                            <td colspan="6" class="px-5 py-4">
+                                <form method="POST" action="{{ route('financials.payouts.mark-paid', $mdPayout) }}"
+                                      class="flex flex-wrap items-end gap-4">
+                                    @csrf
+                                    <div>
+                                        <label class="block text-xs font-medium text-amber-800 mb-1">Amount</label>
+                                        <input type="number" name="paid_amount" step="0.01" min="0.01"
+                                               value="{{ $mdPayout->outstandingBalance() }}"
+                                               class="rounded-lg border border-amber-300 bg-white text-sm py-2 px-3 w-36 focus:ring-emerald-500 focus:border-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-amber-800 mb-1">Reference</label>
+                                        <input type="text" name="payment_reference" placeholder="EFT / bank ref"
+                                               class="rounded-lg border border-amber-300 bg-white text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-amber-800 mb-1">Notes</label>
+                                        <input type="text" name="notes" placeholder="Optional"
+                                               class="rounded-lg border border-amber-300 bg-white text-sm py-2 px-3 w-48 focus:ring-emerald-500 focus:border-emerald-500">
+                                    </div>
+                                    <button type="submit"
+                                            class="rounded-lg bg-emerald-700 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                                        Record Payment
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
         @if(!empty($unsettledMonths))
         <div class="rounded-xl border border-violet-200 bg-violet-50 p-4">
             <div class="flex items-start justify-between gap-4 flex-wrap">

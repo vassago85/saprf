@@ -138,12 +138,23 @@ class FinancialController extends Controller
         $pendingTotal = Payout::where('status', 'pending')->sum('net_amount');
         $paidTotal = Payout::where('status', 'paid')->sum('paid_amount');
 
+        // Dedicated "MD payout requests" surface — this is what the sidebar
+        // badge and admin dashboard card point at. Kept separate from the
+        // generic pending total so the admin can zero in on what MDs are
+        // waiting on without wading through platform-operator payouts.
+        $pendingMdPayouts = Payout::with(['payeeUser', 'match', 'creator'])
+            ->where('payee_type', 'match_director')
+            ->where('status', 'pending')
+            ->orderBy('created_at')
+            ->get();
+
         // Unsettled months surface a hint above the listing so the operator
         // knows there's money outstanding without having to go digging.
         $unsettledMonths = $this->platformPayouts->unsettledMonths();
 
         return view('financials.payouts', compact(
-            'payouts', 'pendingTotal', 'paidTotal', 'status', 'type', 'unsettledMonths',
+            'payouts', 'pendingTotal', 'paidTotal', 'pendingMdPayouts',
+            'status', 'type', 'unsettledMonths',
         ));
     }
 
@@ -166,29 +177,12 @@ class FinancialController extends Controller
         ]);
 
         $match = MatchEvent::findOrFail($validated['match_id']);
-        $financials = $this->financials->matchFinancials($match);
 
-        $payout = Payout::create([
-            'reference' => Payout::generateReference(),
-            'payee_type' => 'match_director',
-            'payee_user_id' => $match->created_by,
-            'match_id' => $match->id,
-            'gross_amount' => $financials['gross_revenue'],
-            'fees_deducted' => $financials['platform_fees'] + $financials['saprf_fees'] + $financials['gateway_fees'],
-            'net_amount' => $financials['md_net'],
-            'status' => 'pending',
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
-
-        FinancialTransaction::create([
-            'type' => 'payout',
-            'source_type' => 'payout',
-            'source_id' => $payout->id,
-            'user_id' => $request->user()->id,
-            'amount' => $payout->net_amount,
-            'description' => "Payout {$payout->reference} created for match: {$match->name}",
-        ]);
+        $payout = $this->financials->createMdPayout(
+            $match,
+            $request->user(),
+            $validated['notes'] ?? null,
+        );
 
         $this->audit->log(
             $request->user(),

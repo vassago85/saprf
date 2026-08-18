@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
+use App\Models\Payout;
 use App\Models\ProvincialCommittee;
 use App\Models\QualificationRule;
 use App\Models\RifleConfiguration;
@@ -145,6 +146,12 @@ class DashboardController extends Controller
             'upcomingMatches' => MatchEvent::where('match_date', '>=', Carbon::today())->count(),
             'pendingScores' => Score::where('status', 'pending')->count(),
             'pendingApprovals' => ApprovalController::totalPendingCount(),
+            'pendingMdPayouts' => Payout::where('payee_type', 'match_director')
+                ->where('status', 'pending')
+                ->count(),
+            'pendingMdPayoutsTotal' => (float) Payout::where('payee_type', 'match_director')
+                ->where('status', 'pending')
+                ->sum('net_amount'),
             'recentAuditLogs' => AuditLog::with('user')->latest('created_at')->limit(5)->get(),
         ]);
     }

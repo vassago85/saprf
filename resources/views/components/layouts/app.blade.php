@@ -226,6 +226,9 @@
                 </flux:navlist.item>
                 <flux:navlist.item icon="credit-card" :href="route('financials.payouts')" :current="request()->routeIs('financials.payouts*')">
                     Payouts
+                    @if(($pendingMdPayoutCount = \App\Models\Payout::where('payee_type', 'match_director')->where('status', 'pending')->count()) > 0)
+                        <flux:badge size="sm" color="amber" class="ml-auto">{{ $pendingMdPayoutCount }}</flux:badge>
+                    @endif
                 </flux:navlist.item>
                 <flux:navlist.item icon="queue-list" :href="route('financials.transactions')" :current="request()->routeIs('financials.transactions')">
                     Transactions

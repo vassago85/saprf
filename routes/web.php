@@ -337,6 +337,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
         Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');
+        // Score-upload success page offers "complete match & request MD payout"
+        // in a single click. Authorization is re-checked in the controller via
+        // MatchPolicy::update so an MD can only complete their own match.
+        Route::post('/matches/{match}/complete-and-request-payout', [MatchController::class, 'completeAndRequestPayout'])
+            ->name('matches.complete-and-request-payout');
         Route::get('/score-imports/template', [ScoreImportController::class, 'template'])->name('score-imports.template');
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
