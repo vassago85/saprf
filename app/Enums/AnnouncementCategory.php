@@ -16,6 +16,7 @@ enum AnnouncementCategory: string
     case Announcement = 'announcement';
     case MatchCalendar = 'match_calendar';
     case AgmGovernance = 'agm_governance';
+    case PlatformUpdate = 'platform_update';
     case Urgent = 'urgent';
 
     public function label(): string
@@ -25,6 +26,7 @@ enum AnnouncementCategory: string
             self::Announcement => 'Announcement',
             self::MatchCalendar => 'Match / calendar',
             self::AgmGovernance => 'AGM / governance',
+            self::PlatformUpdate => 'Website / platform update',
             self::Urgent => 'Urgent',
         };
     }
@@ -36,6 +38,7 @@ enum AnnouncementCategory: string
             self::Announcement => 'megaphone',
             self::MatchCalendar => 'calendar-days',
             self::AgmGovernance => 'building-library',
+            self::PlatformUpdate => 'sparkles',
             self::Urgent => 'exclamation-triangle',
         };
     }
