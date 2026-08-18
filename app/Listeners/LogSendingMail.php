@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Models\EmailLog;
 use App\Models\User;
+use App\Services\SettingsService;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mime\Address;
@@ -47,6 +48,14 @@ class LogSendingMail
     {
         try {
             $email = $event->message;
+
+            // Reply-To fallback used to live in a separate closure listener
+            // in AppServiceProvider, but Laravel 12's auto-discovery double-
+            // registered the class-based listeners here alongside the manual
+            // Event::listen() calls. Merging the Reply-To fallback into this
+            // one listener keeps everything ordered correctly with one hook.
+            $this->applyDefaultReplyTo($email);
+
             [$toEmail, $toName] = $this->firstTo($email);
             if ($toEmail === null) {
                 // No recipient? Nothing to log — the transport will error.
@@ -87,6 +96,30 @@ class LogSendingMail
             // in-process on every send; a broken listener would take the
             // whole app's mail down. Log and swallow.
             Log::warning('LogSendingMail failed to persist row', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Point Reply-To at the secretary inbox when a notification did not
+     * set its own. Contact-form mail already `replyTo()`s the enquirer
+     * and is left alone. Never ExCo or owner — `admin@precisionrifle`
+     * forwards to the whole ExCo, so that address must not be the
+     * public Reply-To.
+     */
+    private function applyDefaultReplyTo(Email $email): void
+    {
+        if (! empty($email->getReplyTo())) {
+            return;
+        }
+
+        try {
+            $reply = app(SettingsService::class)->replyToEmail();
+        } catch (Throwable) {
+            return;
+        }
+
+        if ($reply) {
+            $email->replyTo($reply);
         }
     }
 

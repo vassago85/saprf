@@ -27,16 +27,11 @@ use App\Policies\Selection\SelectionAppealPolicy;
 use App\Policies\Selection\SelectionAthletePolicy;
 use App\Policies\Selection\SelectionCyclePolicy;
 use App\Policies\Selection\SelectionWaiverPolicy;
-use App\Listeners\AuthAuditListener;
 use App\Models\Setting;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\SettingsService;
-use Illuminate\Auth\Events\Failed as AuthFailedEvent;
-use Illuminate\Auth\Events\Login as AuthLoginEvent;
-use Illuminate\Auth\Events\Logout as AuthLogoutEvent;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -89,22 +84,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->applyMailgunSettings();
         $this->registerNotificationsToggle();
-        $this->registerMailReplyTo();
-        $this->registerMailLog();
         $this->registerMailRateLimiter();
-        $this->registerAuthAuditListener();
-    }
 
-    /**
-     * Persist every outgoing email into `email_logs`. Registered AFTER
-     * registerMailReplyTo so the Reply-To header is on the message by
-     * the time LogSendingMail captures it — MessageSending listeners
-     * fire in registration order.
-     */
-    private function registerMailLog(): void
-    {
-        Event::listen(\Illuminate\Mail\Events\MessageSending::class, \App\Listeners\LogSendingMail::class);
-        Event::listen(\Illuminate\Mail\Events\MessageSent::class, \App\Listeners\LogSentMail::class);
+        // NOTE: LogSendingMail, LogSentMail, and AuthAuditListener are all
+        // registered automatically by Laravel 12's listener auto-discovery
+        // (any method in app/Listeners/ whose first argument type-hints an
+        // event class gets bound to that event, including handleLogin /
+        // handleLogout / handleFailed). Adding Event::listen() calls here
+        // as well would fire every listener twice — see the audit-log and
+        // email-log double-row bug fixed by this change. Reply-To fallback
+        // now lives inside LogSendingMail so ordering can't get bungled.
     }
 
     /**
@@ -125,18 +114,6 @@ class AppServiceProvider extends ServiceProvider
             Limit::perSecond(5),
             Limit::perMinute(300),
         ]);
-    }
-
-    /**
-     * Every successful login, logout, and failed login attempt lands in the
-     * audit log with request IP + user-agent, so admins can spot suspicious
-     * activity and see who was on the platform when.
-     */
-    private function registerAuthAuditListener(): void
-    {
-        Event::listen(AuthLoginEvent::class, [AuthAuditListener::class, 'handleLogin']);
-        Event::listen(AuthLogoutEvent::class, [AuthAuditListener::class, 'handleLogout']);
-        Event::listen(AuthFailedEvent::class, [AuthAuditListener::class, 'handleFailed']);
     }
 
     /**
@@ -186,31 +163,6 @@ class AppServiceProvider extends ServiceProvider
             ]);
 
             return false;
-        });
-    }
-
-    /**
-     * Point Reply-To at the secretary inbox when a notification did not
-     * set its own. Contact-form mail already replyTo()s the enquirer and
-     * is left alone. Never ExCo or owner — admin@ forwards to the whole
-     * ExCo, so those must not be the public Reply-To.
-     */
-    private function registerMailReplyTo(): void
-    {
-        Event::listen(function (MessageSending $event) {
-            if ($event->message->getReplyTo()) {
-                return;
-            }
-
-            try {
-                $reply = app(SettingsService::class)->replyToEmail();
-            } catch (\Throwable) {
-                return;
-            }
-
-            if ($reply) {
-                $event->message->replyTo($reply);
-            }
         });
     }
 
