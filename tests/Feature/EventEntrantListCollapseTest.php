@@ -83,13 +83,15 @@ function collapseTestScore(MatchEvent $match, User $user, Division $division): S
     ]);
 }
 
-it('starts the entrant panel expanded when the match is still upcoming', function () {
+it('starts the entrant panel collapsed by default for an upcoming match', function () {
     $match = collapseTestMatch($this->province);
     collapseTestRegisterShooter($match, 'Alice Zulu', $this->open);
 
     $html = $this->get(route('events.show', $match))->assertOk()->getContent();
 
-    expect($html)->toContain('x-data="{ open: true }"')
+    expect($html)->toContain('x-data="{ open: false }"')
+        // The name is still rendered inside the collapsed panel so the DOM
+        // stays searchable and Alpine can reveal it on click.
         ->toContain('Alice Zulu');
 });
 
@@ -103,7 +105,7 @@ it('starts the entrant panel collapsed for the public once the match is complete
     expect($html)->toContain('x-data="{ open: false }"');
 });
 
-it('keeps the entrant panel expanded for admins on a scored completed match', function () {
+it('starts the entrant panel collapsed for admins too — the toggle is always the way in', function () {
     $match = collapseTestMatch($this->province, status: 'completed', future: false);
     $reg = collapseTestRegisterShooter($match, 'Alice Zulu', $this->open);
     collapseTestScore($match, $reg->user, $this->open);
@@ -113,10 +115,10 @@ it('keeps the entrant panel expanded for admins on a scored completed match', fu
 
     $html = $this->actingAs($admin)->get(route('events.show', $match))->assertOk()->getContent();
 
-    expect($html)->toContain('x-data="{ open: true }"');
+    expect($html)->toContain('x-data="{ open: false }"');
 });
 
-it('keeps the entrant panel expanded for match directors on a scored completed match', function () {
+it('starts the entrant panel collapsed for match directors too', function () {
     $match = collapseTestMatch($this->province, status: 'completed', future: false);
     $reg = collapseTestRegisterShooter($match, 'Alice Zulu', $this->open);
     collapseTestScore($match, $reg->user, $this->open);
@@ -126,7 +128,7 @@ it('keeps the entrant panel expanded for match directors on a scored completed m
 
     $html = $this->actingAs($md)->get(route('events.show', $match))->assertOk()->getContent();
 
-    expect($html)->toContain('x-data="{ open: true }"');
+    expect($html)->toContain('x-data="{ open: false }"');
 });
 
 it('shows a reconciliation chip with scored / no-show counts once results are up', function () {

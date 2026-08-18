@@ -282,15 +282,10 @@
                         // completed and results are up. Before that, "entered"
                         // is the whole story.
                         $showReconciliation = $match->status === 'completed' && $match->scores->isNotEmpty();
-
-                        // Panel is expanded by default until scores are up;
-                        // once they are, only admins/MDs stay expanded — the
-                        // public sees the results and can toggle the entry
-                        // list open if they need it.
-                        $panelStartsOpen = ! $showReconciliation || ($viewerCanManage ?? false);
                     @endphp
+                    {{-- Entry list is always collapsed by default; click the header row to expand. --}}
                     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
-                         x-data="{ open: {{ $panelStartsOpen ? 'true' : 'false' }} }">
+                         x-data="{ open: false }">
                         <button type="button"
                                 @click="open = !open"
                                 class="w-full flex items-center justify-between gap-3 px-6 py-4 border-b border-stone-100 hover:bg-stone-50/60 transition text-left"
