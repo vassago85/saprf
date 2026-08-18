@@ -167,6 +167,43 @@ it('expands named individuals', function () {
     expect($ids->all())->toEqual([$a->id, $c->id]);
 });
 
+it('accepts a comma-separated string of user ids from the composer', function () {
+    // Regression: the composer's "Named individuals" input is a plain
+    // text field, so the browser sends `value.user_ids` as a raw string.
+    // Before the fix, the resolver bailed at !is_array() and every send
+    // silently produced 0 recipients — the operator saw "Preview must
+    // return > 0 recipients" and had no way to know the composer input
+    // was to blame.
+    $a = makeMember();
+    $b = makeMember();
+
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::Individual, ['user_ids' => "{$a->id}, {$b->id}"]),
+    ]);
+
+    expect($ids->all())->toEqual([$a->id, $b->id]);
+});
+
+it('tolerates whitespace, semicolons and stray non-numeric tokens in the user id string', function () {
+    $a = makeMember();
+    $b = makeMember();
+
+    // Space + semicolon + newline separators; junk word gets dropped.
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::Individual, ['user_ids' => "{$a->id}\n  ; not-a-number   {$b->id}"]),
+    ]);
+
+    expect($ids->all())->toEqual([$a->id, $b->id]);
+});
+
+it('returns zero for a Named-individuals rule whose ids do not match any user', function () {
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::Individual, ['user_ids' => '99999999']),
+    ]);
+
+    expect($ids->all())->toEqual([]);
+});
+
 it('expands a saved distribution list inline', function () {
     $one = makeMember();
     $two = makeMember();

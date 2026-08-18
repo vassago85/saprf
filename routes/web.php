@@ -192,6 +192,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/push/vapid-public-key', [PushSubscriptionController::class, 'vapidKey'])->name('push.vapid-key');
     Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
     Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+    Route::post('/push/test', [PushSubscriptionController::class, 'test'])->name('push.test');
 });
 
 Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {

@@ -242,12 +242,17 @@
                         </div>
                     </label>
 
-                    <div class="mt-3 flex items-center gap-3 border-t border-stone-100 pt-3">
+                    <div class="mt-3 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-3">
                         <template x-if="!supported">
-                            <p class="text-xs text-stone-400">This browser does not support Web Push.</p>
+                            <p class="text-xs text-stone-400">
+                                This browser does not support push notifications.
+                                On iPhone/iPad you must install the app to your Home Screen from Safari first,
+                                then open it from the Home Screen icon to enable notifications.
+                                On Android use Chrome.
+                            </p>
                         </template>
                         <template x-if="supported">
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
                                 <button type="button" @click="toggle()" :disabled="working"
                                     class="rounded-lg bg-white ring-1 ring-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50">
                                     <span x-show="!working" x-text="deviceEnabled ? 'Disable push on this device' : 'Enable push on this device'"></span>
@@ -255,11 +260,23 @@
                                 </button>
                                 <span class="text-xs" :class="deviceEnabled ? 'text-emerald-700' : 'text-stone-400'"
                                     x-text="deviceEnabled ? 'Subscribed' : 'Not subscribed'"></span>
+                                <button type="button" @click="sendTest()"
+                                    x-show="deviceEnabled"
+                                    :disabled="testing"
+                                    class="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50">
+                                    <span x-show="!testing">Send test notification</span>
+                                    <span x-show="testing">Sending…</span>
+                                </button>
                             </div>
                         </template>
                     </div>
                     <template x-if="error">
                         <p class="mt-2 text-xs text-red-700" x-text="error"></p>
+                    </template>
+                    <template x-if="testResult">
+                        <p class="mt-2 text-xs"
+                            :class="testResult.ok ? 'text-emerald-700' : 'text-amber-700'"
+                            x-text="testResult.message"></p>
                     </template>
                 </div>
 
@@ -278,7 +295,9 @@
                     deviceEnabled: false,
                     prefEnabled: {{ ($pushEnabled ?? true) ? 'true' : 'false' }},
                     working: false,
+                    testing: false,
                     error: null,
+                    testResult: null,
 
                     async init() {
                         if (!this.supported) return;
@@ -293,6 +312,7 @@
                     async toggle() {
                         this.working = true;
                         this.error = null;
+                        this.testResult = null;
                         try {
                             if (this.deviceEnabled) {
                                 await window.saprfPush.unsubscribe();
@@ -306,6 +326,20 @@
                             this.error = e.message;
                         } finally {
                             this.working = false;
+                        }
+                    },
+
+                    async sendTest() {
+                        this.testing = true;
+                        this.testResult = null;
+                        this.error = null;
+                        try {
+                            const result = await window.saprfPush.sendTest();
+                            this.testResult = { ok: result.sent > 0, message: result.message };
+                        } catch (e) {
+                            this.testResult = { ok: false, message: e.message };
+                        } finally {
+                            this.testing = false;
                         }
                     },
                 };

@@ -314,17 +314,44 @@ class AudienceResolver
             ->map(fn ($id) => (int) $id);
     }
 
+    /**
+     * The composer text input for "Named individuals" is a plain
+     * comma-separated string like "881, 882, 883". Depending on where
+     * the payload comes from (live preview via Alpine → JSON body,
+     * form submit → PHP $_POST array, saved-list JSON row → array of
+     * ints), the `user_ids` field can arrive as:
+     *
+     *   - a raw string:      "881,882 883\n884"
+     *   - an array of ints:  [881, 882]
+     *   - an array of str:   ["881", "882"]
+     *   - null / missing / empty
+     *
+     * We normalise here so callers don't have to pre-process, and so
+     * legacy persisted rows keep working. Non-numeric tokens are silently
+     * dropped — the composer surfaces this by showing 0 recipients.
+     */
     private function resolveIndividuals(array $value): Collection
     {
-        $ids = $value['user_ids'] ?? [];
+        $raw = $value['user_ids'] ?? null;
 
-        if (! is_array($ids) || $ids === []) {
+        if ($raw === null || $raw === '' || $raw === []) {
             return collect();
         }
 
-        $clean = collect($ids)
+        $tokens = is_array($raw)
+            ? $raw
+            : preg_split('/[\s,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY);
+
+        $clean = collect($tokens ?: [])
+            ->map(fn ($id) => is_string($id) ? trim($id) : $id)
             ->filter(fn ($id) => is_numeric($id))
-            ->map(fn ($id) => (int) $id);
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($clean->isEmpty()) {
+            return collect();
+        }
 
         return User::query()
             ->whereIn('id', $clean)

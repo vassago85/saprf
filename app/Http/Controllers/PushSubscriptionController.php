@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PushSubscription;
+use App\Notifications\Channels\WebPushChannel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -66,5 +67,31 @@ class PushSubscriptionController extends Controller
             ->delete();
 
         return response()->json(['deleted' => (bool) $deleted]);
+    }
+
+    /**
+     * Self-service test push. Fires a canned "test notification" to every
+     * subscription the current user has, and returns the WebPushChannel
+     * fan-out counts so the profile page can render an accurate result:
+     *   "Sent to 2 device(s)." vs
+     *   "Push isn't configured on the server yet — please try again later."
+     *
+     * We deliberately don't leak the raw Log::warning payloads to the
+     * client; the `reason` string is a stable enum-ish token
+     * (no_subscriptions / library_missing / vapid_missing) that the JS
+     * translates into the friendly copy.
+     */
+    public function test(Request $request, WebPushChannel $channel): JsonResponse
+    {
+        $user = $request->user();
+
+        $result = $channel->sendTest($user);
+
+        return response()->json([
+            'sent' => $result['sent'],
+            'pruned' => $result['pruned'],
+            'failed' => $result['failed'],
+            'reason' => $result['reason'] ?? null,
+        ]);
     }
 }
