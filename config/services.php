@@ -18,6 +18,12 @@ return [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.eu.mailgun.net'),
+        // Separate signing key found in Mailgun dashboard → Sending →
+        // Webhooks. NOT the same value as MAILGUN_SECRET (which is the
+        // sending API key). Every webhook posted at /webhooks/mailgun
+        // is HMAC-SHA256 signed with this key, and the request is
+        // rejected if the signature or the timestamp doesn't match.
+        'webhook_signing_key' => env('MAILGUN_WEBHOOK_SIGNING_KEY'),
     ],
 
     'postmark' => [

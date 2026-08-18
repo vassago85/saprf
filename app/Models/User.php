@@ -124,6 +124,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_bounced_at' => 'datetime',
+            'email_complained_at' => 'datetime',
+            'email_bounce_count' => 'integer',
             'email_otp_expires_at' => 'datetime',
             'handover_expires_at' => 'datetime',
             'invitation_sent_at' => 'datetime',

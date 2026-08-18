@@ -140,7 +140,26 @@ class SendAnnouncementChunkJob implements ShouldQueue
             return;
         }
 
-        $user->notify(new FederationAnnouncementNotification($announcement));
+        // Prior hard-bounce / spam-complaint suppression. Mandatory
+        // categories (Policy change / Urgent) bypass this — Exco still
+        // needs the delivery record on the audit trail even if Mailgun
+        // will refuse to deliver — but non-mandatory sends skip so we
+        // don't grind sender reputation into the ground.
+        if (! $announcement->category->isMandatory()) {
+            if ($user->email_bounced_at !== null) {
+                $delivery->markFailed('Email address hard-bounced previously; skipped', DeliveryStatus::Bounced);
+                return;
+            }
+            if ($user->email_complained_at !== null) {
+                $delivery->markFailed('Recipient marked previous SAPRF mail as spam; skipped', DeliveryStatus::Bounced);
+                return;
+            }
+        }
+
+        // Pass the delivery row through so the notification can inject
+        // its id as a Mailgun user-variable — the webhook consumer uses
+        // that to move the row through queued → sent → delivered / failed.
+        $user->notify(new FederationAnnouncementNotification($announcement, $delivery));
 
         $delivery->markSent();
     }

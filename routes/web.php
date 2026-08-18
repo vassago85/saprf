@@ -105,6 +105,36 @@ Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
         \App\Http\Middleware\ForcePasswordChange::class,
     ]);
 
+// ── Mailgun webhook (delivered / failed / complained events) ──
+// No auth / session / CSRF — Mailgun POSTs here from its own servers.
+// The controller itself verifies the HMAC-SHA256 signature on every
+// request and rejects anything with a bad signature or stale timestamp.
+Route::post('/webhooks/mailgun', [\App\Http\Controllers\MailgunWebhookController::class, 'handle'])
+    ->name('webhooks.mailgun')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \App\Http\Middleware\ForcePasswordChange::class,
+    ]);
+
+// ── RFC 8058 one-click email unsubscribe ──
+// Signed URL, no session. Gmail POSTs here directly when a user clicks
+// its built-in "Unsubscribe" link on a message that carries our
+// List-Unsubscribe / List-Unsubscribe-Post headers. GET is supported
+// so the same link works when a human clicks it in the message body.
+Route::match(['GET', 'POST'], '/email/unsubscribe/{user}', [\App\Http\Controllers\EmailUnsubscribeController::class, 'handle'])
+    ->middleware('signed')
+    ->name('email.unsubscribe')
+    ->withoutMiddleware([
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \App\Http\Middleware\ForcePasswordChange::class,
+    ]);
+
 // ── Public Account Handover (junior accepts their account from parent) ──
 Route::get('/family/handover/{token}', [FamilyController::class, 'acceptHandover'])->name('family.handover.accept');
 Route::post('/family/handover/{token}', [FamilyController::class, 'completeHandover'])->name('family.handover.complete');
@@ -346,6 +376,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
             ->names('audit-logs');
+        Route::resource('email-logs', \App\Http\Controllers\EmailLogController::class)
+            ->only(['index', 'show'])
+            ->parameters(['email-logs' => 'emailLog'])
+            ->names('email-logs');
         Route::resource('sponsors', SponsorController::class)->except(['show']);
 
         // Shooting clubs — master list, recognition toggle, merge tool.

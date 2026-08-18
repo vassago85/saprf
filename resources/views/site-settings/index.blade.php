@@ -325,6 +325,18 @@
                         <label for="mailgun_secret" class="block text-sm font-medium text-stone-700">Mailgun API Key</label>
                         <input type="password" name="mailgun_secret" id="mailgun_secret" value="{{ old('mailgun_secret', $settings['mailgun_secret'] ?? '') }}" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                             class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Leave blank to keep the current key. Never sent back to the browser.</p>
+                    </div>
+
+                    <div>
+                        <label for="mailgun_webhook_signing_key" class="block text-sm font-medium text-stone-700">Mailgun Webhook Signing Key</label>
+                        <input type="password" name="mailgun_webhook_signing_key" id="mailgun_webhook_signing_key" value="" placeholder="Separate from the API key — see Mailgun → Sending → Webhooks"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">
+                            Used to verify inbound webhooks at <code class="text-stone-500">/webhooks/mailgun</code>.
+                            Configure Mailgun to POST <em>delivered</em>, <em>failed</em>, and <em>complained</em> events to that URL and paste the signing key here.
+                            Without this, we can't turn bounces into suppressions and the delivery table stays stuck on "sent".
+                        </p>
                     </div>
 
                     <div>

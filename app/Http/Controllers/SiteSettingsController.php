@@ -55,6 +55,7 @@ class SiteSettingsController extends Controller
             'payments_enabled' => ['required', 'boolean'],
             'mailgun_domain' => ['nullable', 'string', 'max:255'],
             'mailgun_secret' => ['nullable', 'string', 'max:255'],
+            'mailgun_webhook_signing_key' => ['nullable', 'string', 'max:255'],
             'mailgun_endpoint' => ['nullable', 'string', 'in:api.eu.mailgun.net,api.mailgun.net'],
             'mail_from_address' => ['nullable', 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:255'],
@@ -111,6 +112,9 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('mailgun_domain', $validated['mailgun_domain'] ?? '', 'Mailgun sending domain');
         if (filled($validated['mailgun_secret'] ?? null)) {
             $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'], 'Mailgun API key');
+        }
+        if (filled($validated['mailgun_webhook_signing_key'] ?? null)) {
+            $this->settingsService->set('mailgun_webhook_signing_key', $validated['mailgun_webhook_signing_key'], 'Mailgun webhook signing key');
         }
         $this->settingsService->set('mailgun_endpoint', $validated['mailgun_endpoint'] ?? 'api.eu.mailgun.net', 'Mailgun API endpoint (EU or US)');
         $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');

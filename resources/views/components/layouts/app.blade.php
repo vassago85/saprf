@@ -281,9 +281,12 @@
             @endrole
 
             @role('developer|exco|owner|admin')
-            <flux:navlist.group heading="System" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('audit-logs.*')">
+            <flux:navlist.group heading="System" expandable :expanded="!auth()->user()?->hasRole('exco') && (request()->routeIs('audit-logs.*') || request()->routeIs('email-logs.*'))">
                 <flux:navlist.item icon="document-magnifying-glass" :href="route('audit-logs.index')" :current="request()->routeIs('audit-logs.*')">
                     Audit Logs
+                </flux:navlist.item>
+                <flux:navlist.item icon="envelope" :href="route('email-logs.index')" :current="request()->routeIs('email-logs.*')">
+                    Email Log
                 </flux:navlist.item>
             </flux:navlist.group>
             @endrole

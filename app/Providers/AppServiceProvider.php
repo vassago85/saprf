@@ -90,8 +90,21 @@ class AppServiceProvider extends ServiceProvider
         $this->applyMailgunSettings();
         $this->registerNotificationsToggle();
         $this->registerMailReplyTo();
+        $this->registerMailLog();
         $this->registerMailRateLimiter();
         $this->registerAuthAuditListener();
+    }
+
+    /**
+     * Persist every outgoing email into `email_logs`. Registered AFTER
+     * registerMailReplyTo so the Reply-To header is on the message by
+     * the time LogSendingMail captures it — MessageSending listeners
+     * fire in registration order.
+     */
+    private function registerMailLog(): void
+    {
+        Event::listen(\Illuminate\Mail\Events\MessageSending::class, \App\Listeners\LogSendingMail::class);
+        Event::listen(\Illuminate\Mail\Events\MessageSent::class, \App\Listeners\LogSentMail::class);
     }
 
     /**
@@ -208,7 +221,7 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $keys = ['mailgun_domain', 'mailgun_secret', 'mailgun_endpoint', 'mail_from_address', 'mail_from_name'];
+            $keys = ['mailgun_domain', 'mailgun_secret', 'mailgun_endpoint', 'mailgun_webhook_signing_key', 'mail_from_address', 'mail_from_name'];
             $settings = Setting::whereIn('key', $keys)->pluck('value', 'key');
 
             $domain = $settings->get('mailgun_domain');
@@ -222,6 +235,10 @@ class AppServiceProvider extends ServiceProvider
                 if ($settings->get('mailgun_endpoint')) {
                     Config::set('services.mailgun.endpoint', $settings->get('mailgun_endpoint'));
                 }
+            }
+
+            if ($settings->get('mailgun_webhook_signing_key')) {
+                Config::set('services.mailgun.webhook_signing_key', $settings->get('mailgun_webhook_signing_key'));
             }
 
             if ($settings->get('mail_from_address')) {
