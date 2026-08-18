@@ -16,8 +16,7 @@ use Illuminate\Support\Facades\DB;
  * Fan out a resolved announcement into per-channel chunk jobs.
  *
  * We chunk at 50 recipients per job because:
- *   - RateLimited('mail') is 5/sec / 300/min — a 50-message chunk fits
- *     comfortably in that budget
+ *   - the notification's RateLimited('mail') (50/hour) paces actual sends
  *   - if a chunk fails, only 50 recipients need retry, not the entire
  *     broadcast
  *

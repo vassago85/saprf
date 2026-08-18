@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AnnouncementCategory;
 use App\Enums\AnnouncementPriority;
 use App\Enums\AnnouncementStatus;
+use App\Enums\DeliveryChannel;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ class Announcement extends Model
         'category',
         'priority',
         'requires_acknowledgement',
+        'deliver_via',
         'status',
         'created_by',
         'approved_by',
@@ -39,6 +41,7 @@ class Announcement extends Model
             'priority' => AnnouncementPriority::class,
             'status' => AnnouncementStatus::class,
             'requires_acknowledgement' => 'boolean',
+            'deliver_via' => 'array',
             'approved_at' => 'datetime',
             'send_at' => 'datetime',
             'published_at' => 'datetime',
@@ -96,5 +99,48 @@ class Announcement extends Model
     protected function isMandatory(): Attribute
     {
         return Attribute::get(fn () => $this->category->isMandatory());
+    }
+
+    /**
+     * Persist the composer checkboxes. In-app is always included.
+     * Omitting the field (legacy callers / tests) means all channels.
+     *
+     * @param  array<int, string>|null  $selected
+     * @return array<int, string>
+     */
+    public static function normalizeDeliverVia(?array $selected): array
+    {
+        $allowed = [
+            DeliveryChannel::Database->value,
+            DeliveryChannel::Mail->value,
+            DeliveryChannel::WebPush->value,
+        ];
+
+        $selected = array_values(array_intersect($allowed, $selected ?? []));
+
+        if (! in_array(DeliveryChannel::Database->value, $selected, true)) {
+            $selected[] = DeliveryChannel::Database->value;
+        }
+
+        return $selected;
+    }
+
+    /**
+     * Whether this send should fan out on $channel.
+     * Null / empty deliver_via is legacy "all channels".
+     * In-app is always on so the Communications archive stays complete.
+     */
+    public function deliversVia(DeliveryChannel $channel): bool
+    {
+        if ($channel === DeliveryChannel::Database) {
+            return true;
+        }
+
+        $via = $this->deliver_via;
+        if (! is_array($via) || $via === []) {
+            return true;
+        }
+
+        return in_array($channel->value, $via, true);
     }
 }

@@ -16,7 +16,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -30,8 +29,9 @@ use Throwable;
  * AnnouncementPublisher::freezeRecipients) — that's what makes the
  * /communications archive complete even when Mail is off.
  *
- * The chunk itself is rate-limited when sending mail so N of these
- * chunk jobs can be dispatched fast without breaching Mailgun ceilings.
+ * Mail pacing lives on FederationAnnouncementNotification (RateLimited
+ * 'mail' at 50/hour), not on this fan-out job — otherwise each chunk
+ * would consume an hourly slot that should be an actual email.
  */
 class SendAnnouncementChunkJob implements ShouldQueue
 {
@@ -49,15 +49,6 @@ class SendAnnouncementChunkJob implements ShouldQueue
         public readonly string $channel,
         public readonly array $userIds,
     ) {}
-
-    public function middleware(): array
-    {
-        if ($this->channel === DeliveryChannel::Mail->value) {
-            return [new RateLimited('mail')];
-        }
-
-        return [];
-    }
 
     public function handle(SettingsService $settings, WebPushChannel $webPush): void
     {

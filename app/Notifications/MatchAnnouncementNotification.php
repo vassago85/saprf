@@ -4,12 +4,12 @@ namespace App\Notifications;
 
 use App\Models\MatchAnnouncement;
 use App\Models\User;
+use App\Support\AnnouncementBodyRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Middleware\RateLimited;
-use Illuminate\Support\HtmlString;
 
 class MatchAnnouncementNotification extends Notification implements ShouldQueue
 {
@@ -36,8 +36,8 @@ class MatchAnnouncementNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Route every send through the shared "mail" limiter (5/sec, 300/min)
-     * registered in AppServiceProvider::registerMailRateLimiter().
+     * Route every send through the shared "mail" limiter (50/hour, 2/min).
+     * Auth-critical mail (OTP, password reset) skips this limiter.
      */
     public function middleware(): array
     {
@@ -52,7 +52,7 @@ class MatchAnnouncementNotification extends Notification implements ShouldQueue
         $senderEmail = $this->sender->email;
         $senderName = $this->sender->name;
 
-        $body = new HtmlString(nl2br(e($announcement->body)));
+        $body = AnnouncementBodyRenderer::toHtml((string) $announcement->body);
 
         $message = (new MailMessage)
             ->subject($announcement->subject)

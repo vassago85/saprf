@@ -390,6 +390,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
             ->names('audit-logs');
+        Route::post('/email-logs/dismiss-queued', [\App\Http\Controllers\EmailLogController::class, 'dismissQueued'])
+            ->name('email-logs.dismiss-queued');
+        Route::post('/email-logs/{emailLog}/dismiss', [\App\Http\Controllers\EmailLogController::class, 'dismiss'])
+            ->name('email-logs.dismiss');
+        Route::post('/email-logs/{emailLog}/resend', [\App\Http\Controllers\EmailLogController::class, 'resend'])
+            ->name('email-logs.resend');
         Route::resource('email-logs', \App\Http\Controllers\EmailLogController::class)
             ->only(['index', 'show'])
             ->parameters(['email-logs' => 'emailLog'])

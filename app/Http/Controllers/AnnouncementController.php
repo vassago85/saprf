@@ -76,6 +76,7 @@ class AnnouncementController extends Controller
                 'category' => $data['category'],
                 'priority' => $data['priority'],
                 'requires_acknowledgement' => (bool) ($data['requires_acknowledgement'] ?? false),
+                'deliver_via' => $this->resolveDeliverVia($request, $data),
                 'status' => AnnouncementStatus::Draft,
                 'created_by' => $actor->id,
                 'expires_at' => $data['expires_at'] ?? null,
@@ -330,6 +331,8 @@ class AnnouncementController extends Controller
             'category' => ['required', 'string', 'in:' . implode(',', array_column(AnnouncementCategory::cases(), 'value'))],
             'priority' => ['nullable', 'string', 'in:normal,high'],
             'requires_acknowledgement' => ['nullable', 'boolean'],
+            'deliver_via' => ['nullable', 'array'],
+            'deliver_via.*' => ['string', 'in:mail,webpush,database'],
             'expires_at' => ['nullable', 'date', 'after:now'],
             'audiences' => ['required', 'array', 'min:1'],
             'audiences.*.type' => ['required', 'string', 'in:' . implode(',', array_column(AudienceType::cases(), 'value'))],
@@ -342,6 +345,23 @@ class AnnouncementController extends Controller
                 'mimetypes:application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/plain',
             ],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, string>
+     */
+    private function resolveDeliverVia(Request $request, array $data): array
+    {
+        if (! $request->exists('deliver_via')) {
+            return Announcement::normalizeDeliverVia([
+                DeliveryChannel::Database->value,
+                DeliveryChannel::Mail->value,
+                DeliveryChannel::WebPush->value,
+            ]);
+        }
+
+        return Announcement::normalizeDeliverVia($data['deliver_via'] ?? []);
     }
 
     /**

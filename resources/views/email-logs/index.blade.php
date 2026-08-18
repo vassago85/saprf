@@ -19,6 +19,7 @@
             \App\Models\EmailLog::STATUS_FAILED     => ['label' => 'Failed',     'count' => (int) ($counts[\App\Models\EmailLog::STATUS_FAILED] ?? 0),     'classes' => 'bg-amber-100 text-amber-800'],
             \App\Models\EmailLog::STATUS_BOUNCED    => ['label' => 'Bounced',    'count' => (int) ($counts[\App\Models\EmailLog::STATUS_BOUNCED] ?? 0),    'classes' => 'bg-rose-100 text-rose-800'],
             \App\Models\EmailLog::STATUS_COMPLAINED => ['label' => 'Complained', 'count' => (int) ($counts[\App\Models\EmailLog::STATUS_COMPLAINED] ?? 0), 'classes' => 'bg-rose-100 text-rose-800'],
+            \App\Models\EmailLog::STATUS_DISMISSED  => ['label' => 'Complete',   'count' => (int) ($counts[\App\Models\EmailLog::STATUS_DISMISSED] ?? 0),  'classes' => 'bg-stone-100 text-stone-500'],
         ];
     @endphp
 
@@ -53,6 +54,16 @@
         <button class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Filter</button>
     </form>
 
+    @if ($status === \App\Models\EmailLog::STATUS_QUEUED && (int) ($counts[\App\Models\EmailLog::STATUS_QUEUED] ?? 0) > 0)
+        <form method="POST" action="{{ route('email-logs.dismiss-queued') }}" class="mt-4"
+            onsubmit="return confirm('Mark every queued email as complete? They will not be sent. Use Resend on a row first if someone still needs the email.')">
+            @csrf
+            <button class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                Mark all queued as complete
+            </button>
+        </form>
+    @endif
+
     <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
         <table class="min-w-full">
             <thead>
@@ -62,7 +73,7 @@
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Subject</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Type</th>
                     <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Details</th>
+                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
@@ -85,11 +96,27 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
-                                {{ ucfirst($log->status) }}
+                                {{ $log->status === \App\Models\EmailLog::STATUS_DISMISSED ? 'Complete' : ucfirst($log->status) }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
-                            <a href="{{ route('email-logs.show', $log) }}" class="text-emerald-700 hover:text-emerald-800 font-semibold">View</a>
+                            <div class="inline-flex items-center justify-end gap-3">
+                                <a href="{{ route('email-logs.show', $log) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">View</a>
+                                @if ($log->canResend())
+                                    <form method="POST" action="{{ route('email-logs.resend', $log) }}"
+                                        onsubmit="return confirm('Send a new {{ class_basename($log->notification_class) }} to {{ $log->to_email }}?')">
+                                        @csrf
+                                        <button class="font-semibold text-sky-700 hover:text-sky-800">Resend</button>
+                                    </form>
+                                @endif
+                                @if ($log->isOutstanding())
+                                    <form method="POST" action="{{ route('email-logs.dismiss', $log) }}"
+                                        onsubmit="return confirm('Mark this attempt as complete without sending?')">
+                                        @csrf
+                                        <button class="font-semibold text-stone-500 hover:text-stone-800">Complete</button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty

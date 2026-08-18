@@ -62,7 +62,7 @@
                                 @endif
                             </div>
                             <h2 class="mt-1 font-heading text-lg font-semibold text-stone-900">{{ $a->title }}</h2>
-                            <p class="mt-1 line-clamp-2 text-sm text-stone-600">{{ \Illuminate\Support\Str::limit(strip_tags($a->body), 200) }}</p>
+                            <p class="mt-1 line-clamp-2 text-sm text-stone-600">{{ \Illuminate\Support\Str::limit(\App\Support\AnnouncementBodyRenderer::toPreview((string) $a->body), 200) }}</p>
                         </div>
                         <div class="text-right text-xs text-stone-500 shrink-0">
                             {{ $a->sent_at?->format('d M Y') }}

@@ -7,9 +7,25 @@
 
     <div class="mt-4 flex flex-wrap items-baseline justify-between gap-4">
         <h1 class="font-heading text-2xl font-bold text-stone-900">{{ $log->subject }}</h1>
-        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
-            {{ ucfirst($log->status) }}
-        </span>
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
+                {{ $log->status === \App\Models\EmailLog::STATUS_DISMISSED ? 'Complete' : ucfirst($log->status) }}
+            </span>
+            @if ($log->canResend())
+                <form method="POST" action="{{ route('email-logs.resend', $log) }}"
+                    onsubmit="return confirm('Send a new {{ class_basename($log->notification_class) }} to {{ $log->to_email }}?')">
+                    @csrf
+                    <button class="rounded-lg bg-sky-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-sky-800">Resend</button>
+                </form>
+            @endif
+            @if ($log->isOutstanding())
+                <form method="POST" action="{{ route('email-logs.dismiss', $log) }}"
+                    onsubmit="return confirm('Mark this attempt as complete without sending?')">
+                    @csrf
+                    <button class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">Mark complete</button>
+                </form>
+            @endif
+        </div>
     </div>
 
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -142,6 +158,12 @@
                         <div class="flex justify-between">
                             <dt class="text-rose-700 font-semibold">Spam complaint</dt>
                             <dd class="text-rose-800">{{ $log->complained_at->format('d M Y H:i:s') }}</dd>
+                        </div>
+                    @endif
+                    @if ($log->status === \App\Models\EmailLog::STATUS_DISMISSED)
+                        <div class="flex justify-between">
+                            <dt class="text-stone-500 font-semibold">Marked complete</dt>
+                            <dd class="text-stone-700">{{ $log->updated_at->format('d M Y H:i:s') }}</dd>
                         </div>
                     @endif
                 </dl>

@@ -101,18 +101,18 @@ class AppServiceProvider extends ServiceProvider
      * the RateLimited queue middleware. Values are per-worker; we run one
      * queue worker in prod so this is effectively the site-wide send rate.
      *
-     * 5/sec keeps us comfortably under Mailgun connection-pool contention
-     * for any plan tier; 300/min is a burst ceiling so a runaway loop or a
-     * match-director broadcast to hundreds of shooters can't punch through
-     * before an operator notices. When a limit is hit, RateLimited releases
-     * the job with the correct wait time — attempts are NOT incremented on
-     * release, so `--tries=3` on the worker command is safe.
+     * Mailgun probation caps the domain at 100 messages/hour. Notifications
+     * take 50/hour so password-reset, OTP, and other auth-critical mail
+     * (which skip this limiter and send inline) still have headroom.
+     * 2/min stops a queued broadcast dumping the whole hourly budget in
+     * one burst. When a limit is hit, RateLimited releases the job with
+     * the correct wait time — attempts are NOT incremented on release.
      */
     private function registerMailRateLimiter(): void
     {
         RateLimiter::for('mail', fn () => [
-            Limit::perSecond(5),
-            Limit::perMinute(300),
+            Limit::perMinute(2),
+            Limit::perHour(50),
         ]);
     }
 

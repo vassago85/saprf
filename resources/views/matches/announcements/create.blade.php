@@ -73,9 +73,9 @@
                         </div>
                         <textarea id="body" name="body" rows="12" maxlength="5000" required
                                   x-model="body"
-                                  placeholder="Plain text only. Line breaks are preserved. Include any links (payment, PDFs) inline."
+                                  placeholder="Plain text works. Optional: **bold**, *italic*, [link](https://…), lines starting with - for bullets. Bare URLs become clickable."
                                   class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono">{{ old('body') }}</textarea>
-                        <p class="mt-1.5 text-xs text-stone-400">Recipients see this message signed as coming from the match director of {{ $match->name }}. Replies are routed to your account email.</p>
+                        <p class="mt-1.5 text-xs text-stone-400">Recipients see this message signed as coming from the match director of {{ $match->name }}. Replies are routed to your account email. Basic markdown (<code class="rounded bg-stone-100 px-1">**bold**</code>, <code class="rounded bg-stone-100 px-1">- bullet</code>, <code class="rounded bg-stone-100 px-1">[link](url)</code>) is supported.</p>
                     </div>
 
                     <div class="flex items-center justify-end gap-3 pt-2 border-t border-stone-100">

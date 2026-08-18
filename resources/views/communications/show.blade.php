@@ -15,7 +15,9 @@
 
             <h1 class="font-heading text-2xl font-bold text-stone-900">{{ $announcement->title }}</h1>
 
-            <div class="prose prose-stone max-w-none whitespace-pre-wrap text-sm text-stone-800">{{ $announcement->body }}</div>
+            <div class="prose prose-stone max-w-none text-sm text-stone-800">
+                {!! \App\Support\AnnouncementBodyRenderer::toHtml((string) $announcement->body) !!}
+            </div>
 
             @if ($announcement->attachments->isNotEmpty())
                 <div class="border-t border-stone-100 pt-4">

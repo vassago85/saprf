@@ -63,6 +63,16 @@
                     <dd class="mt-1 text-stone-800">{{ $announcement->requires_acknowledgement ? 'Yes' : 'No' }}</dd>
                 </div>
                 <div>
+                    <dt class="text-xs font-semibold uppercase text-stone-400">Delivery</dt>
+                    <dd class="mt-1 text-stone-800">
+                        {{ collect([
+                            $announcement->deliversVia(\App\Enums\DeliveryChannel::Database) ? 'In-app' : null,
+                            $announcement->deliversVia(\App\Enums\DeliveryChannel::Mail) ? 'Email' : null,
+                            $announcement->deliversVia(\App\Enums\DeliveryChannel::WebPush) ? 'Push' : null,
+                        ])->filter()->implode(' · ') }}
+                    </dd>
+                </div>
+                <div>
                     <dt class="text-xs font-semibold uppercase text-stone-400">Sent at</dt>
                     <dd class="mt-1 text-stone-800">{{ $announcement->sent_at?->format('d M Y H:i') ?? '—' }}</dd>
                 </div>
@@ -71,7 +81,9 @@
 
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <h2 class="font-heading text-base font-semibold text-stone-900">Body</h2>
-            <div class="prose prose-stone mt-3 max-w-none whitespace-pre-wrap text-sm text-stone-800">{{ $announcement->body }}</div>
+            <div class="prose prose-stone mt-3 max-w-none text-sm text-stone-800">
+                {!! \App\Support\AnnouncementBodyRenderer::toHtml((string) $announcement->body) !!}
+            </div>
         </div>
 
         @if ($announcement->attachments->isNotEmpty())

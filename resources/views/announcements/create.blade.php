@@ -60,8 +60,17 @@
                 <div>
                     <label class="block text-sm font-medium text-stone-700">Body</label>
                     <textarea name="body" required rows="8" maxlength="10000"
-                        class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">{{ old('body') }}</textarea>
-                    <p class="mt-1 text-xs text-stone-400">Plain text or basic markdown. Line breaks are preserved.</p>
+                        class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono">{{ old('body') }}</textarea>
+                    <div class="mt-1 text-xs text-stone-500">
+                        <p>Plain text works as-is — line breaks are preserved. Optional formatting:</p>
+                        <ul class="mt-1 ml-4 list-disc space-y-0.5 text-stone-400">
+                            <li><code class="rounded bg-stone-100 px-1 text-stone-700">**bold**</code> &nbsp; <code class="rounded bg-stone-100 px-1 text-stone-700">*italic*</code></li>
+                            <li><code class="rounded bg-stone-100 px-1 text-stone-700">[link text](https://saprf.co.za)</code> — or paste a bare URL, it becomes clickable</li>
+                            <li>Lines starting with <code class="rounded bg-stone-100 px-1 text-stone-700">-</code> or <code class="rounded bg-stone-100 px-1 text-stone-700">1.</code> become bulleted / numbered lists</li>
+                            <li><code class="rounded bg-stone-100 px-1 text-stone-700">## Heading</code> for a section heading</li>
+                            <li>Blank line = new paragraph. HTML tags are shown as literal text — they never render.</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -88,6 +97,40 @@
                         <input type="datetime-local" name="expires_at"
                             value="{{ old('expires_at') }}"
                             class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-sm font-medium text-stone-700">Delivery</p>
+                    <p class="mt-0.5 text-xs text-stone-500">Uncheck email and push to only publish in Communications — members see it when they next log in. No Mailgun send.</p>
+                    <input type="hidden" name="deliver_via[]" value="database">
+                    <div class="mt-2 space-y-2">
+                        <label class="flex items-start gap-3 rounded-lg border border-stone-200 p-3">
+                            <input type="checkbox" name="deliver_via[]" value="mail"
+                                @checked(in_array('mail', old('deliver_via', ['mail', 'webpush', 'database']), true))
+                                class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="text-sm font-semibold text-stone-900">Email</span>
+                                <p class="text-xs text-stone-500 mt-0.5">Send via Mailgun (capped at 50/hour). Recipients can mute non-mandatory categories.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 rounded-lg border border-stone-200 p-3">
+                            <input type="checkbox" name="deliver_via[]" value="webpush"
+                                @checked(in_array('webpush', old('deliver_via', ['mail', 'webpush', 'database']), true))
+                                class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="text-sm font-semibold text-stone-900">Push notification</span>
+                                <p class="text-xs text-stone-500 mt-0.5">Phone/desktop alert for members who installed the PWA and allowed notifications.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+                            <input type="checkbox" name="deliver_via[]" value="database" checked disabled
+                                class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="text-sm font-semibold text-stone-900">In-app (Communications)</span>
+                                <p class="text-xs text-stone-500 mt-0.5">Always on. They see it in their inbox and the nav badge the next time they log in — no email required.</p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 

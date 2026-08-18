@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Announcement;
 use App\Models\AnnouncementDelivery;
 use App\Models\User;
+use App\Support\AnnouncementBodyRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -20,8 +21,8 @@ use Symfony\Component\Mime\Email;
  * mail vendor views) and routes back to the member's /communications/{id}
  * page so they can acknowledge / view attachments.
  *
- * ShouldQueue + RateLimited('mail') is what keeps a broadcast to
- * hundreds of members from tripping Mailgun's connection ceiling.
+ * ShouldQueue + RateLimited('mail') (50/hour) keeps a broadcast from
+ * tripping Mailgun's probation cap. Auth mail skips this limiter.
  *
  * Gmail 2024 bulk-sender headers:
  *   List-Unsubscribe: <mailto:...>, <https://.../email/unsubscribe/{user}?...&signature=...>
@@ -67,7 +68,7 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
 
         $greetingName = $notifiable->name ?? 'shooter';
 
-        $body = new HtmlString(nl2br(e($announcement->body)));
+        $body = AnnouncementBodyRenderer::toHtml((string) $announcement->body);
 
         $unsubscribeUrl = URL::signedRoute('email.unsubscribe', [
             'user' => $notifiable->id,

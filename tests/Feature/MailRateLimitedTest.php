@@ -3,27 +3,30 @@
 /**
  * Wiring test for the mail throttle.
  *
- * Mailgun has no advertised hard rate limit on standard plans, but a
- * runaway loop or a match-director blast to hundreds of shooters can still
- * push through enough mail in a burst to bump into connection-pool
- * contention. AppServiceProvider registers a "mail" rate limiter capped at
- * 5/sec and 300/min, and every non-auth notification opts into it via the
- * RateLimited queue middleware. This test locks that wiring in — future
- * notifications added without the middleware will visibly regress here.
- *
+ * Mailgun probation caps the domain at 100 messages/hour. AppServiceProvider
+ * registers a "mail" rate limiter at 50/hour (with a 2/min burst cap) so
+ * announcement / transactional notifications cannot exhaust the account.
  * Auth-critical mail (OTP + password reset) is DELIBERATELY excluded so
- * users are never delayed at login. The final assertion documents that.
+ * those messages send immediately and keep the remaining Mailgun headroom.
+ *
+ * Every non-auth notification opts into the limiter via RateLimited queue
+ * middleware. This test locks that wiring in — future notifications added
+ * without the middleware will visibly regress here.
  */
 
+use App\Models\Announcement;
 use App\Models\ContactMessage;
-use App\Models\Membership;
+use App\Models\MatchAnnouncement;
 use App\Models\MatchRegistration;
+use App\Models\Membership;
 use App\Models\Payment;
 use App\Models\SelectionAthlete;
 use App\Models\User;
 use App\Notifications\AccountHandoverInvitationNotification;
 use App\Notifications\ContactMessageReceivedNotification;
 use App\Notifications\EmailOtpNotification;
+use App\Notifications\FederationAnnouncementNotification;
+use App\Notifications\MatchAnnouncementNotification;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\MemberInvitationNotification;
 use App\Notifications\MembershipConfirmedNotification;
@@ -40,7 +43,7 @@ use Illuminate\Support\Facades\RateLimiter;
 
 // ── Limiter definition ──────────────────────────────────────────────
 
-it('registers a "mail" rate limiter at 5/sec and 300/min', function () {
+it('registers a "mail" rate limiter at 2/min and 50/hour', function () {
     $limiter = RateLimiter::limiter('mail');
 
     expect($limiter)->not->toBeNull('AppServiceProvider must register a "mail" rate limiter');
@@ -48,15 +51,13 @@ it('registers a "mail" rate limiter at 5/sec and 300/min', function () {
     $limits = $limiter(null);
     expect($limits)->toBeArray()->toHaveCount(2);
 
-    // Both perSecond() and perMinute() store their window as decaySeconds
-    // under the hood — 1 for the per-second cap, 60 for the per-minute cap.
     expect($limits[0])->toBeInstanceOf(Limit::class);
-    expect($limits[0]->maxAttempts)->toBe(5);
-    expect($limits[0]->decaySeconds)->toBe(1);
+    expect($limits[0]->maxAttempts)->toBe(2);
+    expect($limits[0]->decaySeconds)->toBe(60);
 
     expect($limits[1])->toBeInstanceOf(Limit::class);
-    expect($limits[1]->maxAttempts)->toBe(300);
-    expect($limits[1]->decaySeconds)->toBe(60);
+    expect($limits[1]->maxAttempts)->toBe(50);
+    expect($limits[1]->decaySeconds)->toBe(3600);
 });
 
 // ── Per-notification wiring ─────────────────────────────────────────
@@ -101,6 +102,12 @@ dataset('throttled_notifications', [
     ],
     'SelectionDeclarationSubmittedNotification' => [
         fn () => new SelectionDeclarationSubmittedNotification(new SelectionAthlete()),
+    ],
+    'FederationAnnouncementNotification' => [
+        fn () => new FederationAnnouncementNotification(new Announcement()),
+    ],
+    'MatchAnnouncementNotification' => [
+        fn () => new MatchAnnouncementNotification(new MatchAnnouncement(), new User()),
     ],
 ]);
 

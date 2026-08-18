@@ -41,6 +41,7 @@ class EmailLog extends Model
     public const STATUS_FAILED = 'failed';
     public const STATUS_BOUNCED = 'bounced';
     public const STATUS_COMPLAINED = 'complained';
+    public const STATUS_DISMISSED = 'dismissed';
 
     public const STATUSES = [
         self::STATUS_QUEUED,
@@ -49,6 +50,17 @@ class EmailLog extends Model
         self::STATUS_FAILED,
         self::STATUS_BOUNCED,
         self::STATUS_COMPLAINED,
+        self::STATUS_DISMISSED,
+    ];
+
+    /**
+     * Notification classes we can reconstruct from the log row alone
+     * (recipient email / user id). Announcements need extra payload
+     * we do not store here — resend those from the announcement page.
+     */
+    public const RESENDABLE_CLASSES = [
+        \App\Notifications\ResetPasswordNotification::class,
+        \App\Notifications\MemberInvitationNotification::class,
     ];
 
     protected $fillable = [
@@ -128,7 +140,32 @@ class EmailLog extends Model
             self::STATUS_FAILED    => 'bg-amber-100 text-amber-800 ring-amber-600/20',
             self::STATUS_BOUNCED   => 'bg-rose-100 text-rose-800 ring-rose-600/20',
             self::STATUS_COMPLAINED => 'bg-rose-100 text-rose-800 ring-rose-600/20',
+            self::STATUS_DISMISSED => 'bg-stone-100 text-stone-500 ring-stone-400/20',
             default => 'bg-stone-100 text-stone-700 ring-stone-500/20',
         };
+    }
+
+    /**
+     * Queued orphans (Mailgun never accepted) and hard fails can be
+     * closed by an operator so they stop looking like outstanding work.
+     */
+    public function isOutstanding(): bool
+    {
+        return in_array($this->status, [self::STATUS_QUEUED, self::STATUS_FAILED], true);
+    }
+
+    public function canResend(): bool
+    {
+        return $this->isOutstanding()
+            && $this->notification_class !== null
+            && in_array($this->notification_class, self::RESENDABLE_CLASSES, true);
+    }
+
+    public function markDismissed(string $reason): void
+    {
+        $this->forceFill([
+            'status' => self::STATUS_DISMISSED,
+            'error' => mb_substr($reason, 0, 1000),
+        ])->save();
     }
 }

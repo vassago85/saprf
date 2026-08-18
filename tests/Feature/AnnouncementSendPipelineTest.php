@@ -185,3 +185,42 @@ it('marks a mail delivery row sent once the chunk job runs', function () {
     expect($delivery->status)->toBe(DeliveryStatus::Sent)
         ->and($delivery->sent_at)->not->toBeNull();
 });
+
+it('skips mail and push rows when the composer only asks for in-app delivery', function () {
+    Queue::fake();
+
+    $exco = User::factory()->create(['email_verified_at' => now()]);
+    $exco->assignRole(['exco', 'member']);
+    seedActiveMember('inapp1');
+
+    $this->actingAs($exco)
+        ->post(route('announcements.store'), [
+            'title' => 'Inbox only',
+            'body' => 'See this when you log in.',
+            'category' => AnnouncementCategory::Announcement->value,
+            'priority' => 'normal',
+            'deliver_via' => ['database'],
+            'audiences' => [
+                ['type' => AudienceType::ActiveMembers->value, 'mode' => AudienceMode::Include->value, 'value' => []],
+            ],
+            'action' => 'send',
+        ])
+        ->assertRedirect();
+
+    $announcement = Announcement::query()->latest('id')->firstOrFail();
+    expect($announcement->deliver_via)->toBe([DeliveryChannel::Database->value]);
+
+    (new ResolveAudienceJob($announcement->id))->handle(app(\App\Services\Announcements\AnnouncementPublisher::class));
+
+    $channels = AnnouncementDelivery::query()
+        ->join('announcement_recipients', 'announcement_recipients.id', '=', 'announcement_deliveries.announcement_recipient_id')
+        ->where('announcement_recipients.announcement_id', $announcement->id)
+        ->pluck('announcement_deliveries.channel')
+        ->map(fn ($channel) => $channel instanceof DeliveryChannel ? $channel->value : $channel)
+        ->unique()
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($channels)->toBe([DeliveryChannel::Database->value]);
+});

@@ -28,6 +28,7 @@ use App\Models\AnnouncementRecipient;
 use App\Models\EmailLog;
 use App\Models\User;
 use App\Notifications\FederationAnnouncementNotification;
+use App\Notifications\MemberInvitationNotification;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
@@ -258,4 +259,141 @@ it('shows a redacted-body banner on the detail view for sensitive classes', func
     $this->actingAs($exco)->get(route('email-logs.show', $log))
         ->assertOk()
         ->assertSee('redacted', false);
+});
+
+// ── Dismiss / resend outstanding rows ───────────────────────────────────────
+
+it('lets exco mark a queued email complete without sending', function () {
+    $exco = excoUser();
+
+    $log = EmailLog::create([
+        'to_email' => 'jacques@example.test',
+        'subject' => 'Reset Your SAPRF Password',
+        'status' => EmailLog::STATUS_QUEUED,
+        'notification_class' => ResetPasswordNotification::class,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.dismiss', $log))
+        ->assertRedirect();
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_DISMISSED);
+    expect($log->fresh()->error)->toContain('Marked complete');
+});
+
+it('blocks a plain member from dismissing an email log', function () {
+    $member = memberUser();
+
+    $log = EmailLog::create([
+        'to_email' => 'x@example.test',
+        'subject' => 'hi',
+        'status' => EmailLog::STATUS_QUEUED,
+    ]);
+
+    $this->actingAs($member)
+        ->post(route('email-logs.dismiss', $log))
+        ->assertStatus(403);
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_QUEUED);
+});
+
+it('does not dismiss a delivered email', function () {
+    $exco = excoUser();
+
+    $log = EmailLog::create([
+        'to_email' => 'ok@example.test',
+        'subject' => 'hi',
+        'status' => EmailLog::STATUS_DELIVERED,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.dismiss', $log))
+        ->assertRedirect();
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_DELIVERED);
+});
+
+it('marks every queued email complete in one action', function () {
+    $exco = excoUser();
+
+    EmailLog::create(['to_email' => 'a@example.test', 'subject' => 'a', 'status' => EmailLog::STATUS_QUEUED]);
+    EmailLog::create(['to_email' => 'b@example.test', 'subject' => 'b', 'status' => EmailLog::STATUS_QUEUED]);
+    $kept = EmailLog::create(['to_email' => 'c@example.test', 'subject' => 'c', 'status' => EmailLog::STATUS_DELIVERED]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.dismiss-queued'))
+        ->assertRedirect();
+
+    expect(EmailLog::query()->where('status', EmailLog::STATUS_QUEUED)->count())->toBe(0);
+    expect(EmailLog::query()->where('status', EmailLog::STATUS_DISMISSED)->count())->toBe(2);
+    expect($kept->fresh()->status)->toBe(EmailLog::STATUS_DELIVERED);
+});
+
+it('resends a password reset and dismisses the queued orphan', function () {
+    $exco = excoUser();
+    $member = memberUser('jacques@example.test');
+    Config::set('mail.default', 'array');
+
+    $log = EmailLog::create([
+        'to_email' => $member->email,
+        'user_id' => $member->id,
+        'subject' => 'Reset Your SAPRF Password',
+        'status' => EmailLog::STATUS_QUEUED,
+        'notification_class' => ResetPasswordNotification::class,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.resend', $log))
+        ->assertRedirect();
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_DISMISSED);
+    expect($log->fresh()->error)->toContain('Superseded');
+
+    $fresh = EmailLog::query()
+        ->where('to_email', $member->email)
+        ->where('id', '!=', $log->id)
+        ->latest('id')
+        ->first();
+
+    expect($fresh)->not->toBeNull();
+    expect($fresh->notification_class)->toBe(ResetPasswordNotification::class);
+    expect($fresh->status)->toBe(EmailLog::STATUS_SENT);
+});
+
+it('resends a member invitation from a queued log', function () {
+    $exco = excoUser();
+    $member = memberUser('invitee@example.test');
+    Notification::fake();
+
+    $log = EmailLog::create([
+        'to_email' => $member->email,
+        'user_id' => $member->id,
+        'subject' => 'Activate Your SAPRF Account',
+        'status' => EmailLog::STATUS_QUEUED,
+        'notification_class' => MemberInvitationNotification::class,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.resend', $log))
+        ->assertRedirect();
+
+    Notification::assertSentTo($member, MemberInvitationNotification::class);
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_DISMISSED);
+});
+
+it('refuses to resend a federation announcement from the log', function () {
+    $exco = excoUser();
+
+    $log = EmailLog::create([
+        'to_email' => 'shooter@example.test',
+        'subject' => 'PWA install',
+        'status' => EmailLog::STATUS_QUEUED,
+        'notification_class' => FederationAnnouncementNotification::class,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.resend', $log))
+        ->assertRedirect();
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_QUEUED);
 });

@@ -154,8 +154,14 @@ class AnnouncementPublisher
                 ]);
 
                 $this->seedDeliveryRow($recipient, DeliveryChannel::Database, markSent: true);
-                $this->seedDeliveryRow($recipient, DeliveryChannel::Mail);
-                $this->seedDeliveryRow($recipient, DeliveryChannel::WebPush);
+
+                if ($announcement->deliversVia(DeliveryChannel::Mail)) {
+                    $this->seedDeliveryRow($recipient, DeliveryChannel::Mail);
+                }
+
+                if ($announcement->deliversVia(DeliveryChannel::WebPush)) {
+                    $this->seedDeliveryRow($recipient, DeliveryChannel::WebPush);
+                }
             }
 
             $announcement->forceFill([

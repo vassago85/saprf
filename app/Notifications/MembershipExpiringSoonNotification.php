@@ -24,8 +24,8 @@ class MembershipExpiringSoonNotification extends Notification implements ShouldQ
     }
 
     /**
-     * Route every send through the shared "mail" limiter (5/sec, 300/min)
-     * registered in AppServiceProvider::registerMailRateLimiter().
+     * Route every send through the shared "mail" limiter (50/hour, 2/min).
+     * Auth-critical mail (OTP, password reset) skips this limiter.
      */
     public function middleware(): array
     {
