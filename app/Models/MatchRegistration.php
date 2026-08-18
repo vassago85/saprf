@@ -36,6 +36,10 @@ class MatchRegistration extends Model
         'registered_at',
         'cancelled_at',
         'shot_count',
+        'registration_source',
+        'walk_in_note',
+        'walk_in_confirmed_by',
+        'walk_in_confirmed_at',
     ];
 
     protected function casts(): array
@@ -52,7 +56,25 @@ class MatchRegistration extends Model
             'registered_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'shot_count' => 'integer',
+            'walk_in_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A walk-in entry is one MD created retroactively while uploading
+     * scores — the shooter shot the match but never registered through
+     * the site. Range collected the entry fee directly; SAPRF+platform
+     * are billed against the range's payout for this match (see
+     * `md_net_amount` populated as a negative value on walk-in rows).
+     */
+    public function isWalkIn(): bool
+    {
+        return $this->registration_source === 'walk_in';
+    }
+
+    public function walkInConfirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'walk_in_confirmed_by');
     }
 
     public function feeCategoryLabel(): string
