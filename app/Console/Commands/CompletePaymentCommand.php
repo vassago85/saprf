@@ -100,7 +100,11 @@ class CompletePaymentCommand extends Command
         }
 
         if ($payable instanceof Membership) {
+            // Manually completing a Membership payment must upgrade the row to
+            // a paying member, otherwise the record shows "Type: Free" but
+            // Payment Status: Paid — same bug as the ITN path had.
             $payable->update([
+                'membership_type' => 'paid',
                 'payment_status' => 'paid',
                 'status' => 'active',
             ]);

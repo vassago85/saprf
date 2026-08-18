@@ -338,7 +338,13 @@ class PaymentController extends Controller
         $expiry = now()->addMonths($tier?->duration_months ?? 12)->toDateString();
 
         if ($existing) {
+            // Someone paying a fee tier is a paying member by definition — always
+            // promote the type, even when the row started life as a `free` stub
+            // (guest shooter created by a sponsor) or inherited the old `free`
+            // default. Without this the record stays "Type: Free" after payment
+            // and gets billed as a non-member on future match entries.
             $existing->update([
+                'membership_type' => 'paid',
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'fee_tier_id' => $tier?->id,
@@ -551,7 +557,14 @@ class PaymentController extends Controller
         }
 
         if ($payable instanceof Membership) {
+            // Defensively re-assert `membership_type = paid`. `joinMembership`
+            // already flips it, but records that reached this point via a
+            // different route (e.g. `payMembership` on an old membership that
+            // predates the join-time fix, or a legacy `free` stub) would
+            // otherwise stay classified as non-members after a successful
+            // R-something payment.
             $payable->update([
+                'membership_type' => 'paid',
                 'payment_status' => 'paid',
                 'status' => 'active',
             ]);
