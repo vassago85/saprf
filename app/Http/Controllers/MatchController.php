@@ -413,7 +413,27 @@ class MatchController extends Controller
             ->orderBy('registered_at')
             ->get();
 
-        return view('events.show', compact('match', 'userRegistration', 'divisions', 'entries'));
+        // Reconciliation summary shown above the entrant list once results
+        // are up: how many entered vs how many actually scored vs how many
+        // registered but didn't shoot. Walk-ins (score present, no entry)
+        // will slot in here once the walk-in flow lands.
+        $scoredUserIds = $match->scores->pluck('user_id')->filter()->unique();
+        $entrantUserIds = $entries->pluck('user_id')->filter()->unique();
+        $reconciliation = [
+            'entered' => $entries->count(),
+            'scored' => $scoredUserIds->count(),
+            'no_shows' => $entrantUserIds->diff($scoredUserIds)->count(),
+            'walk_ins' => $scoredUserIds->diff($entrantUserIds)->count(),
+        ];
+
+        // Admins and match directors always see the entrant list expanded so
+        // they can reconcile at a glance. Everyone else gets a collapsed
+        // panel once the match is completed and has scores — the results
+        // are what they came to see; the entrant list becomes secondary.
+        $viewer = Auth::user();
+        $viewerCanManage = $viewer !== null && $viewer->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director']);
+
+        return view('events.show', compact('match', 'userRegistration', 'divisions', 'entries', 'reconciliation', 'viewerCanManage'));
     }
 
     public function publicCalendarData(Request $request): JsonResponse

@@ -275,16 +275,57 @@
                         </div>
                     @endif
 
-                    {{-- Entry List — hidden for imported historic events (no registration data). --}}
+                    {{-- Entry List — hidden entirely for imported historic events (scores exist but no registration data). --}}
                     @if(! ($match->status === 'completed' && $match->scores->isNotEmpty() && $entries->isEmpty()))
-                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-                        <div class="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400">Entry List</h2>
-                            <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
-                                {{ $entries->count() }} {{ Str::plural('shooter', $entries->count()) }}
-                            </span>
-                        </div>
+                    @php
+                        // Reconciliation is only meaningful once the match is
+                        // completed and results are up. Before that, "entered"
+                        // is the whole story.
+                        $showReconciliation = $match->status === 'completed' && $match->scores->isNotEmpty();
 
+                        // Panel is expanded by default until scores are up;
+                        // once they are, only admins/MDs stay expanded — the
+                        // public sees the results and can toggle the entry
+                        // list open if they need it.
+                        $panelStartsOpen = ! $showReconciliation || ($viewerCanManage ?? false);
+                    @endphp
+                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
+                         x-data="{ open: {{ $panelStartsOpen ? 'true' : 'false' }} }">
+                        <button type="button"
+                                @click="open = !open"
+                                class="w-full flex items-center justify-between gap-3 px-6 py-4 border-b border-stone-100 hover:bg-stone-50/60 transition text-left"
+                                :aria-expanded="open.toString()"
+                                aria-controls="entry-list-panel">
+                            <div class="flex items-center gap-3">
+                                <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400">Entry List</h2>
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600">
+                                    {{ $entries->count() }} {{ Str::plural('shooter', $entries->count()) }}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                @if($showReconciliation)
+                                    {{-- Compact reconciliation chip: scored / no-shows / walk-ins. Walk-ins column stays hidden until any exist. --}}
+                                    <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-medium">
+                                        <span class="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200" title="Registered shooters whose scores were captured">
+                                            {{ $reconciliation['scored'] }} scored
+                                        </span>
+                                        @if($reconciliation['no_shows'] > 0)
+                                            <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200" title="Registered but no score captured">
+                                                {{ $reconciliation['no_shows'] }} no-show{{ $reconciliation['no_shows'] === 1 ? '' : 's' }}
+                                            </span>
+                                        @endif
+                                        @if($reconciliation['walk_ins'] > 0)
+                                            <span class="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700 ring-1 ring-inset ring-sky-200" title="Shot but not on the entry list — MD confirmed walk-ins">
+                                                {{ $reconciliation['walk_ins'] }} walk-in{{ $reconciliation['walk_ins'] === 1 ? '' : 's' }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+                                <svg class="size-4 text-stone-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                            </div>
+                        </button>
+
+                        <div id="entry-list-panel" x-show="open" x-cloak>
                         @if($entries->isEmpty())
                             <div class="px-6 py-12 text-center">
                                 <p class="text-sm text-stone-400">No shooters have registered yet.</p>
@@ -332,6 +373,7 @@
                                 </table>
                             </div>
                         @endif
+                        </div>{{-- /#entry-list-panel --}}
                     </div>
                     @endif
                 </div>
