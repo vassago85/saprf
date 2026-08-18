@@ -16,8 +16,14 @@ use Illuminate\View\View;
  * content itself, only the directory.
  *
  * To publish a new document:
- *   1. Add its route + view in the appropriate controller (Legal, Selection…).
- *   2. Add an entry to $this->catalog() below.
+ *   1. Add its route + view in the appropriate controller (Legal, Selection…),
+ *      OR drop a static file (typically a PDF) into public/publications/ and
+ *      link it via asset('publications/<file>'). Note that the folder is NOT
+ *      called "documents/" — that path collides with this controller's own
+ *      route and would 404 the index page.
+ *   2. Add an entry to $this->catalog() below. Static-file entries should set
+ *      'new_tab' => true so the PDF opens in a new tab rather than replacing
+ *      the current page.
  */
 class DocumentsController extends Controller
 {
@@ -39,6 +45,7 @@ class DocumentsController extends Controller
      *         url: string,
      *         badge: array{label: string, tone: string}|null,
      *         last_updated: ?Carbon,
+     *         new_tab?: bool,
      *     }>
      * }>
      */
@@ -56,6 +63,39 @@ class DocumentsController extends Controller
                         'url' => route('faq.index'),
                         'badge' => ['label' => 'Start here', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/faq.md'),
+                    ],
+                ],
+            ],
+            [
+                'heading' => 'Rules & Regulations',
+                'blurb' => 'The rulebooks that govern SAPRF-sanctioned Precision Rifle competition — course of fire, equipment, divisions and safety.',
+                'items' => [
+                    [
+                        'title' => 'SAPRF Rules & Regulations',
+                        'subtitle' => 'v2.1 · February 2024',
+                        'description' => 'The full rulebook for SAPRF-sanctioned Precision Rifle matches. Covers course design, range construction, competitor equipment, match structure, stage officials, the course of fire, scoring, penalties, disqualifications and arbitration.',
+                        'url' => asset('publications/saprf-rules-and-regulations.pdf'),
+                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
+                        'last_updated' => $this->publicFileMtime('publications/saprf-rules-and-regulations.pdf'),
+                        'new_tab' => true,
+                    ],
+                    [
+                        'title' => 'SAPRF Divisions',
+                        'subtitle' => 'Open · Limited · Factory · Classic',
+                        'description' => 'The equipment and eligibility rules for each SAPRF division and subdivision, including Ladies, Senior, Junior and Mil/LEO Open, together with Limited (.308), Factory and Classic Division definitions.',
+                        'url' => asset('publications/saprf-divisions.pdf'),
+                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
+                        'last_updated' => $this->publicFileMtime('publications/saprf-divisions.pdf'),
+                        'new_tab' => true,
+                    ],
+                    [
+                        'title' => 'PR22 Rimfire Series Rules',
+                        'subtitle' => 'v1 · December 2025',
+                        'description' => 'The rimfire-specific overlay to the main SAPRF rulebook: divisions eligible for PR22, ammunition restrictions, National Provincial + National 2-day + SA Championship series structure, log-score weighting and national colours criteria.',
+                        'url' => asset('publications/pr22-rimfire-series-rules.pdf'),
+                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
+                        'last_updated' => $this->publicFileMtime('publications/pr22-rimfire-series-rules.pdf'),
+                        'new_tab' => true,
                     ],
                 ],
             ],
@@ -133,6 +173,12 @@ class DocumentsController extends Controller
     private function docMtime(string $relPath): ?Carbon
     {
         $abs = base_path($relPath);
+        return is_file($abs) ? Carbon::createFromTimestamp(filemtime($abs)) : null;
+    }
+
+    private function publicFileMtime(string $relPath): ?Carbon
+    {
+        $abs = public_path($relPath);
         return is_file($abs) ? Carbon::createFromTimestamp(filemtime($abs)) : null;
     }
 }

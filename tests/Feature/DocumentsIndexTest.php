@@ -39,6 +39,31 @@ test('every document link on the index resolves to a working page', function () 
     $this->get(route('legal.conflict-of-interest'))->assertOk();
 });
 
+test('documents index lists the rules and regulations PDFs', function () {
+    $response = $this->get(route('documents.index'))->assertOk();
+
+    $response->assertSee('Rules &amp; Regulations', false)
+        ->assertSee('SAPRF Rules &amp; Regulations', false)
+        ->assertSee('SAPRF Divisions')
+        ->assertSee('PR22 Rimfire Series Rules');
+
+    // Every PDF link is served as a static file under /publications and
+    // opens in a new tab (target="_blank" + rel="noopener"). We can't host
+    // them under /documents because that path is already this controller's
+    // own route — a real directory there would 404 the index page.
+    foreach ([
+        'publications/saprf-rules-and-regulations.pdf',
+        'publications/saprf-divisions.pdf',
+        'publications/pr22-rimfire-series-rules.pdf',
+    ] as $relPath) {
+        $response->assertSee('href="'.asset($relPath).'"', false);
+        expect(is_file(public_path($relPath)))->toBeTrue();
+    }
+
+    $response->assertSee('target="_blank"', false)
+        ->assertSee('Open PDF');
+});
+
 test('documents link appears in the public nav and footer', function () {
     // Landing page hosts both the public nav and the footer, so we can
     // confirm the new link is present in both places at once.

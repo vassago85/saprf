@@ -27,7 +27,9 @@
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     @foreach($category['items'] as $item)
+                        @php($newTab = ! empty($item['new_tab']))
                         <a href="{{ $item['url'] }}"
+                           @if($newTab) target="_blank" rel="noopener" @endif
                            class="group block rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5 shadow-sm transition hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
@@ -67,10 +69,16 @@
                                     @endif
                                 </span>
                                 <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                                    Read
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                                    </svg>
+                                    {{ $newTab ? 'Open PDF' : 'Read' }}
+                                    @if($newTab)
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                        </svg>
+                                    @else
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                        </svg>
+                                    @endif
                                 </span>
                             </div>
                         </a>
