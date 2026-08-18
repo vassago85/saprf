@@ -377,3 +377,176 @@ it('preview returns count plus a bounded sample of users', function () {
     expect($preview->count)->toBe(5)
         ->and($preview->sample)->toHaveCount(3);
 });
+
+// ── match entrants (MD bulletin channel) ─────────────────────────────────
+
+function makeMatchForBulletin(User $creator, string $status = 'open'): MatchEvent
+{
+    $province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+
+    return MatchEvent::create([
+        'name' => 'Bulletin resolver match',
+        'match_type' => 'PRS',
+        'series_level' => 'provincial',
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $province->id,
+        'match_date' => \Carbon\Carbon::today()->addWeek(),
+        'status' => $status,
+        'published' => true,
+        'active_member_fee' => 550.00,
+        'created_by' => $creator->id,
+    ]);
+}
+
+function registerForMatch(MatchEvent $match, User $user, string $status = 'confirmed', ?int $registeredBy = null): MatchRegistration
+{
+    return MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => $user->id,
+        'registered_by_user_id' => $registeredBy,
+        'shooter_name' => $user->name,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 550,
+        'payment_status' => 'paid',
+        'registration_status' => $status,
+        'registered_at' => now(),
+    ]);
+}
+
+it('match_entrants resolves to confirmed + waitlisted entrants by default', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+
+    $confirmed = makeMember();
+    $waitlisted = makeMember();
+    $pending = makeMember();
+    $cancelled = makeMember();
+
+    registerForMatch($match, $confirmed, 'confirmed');
+    registerForMatch($match, $waitlisted, 'waitlisted');
+    registerForMatch($match, $pending, 'pending');
+    registerForMatch($match, $cancelled, 'cancelled');
+
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, ['match_id' => $match->id]),
+    ]);
+
+    expect($ids->all())
+        ->toContain($confirmed->id)
+        ->toContain($waitlisted->id)
+        ->not->toContain($pending->id)
+        ->not->toContain($cancelled->id);
+});
+
+it('match_entrants honours an explicit status_scope override', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+
+    $confirmed = makeMember();
+    $waitlisted = makeMember();
+    registerForMatch($match, $confirmed, 'confirmed');
+    registerForMatch($match, $waitlisted, 'waitlisted');
+
+    // Confirmed-only scope should exclude waitlisted.
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, [
+            'match_id' => $match->id,
+            'status_scope' => ['confirmed'],
+        ]),
+    ]);
+
+    expect($ids->all())
+        ->toContain($confirmed->id)
+        ->not->toContain($waitlisted->id);
+});
+
+it('match_entrants routes a managed junior via registered_by_user_id to the parent', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+
+    $parent = makeMember();
+
+    $junior = User::factory()->create([
+        'is_managed_account' => true,
+        'parent_id' => $parent->id,
+        'managed_relationship' => 'junior',
+    ]);
+
+    registerForMatch($match, $junior, 'confirmed', registeredBy: $parent->id);
+
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, ['match_id' => $match->id]),
+    ]);
+
+    expect($ids->all())
+        ->toContain($parent->id)
+        ->not->toContain($junior->id);
+});
+
+it('match_entrants falls back to parent_id when registered_by_user_id is null', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+
+    $parent = makeMember();
+    $junior = User::factory()->create([
+        'is_managed_account' => true,
+        'parent_id' => $parent->id,
+        'managed_relationship' => 'junior',
+    ]);
+
+    registerForMatch($match, $junior, 'confirmed', registeredBy: null);
+
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, ['match_id' => $match->id]),
+    ]);
+
+    expect($ids->all())->toContain($parent->id)->not->toContain($junior->id);
+});
+
+it('match_entrants deduplicates a parent with two junior entrants down to a single recipient', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+
+    $parent = makeMember();
+    $juniorA = User::factory()->create([
+        'is_managed_account' => true,
+        'parent_id' => $parent->id,
+        'managed_relationship' => 'junior',
+    ]);
+    $juniorB = User::factory()->create([
+        'is_managed_account' => true,
+        'parent_id' => $parent->id,
+        'managed_relationship' => 'junior',
+    ]);
+
+    registerForMatch($match, $juniorA, 'confirmed', registeredBy: $parent->id);
+    registerForMatch($match, $juniorB, 'waitlisted', registeredBy: $parent->id);
+
+    $ids = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, ['match_id' => $match->id]),
+    ]);
+
+    // Exactly one occurrence of the parent, and no juniors leaking through.
+    expect($ids->all())
+        ->toEqual([$parent->id]);
+});
+
+it('match_entrants returns an empty set when the match id is missing or invalid', function () {
+    $md = makeMember();
+    $match = makeMatchForBulletin($md);
+    registerForMatch($match, makeMember(), 'confirmed');
+
+    // No match_id at all.
+    $noMatchId = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, []),
+    ]);
+
+    // Non-numeric match_id.
+    $badMatchId = app(AudienceResolver::class)->resolve([
+        rule(AudienceType::MatchEntrants, ['match_id' => 'not-a-number']),
+    ]);
+
+    expect($noMatchId->isEmpty())->toBeTrue()
+        ->and($badMatchId->isEmpty())->toBeTrue();
+});

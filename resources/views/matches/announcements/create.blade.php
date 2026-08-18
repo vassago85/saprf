@@ -91,21 +91,24 @@
 
         <div class="space-y-6">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
-                <h2 class="text-lg font-semibold text-stone-900 mb-4">Recent announcements</h2>
+                <h2 class="text-lg font-semibold text-stone-900 mb-4">Recent bulletins</h2>
+                <p class="mb-3 text-xs text-stone-400">
+                    Bulletins auto-hide from entrants' inbox and archive when this match is marked completed or cancelled.
+                </p>
 
                 @forelse($recentAnnouncements as $prev)
                     <div class="py-3 first:pt-0 last:pb-0 border-b border-stone-100 last:border-b-0">
-                        <p class="text-sm font-medium text-stone-900 truncate">{{ $prev->subject }}</p>
+                        <p class="text-sm font-medium text-stone-900 truncate">{{ $prev->title }}</p>
                         <p class="mt-1 text-xs text-stone-500">
                             {{ $prev->sent_at?->format('d M Y H:i') }}
                             &middot; {{ $prev->recipient_count }} {{ \Illuminate\Support\Str::plural('recipient', $prev->recipient_count) }}
-                            @if($prev->sender)
-                                &middot; {{ $prev->sender->name }}
+                            @if($prev->creator)
+                                &middot; {{ $prev->creator->name }}
                             @endif
                         </p>
                     </div>
                 @empty
-                    <p class="text-sm text-stone-400">No announcements have been sent yet.</p>
+                    <p class="text-sm text-stone-400">No bulletins have been sent yet.</p>
                 @endforelse
             </div>
         </div>

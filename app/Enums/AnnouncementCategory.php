@@ -18,6 +18,7 @@ enum AnnouncementCategory: string
     case AgmGovernance = 'agm_governance';
     case PlatformUpdate = 'platform_update';
     case Urgent = 'urgent';
+    case MatchBulletin = 'match_bulletin';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum AnnouncementCategory: string
             self::AgmGovernance => 'AGM / governance',
             self::PlatformUpdate => 'Website / platform update',
             self::Urgent => 'Urgent',
+            self::MatchBulletin => 'Match bulletin',
         };
     }
 
@@ -40,6 +42,7 @@ enum AnnouncementCategory: string
             self::AgmGovernance => 'building-library',
             self::PlatformUpdate => 'sparkles',
             self::Urgent => 'exclamation-triangle',
+            self::MatchBulletin => 'chat-bubble-left-right',
         };
     }
 
@@ -73,6 +76,48 @@ enum AnnouncementCategory: string
     public function requiresSecondApproval(): bool
     {
         return $this === self::PolicyChange;
+    }
+
+    /**
+     * How long an announcement of this category should stick around in
+     * the member-facing inbox by default. The composer surfaces this as
+     * the pre-selected value on the Retention dropdown — for routine
+     * categories the operator can override, for pinned categories
+     * (Policy / Urgent / MatchBulletin) the retention is enforced
+     * server-side.
+     *
+     *   PolicyChange, Urgent, AgmGovernance  → permanent
+     *   Announcement, MatchCalendar,
+     *   PlatformUpdate                        → expires_on_date
+     *   MatchBulletin                         → match_scoped
+     */
+    public function defaultRetention(): AnnouncementRetention
+    {
+        return match ($this) {
+            self::PolicyChange,
+            self::Urgent,
+            self::AgmGovernance => AnnouncementRetention::Permanent,
+
+            self::MatchBulletin => AnnouncementRetention::MatchScoped,
+
+            self::Announcement,
+            self::MatchCalendar,
+            self::PlatformUpdate => AnnouncementRetention::ExpiresOnDate,
+        };
+    }
+
+    /**
+     * Categories whose retention the composer must NOT let the operator
+     * change. Match bulletins have to be match-scoped or the match-end
+     * "go away" behaviour breaks; Policy/Urgent stay permanent so a
+     * critical safety notice isn't accidentally set to expire.
+     */
+    public function retentionIsFixed(): bool
+    {
+        return match ($this) {
+            self::PolicyChange, self::Urgent, self::MatchBulletin => true,
+            default => false,
+        };
     }
 
     /**

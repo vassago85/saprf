@@ -21,15 +21,38 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class CommunicationsController extends Controller
 {
+    /**
+     * The member Communications inbox. Split into two top-level tabs:
+     *
+     *   - `inbox`   (default) — announcements that are currently "live"
+     *                for this member, driven by `Announcement::scopeInbox`.
+     *                Permanent items appear here for 60 days after
+     *                sending; `expires_on_date` items until their expiry;
+     *                `match_scoped` items until their match ends.
+     *   - `archive` — everything historical the member is still allowed
+     *                to see, driven by `Announcement::scopeArchive`.
+     *                Match-scoped items whose match has ended are
+     *                deliberately dropped here too — product intent
+     *                is "when the match is finished they must go away".
+     *
+     * All other filters (category, read state, date range, search)
+     * apply within whichever tab is active.
+     */
     public function index(Request $request): View
     {
         $user = $request->user();
 
+        $tab = $request->input('tab') === 'archive' ? 'archive' : 'inbox';
+
         $query = AnnouncementRecipient::query()
             ->with('announcement')
             ->where('user_id', $user->id)
-            ->whereHas('announcement', function ($q) {
-                $q->whereNotNull('sent_at')->whereNull('retracted_at');
+            ->whereHas('announcement', function ($q) use ($tab) {
+                if ($tab === 'archive') {
+                    $q->archive();
+                } else {
+                    $q->inbox();
+                }
             });
 
         if ($category = $request->input('category')) {
@@ -68,14 +91,28 @@ class CommunicationsController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Both tab-badge counts + the sidebar bell count use the Inbox
+        // scope: a member has "unread items" only if there's something
+        // live sitting in Inbox. Once a match ends or an item expires it
+        // drops off the badge automatically — no cron needed.
         $unreadCount = AnnouncementRecipient::query()
             ->where('user_id', $user->id)
             ->whereNull('read_at')
+            ->whereHas('announcement', fn ($q) => $q->inbox())
+            ->count();
+
+        // Tab count for Archive — shown next to the tab label so members
+        // know something's there even when Inbox is empty.
+        $archiveCount = AnnouncementRecipient::query()
+            ->where('user_id', $user->id)
+            ->whereHas('announcement', fn ($q) => $q->archive())
             ->count();
 
         return view('communications.index', [
             'items' => $items,
             'unreadCount' => $unreadCount,
+            'archiveCount' => $archiveCount,
+            'activeTab' => $tab,
             'categories' => AnnouncementCategory::cases(),
         ]);
     }
@@ -158,24 +195,27 @@ class CommunicationsController extends Controller
      * Small polling endpoint the sidebar bell uses to update the unread
      * badge without a full page load. Deliberately cheap: one COUNT query,
      * no ORM hydration.
+     *
+     * Uses the Inbox scope (not just the retraction filter) so the badge
+     * follows the same rules as the tab it opens into — a match ending
+     * or an announcement expiring drops the badge automatically without
+     * any cron job or event listener.
      */
     public function unreadCount(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        // Same retraction filter as index() — a retracted announcement
-        // must not keep the sidebar bell lit forever.
         $unread = AnnouncementRecipient::query()
             ->where('user_id', $user->id)
             ->whereNull('read_at')
-            ->whereHas('announcement', fn ($q) => $q->whereNull('retracted_at'))
+            ->whereHas('announcement', fn ($q) => $q->inbox())
             ->count();
 
         $latest = AnnouncementRecipient::query()
             ->with(['announcement:id,title,category,sent_at'])
             ->where('user_id', $user->id)
             ->whereNull('read_at')
-            ->whereHas('announcement', fn ($q) => $q->whereNull('retracted_at'))
+            ->whereHas('announcement', fn ($q) => $q->inbox())
             ->orderByDesc('id')
             ->limit(5)
             ->get()

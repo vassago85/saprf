@@ -2,44 +2,87 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MatchAnnouncement;
+use App\Enums\AnnouncementCategory;
+use App\Enums\AnnouncementRetention;
+use App\Enums\AnnouncementStatus;
+use App\Enums\AudienceMode;
+use App\Enums\AudienceType;
+use App\Models\Announcement;
 use App\Models\MatchEvent;
-use App\Models\MatchRegistration;
-use App\Models\User;
-use App\Notifications\MatchAnnouncementNotification;
+use App\Services\Announcements\AnnouncementPublisher;
+use App\Services\Announcements\AudienceResolver;
 use App\Services\AuditLogService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 
+/**
+ * Match Director → Entrants bulletin channel.
+ *
+ * Historically this wrote to its own `match_announcements` table and
+ * sent an email-only notification. It now composes a normal
+ * `Announcement` row (category = match_bulletin, retention =
+ * match_scoped, match_id pinned) and hands off to `AnnouncementPublisher`
+ * so MDs get the full federation pipeline for free: push notifications,
+ * the Communications inbox, attachments (later), acknowledgement, and
+ * retract. When the linked match transitions to `completed` or
+ * `cancelled`, the bulletin auto-vanishes from every member view thanks
+ * to the retention filter on `Announcement::scopeInbox` /
+ * `scopeArchive`.
+ *
+ * The route + URL is unchanged (`/matches/{match}/announcements/create`
+ * → `matches.announcements.create`) so every existing link and audit
+ * log entry keeps working. The view is also unchanged; only the
+ * controller's write path was rewired.
+ */
 class MatchAnnouncementController extends Controller
 {
     /**
-     * Registration statuses that receive the broadcast. Cancelled entrants
-     * withdrew — mailing them would be spam. Pending entrants haven't paid
-     * and may drop off; MDs can address them separately if needed.
+     * Registration statuses that receive the bulletin. Kept identical
+     * to the legacy behaviour so unifying doesn't change who is on the
+     * recipient list.
      */
     private const RECIPIENT_STATUS_SCOPE = ['confirmed', 'waitlisted'];
 
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly SettingsService $settingsService,
+        private readonly AnnouncementPublisher $publisher,
+        private readonly AudienceResolver $resolver,
     ) {}
 
     public function create(MatchEvent $match): View
     {
         $this->authorize('update', $match);
 
-        $recipientCount = $this->recipientQuery($match)->count();
+        // Recipient count comes from the unified audience resolver now,
+        // so the pre-send preview here matches exactly what
+        // freezeRecipients will produce at send time.
+        $recipientCount = $this->resolver
+            ->preview([[
+                'type' => AudienceType::MatchEntrants,
+                'mode' => AudienceMode::Include,
+                'value' => [
+                    'match_id' => $match->id,
+                    'status_scope' => self::RECIPIENT_STATUS_SCOPE,
+                ],
+            ]])
+            ->count;
+
         $notificationsEnabled = (bool) $this->settingsService->get('notifications_enabled', true);
-        $recentAnnouncements = $match->announcements()
-            ->with('sender:id,name')
-            ->latest('sent_at')
+
+        // Show the last 10 bulletins the MD sent on this match — pulled
+        // from the unified announcements table (where new bulletins land)
+        // plus any legacy match_announcements rows the backfill migration
+        // populated. Ordered by sent_at so the most recent is on top.
+        $recentAnnouncements = Announcement::query()
+            ->with('creator:id,name')
+            ->where('match_id', $match->id)
+            ->where('category', AnnouncementCategory::MatchBulletin->value)
+            ->whereNotNull('sent_at')
+            ->orderByDesc('sent_at')
             ->limit(10)
             ->get();
 
@@ -60,109 +103,82 @@ class MatchAnnouncementController extends Controller
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
-        $entrants = $this->recipientQuery($match)
-            ->with(['user', 'registeredBy', 'user.parent'])
-            ->get();
+        // Pre-flight: refuse to send when the entry list is empty. The
+        // publisher would silently freeze 0 recipients otherwise, which
+        // looks like a success but delivers nothing.
+        $preview = $this->resolver->preview([[
+            'type' => AudienceType::MatchEntrants,
+            'mode' => AudienceMode::Include,
+            'value' => [
+                'match_id' => $match->id,
+                'status_scope' => self::RECIPIENT_STATUS_SCOPE,
+            ],
+        ]]);
 
-        $recipients = $this->resolveRecipients($entrants);
-
-        if ($recipients->isEmpty()) {
+        if ($preview->count === 0) {
             return redirect()
                 ->route('matches.announcements.create', $match)
                 ->with('error', 'No entrants match the recipient scope (confirmed + waitlisted). Nothing was sent.');
         }
 
-        $announcement = DB::transaction(function () use ($match, $request, $data, $recipients) {
-            $announcement = MatchAnnouncement::create([
-                'match_id' => $match->id,
-                'sender_user_id' => $request->user()->id,
-                'subject' => $data['subject'],
+        $recipientCount = $preview->count;
+
+        $announcement = DB::transaction(function () use ($request, $match, $data, $recipientCount) {
+            $announcement = Announcement::create([
+                'title' => $data['subject'],
                 'body' => $data['body'],
-                'recipient_count' => $recipients->count(),
-                'status_scope' => self::RECIPIENT_STATUS_SCOPE,
-                'sent_at' => now(),
+                'category' => AnnouncementCategory::MatchBulletin->value,
+                'retention' => AnnouncementRetention::MatchScoped->value,
+                'match_id' => $match->id,
+                'priority' => 'normal',
+                'requires_acknowledgement' => false,
+                // Leave `deliver_via` null → publisher fans out to every
+                // channel (mail + push + in-app). MDs typically want all
+                // three; a future improvement can expose channel
+                // checkboxes on the MD compose form.
+                'deliver_via' => null,
+                'status' => AnnouncementStatus::Draft->value,
+                'created_by' => $request->user()->id,
+            ]);
+
+            $announcement->audiences()->create([
+                'type' => AudienceType::MatchEntrants->value,
+                'mode' => AudienceMode::Include->value,
+                'value' => [
+                    'match_id' => $match->id,
+                    'status_scope' => self::RECIPIENT_STATUS_SCOPE,
+                ],
             ]);
 
             $this->auditLogService->log(
                 $request->user(),
                 'match.announcement.sent',
-                'MatchAnnouncement',
+                'Announcement',
                 $announcement->id,
                 null,
                 [
                     'match_id' => $match->id,
                     'subject' => $data['subject'],
-                    'recipient_count' => $recipients->count(),
+                    'recipient_count' => $recipientCount,
                     'status_scope' => self::RECIPIENT_STATUS_SCOPE,
+                    'category' => AnnouncementCategory::MatchBulletin->value,
+                    'retention' => AnnouncementRetention::MatchScoped->value,
                 ],
             );
 
             return $announcement;
         });
 
-        Notification::send(
-            $recipients,
-            new MatchAnnouncementNotification($announcement, $request->user())
-        );
+        // Hand off to the standard pipeline. sendNow flips status →
+        // sending and dispatches ResolveAudienceJob, which handles the
+        // recipient freeze + per-channel fan-out asynchronously.
+        $this->publisher->sendNow($announcement);
 
         return redirect()
             ->route('matches.show', $match)
-            ->with('success', 'Announcement queued for ' . $recipients->count() . ' ' . str('recipient')->plural($recipients->count()) . '.');
-    }
-
-    /**
-     * Registrations still on the entry list that should receive the mail.
-     */
-    private function recipientQuery(MatchEvent $match)
-    {
-        return $match->registrations()
-            ->whereIn('registration_status', self::RECIPIENT_STATUS_SCOPE);
-    }
-
-    /**
-     * Turn an entrant collection into a deduplicated list of `User`s to
-     * notify. Managed juniors carry a placeholder email — we route their
-     * mail to the parent (via `registered_by_user_id`, falling back to
-     * `parent_id`), matching how MatchRegistrationConfirmedNotification is
-     * dispatched. Entries with no reachable recipient are dropped and
-     * logged.
-     *
-     * @param  Collection<int, MatchRegistration>  $entrants
-     * @return Collection<int, User>
-     */
-    private function resolveRecipients(Collection $entrants): Collection
-    {
-        return $entrants
-            ->map(function (MatchRegistration $registration) {
-                $entrant = $registration->user;
-
-                if (! $entrant) {
-                    Log::warning('MatchAnnouncement: registration has no user', [
-                        'registration_id' => $registration->id,
-                    ]);
-
-                    return null;
-                }
-
-                if (! $entrant->isManaged()) {
-                    return $entrant;
-                }
-
-                $parent = $registration->registeredBy ?: $entrant->parent;
-
-                if (! $parent) {
-                    Log::warning('MatchAnnouncement: managed junior has no reachable parent', [
-                        'registration_id' => $registration->id,
-                        'entrant_user_id' => $entrant->id,
-                    ]);
-
-                    return null;
-                }
-
-                return $parent;
-            })
-            ->filter()
-            ->unique('id')
-            ->values();
+            ->with(
+                'success',
+                'Bulletin queued for ' . $preview->count . ' ' . str('entrant')->plural($preview->count) . '. It will land in the Communications inbox and via push/email once the queue runs.'
+            );
     }
 }

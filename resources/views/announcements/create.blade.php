@@ -21,11 +21,23 @@
         ];
     @endphp
 
+    @php
+        $retentionDefaults = collect(\App\Enums\AnnouncementCategory::cases())
+            ->mapWithKeys(fn ($c) => [$c->value => $c->defaultRetention()->value])
+            ->all();
+        $retentionFixed = collect(\App\Enums\AnnouncementCategory::cases())
+            ->filter(fn ($c) => $c->retentionIsFixed())
+            ->map(fn ($c) => $c->value)
+            ->values()
+            ->all();
+    @endphp
     <div class="max-w-4xl space-y-6"
         x-data="announcementComposer(@js([
             'previewUrl' => route('announcements.preview'),
             'csrf' => csrf_token(),
             'audienceInputs' => $audienceValueInputs,
+            'retentionDefaults' => $retentionDefaults,
+            'retentionFixedCategories' => $retentionFixed,
         ]))">
 
         <div class="flex items-center justify-between">
@@ -96,8 +108,29 @@
                         <label class="block text-sm font-medium text-stone-700">Expires (optional)</label>
                         <input type="datetime-local" name="expires_at"
                             value="{{ old('expires_at') }}"
-                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            :disabled="retention !== 'expires_on_date'"
+                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-stone-100 disabled:text-stone-400">
+                        <p class="mt-1 text-xs text-stone-400" x-show="retention !== 'expires_on_date'">
+                            Only used when retention is "Expires on date".
+                        </p>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-stone-700">Retention</label>
+                    <select name="retention" x-model="retention"
+                        :disabled="retentionFixed"
+                        class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-stone-100">
+                        @foreach ($retentionOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-stone-500">
+                        <span x-show="retention === 'permanent'">Stays in members' Archive tab forever. Shown in Inbox for 60 days after send, then moves to Archive.</span>
+                        <span x-show="retention === 'expires_on_date'">Shown in Inbox until the expiry above passes; stays searchable in Archive after that.</span>
+                        <span x-show="retention === 'match_scoped'">Auto-hides from all member views the moment the linked match is marked completed or cancelled.</span>
+                        <span x-show="retentionFixed" class="ml-1 italic text-stone-400">Locked for this category.</span>
+                    </p>
                 </div>
 
                 <div>
@@ -269,11 +302,18 @@
                         { mode: 'include', type: 'active_members', value: {} }
                     ],
                     category: '{{ old('category', 'announcement') }}',
+                    retention: '{{ old('retention', '') }}',
                     requiresAck: {{ old('requires_acknowledgement') ? 'true' : 'false' }},
                     previewCount: 0,
                     previewSample: [],
                     previewing: false,
                     audienceInputs: config.audienceInputs,
+                    retentionDefaults: config.retentionDefaults || {},
+                    retentionFixedCategories: config.retentionFixedCategories || [],
+
+                    get retentionFixed() {
+                        return this.retentionFixedCategories.includes(this.category);
+                    },
 
                     init() {
                         // Default the ack flag on when the operator picks a Policy change.
@@ -281,7 +321,23 @@
                             if (ackDefault.includes(value)) {
                                 this.requiresAck = true;
                             }
+                            // Snap retention to the category's default. For
+                            // pinned categories the server enforces the
+                            // value anyway (see resolveRetention), but this
+                            // keeps the visible dropdown honest.
+                            const nextRetention = this.retentionDefaults[value];
+                            if (nextRetention) {
+                                this.retention = nextRetention;
+                            }
                         });
+
+                        // Prime retention from the current category on
+                        // first render so a hard-refresh with `old('category')`
+                        // set still shows the correct default.
+                        if (!this.retention) {
+                            this.retention = this.retentionDefaults[this.category] || 'expires_on_date';
+                        }
+
                         this.refreshPreview();
                     },
 

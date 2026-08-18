@@ -147,6 +147,7 @@ class AudienceResolver
             AudienceType::Province => $this->resolveProvince($value),
             AudienceType::Individual => $this->resolveIndividuals($value),
             AudienceType::SavedList => $this->resolveSavedList($value, $depth),
+            AudienceType::MatchEntrants => $this->resolveMatchEntrants($value),
         };
     }
 
@@ -357,6 +358,80 @@ class AudienceResolver
             ->whereIn('id', $clean)
             ->pluck('id')
             ->map(fn ($id) => (int) $id);
+    }
+
+    /**
+     * "Everyone entered in a specific match." This is what backs the
+     * Match Director bulletin flow — the MD picks their match, the
+     * resolver expands it to the set of users who should receive the
+     * message.
+     *
+     * Value shape (from the composer / MD form):
+     *   { "match_id": 42, "status_scope": ["confirmed", "waitlisted"] }
+     *
+     * Rules mirror `MatchAnnouncementController::resolveRecipients()`
+     * exactly so unifying the two channels doesn't change who gets
+     * notified:
+     *
+     *   1. Registrations in `status_scope` are considered (default
+     *      confirmed + waitlisted). Cancelled / pending / withdrawn
+     *      are excluded — mailing them would be spam.
+     *   2. Managed juniors carry a placeholder email; their message
+     *      routes to the parent instead. Parent resolution: prefer
+     *      `MatchRegistration::registered_by_user_id`, fall back to
+     *      `User::parent_id`.
+     *   3. Duplicates are dropped so a parent with two junior entrants
+     *      only gets one bulletin.
+     */
+    private function resolveMatchEntrants(array $value): Collection
+    {
+        $matchId = $value['match_id'] ?? null;
+
+        if (! $matchId || ! is_numeric($matchId)) {
+            return collect();
+        }
+
+        $rawScope = $value['status_scope'] ?? ['confirmed', 'waitlisted'];
+        $statusScope = is_array($rawScope) && $rawScope !== []
+            ? array_values(array_filter($rawScope, 'is_string'))
+            : ['confirmed', 'waitlisted'];
+
+        $registrations = MatchRegistration::query()
+            ->with(['user:id,is_managed_account,parent_id,managed_relationship', 'user.parent:id'])
+            ->where('match_id', (int) $matchId)
+            ->whereIn('registration_status', $statusScope)
+            ->whereNotNull('user_id')
+            ->get(['id', 'user_id', 'registered_by_user_id', 'registration_status']);
+
+        $userIds = $registrations
+            ->map(function (MatchRegistration $registration) {
+                $entrant = $registration->user;
+
+                if (! $entrant) {
+                    return null;
+                }
+
+                // Non-managed adults: message the entrant directly.
+                if (! $entrant->isManaged()) {
+                    return $entrant->id;
+                }
+
+                // Managed junior: route to the account that registered
+                // them if available, otherwise fall back to their parent
+                // link. If neither exists the row silently drops
+                // (mirrors the legacy warning in
+                // MatchAnnouncementController::resolveRecipients()).
+                $parentId = $registration->registered_by_user_id
+                    ?? optional($entrant->parent)->id;
+
+                return $parentId ? (int) $parentId : null;
+            })
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        return $userIds;
     }
 
     private function resolveSavedList(array $value, int $depth): Collection

@@ -29,6 +29,7 @@ enum AudienceType: string
     case Province = 'province';
     case Individual = 'individual';
     case SavedList = 'saved_list';
+    case MatchEntrants = 'match_entrants';
 
     public function label(): string
     {
@@ -44,6 +45,7 @@ enum AudienceType: string
             self::Province => 'Province',
             self::Individual => 'Named individuals',
             self::SavedList => 'Saved list',
+            self::MatchEntrants => 'Entrants of a specific match',
         };
     }
 }

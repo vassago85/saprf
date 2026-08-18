@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AnnouncementCategory;
+use App\Enums\AnnouncementRetention;
 use App\Enums\AnnouncementPriority;
 use App\Enums\AnnouncementStatus;
 use App\Enums\AudienceMode;
@@ -74,6 +75,7 @@ class AnnouncementController extends Controller
                 'title' => $data['title'],
                 'body' => $data['body'],
                 'category' => $data['category'],
+                'retention' => $this->resolveRetention($data),
                 'priority' => $data['priority'],
                 'requires_acknowledgement' => (bool) ($data['requires_acknowledgement'] ?? false),
                 'deliver_via' => $this->resolveDeliverVia($request, $data),
@@ -380,10 +382,38 @@ class AnnouncementController extends Controller
      */
     private function composerContext(): array
     {
+        // MatchEntrants is used programmatically by the MD compose flow
+        // (MatchAnnouncementController), not from the federation
+        // composer — surface only the audience types a federation admin
+        // needs. Keeping it out avoids a dead menu entry that would
+        // silently produce 0 recipients if picked.
+        $audienceTypes = array_values(array_filter(
+            AudienceType::cases(),
+            fn (AudienceType $t) => $t !== AudienceType::MatchEntrants,
+        ));
+
+        // MatchBulletin is written only by MDs and pins retention =
+        // match_scoped, which requires a match_id the federation
+        // composer has no way to set. Hiding it from the federation
+        // category list prevents an operator from creating a broken
+        // "match bulletin with no match" row.
+        $categories = array_values(array_filter(
+            AnnouncementCategory::cases(),
+            fn (AnnouncementCategory $c) => $c !== AnnouncementCategory::MatchBulletin,
+        ));
+
         return [
-            'categories' => AnnouncementCategory::cases(),
+            'categories' => $categories,
             'priorities' => AnnouncementPriority::cases(),
-            'audienceTypes' => AudienceType::cases(),
+            'audienceTypes' => $audienceTypes,
+            // Match-scoped retention is only meaningful when there is
+            // a match_id attached, which only happens via the MD
+            // channel. Hide it from the federation composer so an
+            // operator can't create an unreachable "match-scoped
+            // announcement with no match" row.
+            'retentionOptions' => collect(AnnouncementRetention::options())
+                ->except(AnnouncementRetention::MatchScoped->value)
+                ->all(),
             'divisions' => Division::query()->orderBy('display_order')->orderBy('name')->get(['id', 'name']),
             'provinces' => Province::query()->orderBy('name')->get(['id', 'name']),
             'clubs' => Club::query()->orderBy('name')->get(['id', 'name']),
@@ -399,6 +429,7 @@ class AnnouncementController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'body' => ['required', 'string', 'max:10000'],
             'category' => ['required', 'string', 'in:' . implode(',', array_column(AnnouncementCategory::cases(), 'value'))],
+            'retention' => ['nullable', 'string', 'in:' . implode(',', array_column(AnnouncementRetention::cases(), 'value'))],
             'priority' => ['nullable', 'string', 'in:normal,high'],
             'requires_acknowledgement' => ['nullable', 'boolean'],
             'deliver_via' => ['nullable', 'array'],
@@ -432,6 +463,45 @@ class AnnouncementController extends Controller
         }
 
         return Announcement::normalizeDeliverVia($data['deliver_via'] ?? []);
+    }
+
+    /**
+     * Pick the retention mode to persist. When the operator's chosen
+     * category pins its retention (Policy / Urgent / MatchBulletin),
+     * their form value is ignored — we always store the fixed default
+     * so a bad request body can't slip a Policy change into
+     * `expires_on_date`. For flexible categories we honour the form's
+     * choice, falling back to the category's default when the field
+     * was omitted entirely (older admin scripts / tests posting the
+     * pre-retention payload).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveRetention(array $data): string
+    {
+        $category = AnnouncementCategory::from($data['category']);
+
+        if ($category->retentionIsFixed()) {
+            return $category->defaultRetention()->value;
+        }
+
+        $submitted = $data['retention'] ?? null;
+        $parsed = is_string($submitted) ? AnnouncementRetention::tryFrom($submitted) : null;
+
+        // Match-scoped is only meaningful when there's a match_id to
+        // pair it with. The federation composer never sets match_id, so
+        // ignore a match_scoped request there and use the category's
+        // default instead — an "orphan" match-scoped row would never
+        // appear in Inbox (whereHas('matchEvent') fails on a null FK).
+        if ($parsed === AnnouncementRetention::MatchScoped && empty($data['match_id'])) {
+            return $category->defaultRetention()->value;
+        }
+
+        if ($parsed !== null) {
+            return $parsed->value;
+        }
+
+        return $category->defaultRetention()->value;
     }
 
     /**
