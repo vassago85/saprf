@@ -44,14 +44,22 @@ class SponsoredEntryPaidNotification extends Notification implements ShouldQueue
     {
         $match = $this->registration->loadMissing('match.province')->match;
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Your entry has been paid: ' . $match->name)
             ->greeting('Hi ' . $notifiable->name . ',')
             ->line($this->sponsor->name . ' has paid your entry fee for the following match.')
             ->line('**Match:** ' . $match->name)
             ->line('**Date:** ' . $match->formatted_date)
             ->line('**Venue:** ' . trim(($match->venue_name ?: '—') . ', ' . ($match->location_display ?: '')))
-            ->line('**Entry Fee Paid:** R' . number_format((float) $this->payment->amount, 2))
+            ->line('**Entry Fee Paid:** R' . number_format((float) $this->payment->amount, 2));
+
+        $inviteUrl = $this->registration->whatsappInviteUrlAfterPayment();
+        if ($inviteUrl) {
+            $message->line('Join the match WhatsApp group for notifications and match books:')
+                ->line($inviteUrl);
+        }
+
+        return $message
             ->action('View Registration', route('registrations.show', $this->registration))
             ->line('Your spot is confirmed. Please thank ' . $this->sponsor->name . ' — you might want to buy them a drink after the match.');
     }

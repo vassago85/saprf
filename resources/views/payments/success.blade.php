@@ -72,6 +72,10 @@
                 @endif
 
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    @include('matches._whatsapp-invite-cta', [
+                        'url' => $whatsappInviteUrl ?? null,
+                        'showWhenCompleted' => true,
+                    ])
                     @if($payment && $payment->payable_type === 'App\\Models\\MatchRegistration')
                         <a href="{{ route('registrations.show', $payment->payable_id) }}" class="px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition">View Registration</a>
                     @endif

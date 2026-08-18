@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\MatchRegistration;
 use App\Models\Payment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -53,11 +54,32 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
             $message->line('**Gateway ID:** ' . $this->payment->gateway_payment_id);
         }
 
+        if (! $isMembership) {
+            $inviteUrl = $this->matchWhatsappInviteUrl();
+            if ($inviteUrl) {
+                $message->line('Join the match WhatsApp group for notifications and match books:')
+                    ->line($inviteUrl);
+            }
+        }
+
         return $message
             ->action(
                 $isMembership ? 'View My Membership' : 'View My Registrations',
                 $isMembership ? route('my-membership') : route('registrations.index'),
             )
             ->line('Keep this email as your proof of payment.');
+    }
+
+    private function matchWhatsappInviteUrl(): ?string
+    {
+        $this->payment->loadMissing('payable.match');
+
+        $registration = $this->payment->payable;
+
+        if (! $registration instanceof MatchRegistration) {
+            return null;
+        }
+
+        return $registration->whatsappInviteUrlAfterPayment();
     }
 }

@@ -29,6 +29,7 @@ class MatchEvent extends Model
         'city',
         'match_director',
         'match_director_contact',
+        'whatsapp_invite_url',
         'description',
         'match_date',
         'match_end_date',
@@ -84,6 +85,34 @@ class MatchEvent extends Model
         static::saving(function (MatchEvent $match) {
             $match->published = $match->status !== 'draft';
         });
+    }
+
+    /**
+     * Only official WhatsApp group invite links are stored. Trailing slash is
+     * allowed so directors can paste either form of the share URL.
+     *
+     * @return list<string>
+     */
+    public static function whatsappInviteUrlRules(): array
+    {
+        return [
+            'nullable',
+            'string',
+            'max:255',
+            'regex:/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9_-]+\/?$/',
+        ];
+    }
+
+    public function whatsappInviteUrl(): ?string
+    {
+        $url = $this->whatsapp_invite_url;
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
+    public function hasWhatsappInvite(): bool
+    {
+        return $this->whatsappInviteUrl() !== null;
     }
 
     // ── Relationships ──

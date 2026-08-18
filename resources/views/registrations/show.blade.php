@@ -120,6 +120,14 @@
             </dl>
         </div>
 
+        @if($registration->canAccessWhatsappInvite())
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-2">Match WhatsApp group</h2>
+                <p class="text-sm text-stone-600 mb-4">Join the group for match notifications, match books, and range updates.</p>
+                @include('matches._whatsapp-invite-cta', ['url' => $registration->whatsappInviteUrl()])
+            </div>
+        @endif
+
         {{-- Division change — allowed until registration closes (staff any time) --}}
         @php
             $isStaffViewer = auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director']);

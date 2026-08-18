@@ -254,4 +254,43 @@ class MatchRegistration extends Model
             'reason' => 'before_deadline',
         ];
     }
+
+    /**
+     * Confirmed entries that no longer need payment may join the match
+     * WhatsApp group. Waitlisted and outstanding-fee rows stay hidden.
+     */
+    public function canAccessWhatsappInvite(): bool
+    {
+        if (! $this->match?->hasWhatsappInvite()) {
+            return false;
+        }
+
+        if ($this->registration_status !== 'confirmed') {
+            return false;
+        }
+
+        if (in_array($this->payment_status, ['paid', 'waived'], true)) {
+            return true;
+        }
+
+        return (float) $this->fee_amount <= 0;
+    }
+
+    public function whatsappInviteUrl(): ?string
+    {
+        return $this->canAccessWhatsappInvite() ? $this->match?->whatsappInviteUrl() : null;
+    }
+
+    /**
+     * URL for the payment-success page: the shooter has just paid (or is
+     * about to, once the ITN lands). Waitlisted entries still do not get it.
+     */
+    public function whatsappInviteUrlAfterPayment(): ?string
+    {
+        if ($this->registration_status === 'waitlisted') {
+            return null;
+        }
+
+        return $this->match?->whatsappInviteUrl();
+    }
 }

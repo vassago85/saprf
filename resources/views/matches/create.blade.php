@@ -86,6 +86,13 @@
                 </div>
 
                 <div class="sm:col-span-2">
+                    <label for="whatsapp_invite_url" class="block text-sm font-medium text-stone-700 mb-1">WhatsApp group invite <span class="text-stone-400">(optional)</span></label>
+                    <input type="url" name="whatsapp_invite_url" id="whatsapp_invite_url" value="{{ old('whatsapp_invite_url') }}" placeholder="https://chat.whatsapp.com/…" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <p class="mt-1 text-xs text-stone-400">Shown to confirmed shooters after they no longer need to pay, so they can join for notifications and match books.</p>
+                    @error('whatsapp_invite_url') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="sm:col-span-2">
                     <label for="description" class="block text-sm font-medium text-stone-700 mb-1">Description</label>
                     <textarea name="description" id="description" rows="3" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">{{ old('description') }}</textarea>
                 </div>

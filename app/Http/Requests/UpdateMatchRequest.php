@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MatchEvent;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,6 +27,7 @@ class UpdateMatchRequest extends FormRequest
             'city' => ['nullable', 'string', 'max:255'],
             'match_director' => ['nullable', 'string', 'max:255'],
             'match_director_contact' => ['nullable', 'string', 'max:255'],
+            'whatsapp_invite_url' => MatchEvent::whatsappInviteUrlRules(),
             'description' => ['nullable', 'string'],
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
@@ -48,6 +50,13 @@ class UpdateMatchRequest extends FormRequest
             'also_counts_for_provincial' => ['boolean'],
             'everyone_counts' => ['boolean'],
             'provincial_stage_columns' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'whatsapp_invite_url.regex' => 'The invite must be a WhatsApp group link starting with https://chat.whatsapp.com/',
         ];
     }
 }

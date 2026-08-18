@@ -62,7 +62,9 @@ class PaymentController extends Controller
 
         // Return URL is not authoritative (ITN is), but poll the success page so
         // the UI flips to Paid as soon as the webhook lands.
-        return view('payments.success', compact('payment'));
+        $whatsappInviteUrl = $this->whatsappInviteUrlForPayment($payment);
+
+        return view('payments.success', compact('payment', 'whatsappInviteUrl'));
     }
 
     public function status(Request $request, Payment $payment): \Illuminate\Http\JsonResponse
@@ -95,6 +97,23 @@ class PaymentController extends Controller
      * Returns null rather than aborting: these are gateway landing pages, so a
      * stale or foreign reference should render an empty state, not a 403.
      */
+    private function whatsappInviteUrlForPayment(?Payment $payment): ?string
+    {
+        if (! $payment) {
+            return null;
+        }
+
+        $payment->loadMissing('payable.match');
+
+        $registration = $payment->payable;
+
+        if (! $registration instanceof MatchRegistration) {
+            return null;
+        }
+
+        return $registration->whatsappInviteUrlAfterPayment();
+    }
+
     private function ownedPaymentFromQuery(Request $request): ?Payment
     {
         $mPaymentId = $request->query('m_payment_id');
