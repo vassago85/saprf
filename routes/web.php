@@ -47,6 +47,17 @@ Route::get('/code-of-conduct', [\App\Http\Controllers\LegalController::class, 'c
 Route::get('/conflict-of-interest', [\App\Http\Controllers\LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
 Route::get('/constitution', [\App\Http\Controllers\LegalController::class, 'constitution'])->name('legal.constitution');
 
+// Sport rulebooks — rendered via the same MarkdownDocument pipeline as the
+// legal docs so they share the sticky ToC / clause gutter / print chrome.
+// The authoritative signed PDFs still live under public/publications/ and
+// are linked from each page's header.
+// Nested under /rules/ deliberately — the admin panel already owns /divisions
+// via Route::resource('divisions', DivisionController::class), so the public
+// pages get a /rules/ prefix to avoid the URL collision.
+Route::get('/rules', [\App\Http\Controllers\RulesController::class, 'rulesAndRegulations'])->name('rules.regulations');
+Route::get('/rules/divisions', [\App\Http\Controllers\RulesController::class, 'divisions'])->name('rules.divisions');
+Route::get('/rules/pr22-rimfire', [\App\Http\Controllers\RulesController::class, 'pr22RimfireSeries'])->name('rules.pr22-rimfire');
+
 // Public FAQ. Markdown source at docs/faq.md; controller splits on H2 for accordion rendering.
 Route::get('/faq', [\App\Http\Controllers\FaqController::class, 'index'])->name('faq.index');
 
@@ -70,9 +81,12 @@ Route::get('/selection/{series}-policy/{season?}', [\App\Http\Controllers\Select
 
 // Public Documents landing page — a directory of every SAPRF-published
 // policy, selection process and legal document. Unauth so anyone can find
-// governance material without needing to know the individual URLs.
+// governance material without needing to know the individual URLs. Ships
+// with a cross-document search at /documents/search?q=…
 Route::get('/documents', [\App\Http\Controllers\DocumentsController::class, 'index'])
     ->name('documents.index');
+Route::get('/documents/search', [\App\Http\Controllers\DocumentsController::class, 'search'])
+    ->name('documents.search');
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])

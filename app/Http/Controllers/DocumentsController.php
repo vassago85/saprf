@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DocumentSearch;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
@@ -15,22 +17,57 @@ use Illuminate\View\View;
  * policies, terms, privacy, …) — this controller does not render document
  * content itself, only the directory.
  *
- * To publish a new document:
- *   1. Add its route + view in the appropriate controller (Legal, Selection…),
- *      OR drop a static file (typically a PDF) into public/publications/ and
- *      link it via asset('publications/<file>'). Note that the folder is NOT
- *      called "documents/" — that path collides with this controller's own
- *      route and would 404 the index page.
- *   2. Add an entry to $this->catalog() below. Static-file entries should set
- *      'new_tab' => true so the PDF opens in a new tab rather than replacing
- *      the current page.
+ * To publish a new document, see docs/publishing-documents.md for the full
+ * step-by-step guide. The short version:
+ *
+ *   1. Drop the source markdown under docs/{category}/{slug}.md.
+ *   2. Add a route + controller method that renders it via the shared
+ *      App\Support\MarkdownDocument pipeline (see LegalController or
+ *      RulesController for reference).
+ *   3. Add a Blade view that wraps the rendered HTML in <x-legal-document>
+ *      so the page gets the sticky ToC, clause gutter, print button and
+ *      deep-link chrome.
+ *   4. Add an entry to $this->catalog() below so the /documents index
+ *      surfaces it.
+ *   5. Add an entry to App\Support\DocumentSearch::CORPUS so the new
+ *      document participates in the cross-document search at
+ *      /documents/search?q=… — omit this step and members won't find
+ *      the document by keyword.
+ *   6. (Optional) If SAPRF has a signed PDF original, put it under
+ *      public/publications/<file>.pdf and expose it via the meta slot on
+ *      the rendered page — do NOT link the PDF directly from the index,
+ *      the HTML render is the canonical entry point.
  */
 class DocumentsController extends Controller
 {
-    public function index(): View
+    public function index(DocumentSearch $search): View
     {
         return view('documents.index', [
             'categories' => $this->catalog(),
+            'corpus_size' => $search->corpusSize(),
+        ]);
+    }
+
+    /**
+     * Cross-document search. Loads every corpus markdown, scores each
+     * H2 section against the query, and renders the top hits with
+     * deep-link anchors into the rendered HTML pages. Runs entirely on
+     * disk — no external search infra required — because the whole
+     * corpus is a couple hundred KB of markdown.
+     *
+     * `q` is validated as a plain string (max 200 chars) and always
+     * echoed back through Blade's `{{ }}` auto-escaping, so this route
+     * is safe against reflected XSS.
+     */
+    public function search(Request $request, DocumentSearch $search): View
+    {
+        $query = mb_substr(trim((string) $request->query('q', '')), 0, 200);
+        $results = $query === '' ? [] : $search->search($query);
+
+        return view('documents.search', [
+            'query' => $query,
+            'results' => $results,
+            'corpus_size' => $search->corpusSize(),
         ]);
     }
 
@@ -68,34 +105,31 @@ class DocumentsController extends Controller
             ],
             [
                 'heading' => 'Rules & Regulations',
-                'blurb' => 'The rulebooks that govern SAPRF-sanctioned Precision Rifle competition — course of fire, equipment, divisions and safety.',
+                'blurb' => 'The rulebooks that govern SAPRF-sanctioned Precision Rifle competition — course of fire, equipment, divisions and safety. Each page renders with a sticky ToC, deep-link anchors and a print/save-as-PDF option; the original signed PDF is linked from every rulebook header.',
                 'items' => [
                     [
                         'title' => 'SAPRF Rules & Regulations',
                         'subtitle' => 'v2.1 · February 2024',
                         'description' => 'The full rulebook for SAPRF-sanctioned Precision Rifle matches. Covers course design, range construction, competitor equipment, match structure, stage officials, the course of fire, scoring, penalties, disqualifications and arbitration.',
-                        'url' => asset('publications/saprf-rules-and-regulations.pdf'),
-                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
-                        'last_updated' => $this->publicFileMtime('publications/saprf-rules-and-regulations.pdf'),
-                        'new_tab' => true,
+                        'url' => route('rules.regulations'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/rules/rules-and-regulations.md'),
                     ],
                     [
                         'title' => 'SAPRF Divisions',
                         'subtitle' => 'Open · Limited · Factory · Classic',
                         'description' => 'The equipment and eligibility rules for each SAPRF division and subdivision, including Ladies, Senior, Junior and Mil/LEO Open, together with Limited (.308), Factory and Classic Division definitions.',
-                        'url' => asset('publications/saprf-divisions.pdf'),
-                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
-                        'last_updated' => $this->publicFileMtime('publications/saprf-divisions.pdf'),
-                        'new_tab' => true,
+                        'url' => route('rules.divisions'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/rules/divisions.md'),
                     ],
                     [
                         'title' => 'PR22 Rimfire Series Rules',
                         'subtitle' => 'v1 · December 2025',
                         'description' => 'The rimfire-specific overlay to the main SAPRF rulebook: divisions eligible for PR22, ammunition restrictions, National Provincial + National 2-day + SA Championship series structure, log-score weighting and national colours criteria.',
-                        'url' => asset('publications/pr22-rimfire-series-rules.pdf'),
-                        'badge' => ['label' => 'PDF', 'tone' => 'sapphire'],
-                        'last_updated' => $this->publicFileMtime('publications/pr22-rimfire-series-rules.pdf'),
-                        'new_tab' => true,
+                        'url' => route('rules.pr22-rimfire'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/rules/pr22-rimfire-series.md'),
                     ],
                 ],
             ],
@@ -173,12 +207,6 @@ class DocumentsController extends Controller
     private function docMtime(string $relPath): ?Carbon
     {
         $abs = base_path($relPath);
-        return is_file($abs) ? Carbon::createFromTimestamp(filemtime($abs)) : null;
-    }
-
-    private function publicFileMtime(string $relPath): ?Carbon
-    {
-        $abs = public_path($relPath);
         return is_file($abs) ? Carbon::createFromTimestamp(filemtime($abs)) : null;
     }
 }

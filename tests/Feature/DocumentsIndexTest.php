@@ -30,6 +30,9 @@ test('documents index lists the legal and governance documents', function () {
 });
 
 test('every document link on the index resolves to a working page', function () {
+    $this->get(route('rules.regulations'))->assertOk();
+    $this->get(route('rules.divisions'))->assertOk();
+    $this->get(route('rules.pr22-rimfire'))->assertOk();
     $this->get(route('selection.policy.public', ['series' => 'pr22']))->assertOk();
     $this->get(route('selection.policy.public', ['series' => 'prs', 'season' => '2026']))->assertOk();
     $this->get(route('legal.constitution'))->assertOk();
@@ -39,7 +42,7 @@ test('every document link on the index resolves to a working page', function () 
     $this->get(route('legal.conflict-of-interest'))->assertOk();
 });
 
-test('documents index lists the rules and regulations PDFs', function () {
+test('documents index lists the rules and regulations rulebooks', function () {
     $response = $this->get(route('documents.index'))->assertOk();
 
     $response->assertSee('Rules &amp; Regulations', false)
@@ -47,21 +50,23 @@ test('documents index lists the rules and regulations PDFs', function () {
         ->assertSee('SAPRF Divisions')
         ->assertSee('PR22 Rimfire Series Rules');
 
-    // Every PDF link is served as a static file under /publications and
-    // opens in a new tab (target="_blank" + rel="noopener"). We can't host
-    // them under /documents because that path is already this controller's
-    // own route — a real directory there would 404 the index page.
+    // The Rules & Regulations cards link at the rendered HTML pages (not
+    // the PDFs directly) so readers get the sticky-ToC, deep-link chrome.
+    // The authoritative PDFs are exposed via the "Download original PDF"
+    // pill inside those pages, not on the index.
+    $response->assertSee('href="'.route('rules.regulations').'"', false)
+        ->assertSee('href="'.route('rules.divisions').'"', false)
+        ->assertSee('href="'.route('rules.pr22-rimfire').'"', false);
+
+    // The signed PDF originals still exist on disk (they're linked from
+    // the rulebook page headers).
     foreach ([
         'publications/saprf-rules-and-regulations.pdf',
         'publications/saprf-divisions.pdf',
         'publications/pr22-rimfire-series-rules.pdf',
     ] as $relPath) {
-        $response->assertSee('href="'.asset($relPath).'"', false);
         expect(is_file(public_path($relPath)))->toBeTrue();
     }
-
-    $response->assertSee('target="_blank"', false)
-        ->assertSee('Open PDF');
 });
 
 test('documents link appears in the public nav and footer', function () {

@@ -1,6 +1,6 @@
 <x-layouts.public title="Documents — SAPRF" current="documents">
     <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
-        <div class="mb-10">
+        <div class="mb-8">
             <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">
                 SAPRF Publications
             </p>
@@ -11,6 +11,21 @@
                 The federation's published policies, selection processes and governing terms.
                 Everything here is public — no login required. Documents are reproduced verbatim
                 from their authoritative source files.
+            </p>
+        </div>
+
+        {{-- Cross-document search: jumps straight to the matching section
+             in the matching document. Deliberately above the category list
+             so it's the first thing readers reach for; the category cards
+             below are for browsing when you don't know what you're after. --}}
+        <div class="mb-10">
+            @include('documents._search-form')
+            <p class="mt-2 pl-1 text-xs text-stone-500">
+                Try:
+                @foreach(['pr22 provincial requirements', 'prs provincial requirements', 'ammunition', 'safety area'] as $eg)
+                    <a href="{{ route('documents.search', ['q' => $eg]) }}"
+                       class="ml-1 underline decoration-stone-300 hover:decoration-emerald-500 hover:text-emerald-700">{{ $eg }}</a>@if(! $loop->last) ·@endif
+                @endforeach
             </p>
         </div>
 
