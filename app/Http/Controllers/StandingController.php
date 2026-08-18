@@ -102,6 +102,31 @@ class StandingController extends Controller
             $level = 'national';
         }
 
+        // Sort resolution. Sort key is whitelisted; anything unknown is
+        // ignored so we always fall through to the default below.
+        $sortableColumns = ['points', 'rank', 'shooter', 'division', 'province'];
+        $requestedSort = $request->input('sort');
+        $sort = in_array($requestedSort, $sortableColumns, true) ? $requestedSort : null;
+
+        $requestedDirection = strtolower((string) $request->input('direction', ''));
+        $direction = in_array($requestedDirection, ['asc', 'desc'], true) ? $requestedDirection : null;
+
+        // Default sort: rank asc only when the visible slice is a *single
+        // ranking scope* (both division AND province filters applied on the
+        // provincial view, or division filter on national), because rank is
+        // computed within (division, province). Otherwise sort by points
+        // desc — the row-level "rank 1" repeats once per scope and looks
+        // like a bug in the multi-scope views (see screenshot in issue).
+        if ($sort === null) {
+            $isSingleScope = $level === 'provincial'
+                ? ($divisionId !== null && $provinceFilter !== null)
+                : ($divisionId !== null);
+            $sort = $isSingleScope ? 'rank' : 'points';
+        }
+        if ($direction === null) {
+            $direction = $sort === 'rank' ? 'asc' : 'desc';
+        }
+
         $seasons = Standing::distinct()->pluck('season')->sort()->reverse()->values();
         if ($seasons->isEmpty()) {
             $seasons = collect([(string) now()->year]);
@@ -110,36 +135,82 @@ class StandingController extends Controller
         $provinces = Province::orderBy('name')->get();
         $divisions = Division::active()->ordered()->get();
 
+        // Qualify all filter columns with the `standings.` prefix — some sort
+        // options join `users` (which also has `province_id` / `division_id`),
+        // so bare column names become ambiguous under SQLite/MySQL.
         $base = Standing::with(['user.province', 'user.division', 'province', 'division'])
-            ->where('season', $season)
-            ->where('series', $series)
-            ->orderBy('rank');
+            ->where('standings.season', $season)
+            ->where('standings.series', $series);
 
         if ($divisionId) {
-            $base->where('division_id', $divisionId);
+            $base->where('standings.division_id', $divisionId);
         } else {
-            $base->whereNull('division_id');
+            $base->whereNull('standings.division_id');
         }
 
         if ($level === 'provincial') {
-            $standings = (clone $base)->whereNotNull('province_id');
+            $standings = (clone $base)->whereNotNull('standings.province_id');
         } else {
-            $standings = (clone $base)->whereNull('province_id');
+            $standings = (clone $base)->whereNull('standings.province_id');
         }
 
         if ($provinceFilter) {
             if ($level === 'provincial') {
-                $standings->where('province_id', $provinceFilter);
+                $standings->where('standings.province_id', $provinceFilter);
             } else {
-                $standings->whereHas('user', fn ($q) => $q->where('province_id', $provinceFilter));
+                $standings->whereHas('user', fn ($q) => $q->where('users.province_id', $provinceFilter));
             }
         }
 
         // Ranked-shooter count must match the filters currently shown in the
         // table (level, division, province) — otherwise the header can read
         // "81 Ranked Shooters" while the table lists 64, which the user
-        // (rightly) reads as a bug.
+        // (rightly) reads as a bug. Snapshot the count BEFORE adding any
+        // sort-related joins so we don't accidentally multiply rows.
         $totalRanked = (clone $standings)->distinct('user_id')->count('user_id');
+
+        // Apply sort. Joins are scoped to the display query only; the count
+        // above already ran on the pristine query. `select('standings.*')`
+        // keeps Eloquent hydration on the right table when we join others.
+        switch ($sort) {
+            case 'shooter':
+                $standings
+                    ->leftJoin('users', 'standings.user_id', '=', 'users.id')
+                    ->select('standings.*')
+                    ->orderBy('users.name', $direction);
+                break;
+            case 'division':
+                $standings
+                    ->leftJoin('divisions', 'standings.division_id', '=', 'divisions.id')
+                    ->select('standings.*')
+                    ->orderBy('divisions.name', $direction);
+                break;
+            case 'province':
+                if ($level === 'provincial') {
+                    $standings
+                        ->leftJoin('provinces', 'standings.province_id', '=', 'provinces.id')
+                        ->select('standings.*')
+                        ->orderBy('provinces.name', $direction);
+                } else {
+                    $standings
+                        ->leftJoin('users', 'standings.user_id', '=', 'users.id')
+                        ->leftJoin('provinces', 'users.province_id', '=', 'provinces.id')
+                        ->select('standings.*')
+                        ->orderBy('provinces.name', $direction);
+                }
+                break;
+            case 'rank':
+                $standings->orderBy('standings.rank', $direction);
+                break;
+            case 'points':
+            default:
+                $standings->orderBy('standings.points', $direction);
+                break;
+        }
+
+        // Stable tie-breaker so equal-value rows have a deterministic order.
+        $standings->orderBy('standings.id');
+
         $totalMatches = MatchEvent::where('season', $season)->where('match_type', $series)->published()->count();
         $completedMatches = MatchEvent::where('season', $season)->where('match_type', $series)->where('status', 'completed')->count();
         $remainingMatches = MatchEvent::where('season', $season)->where('match_type', $series)
@@ -160,6 +231,8 @@ class StandingController extends Controller
             'totalMatches' => $totalMatches,
             'completedMatches' => $completedMatches,
             'remainingMatches' => $remainingMatches,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

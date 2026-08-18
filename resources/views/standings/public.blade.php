@@ -159,6 +159,9 @@
                 'showDivision' => true,
                 'series' => $series,
                 'season' => $season,
+                'sort' => $sort,
+                'direction' => $direction,
+                'filterParams' => $filterParams,
             ])
         </div>
     </div>

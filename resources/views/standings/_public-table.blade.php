@@ -1,6 +1,50 @@
 @php
     $showProvince = $showProvince ?? true;
     $showDivision = $showDivision ?? false;
+    $sort = $sort ?? null;
+    $direction = $direction ?? 'desc';
+    $filterParams = $filterParams ?? [];
+
+    // Default direction for each column when a user first clicks its header.
+    // Points/rank are numeric; name-based columns read better ascending.
+    $columnDefaults = [
+        'rank' => 'asc',
+        'shooter' => 'asc',
+        'division' => 'asc',
+        'province' => 'asc',
+        'points' => 'desc',
+    ];
+
+    $sortLink = function (string $column) use ($filterParams, $sort, $direction, $columnDefaults) {
+        $newDirection = $sort === $column
+            ? ($direction === 'asc' ? 'desc' : 'asc')
+            : ($columnDefaults[$column] ?? 'asc');
+
+        return url('/standings') . '?' . http_build_query(array_merge(
+            $filterParams,
+            ['sort' => $column, 'direction' => $newDirection]
+        ));
+    };
+
+    $sortArrow = function (string $column) use ($sort, $direction) {
+        if ($sort !== $column) {
+            return '<span class="ml-1 text-stone-300" aria-hidden="true">↕</span>';
+        }
+        return $direction === 'asc'
+            ? '<span class="ml-1 text-emerald-700" aria-hidden="true">↑</span>'
+            : '<span class="ml-1 text-emerald-700" aria-hidden="true">↓</span>';
+    };
+
+    $sortAriaLabel = function (string $column, string $columnLabel) use ($sort, $direction, $columnDefaults) {
+        if ($sort !== $column) {
+            $next = $columnDefaults[$column] ?? 'asc';
+            return "Sort by {$columnLabel} " . ($next === 'asc' ? 'ascending' : 'descending');
+        }
+        $next = $direction === 'asc' ? 'descending' : 'ascending';
+        return "Currently sorted by {$columnLabel} " . ($direction === 'asc' ? 'ascending' : 'descending') . " — click to switch to {$next}";
+    };
+
+    $headerBase = 'inline-flex items-center gap-0 text-[11px] font-semibold uppercase tracking-wider transition hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded';
 @endphp
 
 @if($standings->isEmpty())
@@ -17,16 +61,46 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b-2 border-stone-200 bg-stone-50/50">
-                        <th class="px-4 sm:px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-16">Rank</th>
-                        <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
+                        <th class="px-4 sm:px-5 py-3.5 text-center w-16">
+                            <a href="{{ $sortLink('rank') }}"
+                               aria-label="{{ $sortAriaLabel('rank', 'rank') }}"
+                               class="{{ $headerBase }} {{ $sort === 'rank' ? 'text-stone-900' : 'text-stone-400' }}">
+                                Rank {!! $sortArrow('rank') !!}
+                            </a>
+                        </th>
+                        <th class="px-4 sm:px-5 py-3.5 text-left">
+                            <a href="{{ $sortLink('shooter') }}"
+                               aria-label="{{ $sortAriaLabel('shooter', 'shooter name') }}"
+                               class="{{ $headerBase }} {{ $sort === 'shooter' ? 'text-stone-900' : 'text-stone-400' }}">
+                                Shooter {!! $sortArrow('shooter') !!}
+                            </a>
+                        </th>
                         @if($showDivision)
-                            <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Division</th>
+                            <th class="px-4 sm:px-5 py-3.5 text-left hidden sm:table-cell">
+                                <a href="{{ $sortLink('division') }}"
+                                   aria-label="{{ $sortAriaLabel('division', 'division') }}"
+                                   class="{{ $headerBase }} {{ $sort === 'division' ? 'text-stone-900' : 'text-stone-400' }}">
+                                    Division {!! $sortArrow('division') !!}
+                                </a>
+                            </th>
                         @endif
                         @if($showProvince)
-                            <th class="px-4 sm:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400 hidden sm:table-cell">Province</th>
+                            <th class="px-4 sm:px-5 py-3.5 text-left hidden sm:table-cell">
+                                <a href="{{ $sortLink('province') }}"
+                                   aria-label="{{ $sortAriaLabel('province', 'province') }}"
+                                   class="{{ $headerBase }} {{ $sort === 'province' ? 'text-stone-900' : 'text-stone-400' }}">
+                                    Province {!! $sortArrow('province') !!}
+                                </a>
+                            </th>
                         @endif
-                        <th class="px-4 sm:px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Points</th>
-                        <th class="px-4 sm:px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-16 hidden md:table-cell"></th>
+                        <th class="px-4 sm:px-5 py-3.5 text-right">
+                            <a href="{{ $sortLink('points') }}"
+                               aria-label="{{ $sortAriaLabel('points', 'points') }}"
+                               class="{{ $headerBase }} {{ $sort === 'points' ? 'text-stone-900' : 'text-stone-400' }}">
+                                Points {!! $sortArrow('points') !!}
+                            </a>
+                        </th>
+                        <th class="px-4 sm:px-5 py-3.5 text-center w-16 hidden md:table-cell"><span class="sr-only">Details</span></th>
                     </tr>
                 </thead>
                 <tbody>
