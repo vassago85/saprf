@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\AuditLog;
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Score;
 use App\Models\User;
 use App\Services\StandingsCalculationService;
@@ -44,7 +45,11 @@ use Illuminate\Support\Facades\DB;
  *     case-insensitive equality first, then ASCII-folded equality so the
  *     UTF-8-mangled "LinÃ©" matches the real "Liné").
  *   - When an existing Score row is missing for a matched user, the row is
- *     only created with --create-missing (and needs --division for the slug).
+ *     only created with --create-missing. Division for the new row is taken
+ *     from the shooter's MatchRegistration for this match (confirmed or
+ *     waitlisted, non-cancelled). If the shooter has no registration,
+ *     --division=<slug> supplies a fallback; if neither is available the
+ *     shooter is warned-and-skipped instead of guessed at.
  *   - After a successful write, rankings + season standings are recalculated
  *     unless --skip-standings is passed.
  */
@@ -54,8 +59,8 @@ class ApplyStagePivotScoresCommand extends Command
         {match : ID of the target MatchEvent}
         {csv : Path to the pivot CSV (absolute, or relative to base_path)}
         {--dry-run : Report what would change without writing}
-        {--create-missing : Also create Score rows for shooters with no existing row for this match}
-        {--division= : Division slug to use when creating missing rows (required with --create-missing)}
+        {--create-missing : Also create Score rows for shooters with no existing row for this match. Division is pulled from the shooter\'s MatchRegistration; --division supplies a fallback for shooters with no registration.}
+        {--division= : Fallback Division slug when a missing shooter has no MatchRegistration for the match (optional; used only if --create-missing is set)}
         {--skip-standings : Skip StandingsCalculationService::recalculateForMatch after writing}';
 
     protected $description = 'Update Score rows on an existing match from a per-stage pivot CSV';
@@ -94,14 +99,13 @@ class ApplyStagePivotScoresCommand extends Command
             return self::FAILURE;
         }
 
-        $creationDivision = null;
-        if ($createMissing) {
-            if ($divisionSlug === null || $divisionSlug === '') {
-                $this->error('--create-missing needs --division=<slug> so new Score rows have a division.');
-                return self::FAILURE;
-            }
-            $creationDivision = Division::whereRaw('LOWER(slug) = ?', [$divisionSlug])->first();
-            if (! $creationDivision) {
+        // --division is now a *fallback* for missing shooters who have no
+        // MatchRegistration on this match. Divisions for anyone who did
+        // register come from the registration itself, per shooter.
+        $fallbackDivision = null;
+        if ($divisionSlug !== null && $divisionSlug !== '') {
+            $fallbackDivision = Division::whereRaw('LOWER(slug) = ?', [$divisionSlug])->first();
+            if (! $fallbackDivision) {
                 $this->error("Division slug '{$divisionSlug}' does not exist.");
                 return self::FAILURE;
             }
@@ -120,11 +124,16 @@ class ApplyStagePivotScoresCommand extends Command
             $this->warn('Ignored columns (not a Day/Stage header): '.implode(', ', $unknownCols));
         }
         $this->line('Mode:         '.($dryRun ? 'DRY RUN (no writes)' : 'WRITE'));
-        $this->line('Missing rows: '.($createMissing ? "create with division='{$divisionSlug}'" : 'warn and skip'));
+        if ($createMissing) {
+            $fallbackLabel = $fallbackDivision !== null ? "fallback='{$fallbackDivision->slug}'" : 'no fallback';
+            $this->line("Missing rows: create using registration division per shooter ({$fallbackLabel})");
+        } else {
+            $this->line('Missing rows: warn and skip');
+        }
         $this->line('Rows read:    '.count($rows));
         $this->newLine();
 
-        $plan = $this->buildPlan($rows, $headers, $day1Cols, $day2Cols, $totalCol, $match);
+        $plan = $this->buildPlan($rows, $headers, $day1Cols, $day2Cols, $totalCol, $match, $fallbackDivision);
 
         $this->renderPlan($plan);
 
@@ -135,13 +144,21 @@ class ApplyStagePivotScoresCommand extends Command
 
         if ($dryRun) {
             $this->newLine();
-            $this->info('[dry-run] Would update '.count($plan['updates']).' score(s) and '
-                .($createMissing ? 'create '.count($plan['missing']).' new score(s).' : 'skip '.count($plan['missing']).' shooter(s) without an existing Score row.'));
+            if ($createMissing) {
+                $summary = '[dry-run] Would update '.count($plan['updates']).' score(s) and create '.count($plan['missing']).' new score(s).';
+                if ($plan['unresolved'] !== []) {
+                    $summary .= ' '.count($plan['unresolved']).' shooter(s) have no MatchRegistration and no --division fallback — those would be skipped.';
+                }
+                $this->info($summary);
+            } else {
+                $this->info('[dry-run] Would update '.count($plan['updates']).' score(s) and skip '
+                    .(count($plan['missing']) + count($plan['unresolved'])).' shooter(s) without an existing Score row.');
+            }
             return self::SUCCESS;
         }
 
-        $applied = DB::transaction(function () use ($plan, $match, $createMissing, $creationDivision) {
-            $applied = ['updated' => 0, 'created' => 0, 'skipped_no_change' => 0];
+        $applied = DB::transaction(function () use ($plan, $match, $createMissing) {
+            $applied = ['updated' => 0, 'created' => 0, 'skipped_no_change' => 0, 'skipped_no_division' => 0];
 
             foreach ($plan['updates'] as $u) {
                 $score = Score::find($u['score_id']);
@@ -167,13 +184,18 @@ class ApplyStagePivotScoresCommand extends Command
                 $applied['updated']++;
             }
 
-            if ($createMissing && $creationDivision) {
+            if ($createMissing) {
                 foreach ($plan['missing'] as $m) {
+                    // Per-row division: from the shooter's MatchRegistration
+                    // if they had one, otherwise the --division fallback.
+                    // If neither, we already flagged this row unresolvable
+                    // during buildPlan() and it lives in $plan['unresolved'],
+                    // not $plan['missing'].
                     Score::create([
                         'match_id' => $match->id,
                         'user_id' => $m['user_id'],
                         'shooter_name' => $m['name'],
-                        'division_id' => $creationDivision->id,
+                        'division_id' => $m['division_id'],
                         'day1_raw_score' => $m['day1'],
                         'day2_raw_score' => $m['day2'],
                         'status' => 'valid',
@@ -187,10 +209,12 @@ class ApplyStagePivotScoresCommand extends Command
                             'day1_stages' => $m['day1_stages'],
                             'day2_stages' => $m['day2_stages'],
                             'csv_grand_total' => $m['csv_total'],
+                            'division_source' => $m['division_source'],
                         ],
                     ]);
                     $applied['created']++;
                 }
+                $applied['skipped_no_division'] = count($plan['unresolved']);
             }
 
             AuditLog::create([
@@ -205,8 +229,10 @@ class ApplyStagePivotScoresCommand extends Command
                     'updated' => $applied['updated'],
                     'created' => $applied['created'],
                     'skipped_no_change' => $applied['skipped_no_change'],
+                    'skipped_no_division' => $applied['skipped_no_division'],
                     'unmatched_names' => collect($plan['unmatched'])->pluck('name')->all(),
                     'missing_rows' => $createMissing ? [] : collect($plan['missing'])->pluck('name')->all(),
+                    'unresolved_missing' => collect($plan['unresolved'])->pluck('name')->all(),
                 ],
                 'reason' => "Stage-pivot score correction on match #{$match->id}",
             ]);
@@ -215,7 +241,7 @@ class ApplyStagePivotScoresCommand extends Command
         });
 
         $this->newLine();
-        $this->info("Updated: {$applied['updated']}   Created: {$applied['created']}   No-change: {$applied['skipped_no_change']}");
+        $this->info("Updated: {$applied['updated']}   Created: {$applied['created']}   No-change: {$applied['skipped_no_change']}   Skipped (no division): {$applied['skipped_no_division']}");
 
         if (! $skipStandings) {
             $this->info('Recalculating rankings + season standings...');
@@ -378,10 +404,11 @@ class ApplyStagePivotScoresCommand extends Command
      *   errors: list<string>
      * }
      */
-    private function buildPlan(array $rows, array $headers, array $day1Cols, array $day2Cols, ?string $totalCol, MatchEvent $match): array
+    private function buildPlan(array $rows, array $headers, array $day1Cols, array $day2Cols, ?string $totalCol, MatchEvent $match, ?Division $fallbackDivision = null): array
     {
         $updates = [];
         $missing = [];
+        $unresolved = [];
         $unmatched = [];
         $warnings = [];
         $errors = [];
@@ -391,7 +418,7 @@ class ApplyStagePivotScoresCommand extends Command
         if ($nameHeader === null) {
             $errors[] = 'Could not find a shooter name column (looked for: Row Labels, Name, Shooter, Competitor).';
 
-            return compact('updates', 'missing', 'unmatched', 'warnings', 'errors');
+            return compact('updates', 'missing', 'unresolved', 'unmatched', 'warnings', 'errors');
         }
 
         foreach ($rows as $rowIndex => $row) {
@@ -440,7 +467,23 @@ class ApplyStagePivotScoresCommand extends Command
             $score = Score::where('match_id', $match->id)->where('user_id', $user->id)->first();
 
             if (! $score) {
-                $missing[] = [
+                // Prefer division from the shooter's MatchRegistration for
+                // this match. Skip cancelled registrations, prefer the most
+                // recent one if somehow there's more than one. Falls back to
+                // --division only when the shooter never registered.
+                $registration = MatchRegistration::where('match_id', $match->id)
+                    ->where('user_id', $user->id)
+                    ->where('registration_status', '!=', 'cancelled')
+                    ->orderByDesc('id')
+                    ->first();
+
+                $regDivisionId = $registration?->division_id;
+                $divisionId = $regDivisionId ?? $fallbackDivision?->id;
+                $divisionSource = $regDivisionId !== null
+                    ? 'registration'
+                    : ($fallbackDivision !== null ? 'fallback' : 'none');
+
+                $entry = [
                     'name' => $name,
                     'user_id' => $user->id,
                     'day1' => $day1Sum,
@@ -448,7 +491,16 @@ class ApplyStagePivotScoresCommand extends Command
                     'day1_stages' => $day1Stages,
                     'day2_stages' => $day2Stages,
                     'csv_total' => $csvTotal,
+                    'division_id' => $divisionId,
+                    'division_source' => $divisionSource,
+                    'registration_id' => $registration?->id,
                 ];
+
+                if ($divisionId === null) {
+                    $unresolved[] = $entry;
+                } else {
+                    $missing[] = $entry;
+                }
 
                 continue;
             }
@@ -468,7 +520,7 @@ class ApplyStagePivotScoresCommand extends Command
             ];
         }
 
-        return compact('updates', 'missing', 'unmatched', 'warnings', 'errors');
+        return compact('updates', 'missing', 'unresolved', 'unmatched', 'warnings', 'errors');
     }
 
     private function detectNameHeader(array $headers): ?string
@@ -562,6 +614,26 @@ class ApplyStagePivotScoresCommand extends Command
     /**
      * @param  array{updates: list<array<string,mixed>>, missing: list<array<string,mixed>>, unmatched: list<array<string,mixed>>, warnings: list<string>, errors: list<string>}  $plan
      */
+    /**
+     * Cache-friendly slug lookup for the dry-run render (each missing shooter
+     * carries a division_id but we want to print the slug so operators can
+     * eyeball whether "junior/ladies/open" was picked up correctly).
+     *
+     * @var array<int,string>|null
+     */
+    private ?array $divisionSlugCache = null;
+
+    private function divisionSlugForId(?int $id): string
+    {
+        if ($id === null) {
+            return '(none)';
+        }
+        if ($this->divisionSlugCache === null) {
+            $this->divisionSlugCache = Division::query()->pluck('slug', 'id')->toArray();
+        }
+        return $this->divisionSlugCache[$id] ?? "id:{$id}";
+    }
+
     private function renderPlan(array $plan): void
     {
         if ($plan['errors'] !== []) {
@@ -591,7 +663,17 @@ class ApplyStagePivotScoresCommand extends Command
         if ($plan['missing'] !== []) {
             $this->warn('Users with NO existing Score row on this match (use --create-missing to add):');
             foreach ($plan['missing'] as $m) {
-                $this->line("  + {$m['name']}: day1={$m['day1']}  day2={$m['day2']}  total=".($m['day1'] + $m['day2']));
+                $divisionSlug = $this->divisionSlugForId($m['division_id']);
+                $sourceTag = $m['division_source'] === 'registration' ? 'from registration' : 'from --division fallback';
+                $this->line("  + {$m['name']}: day1={$m['day1']}  day2={$m['day2']}  total=".($m['day1'] + $m['day2'])."  → division={$divisionSlug} ({$sourceTag})");
+            }
+            $this->newLine();
+        }
+
+        if ($plan['unresolved'] !== []) {
+            $this->error('Users with NO existing Score row AND no MatchRegistration (skipped — pass --division=<slug> as a fallback if you want to include them):');
+            foreach ($plan['unresolved'] as $u) {
+                $this->line("  ? {$u['name']}: day1={$u['day1']}  day2={$u['day2']}  total=".($u['day1'] + $u['day2']));
             }
             $this->newLine();
         }

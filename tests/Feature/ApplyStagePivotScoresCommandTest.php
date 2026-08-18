@@ -13,6 +13,7 @@
 use App\Models\AuditLog;
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\User;
@@ -22,6 +23,8 @@ beforeEach(function () {
     seedRoles();
     $this->province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
     $this->openDivision = Division::firstOrCreate(['slug' => 'open'], ['name' => 'Open', 'display_order' => 1]);
+    $this->juniorDivision = Division::firstOrCreate(['slug' => 'junior'], ['name' => 'Junior', 'display_order' => 6]);
+    $this->ladiesDivision = Division::firstOrCreate(['slug' => 'ladies'], ['name' => 'Ladies', 'display_order' => 5]);
 
     $this->match = MatchEvent::create([
         'name' => 'Clash Of The Legends',
@@ -56,6 +59,24 @@ function makeShooterWithScore(MatchEvent $match, Division $division, string $nam
     ]);
 
     return [$user, $score];
+}
+
+/**
+ * Create a MatchRegistration row for the given user in the given division.
+ * Fills the non-null columns the schema demands (shooter_name, fee category,
+ * fee amount) so tests don't have to repeat the boilerplate.
+ */
+function seedRegistration(MatchEvent $match, User $user, Division $division, string $status = 'confirmed'): MatchRegistration
+{
+    return MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => $user->id,
+        'shooter_name' => $user->name ?? 'Test Shooter',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'division_id' => $division->id,
+        'registration_status' => $status,
+    ]);
 }
 
 function writePivotCsv(string $path, array $rows, int $day1Stages = 3, int $day2Stages = 1): void
@@ -185,6 +206,99 @@ it('skips users with no existing score unless --create-missing is set', function
         ->and((float) $created->day1_raw_score)->toBe(15.0)
         ->and((float) $created->day2_raw_score)->toBe(5.0)
         ->and($created->division_id)->toBe($this->openDivision->id);
+});
+
+it('uses the shooter\'s MatchRegistration division when creating a missing Score row', function () {
+    // The shooter has a real registration for this match in Junior — no
+    // existing Score row yet, and the operator passes NO --division. The
+    // new row must land in the shooter's registered division, not fall
+    // back or fail.
+    $junior = User::factory()->create(['name' => 'Erich Van der Merwe']);
+    seedRegistration($this->match, $junior, $this->juniorDivision);
+
+    $path = tempnam(sys_get_temp_dir(), 'pivot').'.csv';
+    writePivotCsv($path, [
+        ['Erich Van der Merwe', 5, 5, 5, 5, 20],
+    ]);
+
+    $this->artisan('scores:apply-stage-pivot', [
+        'match' => $this->match->id,
+        'csv' => $path,
+        '--create-missing' => true,
+        '--skip-standings' => true,
+    ])->assertSuccessful();
+
+    $created = Score::where('user_id', $junior->id)->first();
+    expect($created)->not->toBeNull()
+        ->and($created->division_id)->toBe($this->juniorDivision->id)
+        ->and($created->raw_meta['division_source'] ?? null)->toBe('registration');
+});
+
+it('falls back to --division when the missing shooter has no MatchRegistration', function () {
+    $userNoReg = User::factory()->create(['name' => 'Walk In Wilma']);
+
+    $path = tempnam(sys_get_temp_dir(), 'pivot').'.csv';
+    writePivotCsv($path, [
+        ['Walk In Wilma', 5, 5, 5, 5, 20],
+    ]);
+
+    $this->artisan('scores:apply-stage-pivot', [
+        'match' => $this->match->id,
+        'csv' => $path,
+        '--create-missing' => true,
+        '--division' => 'ladies',
+        '--skip-standings' => true,
+    ])->assertSuccessful();
+
+    $created = Score::where('user_id', $userNoReg->id)->first();
+    expect($created)->not->toBeNull()
+        ->and($created->division_id)->toBe($this->ladiesDivision->id)
+        ->and($created->raw_meta['division_source'] ?? null)->toBe('fallback');
+});
+
+it('skips a missing shooter with no registration and no --division fallback', function () {
+    $userNoReg = User::factory()->create(['name' => 'Ghost Shooter']);
+
+    $path = tempnam(sys_get_temp_dir(), 'pivot').'.csv';
+    writePivotCsv($path, [
+        ['Ghost Shooter', 5, 5, 5, 5, 20],
+    ]);
+
+    $this->artisan('scores:apply-stage-pivot', [
+        'match' => $this->match->id,
+        'csv' => $path,
+        '--create-missing' => true,
+        '--skip-standings' => true,
+    ])
+        ->expectsOutputToContain('Ghost Shooter')
+        ->assertSuccessful();
+
+    expect(Score::where('user_id', $userNoReg->id)->exists())->toBeFalse();
+});
+
+it('ignores a cancelled MatchRegistration and uses the fallback instead', function () {
+    // If the shooter cancelled their entry we don't want to resurrect that
+    // division — treat them like an unregistered walk-in.
+    $user = User::factory()->create(['name' => 'Cancelled Cathy']);
+    seedRegistration($this->match, $user, $this->juniorDivision, status: 'cancelled');
+
+    $path = tempnam(sys_get_temp_dir(), 'pivot').'.csv';
+    writePivotCsv($path, [
+        ['Cancelled Cathy', 5, 5, 5, 5, 20],
+    ]);
+
+    $this->artisan('scores:apply-stage-pivot', [
+        'match' => $this->match->id,
+        'csv' => $path,
+        '--create-missing' => true,
+        '--division' => 'ladies',
+        '--skip-standings' => true,
+    ])->assertSuccessful();
+
+    $created = Score::where('user_id', $user->id)->first();
+    expect($created)->not->toBeNull()
+        ->and($created->division_id)->toBe($this->ladiesDivision->id)
+        ->and($created->raw_meta['division_source'] ?? null)->toBe('fallback');
 });
 
 it('writes a single AuditLog batch entry summarising the correction', function () {
