@@ -32,6 +32,9 @@ class Announcement extends Model
         'expires_at',
         'sent_at',
         'recipient_count',
+        'retracted_at',
+        'retracted_by',
+        'retraction_reason',
     ];
 
     protected function casts(): array
@@ -48,6 +51,7 @@ class Announcement extends Model
             'expires_at' => 'datetime',
             'sent_at' => 'datetime',
             'recipient_count' => 'integer',
+            'retracted_at' => 'datetime',
         ];
     }
 
@@ -59,6 +63,31 @@ class Announcement extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function retractor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'retracted_by');
+    }
+
+    public function isRetracted(): bool
+    {
+        return $this->retracted_at !== null;
+    }
+
+    /**
+     * Scope: filter down to announcements a member is allowed to see in
+     * their /communications archive. Excludes retracted rows so a
+     * mistake-send disappears from the app even though the email itself
+     * is already in inboxes.
+     *
+     * Admin-facing lists intentionally don't call this — retracted rows
+     * stay visible to Exco/Chair with a "Retracted" badge so the audit
+     * trail is one query away.
+     */
+    public function scopeVisibleToMembers($query)
+    {
+        return $query->whereNull('retracted_at');
     }
 
     public function audiences(): HasMany

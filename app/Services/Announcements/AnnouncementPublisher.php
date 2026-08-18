@@ -13,6 +13,7 @@ use App\Models\AnnouncementRecipient;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -95,6 +96,86 @@ class AnnouncementPublisher
 
         $announcement->forceFill([
             'status' => AnnouncementStatus::Cancelled,
+        ])->save();
+
+        return $announcement->fresh();
+    }
+
+    /**
+     * Soft-delete a draft or cancelled announcement and remove its
+     * uploaded attachments from disk. Sent/sending/scheduled rows must
+     * go through cancel/retract instead — hard-deleting them would
+     * silently discard delivery evidence and audit chain.
+     *
+     * Cascading behaviour:
+     *   - Attachment files: unlinked from the `announcements` disk.
+     *   - Attachment DB rows: hard-deleted (foreign key to announcements).
+     *   - Audience rules: hard-deleted (foreign key to announcements).
+     *   - Announcement itself: soft-deleted (SoftDeletes trait) so a
+     *     mis-click can still be recovered from `deleted_at` in the DB.
+     *
+     * Recipients / deliveries are not touched because no code path
+     * creates them before `Sending → Sent` — a draft/cancelled row
+     * has never been fanned out.
+     */
+    public function delete(Announcement $announcement): void
+    {
+        if (! in_array($announcement->status, [
+            AnnouncementStatus::Draft,
+            AnnouncementStatus::Cancelled,
+        ], true)) {
+            throw new RuntimeException(
+                'Only draft or cancelled announcements can be deleted. '
+                . 'Use cancel first, or retract if it has already been sent.'
+            );
+        }
+
+        DB::transaction(function () use ($announcement) {
+            foreach ($announcement->attachments as $attachment) {
+                Storage::disk('announcements')->delete($attachment->path);
+                $attachment->delete();
+            }
+
+            $announcement->audiences()->delete();
+
+            $announcement->delete();
+        });
+    }
+
+    /**
+     * Retract a sent announcement — hide the /communications archive
+     * copy from every member without pretending the email never went
+     * out. The row is preserved (no delete of any kind) so the audit
+     * trail, delivery stats, and Mailgun webhook correlation all keep
+     * working. Only the member-facing UI changes: retracted rows
+     * disappear from the archive index and 404 on direct-link.
+     *
+     * The reason is captured so an admin looking at the audit log a
+     * year later knows *why* it went away — same discipline as the
+     * `deletion_reason` on user account deletions.
+     */
+    public function retract(Announcement $announcement, User $actor, string $reason): Announcement
+    {
+        if ($announcement->status !== AnnouncementStatus::Sent) {
+            throw new RuntimeException(
+                'Only sent announcements can be retracted. '
+                . 'Draft or scheduled announcements should be cancelled or deleted instead.'
+            );
+        }
+
+        if ($announcement->isRetracted()) {
+            throw new RuntimeException('This announcement has already been retracted.');
+        }
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new RuntimeException('A retraction reason is required so the audit log is meaningful.');
+        }
+
+        $announcement->forceFill([
+            'retracted_at' => now(),
+            'retracted_by' => $actor->id,
+            'retraction_reason' => mb_substr($reason, 0, 500),
         ])->save();
 
         return $announcement->fresh();

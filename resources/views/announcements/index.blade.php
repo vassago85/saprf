@@ -47,7 +47,7 @@
                                 default => 'bg-stone-100 text-stone-700',
                             };
                         @endphp
-                        <tr class="hover:bg-stone-50">
+                        <tr class="hover:bg-stone-50 {{ $a->isRetracted() ? 'bg-red-50/40' : '' }}">
                             <td class="px-4 py-3 font-medium text-stone-900">
                                 <a href="{{ route('announcements.show', $a) }}" class="hover:text-emerald-700">
                                     {{ $a->title }}
@@ -58,6 +58,9 @@
                                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $statusClass }}">
                                     {{ $a->status->label() }}
                                 </span>
+                                @if ($a->isRetracted())
+                                    <span class="ml-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">Retracted</span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-stone-600">{{ $a->recipient_count }}</td>
                             <td class="px-4 py-3 text-stone-600">{{ $a->creator?->name ?? '—' }}</td>

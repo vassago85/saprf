@@ -256,6 +256,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/announcements/{announcement}/send', [AnnouncementController::class, 'send'])->name('announcements.send');
         Route::post('/announcements/{announcement}/approve', [AnnouncementController::class, 'approve'])->name('announcements.approve');
         Route::post('/announcements/{announcement}/cancel', [AnnouncementController::class, 'cancel'])->name('announcements.cancel');
+        Route::post('/announcements/{announcement}/retract', [AnnouncementController::class, 'retract'])->name('announcements.retract');
+        Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
         // Reusable audience rule sets — Exco-only CRUD; resolver expands
         // saved_list rules embedded on any announcement at send time.

@@ -269,6 +269,76 @@ class AnnouncementController extends Controller
     }
 
     /**
+     * Delete a draft or cancelled announcement. Soft-deletes the row and
+     * removes uploaded attachments from disk. Sent/sending/scheduled
+     * announcements are blocked by the publisher service; the try/catch
+     * translates the RuntimeException into a friendly flash message.
+     */
+    public function destroy(Request $request, Announcement $announcement): RedirectResponse
+    {
+        $actor = $request->user();
+
+        try {
+            $this->publisher->delete($announcement);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $this->auditLogService->log(
+            $actor,
+            'announcement.deleted',
+            'Announcement',
+            $announcement->id,
+            [
+                'title' => $announcement->title,
+                'status' => $announcement->status->value,
+                'category' => $announcement->category->value,
+            ],
+            null,
+        );
+
+        return redirect()->route('announcements.index')
+            ->with('success', 'Announcement deleted.');
+    }
+
+    /**
+     * Retract a sent announcement. The row survives — only the
+     * member-facing archive filter changes so shooters stop seeing it
+     * on /communications. Reason is captured in the audit log so a
+     * year-later "why is this hidden?" question has an answer.
+     */
+    public function retract(Request $request, Announcement $announcement): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        $actor = $request->user();
+
+        try {
+            $this->publisher->retract($announcement, $actor, $data['reason']);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $this->auditLogService->log(
+            $actor,
+            'announcement.retracted',
+            'Announcement',
+            $announcement->id,
+            null,
+            [
+                'retracted_at' => now()->toIso8601String(),
+                'title' => $announcement->title,
+            ],
+            $data['reason'],
+        );
+
+        return redirect()->route('announcements.show', $announcement)
+            ->with('success', 'Announcement retracted. Members can no longer see it in their archive. The email that already went out cannot be recalled.');
+    }
+
+    /**
      * Live audience preview called from the composer as the operator
      * toggles rules. Returns `count` + a small sample so they can spot
      * "wait, that's everyone" before hitting Send.

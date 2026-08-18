@@ -27,6 +27,24 @@
             <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ session('error') }}</div>
         @endif
 
+        @if ($announcement->isRetracted())
+            <div class="rounded-xl border border-red-300 bg-red-50 p-4">
+                <p class="text-sm font-semibold text-red-900">
+                    Retracted on {{ $announcement->retracted_at->format('d M Y H:i') }}
+                    @if ($announcement->retractor)
+                        by {{ $announcement->retractor->name }}
+                    @endif
+                </p>
+                @if ($announcement->retraction_reason)
+                    <p class="mt-1 text-xs text-red-800"><span class="font-semibold">Reason:</span> {{ $announcement->retraction_reason }}</p>
+                @endif
+                <p class="mt-2 text-xs text-red-700">
+                    Members no longer see this announcement in their communications archive.
+                    The email that already went out cannot be recalled — recipients still have it in their inbox.
+                </p>
+            </div>
+        @endif
+
         @if ($announcement->needsApproval())
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p class="text-sm font-semibold text-amber-900">This Policy change needs a second Exco/Chair to approve before sending.</p>
@@ -134,7 +152,62 @@
                         @csrf
                         <button type="submit" class="rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Cancel</button>
                     </form>
+                    @if ($announcement->status === \App\Enums\AnnouncementStatus::Draft)
+                        <form method="POST" action="{{ route('announcements.destroy', $announcement) }}"
+                            onsubmit="return confirm('Delete this draft permanently? This cannot be undone from the UI.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Delete draft</button>
+                        </form>
+                    @endif
                 </div>
+            </div>
+        @endif
+
+        @if ($announcement->status === \App\Enums\AnnouncementStatus::Cancelled)
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-3">
+                <h2 class="font-heading text-base font-semibold text-stone-900">Actions</h2>
+                <p class="text-xs text-stone-500">This announcement was cancelled before it was sent. You can delete it to clear it from the list.</p>
+                <form method="POST" action="{{ route('announcements.destroy', $announcement) }}"
+                    onsubmit="return confirm('Delete this cancelled announcement? This cannot be undone from the UI.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Delete permanently</button>
+                </form>
+            </div>
+        @endif
+
+        @if ($announcement->status === \App\Enums\AnnouncementStatus::Sent && ! $announcement->isRetracted())
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-3">
+                <h2 class="font-heading text-base font-semibold text-stone-900">Retract</h2>
+                <p class="text-xs text-stone-500">
+                    Made a mistake? Retracting hides this announcement from every member's communications archive on the portal.
+                    <span class="font-semibold text-stone-700">The email that already went out cannot be recalled</span> —
+                    recipients will still have it in their inbox. The row stays in the DB for the audit trail.
+                </p>
+                <details class="group">
+                    <summary class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                        </svg>
+                        Retract this announcement…
+                    </summary>
+                    <form method="POST" action="{{ route('announcements.retract', $announcement) }}" class="mt-3 space-y-3">
+                        @csrf
+                        <div>
+                            <label for="retraction_reason" class="block text-xs font-semibold uppercase text-stone-500">Retraction reason</label>
+                            <textarea id="retraction_reason" name="reason" required minlength="5" maxlength="500" rows="3"
+                                placeholder="e.g. Sent in error — corrected version to follow. Or: link in step 3 pointed to wrong page."
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"></textarea>
+                            <p class="mt-1 text-xs text-stone-400">Kept on the audit log so a year from now the record still explains why this was hidden.</p>
+                        </div>
+                        <button type="submit"
+                            onclick="return confirm('Retract this announcement? Members will no longer see it on the portal, but the email that already went out cannot be recalled.');"
+                            class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
+                            Retract
+                        </button>
+                    </form>
+                </details>
             </div>
         @endif
 

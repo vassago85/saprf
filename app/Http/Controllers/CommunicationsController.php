@@ -29,7 +29,7 @@ class CommunicationsController extends Controller
             ->with('announcement')
             ->where('user_id', $user->id)
             ->whereHas('announcement', function ($q) {
-                $q->whereNotNull('sent_at');
+                $q->whereNotNull('sent_at')->whereNull('retracted_at');
             });
 
         if ($category = $request->input('category')) {
@@ -84,6 +84,13 @@ class CommunicationsController extends Controller
     {
         $user = $request->user();
 
+        // Retracted announcements 404 for members even if they still hold
+        // an old link — matches the archive-index filter above so a
+        // bookmark can't sneak past the retraction.
+        if ($announcement->isRetracted()) {
+            abort(404);
+        }
+
         $recipient = AnnouncementRecipient::query()
             ->where('announcement_id', $announcement->id)
             ->where('user_id', $user->id)
@@ -119,6 +126,12 @@ class CommunicationsController extends Controller
     {
         $user = $request->user();
 
+        // Exco can still see attachments on retracted rows (they need
+        // to be able to review what went out); members cannot.
+        if ($announcement->isRetracted() && ! $user->isExco()) {
+            abort(404);
+        }
+
         $isRecipient = AnnouncementRecipient::query()
             ->where('announcement_id', $announcement->id)
             ->where('user_id', $user->id)
@@ -150,15 +163,19 @@ class CommunicationsController extends Controller
     {
         $user = $request->user();
 
+        // Same retraction filter as index() — a retracted announcement
+        // must not keep the sidebar bell lit forever.
         $unread = AnnouncementRecipient::query()
             ->where('user_id', $user->id)
             ->whereNull('read_at')
+            ->whereHas('announcement', fn ($q) => $q->whereNull('retracted_at'))
             ->count();
 
         $latest = AnnouncementRecipient::query()
             ->with(['announcement:id,title,category,sent_at'])
             ->where('user_id', $user->id)
             ->whereNull('read_at')
+            ->whereHas('announcement', fn ($q) => $q->whereNull('retracted_at'))
             ->orderByDesc('id')
             ->limit(5)
             ->get()
