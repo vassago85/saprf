@@ -130,7 +130,7 @@ it('rejects a fee_tier_id that is not allowed for the applicant\'s age', functio
         ->and(Payment::where('payable_type', Membership::class)->count())->toBe(0);
 });
 
-it('auto-picks the junior tier at R150 when a parent enrols a 14 year-old with no tier', function () {
+it('auto-picks the junior tier at R425 when a parent enrols a 14 year-old with no tier', function () {
     stubPayFast();
 
     $junior = User::factory()->create([
@@ -152,7 +152,7 @@ it('auto-picks the junior tier at R150 when a parent enrols a 14 year-old with n
         ->firstOrFail();
 
     expect($membership->fee_tier_id)->toBe($juniorTier->id)
-        ->and((float) $payment->amount)->toBe(150.0)
+        ->and((float) $payment->amount)->toBe(425.0)
         ->and($payment->user_id)->toBe($this->parent->id);
 });
 
@@ -254,7 +254,7 @@ it('shows only the junior tier when a parent views my-membership for a 14 year-o
         ->get(route('my-membership', ['for_user' => $junior->id]))
         ->assertOk()
         ->assertSee('Junior Membership')
-        ->assertSee('R 150.00')
+        ->assertSee('R 425.00')
         ->assertDontSee('R 850.00')
         ->assertDontSee('Senior');
 });

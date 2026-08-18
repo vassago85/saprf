@@ -6,11 +6,12 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * Introduce the Junior fee tier (R150, under-18) and pin every tier to
-     * an explicit age band so a 14-year-old only sees Junior in the picker
-     * (not Adult R850, which would otherwise silently apply as unrestricted):
+     * Introduce the Junior fee tier (R425, under-18 — half the adult rate)
+     * and pin every tier to an explicit age band so a 14-year-old only sees
+     * Junior in the picker (not Adult R850, which would otherwise silently
+     * apply as unrestricted):
      *
-     *   junior: 0–17    (R150)
+     *   junior: 0–17    (R425, half of adult)
      *   adult:  18+     (R850)
      *   mil-leo: 18+    (R425, serving military/LEO)
      *   senior: 65+     (R425, retirement discount)
@@ -29,8 +30,8 @@ return new class extends Migration
             DB::table('membership_fee_tiers')->insert([
                 'slug' => 'junior',
                 'name' => 'Junior',
-                'description' => 'Discounted rate for junior members under 18.',
-                'price' => 150.00,
+                'description' => 'Discounted rate for junior members under 18 (half the adult rate).',
+                'price' => 425.00,
                 'duration_months' => 12,
                 'display_order' => 4,
                 'is_active' => true,

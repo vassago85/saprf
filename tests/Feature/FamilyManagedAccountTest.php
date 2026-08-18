@@ -213,9 +213,10 @@ it('lets a member apply for membership on behalf of a family account', function 
 
 it('creates a membership for the family member and charges the parent', function () {
     // Junior with a DOB in range so the age-gated tier picker resolves to
-    // the seeded Junior tier at R150. Historic form of this test used a
-    // hand-rolled R500 "Standard" tier on a spouse account with no DOB —
-    // both the tier picker and the DOB gate now block that path.
+    // the seeded Junior tier at R425 (half the R850 adult rate). Historic
+    // form of this test used a hand-rolled R500 "Standard" tier on a spouse
+    // account with no DOB — both the tier picker and the DOB gate now block
+    // that path.
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,
         'is_managed_account' => true,
@@ -252,7 +253,7 @@ it('creates a membership for the family member and charges the parent', function
         ->and($payment)->not->toBeNull()
         ->and($payment->user_id)->toBe($this->parent->id)
         ->and($payment->payable_id)->toBe($membership->id)
-        ->and((float) $payment->amount)->toBe(150.0);
+        ->and((float) $payment->amount)->toBe(425.0);
 });
 
 it('rejects applying for membership on someone else\'s family account', function () {
