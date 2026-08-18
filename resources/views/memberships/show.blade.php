@@ -15,6 +15,35 @@
     </div>
 
     <div class="mt-8 max-w-3xl space-y-6">
+        {{-- One-shot display of a temporary password just set by an admin.
+             Rendered only via session flash on the request that performed
+             the reset — never re-shown, never emailed, never logged. --}}
+        @if(session('temp_password'))
+            <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-6 shadow-sm" x-data="{ copied: false }">
+                <div class="flex items-start gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-700 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-heading font-semibold text-amber-900">Temporary password for {{ session('temp_password_for', $membership->user->name) }} — shown once, copy it now</h3>
+                        <p class="text-sm text-amber-800 mt-1">This is the only time the password is visible. Share it with the member directly (phone, WhatsApp, in person) — they will be forced to change it on their next login. It has not been emailed.</p>
+                        <div class="mt-4 flex items-center gap-3">
+                            <code id="temp-password-value" class="flex-1 min-w-0 rounded-lg border border-amber-300 bg-white px-4 py-3 font-mono text-lg text-stone-900 break-all select-all">{{ session('temp_password') }}</code>
+                            <button type="button"
+                                    @click="navigator.clipboard.writeText(document.getElementById('temp-password-value').innerText); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="shrink-0 rounded-lg bg-amber-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-800">
+                                <span x-show="!copied">Copy</span>
+                                <span x-show="copied" x-cloak>Copied ✓</span>
+                            </button>
+                        </div>
+                        @if(session('temp_password_reason'))
+                            <p class="mt-3 text-xs text-amber-700"><span class="font-semibold">Reason recorded in audit log:</span> {{ session('temp_password_reason') }}</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Member Information</h2>
 
@@ -153,6 +182,56 @@
                 @endrole
             </div>
         @endif
+
+        {{-- Reset password (admin only) — for members who cannot receive
+             invitation or password-reset emails. Bypasses the email flow
+             entirely; admin hands the temp password to the member out-of-band. --}}
+        @role('developer|exco|owner|admin')
+            @if($membership->user)
+                <div class="rounded-xl border border-sky-200 bg-white p-6 shadow-sm" x-data="{ showForm: false }">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h2 class="font-heading text-lg font-semibold text-sky-900">Reset Password</h2>
+                            <p class="text-sm text-stone-500 mt-1">Set a temporary password for this member and force them to change it on next login. Use when the member reports not receiving invitation or password-reset emails. The temporary password is shown once — copy it and share it with the member directly.</p>
+                        </div>
+                        <button @click="showForm = !showForm"
+                                class="shrink-0 rounded-lg border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50">
+                            Reset
+                        </button>
+                    </div>
+
+                    <form x-show="showForm" x-transition method="POST"
+                          action="{{ route('memberships.reset-password', $membership) }}"
+                          class="mt-4 space-y-4 border-t border-sky-100 pt-4"
+                          onsubmit="return confirm('Set a temporary password for {{ addslashes($membership->user->name) }}? Their old password will stop working immediately, and they will be forced to change to a new one on next login.')">
+                        @csrf
+                        <div>
+                            <label for="reason" class="block text-sm font-medium text-stone-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                            <textarea name="reason" id="reason" rows="2" maxlength="500" required
+                                      placeholder="e.g. Member reports not receiving password-reset emails; issuing temporary password manually."
+                                      class="w-full rounded-lg border border-stone-300 py-2 text-sm focus:border-sky-500 focus:ring-sky-500">{{ old('reason') }}</textarea>
+                            @error('reason')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="custom_password" class="block text-sm font-medium text-stone-700 mb-1">Custom password <span class="font-normal text-stone-400">(optional — leave blank to auto-generate a strong random one)</span></label>
+                            <input type="text" name="custom_password" id="custom_password" minlength="12" maxlength="64"
+                                   autocomplete="off"
+                                   placeholder="Leave blank to generate"
+                                   class="w-full rounded-lg border border-stone-300 py-2 text-sm focus:border-sky-500 focus:ring-sky-500">
+                            @error('custom_password')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-stone-400">Minimum 12 characters. Auto-generated passwords are 16 alphanumeric characters (no symbols — easier to relay by phone or WhatsApp).</p>
+                        </div>
+                        <button type="submit" class="rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800">
+                            Set Temporary Password
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endrole
 
         {{-- Revoke action (admin only, only if not already revoked) --}}
         @role('owner|admin')

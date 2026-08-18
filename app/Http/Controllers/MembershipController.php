@@ -16,7 +16,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -422,6 +424,73 @@ class MembershipController extends Controller
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership has been reinstated.');
+    }
+
+    /**
+     * Set a temporary password on a member's account so an admin can hand it
+     * to them out-of-band. Used when the member is not receiving invitation
+     * or password-reset emails (deliverability failure, wrong address, spam
+     * folder, etc.) and we need to unblock their login without waiting for
+     * mail to work.
+     *
+     * The plaintext password is:
+     *   - hashed before it hits the DB (like any other password),
+     *   - flashed to the session for ONE render on the redirect target so the
+     *     operator can copy it (never written to logs, never re-shown),
+     *   - never emailed anywhere.
+     *
+     * The member is force-flagged with `must_change_password=true` so
+     * `ForcePasswordChange` redirects them to the reset form on next login.
+     * A `user.admin_password_reset` AuditLog entry records who did it and
+     * why, without the password itself.
+     */
+    public function resetPassword(Request $request, Membership $membership): RedirectResponse
+    {
+        $actor = $request->user();
+
+        abort_unless($actor->hasAnyRole(['developer', 'exco', 'owner', 'admin']), 403);
+
+        $member = $membership->user;
+        if (! $member) {
+            return back()->with('error', 'No user account is linked to this membership.');
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+            // Optional custom password. Leaving it blank generates a strong
+            // 16-char alphanumeric — long enough for real security but easy
+            // to relay by phone/WhatsApp without special characters getting
+            // mangled.
+            'custom_password' => ['nullable', 'string', 'min:12', 'max:64'],
+        ]);
+
+        $custom = $validated['custom_password'] ?? null;
+        $tempPassword = ($custom !== null && $custom !== '')
+            ? $custom
+            : Str::password(length: 16, letters: true, numbers: true, symbols: false, spaces: false);
+
+        $member->forceFill([
+            'password' => Hash::make($tempPassword),
+            'must_change_password' => true,
+        ])->save();
+
+        $this->auditLogService->log(
+            $actor,
+            'user.admin_password_reset',
+            'User',
+            $member->id,
+            null,
+            // Do NOT store the plaintext or hash in the audit — the log
+            // records that a reset happened and why, nothing more.
+            ['reason' => $validated['reason']],
+            "Admin reset password for {$member->email} — force change on next login",
+        );
+
+        return redirect()->route('memberships.show', $membership)
+            ->with('temp_password', $tempPassword)
+            ->with('temp_password_for', $member->name)
+            ->with('temp_password_reason', $validated['reason'])
+            ->with('success', "Temporary password set for {$member->name}. Copy it now — it will not be shown again.");
     }
 
     // ── Member Invitations ──
