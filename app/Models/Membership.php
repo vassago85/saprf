@@ -153,6 +153,39 @@ class Membership extends Model
             || ($this->status === 'active' && filled($this->saprf_number));
     }
 
+    /**
+     * SQL translation of `isActiveMember()`. Kept in lockstep with the
+     * predicate above and with MembershipController::buildIndexQuery so
+     * the Notification Centre "Active members" audience picks the same
+     * cohort the admin membership list does.
+     *
+     * A row counts as an active member when:
+     *   - status is NOT 'revoked'
+     *   - membership_type is not 'free' (free registrants are non-members
+     *     — the legacy "looks like a real member" exception in the PHP
+     *     predicate is not replicated here; those rows have `type = paid`
+     *     after cleanup, and the tiny set that don't are ineligible for
+     *     federation broadcasts)
+     *   - either payment_status is paid/waived OR status is 'active'
+     *   - expiry_date is null OR today or later
+     */
+    public function scopeActiveMembers(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        $today = now()->startOfDay()->toDateString();
+
+        return $query
+            ->where('memberships.status', '!=', 'revoked')
+            ->where('memberships.membership_type', '!=', 'free')
+            ->where(function ($q) {
+                $q->whereIn('memberships.payment_status', ['paid', 'waived'])
+                    ->orWhere('memberships.status', 'active');
+            })
+            ->where(function ($q) use ($today) {
+                $q->whereNull('memberships.expiry_date')
+                    ->orWhereDate('memberships.expiry_date', '>=', $today);
+            });
+    }
+
     public function revokedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'revoked_by');

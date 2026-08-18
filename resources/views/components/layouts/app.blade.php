@@ -115,6 +115,13 @@
                 <flux:navlist.item icon="document-text" :href="route('documents.index')" :current="request()->routeIs('documents.*') || request()->routeIs('selection.policy.public') || request()->routeIs('legal.*')">
                     Documents
                 </flux:navlist.item>
+                <flux:navlist.item icon="bell" :href="route('communications.index')" :current="request()->routeIs('communications.*')">
+                    Communications
+                    @php($communicationsUnread = \App\Models\AnnouncementRecipient::query()->where('user_id', auth()->id())->whereNull('read_at')->count())
+                    @if($communicationsUnread > 0)
+                        <flux:badge size="sm" color="emerald" class="ml-auto">{{ $communicationsUnread }}</flux:badge>
+                    @endif
+                </flux:navlist.item>
             </flux:navlist.group>
 
             {{-- Shooter-facing IPRF group. Every logged-in member sees this,
@@ -152,8 +159,16 @@
             </flux:navlist.group>
             @endrole
 
-            @role('developer|exco|owner|admin')
-            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'clubs.*', 'contact-messages.*', 'sponsors.*', 'sponsor-tiers.*')">
+            @role('developer|exco|chair|owner|admin')
+            <flux:navlist.group heading="Federation" expandable :expanded="!auth()->user()?->hasRole('exco') && request()->routeIs('approvals.*', 'memberships.*', 'clubs.*', 'contact-messages.*', 'sponsors.*', 'sponsor-tiers.*', 'announcements.*')">
+                @role('developer|exco|chair')
+                <flux:navlist.item icon="megaphone" :href="route('announcements.index')" :current="request()->routeIs('announcements.*')">
+                    Announcements
+                </flux:navlist.item>
+                <flux:navlist.item icon="user-group" :href="route('saved-lists.index')" :current="request()->routeIs('saved-lists.*')">
+                    Saved lists
+                </flux:navlist.item>
+                @endrole
                 <flux:navlist.item icon="check-badge" :href="route('approvals.index')" :current="request()->routeIs('approvals.*')">
                     Approvals
                     @if(($pendingApprovalCount = \App\Http\Controllers\ApprovalController::totalPendingCount()) > 0)
@@ -298,12 +313,35 @@
 
         <flux:spacer />
 
+        {{-- Compact notification bell — polls unread-count endpoint every 30s. --}}
+        @auth
+            <a href="{{ route('communications.index') }}"
+                x-data="{ unread: {{ \App\Models\AnnouncementRecipient::query()->where('user_id', auth()->id())->whereNull('read_at')->count() }} }"
+                x-init="setInterval(async () => {
+                    try {
+                        const r = await fetch('{{ route('communications.unread-count') }}', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+                        if (r.ok) { const j = await r.json(); unread = j.unread; }
+                    } catch (e) {}
+                }, 30000)"
+                class="relative mr-3 inline-flex items-center rounded-lg p-2 text-stone-600 hover:bg-stone-100"
+                aria-label="Communications">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/>
+                </svg>
+                <span x-show="unread > 0" x-cloak
+                    class="absolute -top-0.5 -right-0.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-semibold text-white"
+                    x-text="unread"></span>
+            </a>
+        @endauth
+
         <a href="{{ url('/') }}">
             <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-7 w-auto">
         </a>
     </flux:header>
 
     <flux:main id="main" class="bg-stone-50">
+        <x-outstanding-acknowledgements />
+
         @if (session('success'))
             <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                 {{ session('success') }}
@@ -319,6 +357,11 @@
         {{ $slot }}
     </flux:main>
 
+    @auth
+        <x-ios-pwa-nav />
+    @endauth
+
+    @stack('scripts')
     @fluxScripts
 </body>
 </html>

@@ -201,5 +201,115 @@
                 <a href="{{ route('dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900">Cancel</a>
             </div>
         </form>
+
+        <form method="POST" action="{{ route('profile.notification-preferences.update') }}" class="space-y-6">
+            @csrf
+            @method('PUT')
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Notification Preferences</h2>
+                    <p class="mt-1 text-sm text-stone-500">Email announcements are always kept in your <a href="{{ route('communications.index') }}" class="text-emerald-700 hover:text-emerald-800 underline">Communications</a> archive. Policy changes and urgent notices always send, regardless of these preferences.</p>
+                </div>
+
+                <div>
+                    <span class="block text-sm font-medium text-stone-700">Mute email for these categories</span>
+                    <div class="mt-2 space-y-2">
+                        @foreach ($mutableCategories as $cat)
+                            <label class="flex items-start gap-3 rounded-lg border border-stone-200 p-3 hover:bg-stone-50 transition cursor-pointer">
+                                <input type="checkbox" name="muted_categories[]" value="{{ $cat->value }}"
+                                    @checked(in_array($cat->value, $mutedCategories, true))
+                                    class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                                <div>
+                                    <span class="text-sm font-semibold text-stone-900">{{ $cat->label() }}</span>
+                                    <p class="text-xs text-stone-500 mt-0.5">Skip email for {{ strtolower($cat->label()) }} announcements.</p>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div x-data="pushToggle()" x-init="init()"
+                    class="rounded-lg border border-stone-200 p-3">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="push_enabled" value="1"
+                            @checked($pushEnabled)
+                            x-model="prefEnabled"
+                            class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <div class="flex-1">
+                            <span class="text-sm font-semibold text-stone-900">Enable push notifications for this account</span>
+                            <p class="text-xs text-stone-500 mt-0.5">Also enable push on <em>this device</em> below (per-device browser permission).</p>
+                        </div>
+                    </label>
+
+                    <div class="mt-3 flex items-center gap-3 border-t border-stone-100 pt-3">
+                        <template x-if="!supported">
+                            <p class="text-xs text-stone-400">This browser does not support Web Push.</p>
+                        </template>
+                        <template x-if="supported">
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="toggle()" :disabled="working"
+                                    class="rounded-lg bg-white ring-1 ring-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50">
+                                    <span x-show="!working" x-text="deviceEnabled ? 'Disable push on this device' : 'Enable push on this device'"></span>
+                                    <span x-show="working">Working…</span>
+                                </button>
+                                <span class="text-xs" :class="deviceEnabled ? 'text-emerald-700' : 'text-stone-400'"
+                                    x-text="deviceEnabled ? 'Subscribed' : 'Not subscribed'"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <template x-if="error">
+                        <p class="mt-2 text-xs text-red-700" x-text="error"></p>
+                    </template>
+                </div>
+
+                <div>
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Preferences</button>
+                </div>
+            </div>
+        </form>
     </div>
+
+    @push('scripts')
+        <script>
+            function pushToggle() {
+                return {
+                    supported: !!(window.saprfPush && window.saprfPush.supported),
+                    deviceEnabled: false,
+                    prefEnabled: {{ ($pushEnabled ?? true) ? 'true' : 'false' }},
+                    working: false,
+                    error: null,
+
+                    async init() {
+                        if (!this.supported) return;
+                        try {
+                            const sub = await window.saprfPush.currentSubscription();
+                            this.deviceEnabled = !!sub;
+                        } catch (e) {
+                            this.error = e.message;
+                        }
+                    },
+
+                    async toggle() {
+                        this.working = true;
+                        this.error = null;
+                        try {
+                            if (this.deviceEnabled) {
+                                await window.saprfPush.unsubscribe();
+                                this.deviceEnabled = false;
+                            } else {
+                                await window.saprfPush.subscribe();
+                                this.deviceEnabled = true;
+                                this.prefEnabled = true;
+                            }
+                        } catch (e) {
+                            this.error = e.message;
+                        } finally {
+                            this.working = false;
+                        }
+                    },
+                };
+            }
+        </script>
+    @endpush
 </x-layouts.app>

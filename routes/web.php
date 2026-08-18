@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\CommunicationsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\MatchAnnouncementController;
@@ -9,7 +11,9 @@ use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
+use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
 use App\Http\Controllers\QualificationRuleController;
@@ -142,12 +146,23 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/password/force-change', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'update'])->name('password.force.update');
 });
 
+// PWA Web Push — routes are auth+verified only (NOT gated by profile.complete)
+// so users landing on the profile page with incomplete SASCOC fields can
+// still toggle push on/off from the notification-preferences form.
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/push/vapid-public-key', [PushSubscriptionController::class, 'vapidKey'])->name('push.vapid-key');
+    Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
+    Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+});
+
 Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/view-mode', [DashboardController::class, 'switchViewMode'])->name('dashboard.view-mode');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
-    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+        Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('/profile/notification-preferences', [NotificationPreferencesController::class, 'update'])
+            ->name('profile.notification-preferences.update');
 
     // Family / Managed Junior Accounts
     Route::prefix('family')->name('family.')->group(function (): void {
@@ -181,6 +196,38 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Sponsor search: look up another member by name or SAPRF number to enter
     // or pay for them on this match. Auth-only; no PII beyond name/number.
     Route::get('/events/{match}/members/search', [MemberSearchController::class, 'search'])->name('events.members.search');
+
+    // ── Notification Centre — member archive ──
+    Route::get('/communications', [CommunicationsController::class, 'index'])->name('communications.index');
+    Route::get('/communications/unread-count', [CommunicationsController::class, 'unreadCount'])->name('communications.unread-count');
+    Route::get('/communications/{announcement}', [CommunicationsController::class, 'show'])->name('communications.show');
+    Route::post('/communications/{announcement}/acknowledge', [CommunicationsController::class, 'acknowledge'])->name('communications.acknowledge');
+    Route::get('/communications/{announcement}/attachments/{attachment}', [CommunicationsController::class, 'attachment'])->name('communications.attachment');
+
+    // ── Notification Centre — Exco / Chair compose + admin ──
+    Route::middleware(['role:developer|exco|chair'])->group(function (): void {
+        Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
+        Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::post('/announcements/preview', [AnnouncementController::class, 'preview'])->name('announcements.preview');
+        Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
+        Route::get('/announcements/{announcement}/attachments/{attachment}', [AnnouncementController::class, 'attachment'])->name('announcements.attachment');
+        Route::delete('/announcements/{announcement}/attachments/{attachment}', [AnnouncementController::class, 'destroyAttachment'])->name('announcements.attachment.destroy');
+        Route::get('/announcements/{announcement}/outstanding-acknowledgements.csv', [AnnouncementController::class, 'outstandingAcknowledgementsCsv'])->name('announcements.outstanding-csv');
+        Route::post('/announcements/{announcement}/send', [AnnouncementController::class, 'send'])->name('announcements.send');
+        Route::post('/announcements/{announcement}/approve', [AnnouncementController::class, 'approve'])->name('announcements.approve');
+        Route::post('/announcements/{announcement}/cancel', [AnnouncementController::class, 'cancel'])->name('announcements.cancel');
+
+        // Reusable audience rule sets — Exco-only CRUD; resolver expands
+        // saved_list rules embedded on any announcement at send time.
+        Route::get('/saved-lists', [\App\Http\Controllers\SavedDistributionListController::class, 'index'])->name('saved-lists.index');
+        Route::get('/saved-lists/create', [\App\Http\Controllers\SavedDistributionListController::class, 'create'])->name('saved-lists.create');
+        Route::post('/saved-lists', [\App\Http\Controllers\SavedDistributionListController::class, 'store'])->name('saved-lists.store');
+        Route::post('/saved-lists/preview', [\App\Http\Controllers\SavedDistributionListController::class, 'preview'])->name('saved-lists.preview');
+        Route::get('/saved-lists/{savedList}/edit', [\App\Http\Controllers\SavedDistributionListController::class, 'edit'])->name('saved-lists.edit');
+        Route::put('/saved-lists/{savedList}', [\App\Http\Controllers\SavedDistributionListController::class, 'update'])->name('saved-lists.update');
+        Route::delete('/saved-lists/{savedList}', [\App\Http\Controllers\SavedDistributionListController::class, 'destroy'])->name('saved-lists.destroy');
+    });
 
     // Payments
     Route::get('/payments/{payment}/redirect', [PaymentController::class, 'redirect'])->name('payments.redirect');

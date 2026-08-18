@@ -22,10 +22,11 @@ class UserManagementController extends Controller
 
     /**
      * Roles that only a developer (sysadmin) may assign. These are elevated:
-     * owner/exco are federation-wide bypass roles, provincial_admin has
-     * province-scoped power, and developer is the sysadmin superuser.
+     * owner/exco are federation-wide bypass roles, chair is the federation
+     * chair (always paired with exco — see updateRole), provincial_admin
+     * has province-scoped power, and developer is the sysadmin superuser.
      */
-    private const ELEVATED_ASSIGNABLE_ROLES = ['provincial_admin', 'exco', 'owner', 'developer'];
+    private const ELEVATED_ASSIGNABLE_ROLES = ['provincial_admin', 'exco', 'chair', 'owner', 'developer'];
 
     public function __construct(
         private readonly AuditLogService $auditLogService,
@@ -185,6 +186,14 @@ class UserManagementController extends Controller
         // (they can drop 'owner' by unchecking it in the elevated section).
         if ($user->hasRole('owner') && !$isDeveloper) {
             $newRoles[] = 'owner';
+        }
+
+        // Chair implies Exco — the Notification Centre and (future) Exco
+        // Records Vault both assume any chair also has the standard Exco
+        // power set. Silently union the roles rather than reject the form
+        // so operators never sit staring at a validation error asking why.
+        if (in_array('chair', $newRoles, true)) {
+            $newRoles[] = 'exco';
         }
 
         $user->syncRoles(array_unique($newRoles));

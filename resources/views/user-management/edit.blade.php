@@ -111,6 +111,7 @@
                                 $elevatedDescriptions = [
                                     'provincial_admin' => 'Manages members and matches within their assigned province',
                                     'exco' => 'Federation-wide read/write bypass — shared board-walkthrough account',
+                                    'chair' => 'Federation Chair — can send Policy change announcements unilaterally. Always grants Exco alongside.',
                                     'owner' => 'Federation superuser — full access, cannot be soft-deleted',
                                     'developer' => 'Sysadmin — bypasses every policy, can grant/revoke any role',
                                 ];

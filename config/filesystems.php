@@ -47,6 +47,17 @@ return [
             'report' => false,
         ],
 
+        // Private disk for federation announcement attachments. Deliberately
+        // NOT the 'public' disk — announcements can be exco-only and members
+        // must download via the authenticated controller after we've verified
+        // they're on the recipient list.
+        'announcements' => [
+            'driver' => 'local',
+            'root' => storage_path('app/announcements'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

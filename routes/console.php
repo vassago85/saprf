@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\DispatchScheduledAnnouncementsJob;
 use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
 use App\Jobs\ResolvePendingScoresJob;
@@ -14,6 +15,11 @@ Artisan::command('inspire', function () {
 Schedule::job(new ResolvePendingScoresJob)->dailyAt('01:00');
 Schedule::job(new ExpireSponsorsJob)->dailyAt('00:15');
 Schedule::job(new ExpireMembershipsJob)->dailyAt('02:00');
+
+// Pick up any announcements the composer scheduled for a future time
+// and push them into the resolve/dispatch pipeline. Cheap query, so we
+// tick every minute so scheduled sends land within one minute of `send_at`.
+Schedule::job(new DispatchScheduledAnnouncementsJob)->everyMinute();
 
 Schedule::command('backup:clean')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();

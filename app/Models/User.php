@@ -296,7 +296,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * provincial committee — means a change is made in an administrative
      * capacity rather than as an ordinary member.
      */
-    public const STAFF_ROLES = ['developer', 'exco', 'owner', 'admin', 'match_director', 'iprf_selector'];
+    public const STAFF_ROLES = ['developer', 'exco', 'chair', 'owner', 'admin', 'match_director', 'iprf_selector'];
 
     /**
      * Does this user act with staff/admin authority anywhere on the platform?
@@ -305,6 +305,26 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasAnyRole(self::STAFF_ROLES)
             || $this->committeePositions()->where('is_active', true)->exists();
+    }
+
+    /**
+     * Federation Chair. Chairs are guaranteed to also hold `exco` — the
+     * user-management form unions them on assignment — so anywhere that
+     * relies on Exco-level power still works when the user is a chair.
+     */
+    public function isChair(): bool
+    {
+        return $this->hasRole('chair');
+    }
+
+    /**
+     * Any member of the federation executive committee. Chair implies exco
+     * by policy in UserManagementController, so this is deliberately the
+     * single source of truth for "can act with Exco authority".
+     */
+    public function isExco(): bool
+    {
+        return $this->hasAnyRole(['exco', 'chair']);
     }
 
     /**
@@ -426,5 +446,27 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         return $this->email;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Notifications
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Frozen recipient rows for federation-wide announcements this user is on.
+     */
+    public function announcementRecipients(): HasMany
+    {
+        return $this->hasMany(\App\Models\AnnouncementRecipient::class);
+    }
+
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(\App\Models\NotificationPreference::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(\App\Models\PushSubscription::class);
     }
 }

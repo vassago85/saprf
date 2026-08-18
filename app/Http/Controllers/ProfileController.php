@@ -46,13 +46,25 @@ class ProfileController extends Controller
             ->get()
             ->groupBy(fn (Club $c) => $c->province?->name ?? 'Unassigned');
 
+        $user = $request->user();
+        $pref = $user->notificationPreference;
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
             'provinces' => Province::orderBy('name')->get(),
             'clubs' => $clubs,
             'countries' => self::COUNTRIES,
             'genderOptions' => User::GENDER_OPTIONS,
             'ethnicityOptions' => User::ETHNICITY_OPTIONS,
+            // Notification preferences panel. The view uses these directly
+            // to render the mute checkboxes + push toggle; keeping them here
+            // (rather than in a `@php` block in the Blade file) sidesteps a
+            // scope quirk where Blade component slots hid `@php` vars.
+            'mutedCategories' => $pref?->muted_email_categories ?? [],
+            'pushEnabled' => $pref?->push_enabled ?? true,
+            'mutableCategories' => collect(\App\Enums\AnnouncementCategory::cases())
+                ->reject(fn ($c) => $c->isMandatory())
+                ->values(),
         ]);
     }
 
