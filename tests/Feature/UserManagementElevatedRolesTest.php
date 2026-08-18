@@ -137,6 +137,48 @@ it('prevents a developer from removing their own developer role', function () {
     expect($developer->hasRole('developer'))->toBeTrue();
 });
 
+it('shows an edit link on an owner row for a developer', function () {
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+
+    $owner = User::factory()->create(['name' => 'Warren Owner']);
+    $owner->assignRole('owner');
+
+    $this->actingAs($developer)
+        ->get(route('user-management.index', ['search' => 'Warren Owner']))
+        ->assertOk()
+        ->assertSee(route('user-management.edit', $owner), false)
+        ->assertDontSee('Protected');
+});
+
+it('hides the edit link on an owner row for a non-developer exco', function () {
+    $exco = User::factory()->create();
+    $exco->assignRole('exco');
+
+    $owner = User::factory()->create(['name' => 'Warren Owner']);
+    $owner->assignRole('owner');
+
+    $this->actingAs($exco)
+        ->get(route('user-management.index', ['search' => 'Warren Owner']))
+        ->assertOk()
+        ->assertDontSee(route('user-management.edit', $owner), false)
+        ->assertSee('Protected');
+});
+
+it('lets a developer open another owner\'s edit page', function () {
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+
+    $owner = User::factory()->create();
+    $owner->assignRole('owner');
+
+    $this->actingAs($developer)
+        ->get(route('user-management.edit', $owner))
+        ->assertOk()
+        ->assertSee('Elevated Roles')
+        ->assertSee('Owner');
+});
+
 it('shows the elevated roles panel to a developer on the edit page', function () {
     $developer = User::factory()->create();
     $developer->assignRole('developer');
