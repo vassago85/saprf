@@ -11,9 +11,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Middleware\RateLimited;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\HtmlString;
 use Symfony\Component\Mime\Email;
+use Throwable;
 
 /**
  * Federation-wide announcement email. Wraps the announcement body in
@@ -39,6 +41,30 @@ use Symfony\Component\Mime\Email;
 class FederationAnnouncementNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    /**
+     * Give the queued send a comfortable retry budget. Every
+     * `RateLimited::release()` counts against this — with the previous
+     * `tries = 3` default any broadcast bigger than the per-minute
+     * cap would inevitably burn the budget on rate-limit sleeps and
+     * dump the tail of the recipient list into `failed_jobs` with
+     * `MaxAttemptsExceededException`. Ten is a wide margin: even if
+     * every attempt got released by the limiter, the job would live
+     * long enough for the hourly slot to open.
+     */
+    public int $tries = 10;
+
+    /**
+     * Cap the total time we're willing to keep re-releasing this job.
+     * If a send is still stuck an hour after enqueue there's a real
+     * problem — better to surface it as a failed_jobs row (which then
+     * calls `failed()` below to mark the delivery honestly) than
+     * silently keep trying forever.
+     */
+    public function retryUntil(): \DateTime
+    {
+        return now()->addHour()->toDateTime();
+    }
 
     public function __construct(
         private readonly Announcement $announcement,
@@ -139,5 +165,53 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
     public function announcement(): Announcement
     {
         return $this->announcement;
+    }
+
+    /**
+     * Queue-worker failure hook: Laravel calls this when the queued
+     * send exhausts `tries` / `retryUntil` or throws an unrecoverable
+     * exception. Without this, a rate-limited or transport-failed
+     * send would leave the paired `announcement_deliveries` row on
+     * `sent` forever — because `SendAnnouncementChunkJob::sendMail`
+     * calls `markSent()` optimistically the moment `$user->notify()`
+     * enqueues the job.
+     *
+     * This handler runs in a fresh worker process with the notification
+     * hydrated from its serialized payload — `$this->delivery` is a
+     * live Eloquent model at this point thanks to `SerializesModels`,
+     * so `markFailed()` writes straight through.
+     */
+    public function failed(Throwable $e): void
+    {
+        if ($this->delivery === null) {
+            Log::warning('FederationAnnouncementNotification failed but delivery ref is null; recipient bookkeeping not updated.', [
+                'announcement_id' => $this->announcement->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        // Refresh from the DB in case another process already updated
+        // the row (e.g. Mailgun bounce webhook fired first). If the
+        // status has already moved to a terminal state we leave it —
+        // don't downgrade `bounced` back to `failed`.
+        $delivery = $this->delivery->fresh() ?? $this->delivery;
+        $terminal = ['bounced', 'complained', 'delivered'];
+        $currentStatus = $delivery->status instanceof \App\Enums\DeliveryStatus
+            ? $delivery->status->value
+            : (string) $delivery->status;
+
+        if (in_array($currentStatus, $terminal, true)) {
+            return;
+        }
+
+        $delivery->markFailed('Queued send failed: ' . $e->getMessage());
+
+        Log::warning('FederationAnnouncementNotification: queued send exhausted retries', [
+            'announcement_id' => $this->announcement->id,
+            'delivery_id' => $delivery->id,
+            'error' => $e->getMessage(),
+        ]);
     }
 }

@@ -101,18 +101,31 @@ class AppServiceProvider extends ServiceProvider
      * the RateLimited queue middleware. Values are per-worker; we run one
      * queue worker in prod so this is effectively the site-wide send rate.
      *
-     * Mailgun probation caps the domain at 100 messages/hour. Notifications
-     * take 50/hour so password-reset, OTP, and other auth-critical mail
-     * (which skip this limiter and send inline) still have headroom.
-     * 2/min stops a queued broadcast dumping the whole hourly budget in
-     * one burst. When a limit is hit, RateLimited releases the job with
-     * the correct wait time — attempts are NOT incremented on release.
+     * Sizing rationale:
+     *   - 60 per minute (1/second) lets a match director's 10-recipient
+     *     bulletin fan out in ~10 seconds instead of taking 5 minutes.
+     *     Anything slower runs into Laravel's default `tries` budget
+     *     because `RateLimited` middleware DOES increment attempts on
+     *     each `release()` — a 2/min limit against a 10-recipient send
+     *     will burn `tries` before the slot opens, and the last few
+     *     jobs land in `failed_jobs` with `MaxAttemptsExceededException`
+     *     while their `announcement_deliveries` rows sit stranded on
+     *     `sent`.
+     *   - 500 per hour is the outer safety cap. Well below Mailgun's
+     *     10k/hour paid-tier limit and comfortably above realistic
+     *     federation-wide broadcast volume (~400 recipients × a few
+     *     bulletins/day). Auth-critical mail (password reset, OTP)
+     *     skips this limiter entirely so members can always log in
+     *     even mid-broadcast.
+     *
+     * If you find yourself needing to raise these further, first check
+     * whether the send is actually legitimate or a runaway loop.
      */
     private function registerMailRateLimiter(): void
     {
         RateLimiter::for('mail', fn () => [
-            Limit::perMinute(2),
-            Limit::perHour(50),
+            Limit::perMinute(60),
+            Limit::perHour(500),
         ]);
     }
 
