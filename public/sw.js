@@ -12,7 +12,7 @@
 // detect the change and swap in the new worker. (Byte-level diff in this
 // file already triggers an update — the constant is here so we can force
 // one without editing logic, e.g. to flush a client-side cache later.)
-const SW_VERSION = '2026-08-18-1';
+const SW_VERSION = '2026-08-18-2';
 
 self.addEventListener('install', (event) => {
     // Take over immediately so a returning user isn't stuck on the
@@ -51,10 +51,12 @@ self.addEventListener('push', (event) => {
         }
     }
 
+    // NOTE: badge is intentionally omitted until we ship a monochrome
+    // 96×96 silhouette PNG. Chromium falls back to the app icon rather
+    // than 404-ing a placeholder like the previous /icons/pwa-96.png.
     const options = {
         body: payload.body,
-        icon: '/icons/pwa-192.png',
-        badge: '/icons/pwa-96.png',
+        icon: '/images/pwa/icon-512.png',
         data: { url: payload.url },
         tag: payload.category || 'announcement',
         renotify: true,

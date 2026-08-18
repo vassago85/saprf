@@ -135,6 +135,7 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
                     <div>
                         <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name <span class="text-red-600">*</span></label>
                         <input wire:model="name" id="name" type="text" required autofocus
+                            autocomplete="name"
                             class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                         @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
@@ -143,12 +144,14 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
                         <div>
                             <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email <span class="text-red-600">*</span></label>
                             <input wire:model="email" id="email" type="email" required
+                                autocomplete="email" inputmode="email"
                                 class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                             @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="phone" class="block text-sm font-medium text-stone-700 mb-1">Phone</label>
                             <input wire:model="phone" id="phone" type="tel"
+                                autocomplete="tel" inputmode="tel"
                                 class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                             @error('phone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
@@ -174,14 +177,22 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
 
                         @if ($id_type === 'sa_id')
                             <div class="mt-3">
-                                <input wire:model="sa_id_number" type="text" inputmode="numeric" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number"
+                                <label for="sa_id_number" class="sr-only">SA ID number</label>
+                                <input wire:model="sa_id_number" id="sa_id_number" type="text"
+                                    inputmode="numeric" maxlength="13" pattern="\d{13}"
+                                    autocomplete="off"
+                                    placeholder="13-digit SA ID number"
+                                    aria-describedby="sa_id_help"
                                     class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
-                                <p class="mt-1 text-xs text-stone-400">Used for SASCOC reporting and IPRF eligibility (ELG-02).</p>
+                                <p id="sa_id_help" class="mt-1 text-xs text-stone-400">Used for SASCOC reporting and IPRF eligibility (ELG-02).</p>
                                 @error('sa_id_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                         @else
                             <div class="mt-3">
-                                <input wire:model="passport_number" type="text" placeholder="Passport number"
+                                <label for="passport_number" class="sr-only">Passport number</label>
+                                <input wire:model="passport_number" id="passport_number" type="text"
+                                    autocomplete="off"
+                                    placeholder="Passport number"
                                     class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                                 @error('passport_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
@@ -192,6 +203,7 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
                         <div>
                             <label for="date_of_birth" class="block text-sm font-medium text-stone-700 mb-1">Date of Birth</label>
                             <input wire:model="date_of_birth" id="date_of_birth" type="date"
+                                autocomplete="bday"
                                 class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                             @error('date_of_birth') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>

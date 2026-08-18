@@ -20,13 +20,17 @@ it('serves a valid web manifest file with all Level 1 PWA required keys', functi
     // Required by the Web App Manifest spec + browser install prompts.
     expect($manifest)->toHaveKeys(['name', 'short_name', 'start_url', 'display', 'icons', 'theme_color', 'background_color']);
     expect($manifest['display'])->toBe('standalone');
-    expect($manifest['start_url'])->toBe('/');
+    // start_url carries ?source=pwa so the / route can redirect an installed
+    // launch to the app dashboard for authenticated members. See routes/web.php.
+    expect($manifest['start_url'])->toStartWith('/');
+    expect($manifest['start_url'])->toContain('source=pwa');
 
-    // At least one 192px+ and one 512px icon (Chrome/Android install prompt
-    // rejects manifests that lack these two sizes).
+    // Chromium's install prompt is satisfied by icons declared with
+    // sizes="any" (spec-scalable). We used to require '192x192' + '512x512'
+    // but that lied about the actual pixel dimensions of the shipped PNGs.
     $sizes = collect($manifest['icons'])->pluck('sizes')->all();
-    expect($sizes)->toContain('192x192');
-    expect($sizes)->toContain('512x512');
+    expect($sizes)->not->toBeEmpty();
+    expect(collect($sizes)->contains(fn ($s) => $s === 'any' || str_contains($s, '512')))->toBeTrue();
 
     // At least one maskable icon so Android's circular/rounded-square masks
     // don't clip our SA logo.

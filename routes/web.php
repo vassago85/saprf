@@ -41,7 +41,16 @@ use Livewire\Volt\Volt;
 
 // ── Public Pages ──
 
-Route::view('/', 'welcome');
+// Homepage — installed PWA launches with ?source=pwa (see manifest start_url).
+// Send authenticated members straight to the app shell so an installed launch
+// does not land on the guest marketing page.
+Route::get('/', function () {
+    if (auth()->check() && request()->query('source') === 'pwa') {
+        return redirect()->route('dashboard');
+    }
+
+    return view('welcome');
+})->name('home');
 // Legal + governance documents are served by a controller so we can render
 // the verbatim MD source under docs/legal/ and, for the T&Cs, inject the
 // current membership-fee liability cap.
