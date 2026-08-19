@@ -51,6 +51,8 @@ Route::get('/', function () {
 
     return view('welcome');
 })->name('home');
+
+Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
 // Legal + governance documents are served by a controller so we can render
 // the verbatim MD source under docs/legal/ and, for the T&Cs, inject the
 // current membership-fee liability cap.

@@ -1,2 +1,43 @@
 User-agent: *
-Disallow:
+Allow: /
+
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /invitation
+Disallow: /verify-email
+Disallow: /password
+Disallow: /family
+Disallow: /communications
+Disallow: /announcements
+Disallow: /registrations
+Disallow: /my-membership
+Disallow: /memberships
+Disallow: /rifle-configurations
+Disallow: /ammo-loads
+Disallow: /matches
+Disallow: /scores
+Disallow: /score-imports
+Disallow: /payments
+Disallow: /financials
+Disallow: /user-management
+Disallow: /site-settings
+Disallow: /audit-logs
+Disallow: /venues
+Disallow: /clubs
+Disallow: /sponsors
+Disallow: /reports
+Disallow: /admin
+Disallow: /developer
+Disallow: /saved-lists
+Disallow: /provincial-members
+Disallow: /provincial-committees
+Disallow: /qualification-rules
+Disallow: /sascoc-report
+Disallow: /selection/cycles
+Disallow: /app/
+
+Sitemap: https://saprf.co.za/sitemap.xml

@@ -1,4 +1,4 @@
-<x-layouts.guest :title="'Member Verification — SAPRF'">
+<x-layouts.guest title="Member Verification — SAPRF" robots="noindex, nofollow" description="Verify a SAPRF membership number on the official South African Precision Rifle Federation platform.">
     <div class="min-h-screen flex items-center justify-center bg-stone-50 p-4">
         <div class="w-full max-w-md">
             <div class="text-center mb-8">

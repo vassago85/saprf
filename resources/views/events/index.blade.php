@@ -1,4 +1,4 @@
-<x-layouts.public title="Events - SAPRF" current="events" sponsor-placement="landing_section">
+<x-layouts.public title="Events - SAPRF" description="Browse upcoming SAPRF PRS and PR22 matches and past results. Register for events and view official scores across South Africa." current="events" sponsor-placement="landing_section">
     <div class="bg-stone-50 min-h-screen">
         {{-- Page Header --}}
         <div class="bg-white border-b border-stone-200">

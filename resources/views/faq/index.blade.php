@@ -1,4 +1,4 @@
-<x-layouts.guest>
+<x-layouts.guest description="Answers to common SAPRF questions — membership, match entry, divisions, SAPRF numbers, clubs, and how Precision Rifle scoring works.">
     <x-slot:title>Frequently Asked Questions — SAPRF</x-slot:title>
 
     <x-public-nav current="faq" />

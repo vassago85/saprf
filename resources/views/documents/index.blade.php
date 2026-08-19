@@ -1,4 +1,4 @@
-<x-layouts.public title="Documents — SAPRF" current="documents">
+<x-layouts.public title="Documents — SAPRF" description="Public SAPRF documents — constitution, rules, selection policies, terms, privacy, and code of conduct. No login required." current="documents">
     <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
         <div class="mb-8">
             <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">

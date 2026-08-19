@@ -11,6 +11,7 @@
     'effectiveDate' => null,     // e.g. "2 November 2025" — display date shown next to the version pill
     'status' => null,            // ['label' => 'Current', 'tone' => 'emerald'] — mirrors DocumentsController::catalog()
     'currentDocRoute' => null,   // route name for active-nav highlighting: 'documents' | 'faq' | 'selection-policy-pr22' etc.
+    'description' => null,
 ])
 
 @php
@@ -55,7 +56,7 @@
      All interactive behaviour is handled by a single Alpine component
      (`legalDoc`) registered on the wrapper — no external JS bundle. --}}
 
-<x-layouts.guest>
+<x-layouts.guest :description="$description ?? $subtitle ?? $blurb">
     <x-slot:title>{{ $title }} — SAPRF</x-slot:title>
 
     <x-public-nav :current="$currentDocRoute ?? 'documents'" />

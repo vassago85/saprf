@@ -1,4 +1,15 @@
-<x-layouts.public :title="$match->name . ' - SAPRF'" current="events" sponsor-placement="match_pages">
+@php
+    $eventSeoDescription = filled($match->description)
+        ? \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', strip_tags($match->description))), 160)
+        : collect([
+            $match->name,
+            $match->match_type,
+            $match->series_level ? ucfirst(str_replace('_', ' ', $match->series_level)) : null,
+            $match->match_date?->format('j F Y'),
+            $match->province?->name ?? $match->city,
+        ])->filter()->implode(' · ').'. Official SAPRF match listing — register, view entries, and results.';
+@endphp
+<x-layouts.public :title="$match->name . ' - SAPRF'" :description="$eventSeoDescription" current="events" sponsor-placement="match_pages">
     <div class="bg-stone-50 min-h-screen">
         {{-- Hero / Header --}}
         <div class="bg-white border-b border-stone-200">

@@ -1,4 +1,4 @@
-<x-layouts.public :title="$shooter->name . ' - ' . $season . ' Rankings - SAPRF'" current="standings">
+<x-layouts.public :title="$shooter->name . ' - ' . $season . ' Rankings - SAPRF'" :description="$shooter->name . ' — ' . $season . ' SAPRF rankings, match scores, and national points on the official Precision Rifle Federation platform.'" current="standings">
     <div class="bg-stone-50 min-h-screen" x-data="{ active: '{{ $seriesOrder->first() ?? '' }}' }">
         <div class="bg-white border-b border-stone-200">
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">

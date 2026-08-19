@@ -1,4 +1,4 @@
-<x-layouts.public :title="'Contact — SAPRF'" :current="'contact'">
+<x-layouts.public :title="'Contact — SAPRF'" description="Contact the South African Precision Rifle Federation with membership, match, or general enquiries." :current="'contact'">
     <div class="bg-stone-50">
         <div class="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-14">
             <div class="rounded-xl border border-stone-200 bg-stone-100 p-6 sm:p-8 shadow-sm">

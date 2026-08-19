@@ -1,4 +1,4 @@
-<x-layouts.guest>
+<x-layouts.guest description="The official South African Precision Rifle Federation platform for PRS and PR22 — register for matches, track scores, and compete in national standings.">
     <x-slot:title>SAPRF - South African Precision Rifle Federation</x-slot:title>
 
     <x-public-nav current="home" />

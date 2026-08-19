@@ -1,4 +1,4 @@
-<x-layouts.public title="Search — SAPRF Documents" current="documents">
+<x-layouts.public title="Search — SAPRF Documents" description="Search official SAPRF rules, selection policies, and legal documents." current="documents">
     @php
         // Kicker tone map — kickers on hits mirror the badge tones on the
         // /documents index cards so the visual thread from "browse" to
