@@ -115,7 +115,7 @@
             if (! el) return;
             @if($required)
                 if (this.query.trim() && ! this.selectedId) {
-                    el.setCustomValidity('Please pick a suggestion from the list, or use "Add ..." to create it.');
+                    el.setCustomValidity('Please pick a suggestion from the list, or use &quot;Add ...&quot; to create it.');
                 } else {
                     el.setCustomValidity('');
                 }
