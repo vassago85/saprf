@@ -42,6 +42,8 @@
         :image="$image"
     />
 
+    <link rel="alternate" type="text/plain" title="LLM information" href="{{ url('/llms.txt') }}">
+
     <x-pwa-meta />
 
     <link rel="preconnect" href="https://fonts.bunny.net">

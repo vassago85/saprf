@@ -19,6 +19,7 @@ it('points robots.txt at the sitemap and keeps authenticated areas out of the cr
 
     expect($robots)
         ->toContain('Sitemap: https://saprf.co.za/sitemap.xml')
+        ->toContain('https://saprf.co.za/llms.txt')
         ->toContain('Disallow: /dashboard')
         ->toContain('Disallow: /login')
         ->not->toContain('Disallow: /events');
@@ -108,5 +109,65 @@ it('serves a sitemap that lists public pages and published matches only', functi
         ->assertSee(route('standings.public'), false)
         ->assertSee(route('events.show', $published), false)
         ->assertDontSee(route('events.show', $draft), false)
-        ->assertDontSee('/dashboard', false);
+        ->assertDontSee('/dashboard', false)
+        ->assertSee(route('llms'), false);
+});
+
+it('serves llms.txt as a curated public map and llms-full.txt with the FAQ', function () {
+    $province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    $director = User::factory()->create();
+
+    $published = MatchEvent::create([
+        'name' => 'LLM Published Match',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $province->id,
+        'match_date' => now()->addMonth(),
+        'status' => 'open',
+        'published' => true,
+        'match_director' => $director->name,
+        'active_member_fee' => 500,
+        'created_by' => $director->id,
+    ]);
+
+    $draft = MatchEvent::create([
+        'name' => 'LLM Draft Match',
+        'match_type' => 'PRS',
+        'series_level' => 'provincial',
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $province->id,
+        'match_date' => now()->addMonths(2),
+        'status' => 'draft',
+        'published' => false,
+        'match_director' => $director->name,
+        'active_member_fee' => 500,
+        'created_by' => $director->id,
+    ]);
+
+    $this->get(route('llms'))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
+        ->assertSee('South African Precision Rifle Federation', false)
+        ->assertSee(route('events.index'), false)
+        ->assertSee(route('standings.public'), false)
+        ->assertSee(route('faq.index'), false)
+        ->assertSee(route('events.show', $published), false)
+        ->assertDontSee('LLM Draft Match', false)
+        ->assertSee(url('/llms-full.txt'), false);
+
+    $this->get(route('llms.full'))
+        ->assertOk()
+        ->assertSee('Do I have to be a member of SAPRF', false)
+        ->assertSee('LLM Published Match', false)
+        ->assertDontSee('LLM Draft Match', false);
+});
+
+it('points public pages at llms.txt for language-model crawlers', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('rel="alternate"', false)
+        ->assertSee('href="'.url('/llms.txt').'"', false);
 });

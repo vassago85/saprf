@@ -17,6 +17,8 @@ class SitemapController extends Controller
     {
         $urls = [
             $this->url(route('home'), 'daily', '1.0'),
+            $this->url(route('llms'), 'weekly', '0.5'),
+            $this->url(route('llms.full'), 'weekly', '0.4'),
             $this->url(route('events.index'), 'daily', '0.9'),
             $this->url(route('standings.public'), 'daily', '0.9'),
             $this->url(route('faq.index'), 'weekly', '0.7'),
