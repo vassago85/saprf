@@ -138,6 +138,19 @@ class MatchRegistration extends Model
      * i.e. up to the registration close date, or the match date when no close
      * date is set.
      */
+    /**
+     * Staff may recategorise (and reprice) an entry only while no money
+     * has been collected — changing a paid row would desync payouts.
+     */
+    public function canCorrectCategory(): bool
+    {
+        if ($this->registration_status === 'cancelled') {
+            return false;
+        }
+
+        return ! in_array($this->payment_status, ['paid', 'waived'], true);
+    }
+
     public function canEditEntry(): bool
     {
         if ($this->registration_status === 'cancelled') {

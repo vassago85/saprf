@@ -468,6 +468,11 @@ class PaymentController extends Controller
             ->latest('id')
             ->first();
 
+        if ($payment && (float) $payment->amount !== $fee) {
+            $payment->update(['status' => 'cancelled']);
+            $payment = null;
+        }
+
         if (! $payment) {
             $payment = Payment::create([
                 'payable_type' => MatchRegistration::class,

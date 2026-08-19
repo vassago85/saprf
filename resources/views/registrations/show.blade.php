@@ -181,7 +181,7 @@
                                 <option value="{{ $rifle->id }}" @selected($registration->rifle_configuration_id == $rifle->id)>
                                     {{ $rifle->nickname ?: ($rifle->make?->name . ' ' . $rifle->model?->name) }}
                                     @if($rifle->calibre) ({{ $rifle->calibre->name }}) @endif
-                                    @if($rifle->is_primary) ★ @endif
+                                    @if($rifle->primarySeriesLabel()) ({{ $rifle->primarySeriesLabel() }}) @endif
                                 </option>
                             @endforeach
                         </select>
@@ -345,6 +345,42 @@
         @endif
 
         @role('owner|admin|match_director')
+            @role('developer|exco|owner|admin')
+            @if($registration->canCorrectCategory())
+                <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                    <h2 class="font-heading text-lg font-semibold text-stone-900 mb-2">Correct Category</h2>
+                    <p class="text-sm text-stone-500 mb-5">Recalculate the entry fee for a different membership bracket. The surcharge is included or removed automatically. Only available while payment is outstanding.</p>
+
+                    <form method="POST" action="{{ route('registrations.update-category', $registration) }}" class="space-y-4">
+                        @csrf
+                        @method('PUT')
+
+                        <div>
+                            <label for="membership_fee_category" class="block text-sm font-medium text-stone-700">Category</label>
+                            <select name="membership_fee_category" id="membership_fee_category" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <option value="active_member" @selected($registration->membership_fee_category === 'active_member')>Active Member</option>
+                                <option value="lapsed_member" @selected($registration->membership_fee_category === 'lapsed_member')>Lapsed Member</option>
+                                <option value="non_member" @selected($registration->membership_fee_category === 'non_member')>Non-member</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="fee_override_reason" class="block text-sm font-medium text-stone-700">Reason</label>
+                            <textarea name="fee_override_reason" id="fee_override_reason" rows="2" required minlength="5" maxlength="500"
+                                      placeholder="e.g. Member was not lapsed at the time of registration."
+                                      class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">{{ old('fee_override_reason', $registration->fee_override_reason) }}</textarea>
+                            <p class="mt-1 text-xs text-stone-400">Stored on the entry so the fee change is auditable.</p>
+                            @error('fee_override_reason')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Category &amp; Recalculate Fee</button>
+                    </form>
+                </div>
+            @endif
+            @endrole
+
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Update Status</h2>
 

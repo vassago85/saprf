@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\User;
 use Carbon\CarbonInterface;
 
@@ -158,5 +159,63 @@ class RegistrationPricingService
         }
 
         return [(string) $globalType, (float) $globalValue];
+    }
+
+    /**
+     * Recalculate and persist an unpaid registration at a chosen fee bracket.
+     * Cancels in-flight PayFast checkouts so the next Pay Now uses the new
+     * amount. The caller must record WHY via $reason (stored on the row and
+     * expected in the audit log).
+     *
+     * @return array{old: array<string, mixed>, new: array<string, mixed>, cancelled_payments: int}
+     */
+    public function applyCategory(MatchRegistration $registration, string $category, string $reason): array
+    {
+        $category = $this->assertValidCategory($category);
+        $registration->loadMissing(['match', 'user', 'division']);
+
+        $tracked = [
+            'membership_fee_category',
+            'fee_amount',
+            'surcharge_amount',
+            'saprf_fee',
+            'platform_fee',
+            'gateway_fee',
+            'md_net_amount',
+            'fee_override_reason',
+        ];
+
+        $old = $registration->only($tracked);
+        $match = $registration->match
+            ?? throw new \InvalidArgumentException('Registration has no match.');
+
+        $breakdown = $this->calculateBreakdown(
+            $match,
+            $registration->user,
+            $match->match_date ?: now(),
+            $registration->division?->slug,
+            $category,
+        );
+
+        $registration->update([
+            'membership_fee_category' => $breakdown['category'],
+            'fee_amount' => $breakdown['total_fee'],
+            'surcharge_amount' => $breakdown['surcharge'],
+            'saprf_fee' => $breakdown['saprf_fee'],
+            'platform_fee' => $breakdown['platform_fee'],
+            'gateway_fee' => $breakdown['gateway_fee'],
+            'md_net_amount' => $breakdown['md_net'],
+            'fee_override_reason' => $reason,
+        ]);
+
+        $cancelled = $registration->payments()
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
+
+        return [
+            'old' => $old,
+            'new' => $registration->only($tracked),
+            'cancelled_payments' => $cancelled,
+        ];
     }
 }

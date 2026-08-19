@@ -11,6 +11,7 @@ use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RegistrationController extends Controller
@@ -120,7 +121,7 @@ class RegistrationController extends Controller
         $rifles = $request->user()->rifleConfigurations()
             ->active()
             ->with(['make', 'model', 'calibre'])
-            ->orderByDesc('is_primary')
+            ->orderMainsFirst($registration->match?->series ?? $registration->match?->match_type)
             ->get();
 
         $divisions = $registration->match?->availableDivisions() ?? collect();
@@ -249,6 +250,50 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', 'Registration status updated.');
+    }
+
+    /**
+     * Staff correction: move an unpaid entry to a different fee bracket
+     * (e.g. lapsed → active) and rebuild the fee row so the surcharge
+     * drops. Refused once payment has been collected.
+     */
+    public function updateCategory(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        if (! $registration->canCorrectCategory()) {
+            return back()->with('error', 'The fee category cannot be changed after payment has been collected.');
+        }
+
+        $validated = $request->validate([
+            'membership_fee_category' => ['required', Rule::in(RegistrationPricingService::CATEGORIES)],
+            'fee_override_reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        $result = $this->pricingService->applyCategory(
+            $registration,
+            $validated['membership_fee_category'],
+            $validated['fee_override_reason'],
+        );
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.category.updated',
+            'MatchRegistration',
+            $registration->id,
+            $result['old'],
+            $result['new'],
+            $validated['fee_override_reason'],
+        );
+
+        $registration->refresh();
+
+        return redirect()->route('registrations.show', $registration)
+            ->with(
+                'success',
+                'Category updated to '.$registration->feeCategoryLabel()
+                .'. Fee is now R '.number_format((float) $registration->fee_amount, 2).'.'
+            );
     }
 
     public function withdraw(Request $request, MatchRegistration $registration): RedirectResponse

@@ -394,6 +394,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/memberships/{membership}/invite', [MembershipController::class, 'invite'])->name('memberships.invite');
         Route::post('/memberships/{membership}/reset-password', [MembershipController::class, 'resetPassword'])->name('memberships.reset-password');
         Route::put('/registrations/{registration}/status', [RegistrationController::class, 'updateStatus'])->name('registrations.update-status');
+        Route::put('/registrations/{registration}/category', [RegistrationController::class, 'updateCategory'])->name('registrations.update-category');
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
             ->names('audit-logs');
