@@ -39,6 +39,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'province_id',
         'division_id',
         'club_id',
+        'address_line_1',
+        'address_line_2',
+        'address_line_3',
+        'city',
+        'postal_code',
         'email_verified_at',
         'parent_id',
         'is_managed_account',
@@ -105,6 +110,31 @@ class User extends Authenticatable implements MustVerifyEmail
         'white' => 'White',
         'other' => 'Other',
         'prefer_not_to_say' => 'Prefer not to say',
+    ];
+
+    /**
+     * Countries surfaced in residence dropdowns. Kept small because the only
+     * functional consequence today is IPRF eligibility (SA vs. abroad).
+     * "XX" is the ISO user-assigned code for "other/unknown".
+     *
+     * @var array<string, string>
+     */
+    public const COUNTRY_OPTIONS = [
+        'ZA' => 'South Africa',
+        'GB' => 'United Kingdom',
+        'US' => 'United States',
+        'AU' => 'Australia',
+        'NZ' => 'New Zealand',
+        'CA' => 'Canada',
+        'NA' => 'Namibia',
+        'BW' => 'Botswana',
+        'ZW' => 'Zimbabwe',
+        'AE' => 'United Arab Emirates',
+        'DE' => 'Germany',
+        'NL' => 'Netherlands',
+        'IE' => 'Ireland',
+        'CH' => 'Switzerland',
+        'XX' => 'Other',
     ];
 
     /**

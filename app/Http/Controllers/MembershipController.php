@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Club;
 use App\Models\Membership;
 use App\Models\MembershipFeeTier;
+use App\Models\Province;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
@@ -216,7 +218,7 @@ class MembershipController extends Controller
     {
         $this->authorize('view', $membership);
 
-        $membership->load(['user', 'payments', 'revokedByUser']);
+        $membership->load(['user.province', 'user.club', 'payments', 'revokedByUser']);
 
         return view('memberships.show', compact('membership'));
     }
@@ -262,7 +264,21 @@ class MembershipController extends Controller
 
         $membership->load('user');
 
-        return view('memberships.edit', compact('membership'));
+        $clubs = Club::query()
+            ->where('is_active', true)
+            ->with('province:id,name')
+            ->orderBy('name')
+            ->get()
+            ->groupBy(fn (Club $c) => $c->province?->name ?? 'Unassigned');
+
+        return view('memberships.edit', [
+            'membership' => $membership,
+            'provinces' => Province::orderBy('name')->get(),
+            'clubs' => $clubs,
+            'countries' => User::COUNTRY_OPTIONS,
+            'genderOptions' => User::GENDER_OPTIONS,
+            'ethnicityOptions' => User::ETHNICITY_OPTIONS,
+        ]);
     }
 
     public function update(Request $request, Membership $membership): RedirectResponse
@@ -270,7 +286,24 @@ class MembershipController extends Controller
         $this->authorize('update', $membership);
 
         $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($membership->user_id)],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'sa_id_number' => ['nullable', 'string', 'digits:13', Rule::unique('users', 'sa_id_number')->ignore($membership->user_id)],
+            'mil_le_number' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'gender' => ['nullable', Rule::in(array_keys(User::GENDER_OPTIONS))],
+            'ethnicity' => ['nullable', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
+            'previously_disadvantaged_choice' => ['nullable', Rule::in(['yes', 'no'])],
+            'province_id' => ['nullable', 'exists:provinces,id'],
+            'club_id' => ['nullable', 'exists:clubs,id'],
+            'sa_citizen' => ['nullable', Rule::in(['0', '1'])],
+            'country_of_residence' => ['nullable', Rule::in(array_keys(User::COUNTRY_OPTIONS))],
+            'address_line_1' => ['nullable', 'string', 'max:255'],
+            'address_line_2' => ['nullable', 'string', 'max:255'],
+            'address_line_3' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:120'],
+            'postal_code' => ['nullable', 'string', 'max:20'],
             'saprf_number' => ['nullable', 'string', 'max:100', Rule::unique('memberships', 'saprf_number')->ignore($membership->id)],
             'membership_type' => ['required', 'string', 'max:50'],
             'status' => ['required', 'in:pending,active,lapsed,suspended,expired,revoked'],
@@ -279,21 +312,51 @@ class MembershipController extends Controller
             'expiry_date' => ['nullable', 'date'],
         ]);
 
-        // Email lives on the user, not the membership. Update it separately and
-        // log it as its own change so duplicate-account clean-ups are auditable.
         $user = $membership->user;
-        if ($user && $validated['email'] !== $user->email) {
-            $oldEmail = $user->email;
-            $user->update(['email' => $validated['email']]);
+        if ($user) {
+            $userUpdates = [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'sa_id_number' => $validated['sa_id_number'] ?? null,
+                'mil_le_number' => $validated['mil_le_number'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+                'ethnicity' => $validated['ethnicity'] ?? null,
+                'previously_disadvantaged' => match ($validated['previously_disadvantaged_choice'] ?? '') {
+                    'yes' => true,
+                    'no' => false,
+                    default => null,
+                },
+                'province_id' => isset($validated['province_id']) ? (int) $validated['province_id'] : null,
+                'club_id' => isset($validated['club_id']) ? (int) $validated['club_id'] : null,
+                'sa_citizen' => match ($validated['sa_citizen'] ?? null) {
+                    '1' => true,
+                    '0' => false,
+                    default => null,
+                },
+                'country_of_residence' => $validated['country_of_residence'] ?? null,
+                'address_line_1' => $validated['address_line_1'] ?? null,
+                'address_line_2' => $validated['address_line_2'] ?? null,
+                'address_line_3' => $validated['address_line_3'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
+            ];
 
-            $this->auditLogService->log(
-                $request->user(),
-                'user.email_updated',
-                'User',
-                $user->id,
-                ['email' => $oldEmail],
-                ['email' => $validated['email']],
-            );
+            $profileFields = array_keys($userUpdates);
+            $oldProfile = $user->only($profileFields);
+            $user->update($userUpdates);
+
+            if ($user->wasChanged($profileFields)) {
+                $this->auditLogService->log(
+                    $request->user(),
+                    $user->wasChanged('email') ? 'user.email_updated' : 'user.profile_updated',
+                    'User',
+                    $user->id,
+                    $oldProfile,
+                    $user->only($profileFields),
+                );
+            }
         }
 
         $trackedFields = ['saprf_number', 'membership_type', 'status', 'payment_status', 'start_date', 'expiry_date'];
@@ -301,12 +364,12 @@ class MembershipController extends Controller
         $membership->update([
             // Keep the existing number if the field was cleared, so we never
             // wipe a member's SAPRF number by accident.
-            'saprf_number' => $validated['saprf_number'] ?: $membership->saprf_number,
+            'saprf_number' => ($validated['saprf_number'] ?? null) ?: $membership->saprf_number,
             'membership_type' => $validated['membership_type'],
             'status' => $validated['status'],
             'payment_status' => $validated['payment_status'],
-            'start_date' => $validated['start_date'] ?: null,
-            'expiry_date' => $validated['expiry_date'] ?: null,
+            'start_date' => $validated['start_date'] ?? null,
+            'expiry_date' => $validated['expiry_date'] ?? null,
         ]);
 
         $this->auditLogService->log(

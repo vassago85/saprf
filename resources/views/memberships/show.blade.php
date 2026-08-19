@@ -131,6 +131,78 @@
             </dl>
         </div>
 
+        @php
+            $member = $membership->user;
+            $addressLines = array_filter([
+                $member?->address_line_1,
+                $member?->address_line_2,
+                $member?->address_line_3,
+                $member?->city,
+                $member?->province?->name,
+                $member?->postal_code,
+                $member?->country_of_residence
+                    ? (\App\Models\User::COUNTRY_OPTIONS[$member->country_of_residence] ?? $member->country_of_residence)
+                    : null,
+            ]);
+        @endphp
+
+        <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+            <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Personal Details</h2>
+
+            <dl class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Phone</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->phone ?: '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Date of Birth</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->date_of_birth?->format('d M Y') ?? '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">SA ID Number</dt>
+                    <dd class="mt-1 text-sm font-mono text-stone-900">{{ $member?->sa_id_number ?: '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Mil / LE Number</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->mil_le_number ?: '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Gender</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->gender ? (\App\Models\User::GENDER_OPTIONS[$member->gender] ?? ucfirst($member->gender)) : '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Ethnicity</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->ethnicity ? (\App\Models\User::ETHNICITY_OPTIONS[$member->ethnicity] ?? ucfirst($member->ethnicity)) : '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Previously Disadvantaged</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->previously_disadvantaged === true ? 'Yes' : ($member?->previously_disadvantaged === false ? 'No' : '—') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">SA Citizen</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->sa_citizen === true ? 'Yes' : ($member?->sa_citizen === false ? 'No' : '—') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Primary Club</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->club?->name ?: '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Province</dt>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $member?->province?->name ?: '—' }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Address</dt>
+                    <dd class="mt-1 text-sm text-stone-900">
+                        @if ($addressLines)
+                            {!! nl2br(e(implode("\n", $addressLines))) !!}
+                        @else
+                            —
+                        @endif
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
         {{-- Pay Now button for unpaid memberships --}}
         @if(in_array($membership->payment_status, ['pending', 'unpaid', 'overdue']) && $membership->membership_type === 'paid')
             @php $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled(); @endphp

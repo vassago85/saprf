@@ -14,7 +14,7 @@ class MembershipPolicy
 
     public function view(User $user, Membership $membership): bool
     {
-        if ($user->hasRole(['owner', 'admin'])) {
+        if ($user->hasAnyRole(['developer', 'exco', 'chair', 'owner', 'admin'])) {
             return true;
         }
 
@@ -23,16 +23,16 @@ class MembershipPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['owner', 'admin']);
+        return $user->hasAnyRole(['developer', 'exco', 'chair', 'owner', 'admin']);
     }
 
     public function update(User $user, Membership $membership): bool
     {
-        return $user->hasRole(['owner', 'admin']);
+        return $user->hasAnyRole(['developer', 'exco', 'chair', 'owner', 'admin']);
     }
 
     public function delete(User $user, Membership $membership): bool
     {
-        return $user->hasRole(['owner', 'admin']);
+        return $user->hasAnyRole(['owner', 'admin']);
     }
 }
