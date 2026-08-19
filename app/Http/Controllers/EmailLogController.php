@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\MemberInvitationNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\AuditLogService;
+use App\Support\MailgunPause;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -55,12 +56,17 @@ class EmailLogController extends Controller
             ->orderByDesc('aggregate')
             ->pluck('aggregate', 'notification_class');
 
-        return view('email-logs.index', compact('logs', 'counts', 'notificationClasses', 'status', 'search', 'notificationClass'));
+        $mailgunPausedUntil = app(MailgunPause::class)->pausedUntil();
+
+        return view('email-logs.index', compact('logs', 'counts', 'notificationClasses', 'status', 'search', 'notificationClass', 'mailgunPausedUntil'));
     }
 
     public function show(EmailLog $emailLog): View
     {
-        return view('email-logs.show', ['log' => $emailLog->load('user')]);
+        return view('email-logs.show', [
+            'log' => $emailLog->load('user'),
+            'mailgunPausedUntil' => app(MailgunPause::class)->pausedUntil(),
+        ]);
     }
 
     public function dismiss(Request $request, EmailLog $emailLog, AuditLogService $audit): RedirectResponse
@@ -117,19 +123,24 @@ class EmailLogController extends Controller
         return back()->with('success', "Marked {$count} queued email".($count === 1 ? '' : 's').' complete.');
     }
 
-    public function resend(Request $request, EmailLog $emailLog, AuditLogService $audit): RedirectResponse
+    public function resend(Request $request, EmailLog $emailLog, AuditLogService $audit, MailgunPause $mailgunPause): RedirectResponse
     {
         if (! $emailLog->canResend()) {
             return back()->with('error', 'This email cannot be resent from the log. Password resets and invitations can; announcements should be resent from the announcement itself.');
         }
 
         try {
+            $mailgunPause->assertAvailable();
+
             match ($emailLog->notification_class) {
                 ResetPasswordNotification::class => $this->resendPasswordReset($emailLog),
                 MemberInvitationNotification::class => $this->resendInvitation($emailLog),
                 default => throw new \RuntimeException('Unsupported notification class.'),
             };
         } catch (Throwable $e) {
+            $mailgunPause->rememberFromError($e->getMessage());
+            $this->failFreshQueuedOrphan($emailLog, $e->getMessage());
+
             return back()->with('error', 'Resend failed: '.$e->getMessage());
         }
 
@@ -184,5 +195,24 @@ class EmailLogController extends Controller
         }
 
         return $user;
+    }
+
+    /**
+     * A failed resend still fires MessageSending, which inserts a new
+     * queued row. Left alone that looks like more work and invites
+     * another Resend click — which restarts the Mailgun lock.
+     */
+    private function failFreshQueuedOrphan(EmailLog $original, string $error): void
+    {
+        EmailLog::query()
+            ->where('to_email', $original->to_email)
+            ->where('status', EmailLog::STATUS_QUEUED)
+            ->where('id', '!=', $original->id)
+            ->where('created_at', '>=', now()->subMinute())
+            ->update([
+                'status' => EmailLog::STATUS_FAILED,
+                'error' => mb_substr($error, 0, 1000),
+                'failed_at' => now(),
+            ]);
     }
 }

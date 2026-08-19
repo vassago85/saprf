@@ -30,6 +30,8 @@ use App\Models\User;
 use App\Notifications\FederationAnnouncementNotification;
 use App\Notifications\MemberInvitationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Support\MailgunPause;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -394,6 +396,32 @@ it('refuses to resend a federation announcement from the log', function () {
     $this->actingAs($exco)
         ->post(route('email-logs.resend', $log))
         ->assertRedirect();
+
+    expect($log->fresh()->status)->toBe(EmailLog::STATUS_QUEUED);
+});
+
+it('blocks further resends after a Mailgun probation error', function () {
+    $exco = excoUser();
+    $member = memberUser('locked@example.test');
+    Cache::flush();
+
+    $pause = app(MailgunPause::class);
+    $pause->rememberFromError('Account will be enabled in 4053 seconds (code 403).');
+
+    expect($pause->isPaused())->toBeTrue();
+
+    $log = EmailLog::create([
+        'to_email' => $member->email,
+        'user_id' => $member->id,
+        'subject' => 'Reset Your SAPRF Password',
+        'status' => EmailLog::STATUS_QUEUED,
+        'notification_class' => ResetPasswordNotification::class,
+    ]);
+
+    $this->actingAs($exco)
+        ->post(route('email-logs.resend', $log))
+        ->assertRedirect()
+        ->assertSessionHas('error', fn ($message) => str_contains($message, 'Mailgun is paused'));
 
     expect($log->fresh()->status)->toBe(EmailLog::STATUS_QUEUED);
 });

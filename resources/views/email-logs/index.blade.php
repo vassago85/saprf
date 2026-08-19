@@ -10,6 +10,13 @@
         </a>
     </div>
 
+    @if ($mailgunPausedUntil)
+        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p class="font-semibold">Mailgun is paused until {{ $mailgunPausedUntil->timezone('Africa/Johannesburg')->format('H:i') }} SAST.</p>
+            <p class="mt-1">Resend is disabled. Do not retry — each attempt restarts the hour lock. Use <strong>Complete</strong> on leftover queued rows; that does not send.</p>
+        </div>
+    @endif
+
     @php
         $statusTabs = [
             null => ['label' => 'All',       'count' => (int) $counts->sum(),                                        'classes' => 'bg-stone-100 text-stone-700'],
@@ -102,9 +109,9 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <div class="inline-flex items-center justify-end gap-3">
                                 <a href="{{ route('email-logs.show', $log) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">View</a>
-                                @if ($log->canResend())
+                                @if ($log->canResend() && ! $mailgunPausedUntil)
                                     <form method="POST" action="{{ route('email-logs.resend', $log) }}"
-                                        onsubmit="return confirm('Send a new {{ class_basename($log->notification_class) }} to {{ $log->to_email }}?')">
+                                        onsubmit="return confirm('Send ONE email to {{ $log->to_email }} only? Do not click Resend on the other queued rows.')">
                                         @csrf
                                         <button class="font-semibold text-sky-700 hover:text-sky-800">Resend</button>
                                     </form>

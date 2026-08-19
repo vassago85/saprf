@@ -11,9 +11,9 @@
             <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
                 {{ $log->status === \App\Models\EmailLog::STATUS_DISMISSED ? 'Complete' : ucfirst($log->status) }}
             </span>
-            @if ($log->canResend())
+            @if ($log->canResend() && ! $mailgunPausedUntil)
                 <form method="POST" action="{{ route('email-logs.resend', $log) }}"
-                    onsubmit="return confirm('Send a new {{ class_basename($log->notification_class) }} to {{ $log->to_email }}?')">
+                    onsubmit="return confirm('Send ONE email to {{ $log->to_email }} only?')">
                     @csrf
                     <button class="rounded-lg bg-sky-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-sky-800">Resend</button>
                 </form>
