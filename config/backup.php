@@ -89,8 +89,15 @@ return [
              *
              * For a complete list of available customization options, see https://github.com/spatie/db-dumper
              */
+            // Pin the backup at the `mariadb` connection (not `mysql`) so
+            // spatie/db-dumper instantiates its MariaDb dumper subclass —
+            // which uses the `mariadb-dump` binary and the `--skip-ssl`
+            // flag. The `mysql` variant emits Oracle's `--ssl-mode=DISABLED`
+            // instead, which mariadb-client rejects as an unknown variable.
+            // Both connections read from the same DB_* env vars, so this
+            // only changes how mysqldump is invoked, not what it dumps.
             'databases' => [
-                env('DB_CONNECTION', 'mysql'),
+                'mariadb',
             ],
         ],
 
