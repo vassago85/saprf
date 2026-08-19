@@ -62,6 +62,15 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            // spatie/laravel-backup uses this block to configure the CLI
+            // mysqldump call. MariaDB 11+ clients now try SSL by default and
+            // our containerised MariaDB 10.11 server doesn't offer it, which
+            // aborts the dump with "SSL is required, but the server does not
+            // support it". This only affects the mysqldump subprocess — the
+            // app's runtime PDO connection is unchanged.
+            'dump' => [
+                'skip_ssl' => true,
+            ],
         ],
 
         'mariadb' => [
@@ -82,6 +91,9 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'skip_ssl' => true,
+            ],
         ],
 
         'pgsql' => [
