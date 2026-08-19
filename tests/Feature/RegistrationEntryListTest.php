@@ -160,6 +160,64 @@ it('only lists registrations for the requested match', function () {
         ->assertDontSee('Other Match Shooter');
 });
 
+it('shows a staff user in shooter mode only their own registrations, not everyone else\'s', function () {
+    // Admin has their own registration on this match…
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $admin->id,
+        'shooter_name' => $admin->name,
+        'email' => $admin->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 1500.00,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'pending',
+        'registered_at' => now(),
+    ]);
+
+    // …plus a stranger's entry that should be hidden when the admin is
+    // viewing in shooter mode.
+    registerShooter($this->match, 'Someone Else');
+
+    // Flip the admin to shooter mode via the same route the sidebar uses.
+    $this->actingAs($admin)
+        ->post(route('dashboard.view-mode'), ['mode' => 'shooter'])
+        ->assertRedirect(route('dashboard'));
+
+    $this->get(route('registrations.index'))
+        ->assertOk()
+        ->assertSee($admin->name)
+        ->assertDontSee('Someone Else');
+});
+
+it('hides fee details from a staff user viewing their own list in shooter mode', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $admin->id,
+        'shooter_name' => $admin->name,
+        'email' => $admin->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 1500.00,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'pending',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('dashboard.view-mode'), ['mode' => 'shooter'])
+        ->assertRedirect(route('dashboard'));
+
+    $this->get(route('registrations.index'))
+        ->assertOk()
+        ->assertSee($admin->name)
+        ->assertDontSee('1,500.00');
+});
+
 it('still shows a member only their own registrations when no match is given', function () {
     $mine = User::factory()->create(['email_verified_at' => now()]);
     $mine->assignRole('member');

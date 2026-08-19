@@ -24,7 +24,12 @@ class RegistrationController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
-        $isPrivileged = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director']);
+        // Staff can flip to shooter view via the sidebar toggle. When they do,
+        // this page must behave like it would for a pure member: only their
+        // own entries, and no financial columns. Roles alone aren't enough —
+        // we also require the effective view mode to be `admin`.
+        $isPrivileged = $user->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director'])
+            && $user->effectiveViewMode() === 'admin';
 
         $matchId = $request->integer('match_id') ?: null;
         $match = $matchId ? MatchEvent::find($matchId) : null;
