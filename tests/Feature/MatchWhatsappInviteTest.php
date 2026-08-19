@@ -9,6 +9,7 @@
 
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Membership;
 use App\Models\Payment;
 use App\Models\Province;
 use App\Models\User;
@@ -269,6 +270,37 @@ it('hides the join link on the payment success page for a waitlisted entry', fun
         ->assertOk()
         ->assertDontSee('Join match WhatsApp group')
         ->assertDontSee(WHATSAPP_INVITE_URL);
+});
+
+it('renders the payment success page for a membership payment without blowing up on the WhatsApp lookup', function () {
+    // Regression: membership payments have Membership as the polymorphic
+    // payable, which has no `match` relation. The success page must still
+    // render — the WhatsApp invite branch only applies to MatchRegistration.
+    // Mirror the real scenario: the ITN webhook typically hasn't landed by
+    // the time the user is back on the return URL, so the membership is
+    // still pending/unpaid and the payment row is still pending too.
+    $membership = Membership::create([
+        'user_id' => $this->member->id,
+        'saprf_number' => Membership::nextSaprfNumber(),
+        'membership_type' => 'paid',
+        'status' => 'pending',
+        'payment_status' => 'unpaid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+
+    $payment = Payment::create([
+        'payable_type' => Membership::class,
+        'payable_id' => $membership->id,
+        'user_id' => $this->member->id,
+        'amount' => 850.00,
+        'm_payment_id' => 'MEM-WA-SUCCESS',
+    ]);
+
+    $this->actingAs($this->member)
+        ->get(route('payments.return', ['m_payment_id' => $payment->m_payment_id]))
+        ->assertOk()
+        ->assertDontSee('Join match WhatsApp group');
 });
 
 // ── Emails ───────────────────────────────────────────────────────────

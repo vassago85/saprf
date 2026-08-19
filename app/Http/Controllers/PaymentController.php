@@ -103,13 +103,19 @@ class PaymentController extends Controller
             return null;
         }
 
-        $payment->loadMissing('payable.match');
+        // Load the polymorphic payable first — eager-loading `payable.match`
+        // in one shot blows up for membership payments, whose payable
+        // (App\Models\Membership) has no `match` relation and produces a
+        // RelationNotFoundException on the return-from-gateway page.
+        $payment->loadMissing('payable');
 
         $registration = $payment->payable;
 
         if (! $registration instanceof MatchRegistration) {
             return null;
         }
+
+        $registration->loadMissing('match');
 
         return $registration->whatsappInviteUrlAfterPayment();
     }
