@@ -45,7 +45,31 @@ Information you send to us by posting to a forum or blog or in your advertisemen
 
 ## Website usage information
 
-We may use software embedded in our website (such as JavaScript) to collect information about pages you view and how you have reached them, what you do when you visit a page, the length of time you remain on the page, and how we perform in providing content to you.
+We may use software embedded in our website (such as JavaScript) to collect information about pages you view and how you have reached them, what you do when you visit a page, the length of time you remain on the page, and how we perform in providing content to you. The principal tool we use for this is Google Analytics, described below.
+
+## Google Analytics
+
+We use Google Analytics 4 (the “Google tag”, also called gtag.js) on every page of this website so that we can see, in aggregate, how the site is used. The tag is operated by Google LLC / Google Ireland Limited (“Google”).
+
+When you visit a page, the tag may send Google:
+
+- the page address and title, and the site that referred you;
+- a rough location derived from your IP address (city / region, not a street address);
+- technical details such as browser, device type, screen size and language;
+- a random client identifier stored in a cookie on your device.
+
+We do not send Google your name, email address, South African ID number, SAPRF number, payment card details, or the contents of forms you submit to us. We use the reports to understand which public pages are used (for example Events, Standings, Documents and the homepage) and to improve the site. We do not sell this information.
+
+Google processes this data on its own systems, which may be outside South Africa (including the United States). Google’s use of the data is also governed by [Google’s privacy policy](https://policies.google.com/privacy) and [Google Analytics terms](https://www.google.com/analytics/terms/).
+
+The cookies Google Analytics typically sets on this site are:
+
+- `_ga` — distinguishes visitors (up to 2 years);
+- `_ga_` followed by our measurement identifier — persists the current session (up to 2 years).
+
+These cookies are first-party cookies on saprf.co.za. You can delete them, or block cookies, in your browser settings. You can also use Google’s [opt-out add-on](https://tools.google.com/dlpage/gaoptout) where it is available. If you block these cookies, the website will still work; we will simply have a less complete picture of site usage.
+
+The measurement identifier (`G-DESCP26KTX`) appears in the public source of every page. That identifier is not a secret and does not allow anyone else to read our Analytics reports.
 
 ## Financial information relating to your credit cards
 
@@ -79,7 +103,7 @@ Our web site is a publishing medium in that anyone may register and then publish
 
 ## Information we obtain from third parties
 
-Although we do not disclose your personal information to any third party (except as set out in this notice), we do receive data which is indirectly made up from your personal information, from software services such as Google Analytics and others. No such information is identifiable to you.
+Although we do not disclose your personal information to any third party (except as set out in this notice), we do receive reports which are made up from usage data, from software services such as Google Analytics and others. Those reports are aggregated. They are not used by us to identify you as an individual. See “Google Analytics” above for what the tag sends to Google.
 
 ## Content you provide to us with a view to be used by third party
 
@@ -98,7 +122,7 @@ Although your browser software enables you to disable cookies, we recommend that
 - to operate our content management system.
 - to operate the online notification form – the form that you use to contact us for any reason. This cookie is set on your arrival at our web site and deleted when you close your browser.
 - to enhance security on our contact form. It is set for use only through the contact form. This cookie is deleted when you close your browser.
-- to collect information about how visitors use our site. We use the information to improve your experience of our site and enable us to increase sales. This cookie collects information in an anonymous form, including the number of visitors to the site, where visitors have come to the site from, and the pages they visited.
+- to collect information about how visitors use our site (Google Analytics cookies `_ga` and `_ga_*`, described under “Google Analytics” above). We use the information to improve your experience of our site. These cookies collect information in an anonymous form, including the number of visitors to the site, where visitors have come to the site from, and the pages they visited.
 - to record that a user has viewed a webcast. It collects information in an anonymous form. This cookie expires when you close your browser.
 - to record your activity during a web cast. An example is as to whether you have asked a question or provided an opinion by ticking a box. This information is retained so that we can serve your information to you when you return to the site. This cookie will record an anonymous ID for each user, but it will not use the information for any other purpose. These cookies can last for 90 days or longer, when it will delete automatically.
 - to store your personal information so that you do not have to provide it afresh when you visit the site next time. This cookie can last for 90 days or longer.
@@ -158,6 +182,6 @@ If you wish us to remove personally identifiable information from our web site, 
 
 ## Data may be "processed" outside South Africa
 
-Our web sites are hosted in South Africa. We also use outsourced services in countries outside South Africa from time to time in other aspects of our business. Accordingly data obtained within South Africa may be "processed" outside South Africa and data obtained in any other country may be processed within or outside that country.
+Our web sites are hosted in South Africa. We also use outsourced services in countries outside South Africa from time to time in other aspects of our business, including Google Analytics as described above. Accordingly data obtained within South Africa may be "processed" outside South Africa and data obtained in any other country may be processed within or outside that country.
 
 If you have any question regarding the privacy policy, please contact us through our contact page.

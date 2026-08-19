@@ -36,6 +36,9 @@ test('the public privacy page renders the verbatim markdown', function () {
         ->assertOk()
         ->assertSee('Privacy Policy')
         ->assertSee('Business and personal information')
+        ->assertSee('Google Analytics')
+        ->assertSee('Google Analytics 4')
+        ->assertSee('G-DESCP26KTX')
         ->assertSee('Cookies')
         ->assertSee('Data may be', escape: false)
         ->assertSee('outside South Africa');
