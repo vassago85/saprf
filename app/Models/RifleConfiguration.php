@@ -29,7 +29,8 @@ class RifleConfiguration extends Model
         'barrel_length',
         'twist_rate',
         'notes',
-        'is_primary',
+        'primary_series',
+        'show_on_profile',
         'is_active',
         'total_barrel_rounds',
     ];
@@ -37,7 +38,7 @@ class RifleConfiguration extends Model
     protected function casts(): array
     {
         return [
-            'is_primary' => 'boolean',
+            'show_on_profile' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -90,6 +91,42 @@ class RifleConfiguration extends Model
     public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function scopeVisibleOnProfile($query)
+    {
+        return $query->active()
+            ->whereNotNull('primary_series')
+            ->where('show_on_profile', true);
+    }
+
+    public function scopeOrderMainsFirst($query, ?string $series = null)
+    {
+        if ($series) {
+            return $query
+                ->orderByRaw('CASE WHEN primary_series = ? THEN 0 ELSE 1 END', [$series])
+                ->orderByRaw('CASE WHEN primary_series IS NULL THEN 1 ELSE 0 END');
+        }
+
+        return $query->orderByRaw("CASE primary_series WHEN 'PRS' THEN 0 WHEN 'PR22' THEN 1 ELSE 2 END");
+    }
+
+    public function primarySeriesLabel(): ?string
+    {
+        return match ($this->primary_series) {
+            'PRS' => 'Main PRS',
+            'PR22' => 'Main PR22',
+            default => null,
+        };
+    }
+
+    public function primarySeriesBadgeClasses(): string
+    {
+        return match ($this->primary_series) {
+            'PRS' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+            'PR22' => 'bg-sky-50 text-sky-800 ring-sky-600/20',
+            default => '',
+        };
     }
 
     public function recalculateShotCount(): void

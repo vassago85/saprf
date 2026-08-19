@@ -266,6 +266,37 @@ it('shows every division a shooter placed in — not just the first', function (
     $response->assertSee('PRS Factory Match', false);
 });
 
+it('shows opted-in main rifles on the public shooter profile and hides the rest', function () {
+    $shooter = User::factory()->create(['name' => 'Rifle Owner']);
+
+    \App\Models\RifleConfiguration::create([
+        'user_id' => $shooter->id,
+        'nickname' => 'Public Creedmoor',
+        'primary_series' => 'PRS',
+        'show_on_profile' => true,
+        'is_active' => true,
+    ]);
+    \App\Models\RifleConfiguration::create([
+        'user_id' => $shooter->id,
+        'nickname' => 'Hidden Rimfire',
+        'primary_series' => 'PR22',
+        'show_on_profile' => false,
+        'is_active' => true,
+    ]);
+    \App\Models\RifleConfiguration::create([
+        'user_id' => $shooter->id,
+        'nickname' => 'Spare Rifle',
+        'is_active' => true,
+    ]);
+
+    $this->get('/standings/2026/shooter/'.$shooter->id)
+        ->assertOk()
+        ->assertSee('Public Creedmoor')
+        ->assertSee('Main PRS')
+        ->assertDontSee('Hidden Rimfire')
+        ->assertDontSee('Spare Rifle');
+});
+
 it('does not render the per-division breakdown panel when the shooter only competed in one division', function () {
     // Single-division shooters would just see the overall breakdown
     // repeated inside a per-division panel — visually noisy for no gain.

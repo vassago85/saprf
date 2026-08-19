@@ -19,9 +19,7 @@
                         <div class="p-5 flex-1">
                             <div class="flex items-start justify-between gap-2">
                                 <h2 class="font-heading text-lg font-bold text-stone-900">{{ $rifle->nickname }}</h2>
-                                @if ($rifle->is_primary)
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700 ring-1 ring-inset ring-emerald-600/20 shrink-0">Primary</span>
-                                @endif
+                                <x-rifle-primary-badge :rifle="$rifle" />
                             </div>
 
                             <p class="mt-1 text-sm text-stone-500">

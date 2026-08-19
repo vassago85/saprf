@@ -255,9 +255,7 @@
                         <a href="{{ route('rifle-configurations.show', $rifle) }}" class="block rounded-lg border border-stone-200 p-4 hover:border-emerald-300 hover:shadow-sm transition group">
                             <div class="flex items-start justify-between mb-2">
                                 <h3 class="font-semibold text-stone-900 group-hover:text-emerald-700">{{ $rifle->nickname }}</h3>
-                                @if($rifle->is_primary)
-                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700">Primary</span>
-                                @endif
+                                <x-rifle-primary-badge :rifle="$rifle" />
                             </div>
                             @if($rifle->make || $rifle->model)
                                 <p class="text-sm text-stone-600">{{ $rifle->make?->name }} {{ $rifle->model?->name }}</p>

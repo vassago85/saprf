@@ -17,9 +17,7 @@
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('rifle-configurations.show', $rifle) }}" class="font-heading text-base font-bold text-stone-900 hover:text-emerald-700 transition">{{ $rifle->nickname }}</a>
                                 <span class="text-xs text-stone-400">{{ $rifle->make?->name }} {{ $rifle->model?->name }} &middot; {{ $rifle->calibre?->name }}</span>
-                                @if ($rifle->is_primary)
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Primary</span>
-                                @endif
+                                <x-rifle-primary-badge :rifle="$rifle" />
                             </div>
                             <a href="{{ route('ammo-loads.create', $rifle) }}"
                                 class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">

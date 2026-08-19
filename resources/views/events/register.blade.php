@@ -344,10 +344,10 @@
                                     class="w-full rounded-xl border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                                 <option value="">— Select rifle (optional)</option>
                                 @foreach($rifles as $rifle)
-                                    <option value="{{ $rifle->id }}">
+                                    <option value="{{ $rifle->id }}" @selected((string) old('rifle_configuration_id', $defaultRifleId) === (string) $rifle->id)>
                                         {{ $rifle->nickname ?: ($rifle->make?->name . ' ' . $rifle->model?->name) }}
                                         @if($rifle->calibre) — {{ $rifle->calibre->name }} @endif
-                                        @if($rifle->is_primary) (Primary) @endif
+                                        @if($rifle->primarySeriesLabel()) ({{ $rifle->primarySeriesLabel() }}) @endif
                                     </option>
                                 @endforeach
                             </select>

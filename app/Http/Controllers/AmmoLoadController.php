@@ -16,7 +16,7 @@ class AmmoLoadController extends Controller
             ->active()
             ->with(['make', 'model', 'calibre', 'ammoLoads' => fn ($q) => $q->active()])
             ->withCount('registrations')
-            ->orderByDesc('is_primary')
+            ->orderMainsFirst()
             ->orderByDesc('created_at')
             ->get();
 

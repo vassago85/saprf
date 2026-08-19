@@ -131,14 +131,7 @@
                         class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
                 </div>
 
-                <div class="sm:col-span-2">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" name="is_primary" value="1"
-                            @checked(old('is_primary'))
-                            class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                        <span class="text-sm font-medium text-stone-700">Set as primary rifle</span>
-                    </label>
-                </div>
+                <x-rifle-primary-series-field />
             </div>
 
             <div class="flex items-center gap-4 pt-2">

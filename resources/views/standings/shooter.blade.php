@@ -18,6 +18,27 @@
                     </div>
                 </div>
 
+                @if($profileRifles->isNotEmpty())
+                    <div class="mb-6 grid gap-3 sm:grid-cols-2">
+                        @foreach($profileRifles as $rifle)
+                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                                <div class="mb-1.5">
+                                    <x-rifle-primary-badge :rifle="$rifle" />
+                                </div>
+                                <p class="font-semibold text-stone-900">{{ $rifle->displayName() }}</p>
+                                @if($rifle->make || $rifle->model || $rifle->calibre)
+                                    <p class="mt-0.5 text-sm text-stone-500">
+                                        {{ collect([$rifle->make?->name, $rifle->model?->name, $rifle->calibre?->name])->filter()->implode(' · ') }}
+                                    </p>
+                                @endif
+                                @if($rifle->opticMake || $rifle->opticModel)
+                                    <p class="mt-1 text-xs text-stone-400">{{ trim(($rifle->opticMake?->name ?? '').' '.($rifle->opticModel?->name ?? '')) }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 {{-- Series tabs. Each tab is a button showing that series'
                      top-line standings (national + provincial for PR22).
                      Clicking a tab reveals the detailed card for that series

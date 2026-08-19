@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Province;
+use App\Models\RifleConfiguration;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
@@ -301,6 +302,12 @@ class StandingController extends Controller
             ->filter()
             ->all();
 
+        $profileRifles = RifleConfiguration::forUser($user->id)
+            ->visibleOnProfile()
+            ->with(['make', 'model', 'calibre', 'opticMake', 'opticModel'])
+            ->orderMainsFirst()
+            ->get();
+
         return view('standings.shooter', [
             'shooter' => $user,
             'season' => $season,
@@ -315,6 +322,7 @@ class StandingController extends Controller
             'bestOf' => $bestOf,
             'rule' => $rule,
             'matchDates' => $matchDates,
+            'profileRifles' => $profileRifles,
         ]);
     }
 

@@ -613,9 +613,11 @@ class MatchController extends Controller
             ? $rifleOwner->rifleConfigurations()
                 ->where('is_active', true)
                 ->with(['make', 'model', 'calibre'])
-                ->orderByDesc('is_primary')
+                ->orderMainsFirst($match->series ?? $match->match_type)
                 ->get()
             : collect();
+
+        $defaultRifleId = $rifles->firstWhere('primary_series', $match->series ?? $match->match_type)?->id;
 
         $juniors = $actor->managedAccounts()->orderBy('name')->get();
 
@@ -628,7 +630,7 @@ class MatchController extends Controller
             : null;
         $juniorDivisionId = $divisions->firstWhere('slug', 'junior')?->id;
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter'));
+        return view('events.register', compact('match', 'pricing', 'rifles', 'defaultRifleId', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse

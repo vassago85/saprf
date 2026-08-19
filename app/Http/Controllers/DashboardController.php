@@ -273,7 +273,7 @@ class DashboardController extends Controller
             ->active()
             ->with(['make', 'model', 'calibre'])
             ->withCount('registrations')
-            ->orderByDesc('is_primary')
+            ->orderMainsFirst()
             ->limit(3)
             ->get();
 

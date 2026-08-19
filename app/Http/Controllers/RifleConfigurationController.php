@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RifleConfiguration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RifleConfigurationController extends Controller
@@ -15,7 +16,7 @@ class RifleConfigurationController extends Controller
             ->active()
             ->with(['make', 'model', 'calibre', 'opticMake', 'opticModel'])
             ->withCount('registrations')
-            ->orderByDesc('is_primary')
+            ->orderMainsFirst()
             ->orderByDesc('created_at')
             ->get();
 
@@ -29,6 +30,8 @@ class RifleConfigurationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge(['primary_series' => $this->normalizedPrimarySeries($request)]);
+
         $validated = $request->validate([
             'nickname' => ['required', 'string', 'max:100'],
             'firearm_make_id' => ['nullable', 'exists:firearm_makes,id'],
@@ -42,15 +45,15 @@ class RifleConfigurationController extends Controller
             'barrel_length' => ['nullable', 'string', 'max:50'],
             'twist_rate' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'is_primary' => ['sometimes', 'boolean'],
+            'primary_series' => ['nullable', Rule::in(['PRS', 'PR22'])],
+            'show_on_profile' => ['sometimes', 'boolean'],
         ]);
 
         $validated['user_id'] = $request->user()->id;
-        $validated['is_primary'] = $request->boolean('is_primary');
+        $validated['primary_series'] = $this->normalizedPrimarySeries($request);
+        $validated['show_on_profile'] = $this->normalizedShowOnProfile($request, $validated['primary_series']);
 
-        if ($validated['is_primary']) {
-            RifleConfiguration::forUser($request->user()->id)->update(['is_primary' => false]);
-        }
+        $this->claimPrimarySeries($request->user()->id, $validated['primary_series']);
 
         RifleConfiguration::create($validated);
 
@@ -104,6 +107,8 @@ class RifleConfigurationController extends Controller
             abort(403);
         }
 
+        $request->merge(['primary_series' => $this->normalizedPrimarySeries($request)]);
+
         $validated = $request->validate([
             'nickname' => ['required', 'string', 'max:100'],
             'firearm_make_id' => ['nullable', 'exists:firearm_makes,id'],
@@ -117,16 +122,14 @@ class RifleConfigurationController extends Controller
             'barrel_length' => ['nullable', 'string', 'max:50'],
             'twist_rate' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'is_primary' => ['sometimes', 'boolean'],
+            'primary_series' => ['nullable', Rule::in(['PRS', 'PR22'])],
+            'show_on_profile' => ['sometimes', 'boolean'],
         ]);
 
-        $validated['is_primary'] = $request->boolean('is_primary');
+        $validated['primary_series'] = $this->normalizedPrimarySeries($request);
+        $validated['show_on_profile'] = $this->normalizedShowOnProfile($request, $validated['primary_series']);
 
-        if ($validated['is_primary']) {
-            RifleConfiguration::forUser($request->user()->id)
-                ->where('id', '!=', $rifleConfiguration->id)
-                ->update(['is_primary' => false]);
-        }
+        $this->claimPrimarySeries($request->user()->id, $validated['primary_series'], $rifleConfiguration->id);
 
         $rifleConfiguration->update($validated);
 
@@ -140,9 +143,40 @@ class RifleConfigurationController extends Controller
             abort(403);
         }
 
-        $rifleConfiguration->update(['is_active' => false]);
+        $rifleConfiguration->update([
+            'is_active' => false,
+            'primary_series' => null,
+            'show_on_profile' => false,
+        ]);
 
         return redirect()->route('rifle-configurations.index')
             ->with('success', "Rifle '{$rifleConfiguration->nickname}' removed.");
+    }
+
+    private function normalizedPrimarySeries(Request $request): ?string
+    {
+        $series = $request->input('primary_series');
+
+        return in_array($series, ['PRS', 'PR22'], true) ? $series : null;
+    }
+
+    private function claimPrimarySeries(int $userId, ?string $series, ?int $exceptId = null): void
+    {
+        if ($series === null) {
+            return;
+        }
+
+        RifleConfiguration::forUser($userId)
+            ->when($exceptId, fn ($query) => $query->where('id', '!=', $exceptId))
+            ->where('primary_series', $series)
+            ->update([
+                'primary_series' => null,
+                'show_on_profile' => false,
+            ]);
+    }
+
+    private function normalizedShowOnProfile(Request $request, ?string $series): bool
+    {
+        return $series !== null && $request->boolean('show_on_profile');
     }
 }

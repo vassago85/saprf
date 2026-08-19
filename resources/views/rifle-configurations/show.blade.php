@@ -5,9 +5,7 @@
                 <a href="{{ route('rifle-configurations.index') }}" class="text-sm text-emerald-700 font-medium hover:text-emerald-800">&larr; My Rifles</a>
                 <div class="mt-1 flex items-center gap-3">
                     <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $rifleConfiguration->nickname }}</h1>
-                    @if ($rifleConfiguration->is_primary)
-                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Primary</span>
-                    @endif
+                    <x-rifle-primary-badge :rifle="$rifleConfiguration" size="md" />
                 </div>
             </div>
             <div class="flex items-center gap-2">
