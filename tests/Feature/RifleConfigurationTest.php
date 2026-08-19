@@ -155,6 +155,45 @@ it('clears the profile flag when a rifle is no longer a main', function () {
         ->and($rifle->fresh()->show_on_profile)->toBeFalse();
 });
 
+it('stores all optional gear details on a rifle', function () {
+    $user = rifleMember();
+
+    $this->actingAs($user)
+        ->post(route('rifle-configurations.store'), [
+            'nickname' => 'Creedmoor',
+            'primary_series' => 'PRS',
+            'show_on_profile' => '1',
+            'trigger_description' => "Bix'n Andy",
+            'muzzle_brake_description' => 'Botnia Solutions',
+            'bipod_description' => 'MDT Ckye Pod',
+            'magazine_description' => 'MDT',
+            'tripod_description' => 'Leofoto',
+            'brass_description' => 'Lapua',
+            'powder_description' => 'Hodgdon',
+            'rangefinder_description' => 'Vortex',
+            'gunsmith_description' => 'Preece Precision',
+            'scope_mount_description' => 'Spuhr',
+            'bag_description' => 'Wiebad',
+            'chronograph_description' => 'Garmin Xero C1',
+        ])
+        ->assertRedirect();
+
+    $rifle = RifleConfiguration::query()->where('nickname', 'Creedmoor')->first();
+
+    expect($rifle->trigger_description)->toBe("Bix'n Andy")
+        ->and($rifle->muzzle_brake_description)->toBe('Botnia Solutions')
+        ->and($rifle->bipod_description)->toBe('MDT Ckye Pod')
+        ->and($rifle->magazine_description)->toBe('MDT')
+        ->and($rifle->tripod_description)->toBe('Leofoto')
+        ->and($rifle->brass_description)->toBe('Lapua')
+        ->and($rifle->powder_description)->toBe('Hodgdon')
+        ->and($rifle->rangefinder_description)->toBe('Vortex')
+        ->and($rifle->gunsmith_description)->toBe('Preece Precision')
+        ->and($rifle->scope_mount_description)->toBe('Spuhr')
+        ->and($rifle->bag_description)->toBe('Wiebad')
+        ->and($rifle->chronograph_description)->toBe('Garmin Xero C1');
+});
+
 it('pre-selects the main PRS rifle when registering for a PRS match', function () {
     $user = rifleMember();
     $prs = makeRifle($user, ['nickname' => 'Creedmoor', 'primary_series' => 'PRS']);

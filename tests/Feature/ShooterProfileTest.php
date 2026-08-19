@@ -266,6 +266,46 @@ it('shows every division a shooter placed in — not just the first', function (
     $response->assertSee('PRS Factory Match', false);
 });
 
+it('renders the full gear spec card grouped by Centerfire and Rimfire on the shooter profile', function () {
+    $shooter = User::factory()->create(['name' => 'Gear Head']);
+
+    \App\Models\RifleConfiguration::create([
+        'user_id' => $shooter->id,
+        'nickname' => '25x47L',
+        'primary_series' => 'PRS',
+        'show_on_profile' => true,
+        'is_active' => true,
+        'action_description' => 'Impact Precision',
+        'chassis_description' => 'Vision',
+        'trigger_description' => "Bix'n Andy",
+        'muzzle_brake_description' => 'Botnia Solutions',
+        'bipod_description' => 'MDT Ckye Pod',
+        'scope_mount_description' => 'Spuhr',
+    ]);
+    \App\Models\RifleConfiguration::create([
+        'user_id' => $shooter->id,
+        'nickname' => 'Vudoo V-22',
+        'primary_series' => 'PR22',
+        'show_on_profile' => true,
+        'is_active' => true,
+        'trigger_description' => 'TriggerTech',
+    ]);
+
+    $this->get('/standings/2026/shooter/'.$shooter->id)
+        ->assertOk()
+        ->assertSee('Centerfire', false)
+        ->assertSee('Rimfire', false)
+        ->assertSee('25x47L')
+        ->assertSee('Vudoo V-22')
+        ->assertSee('Impact Precision')
+        ->assertSee('Vision')
+        ->assertSee("Bix'n Andy")
+        ->assertSee('Botnia Solutions')
+        ->assertSee('MDT Ckye Pod')
+        ->assertSee('Spuhr')
+        ->assertSee('TriggerTech');
+});
+
 it('shows opted-in main rifles on the public shooter profile and hides the rest', function () {
     $shooter = User::factory()->create(['name' => 'Rifle Owner']);
 
@@ -292,7 +332,7 @@ it('shows opted-in main rifles on the public shooter profile and hides the rest'
     $this->get('/standings/2026/shooter/'.$shooter->id)
         ->assertOk()
         ->assertSee('Public Creedmoor')
-        ->assertSee('Main PRS')
+        ->assertSee('Centerfire', false)
         ->assertDontSee('Hidden Rimfire')
         ->assertDontSee('Spare Rifle');
 });

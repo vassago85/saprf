@@ -16,6 +16,18 @@ class RifleConfiguration extends Model
         'firearm_calibre_id',
         'action_description',
         'barrel_description',
+        'trigger_description',
+        'muzzle_brake_description',
+        'bipod_description',
+        'magazine_description',
+        'tripod_description',
+        'brass_description',
+        'powder_description',
+        'rangefinder_description',
+        'gunsmith_description',
+        'scope_mount_description',
+        'bag_description',
+        'chronograph_description',
         'optic_description',
         'chassis_description',
         'optic_make_id',
@@ -143,5 +155,43 @@ class RifleConfiguration extends Model
         ]);
 
         return $this->nickname ?: (implode(' ', $parts) ?: 'Unnamed Rifle');
+    }
+
+    /**
+     * Ordered spec sheet used on the public shooter profile.
+     *
+     * @return array<int, array{label: string, value: string}>
+     */
+    public function profileSpecRows(): array
+    {
+        $scope = trim(($this->opticMake?->name ?? '').' '.($this->opticModel?->name ?? ''));
+        $bullet = trim(implode(' ', array_filter([$this->bullet_make, $this->bullet_weight, $this->bullet_type])));
+
+        $rows = [
+            ['label' => 'Make', 'value' => $this->make?->name],
+            ['label' => 'Model', 'value' => $this->model?->name],
+            ['label' => 'Cartridge', 'value' => $this->calibre?->name],
+            ['label' => 'Action', 'value' => $this->action_description],
+            ['label' => 'Stock/Chassis', 'value' => $this->chassis_description],
+            ['label' => 'Barrel', 'value' => $this->barrel_description],
+            ['label' => 'Barrel Length', 'value' => $this->barrel_length],
+            ['label' => 'Twist Rate', 'value' => $this->twist_rate],
+            ['label' => 'Trigger', 'value' => $this->trigger_description],
+            ['label' => 'Muzzle Brake', 'value' => $this->muzzle_brake_description],
+            ['label' => 'Scope', 'value' => $scope !== '' ? $scope : null],
+            ['label' => 'Scope Mount', 'value' => $this->scope_mount_description],
+            ['label' => 'Bipod', 'value' => $this->bipod_description],
+            ['label' => 'Magazine', 'value' => $this->magazine_description],
+            ['label' => 'Bag', 'value' => $this->bag_description],
+            ['label' => 'Bullet', 'value' => $bullet !== '' ? $bullet : null],
+            ['label' => 'Powder', 'value' => $this->powder_description],
+            ['label' => 'Brass', 'value' => $this->brass_description],
+            ['label' => 'Rangefinder', 'value' => $this->rangefinder_description],
+            ['label' => 'Chronograph', 'value' => $this->chronograph_description],
+            ['label' => 'Tripod', 'value' => $this->tripod_description],
+            ['label' => 'Gunsmith', 'value' => $this->gunsmith_description],
+        ];
+
+        return array_values(array_filter($rows, fn ($row) => filled($row['value'])));
     }
 }
