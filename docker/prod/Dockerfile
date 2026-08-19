@@ -57,7 +57,8 @@ RUN apk add --no-cache \
     nss \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    mariadb-client
 
 # Alpine packages expose `chromium`; some images also ship chromium-browser.
 ENV CHROME_PATH=/usr/bin/chromium
