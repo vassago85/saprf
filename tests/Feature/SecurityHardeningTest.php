@@ -167,7 +167,9 @@ it('sends the hardening headers on public responses', function () {
     expect($response->headers->get('Content-Security-Policy'))
         ->toContain("frame-ancestors 'none'")
         ->toContain("object-src 'none'")
-        ->toContain('payfast.co.za');
+        ->toContain('payfast.co.za')
+        ->toContain('https://*.googletagmanager.com')
+        ->toContain('https://*.google-analytics.com');
 });
 
 it('allows form submissions anywhere inside Payfast infrastructure via wildcard', function () {

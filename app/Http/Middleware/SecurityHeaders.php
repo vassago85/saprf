@@ -44,6 +44,18 @@ class SecurityHeaders
      */
     private const PAYFAST_FORM_ACTION_SOURCES = 'https://payfast.co.za https://*.payfast.co.za https://payfast.io https://*.payfast.io';
 
+    /**
+     * Hosts required by the GA4 Google tag (gtag.js). Wildcard form matches
+     * region1.google-analytics.com and similar collector hostnames.
+     *
+     * @see https://developers.google.com/tag-platform/security/guides/csp
+     */
+    private const GOOGLE_TAG_SCRIPT_SOURCES = 'https://*.googletagmanager.com';
+
+    private const GOOGLE_TAG_IMG_SOURCES = 'https://*.google-analytics.com https://*.googletagmanager.com';
+
+    private const GOOGLE_TAG_CONNECT_SOURCES = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -73,11 +85,11 @@ class SecurityHeaders
 
         $directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'".$dev,
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' ".self::GOOGLE_TAG_SCRIPT_SOURCES.$dev,
             "style-src 'self' 'unsafe-inline' {$fonts}".$dev,
             "font-src 'self' data: {$fonts}",
-            "img-src 'self' data: blob:",
-            "connect-src 'self'".$dev,
+            "img-src 'self' data: blob: ".self::GOOGLE_TAG_IMG_SOURCES,
+            "connect-src 'self' ".self::GOOGLE_TAG_CONNECT_SOURCES.$dev,
             "form-action 'self' ".self::PAYFAST_FORM_ACTION_SOURCES,
             "frame-ancestors 'none'",
             "base-uri 'self'",

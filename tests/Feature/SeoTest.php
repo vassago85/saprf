@@ -25,6 +25,24 @@ it('points robots.txt at the sitemap and keeps authenticated areas out of the cr
         ->not->toContain('Disallow: /events');
 });
 
+it('injects the Google tag on public and app layouts', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('https://www.googletagmanager.com/gtag/js?id=G-DESCP26KTX', false)
+        ->assertSee("gtag('config', 'G-DESCP26KTX')", false);
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $html = view('components.layouts.app', [
+        'slot' => new Illuminate\Support\HtmlString('<div>test</div>'),
+    ])->render();
+
+    expect($html)
+        ->toContain('https://www.googletagmanager.com/gtag/js?id=G-DESCP26KTX')
+        ->toContain("gtag('config', 'G-DESCP26KTX')");
+});
+
 it('renders homepage SEO tags and SportsOrganization JSON-LD', function () {
     $this->get(route('home'))
         ->assertOk()

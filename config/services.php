@@ -51,4 +51,9 @@ return [
         'binary' => env('CHROME_PATH'),
     ],
 
+    'google' => [
+        // GA4 measurement ID. Leave empty to omit the tag (e.g. local).
+        'analytics_id' => env('GOOGLE_ANALYTICS_ID', 'G-DESCP26KTX'),
+    ],
+
 ];
