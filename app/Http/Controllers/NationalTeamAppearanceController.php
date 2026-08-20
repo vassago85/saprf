@@ -74,7 +74,7 @@ class NationalTeamAppearanceController extends Controller
     {
         return view('national-team.create', [
             'divisions' => Division::orderBy('display_order')->orderBy('name')->get(),
-            'countries' => User::COUNTRY_OPTIONS,
+            'countries' => NationalTeamAppearance::HOST_COUNTRIES,
             'cycles' => SelectionCycle::query()->orderByDesc('season')->get(),
         ]);
     }
@@ -87,7 +87,7 @@ class NationalTeamAppearanceController extends Controller
             'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
             'division_label' => ['nullable', 'string', 'max:255'],
             'championship_name' => ['required', 'string', 'max:255'],
-            'host_country' => ['nullable', 'string', 'size:2', Rule::in(array_keys(User::COUNTRY_OPTIONS))],
+            'host_country' => ['nullable', 'string', 'size:2', Rule::in(array_keys(NationalTeamAppearance::HOST_COUNTRIES))],
             'placing' => ['nullable', 'integer', 'between:1,999'],
             'selection_cycle_id' => ['nullable', 'integer', 'exists:selection_cycles,id'],
             'awarded_colours' => ['nullable', 'boolean'],

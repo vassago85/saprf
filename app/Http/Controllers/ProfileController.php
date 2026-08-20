@@ -65,6 +65,27 @@ class ProfileController extends Controller
             'mutableCategories' => collect(\App\Enums\AnnouncementCategory::cases())
                 ->reject(fn ($c) => $c->isMandatory())
                 ->values(),
+            // Public-profile visibility radio group. Same scope-quirk
+            // sidestep — the `@php` block that used to sit inside the
+            // fieldset was silently emptied when nested inside the
+            // <x-layouts.app> slot, so we build the meta here.
+            'visibilityOptions' => [
+                User::PROFILE_VISIBILITY_PUBLIC => [
+                    'label' => 'Public',
+                    'helper' => 'Anyone with the link (including search engines) can view your profile.',
+                    'accent' => 'emerald',
+                ],
+                User::PROFILE_VISIBILITY_MEMBERS_ONLY => [
+                    'label' => 'Members only',
+                    'helper' => 'Only signed-in SAPRF members can view your profile — guests get a 404.',
+                    'accent' => 'blue',
+                ],
+                User::PROFILE_VISIBILITY_HIDDEN => [
+                    'label' => 'Hidden',
+                    'helper' => 'Your profile page returns 404 for everyone except you and SAPRF staff. Your season standings are still visible in leaderboards.',
+                    'accent' => 'stone',
+                ],
+            ],
         ]);
     }
 
@@ -91,6 +112,11 @@ class ProfileController extends Controller
             'gender' => ['required', Rule::in(array_keys(User::GENDER_OPTIONS))],
             'ethnicity' => ['required', Rule::in(array_keys(User::ETHNICITY_OPTIONS))],
             'previously_disadvantaged_choice' => ['required', Rule::in(['yes', 'no'])],
+            // Public shooter profile POPIA control. Members choose whether
+            // /shooters/{saprfNumber} is visible to guests, members only, or
+            // hidden (404) entirely. Enum-validated so a crafted request
+            // can't inject a value outside the migration's enum.
+            'public_profile_visibility' => ['required', Rule::in(array_keys(User::PROFILE_VISIBILITY_OPTIONS))],
             'current_password' => ['nullable', 'required_with:new_password', 'current_password'],
             'new_password' => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
         ], [

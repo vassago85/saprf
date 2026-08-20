@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\MatchEvent;
 use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\User;
@@ -62,19 +63,27 @@ class QualificationService
         // OOP is defined *relative to each shooter's own province*, so we
         // join users into the score aggregate and filter on the mismatch.
         // One query for the whole page; MySQL/MariaDB handle the correlated
-        // "!=" comparison natively.
+        // "!=" comparison natively. The MatchEvent model overrides its
+        // table name to "matches" (legacy), so we resolve it via the model
+        // rather than hardcoding.
+        //
+        // We filter on match season only (no YEAR(match_date) fallback
+        // like the per-user path uses). The bulk method sits on the
+        // public standings page, which is hit every match weekend — the
+        // raw YEAR() call is MySQL-only and breaks SQLite tests, so we
+        // lean on the canonical `season` column every current match
+        // already carries.
+        $matches = (new MatchEvent)->getTable();
+
         $counts = Score::query()
             ->selectRaw('scores.user_id, COUNT(DISTINCT scores.match_id) AS oop_count')
-            ->join('match_events', 'match_events.id', '=', 'scores.match_id')
+            ->join($matches, "$matches.id", '=', 'scores.match_id')
             ->join('users', 'users.id', '=', 'scores.user_id')
             ->where('scores.status', 'valid')
-            ->where('match_events.series', $series)
-            ->where('match_events.series_level', 'national')
-            ->where(function ($q) use ($season) {
-                $q->where('match_events.season', $season)
-                    ->orWhereRaw('YEAR(match_events.match_date) = ?', [$season]);
-            })
-            ->whereColumn('match_events.province_id', '!=', 'users.province_id')
+            ->where("$matches.series", $series)
+            ->where("$matches.series_level", 'national')
+            ->where("$matches.season", $season)
+            ->whereColumn("$matches.province_id", '!=', 'users.province_id')
             ->whereIn('scores.user_id', $userIds)
             ->groupBy('scores.user_id')
             ->pluck('oop_count', 'scores.user_id')

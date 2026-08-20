@@ -84,6 +84,66 @@ class NationalTeamAppearance extends Model
             return null;
         }
 
-        return User::COUNTRY_OPTIONS[$this->host_country] ?? $this->host_country;
+        return self::HOST_COUNTRIES[$this->host_country] ?? $this->host_country;
     }
+
+    /**
+     * IPRF & regional-championship host countries. Broader than
+     * User::COUNTRY_OPTIONS (which is limited to South Africa + likely
+     * diaspora residences) because IPRF worlds have been held in Sweden,
+     * Norway, USA, Finland, France, Poland, Czech Republic, and many other
+     * countries a South African could never plausibly reside in. Codes
+     * are ISO 3166-1 alpha-2. When a new championship happens somewhere
+     * that isn't listed, add the entry here rather than falling back to
+     * the raw two-letter code.
+     */
+    public const HOST_COUNTRIES = [
+        'ZA' => 'South Africa',
+        'US' => 'United States',
+        'GB' => 'United Kingdom',
+        'AU' => 'Australia',
+        'NZ' => 'New Zealand',
+        'CA' => 'Canada',
+        'SE' => 'Sweden',
+        'NO' => 'Norway',
+        'FI' => 'Finland',
+        'DK' => 'Denmark',
+        'IS' => 'Iceland',
+        'DE' => 'Germany',
+        'FR' => 'France',
+        'ES' => 'Spain',
+        'IT' => 'Italy',
+        'PT' => 'Portugal',
+        'NL' => 'Netherlands',
+        'BE' => 'Belgium',
+        'CH' => 'Switzerland',
+        'AT' => 'Austria',
+        'PL' => 'Poland',
+        'CZ' => 'Czech Republic',
+        'SK' => 'Slovakia',
+        'HU' => 'Hungary',
+        'RO' => 'Romania',
+        'BG' => 'Bulgaria',
+        'GR' => 'Greece',
+        'HR' => 'Croatia',
+        'SI' => 'Slovenia',
+        'EE' => 'Estonia',
+        'LV' => 'Latvia',
+        'LT' => 'Lithuania',
+        'IE' => 'Ireland',
+        'UA' => 'Ukraine',
+        'TR' => 'Turkey',
+        'IL' => 'Israel',
+        'AE' => 'United Arab Emirates',
+        'JP' => 'Japan',
+        'KR' => 'South Korea',
+        'AR' => 'Argentina',
+        'BR' => 'Brazil',
+        'CL' => 'Chile',
+        'MX' => 'Mexico',
+        'NA' => 'Namibia',
+        'BW' => 'Botswana',
+        'ZW' => 'Zimbabwe',
+        'XX' => 'Other',
+    ];
 }

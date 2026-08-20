@@ -179,6 +179,55 @@
 
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
                 <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Public Profile &amp; Privacy</h2>
+                    <p class="mt-1 text-sm text-stone-500">
+                        Your shooter profile at
+                        @if($user->membership?->saprf_number)
+                            <a href="{{ route('shooters.show', ['saprfNumber' => $user->membership->saprf_number]) }}" class="text-emerald-700 hover:text-emerald-800 underline">/shooters/{{ $user->membership->saprf_number }}</a>
+                        @else
+                            <span class="font-mono text-stone-600">/shooters/&laquo;your SAPRF number&raquo;</span>
+                        @endif
+                        shows your season standings, national-team appearances and gear specs. Choose who can see it.
+                    </p>
+                    <p class="mt-2 text-xs text-stone-400">
+                        Under POPIA (Section 11), you control processing of your personal information for public display.
+                        This setting only affects your profile page — federation match results and standings tables remain visible per SAPRF's constitution.
+                    </p>
+                </div>
+
+                <fieldset class="space-y-3">
+                    <legend class="sr-only">Public profile visibility</legend>
+                    @foreach($visibilityOptions as $value => $meta)
+                        <label class="flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition
+                                {{ old('public_profile_visibility', $user->public_profile_visibility ?? \App\Models\User::PROFILE_VISIBILITY_PUBLIC) === $value
+                                    ? ($meta['accent'] === 'emerald' ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-400'
+                                        : ($meta['accent'] === 'blue' ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-400'
+                                            : 'border-stone-500 bg-stone-50 ring-2 ring-stone-400'))
+                                    : 'border-stone-200 hover:border-stone-300' }}">
+                            <input type="radio" name="public_profile_visibility" value="{{ $value }}"
+                                   @checked(old('public_profile_visibility', $user->public_profile_visibility ?? \App\Models\User::PROFILE_VISIBILITY_PUBLIC) === $value)
+                                   class="mt-0.5 size-4 shrink-0 border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                            <div>
+                                <p class="text-sm font-semibold text-stone-900">{{ $meta['label'] }}</p>
+                                <p class="text-xs text-stone-500 mt-0.5">{{ $meta['helper'] }}</p>
+                            </div>
+                        </label>
+                    @endforeach
+                </fieldset>
+
+                @error('public_profile_visibility')
+                    <p class="text-xs text-red-600">{{ $message }}</p>
+                @enderror
+
+                @if(($user->is_managed_account ?? false) && $user->managed_relationship === 'junior')
+                    <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                        This is a managed junior account. The default is <strong>members only</strong> for extra privacy. Consider keeping it that way.
+                    </div>
+                @endif
+            </div>
+
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
                     <h2 class="font-heading text-lg font-semibold text-stone-900">Change Password</h2>
                     <p class="mt-1 text-sm text-stone-500">Leave blank if you don't want to change your password.</p>
                 </div>

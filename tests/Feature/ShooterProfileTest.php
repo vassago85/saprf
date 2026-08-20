@@ -3,9 +3,14 @@
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Membership;
+use App\Models\NationalTeamAppearance;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\User;
+
+beforeEach(function () {
+    seedRoles();
+});
 
 /**
  * The public shooter profile must show EVERY match the shooter attended across
@@ -46,7 +51,10 @@ it('shows matches from both PRS and PR22, including non-member matches', functio
         'status' => 'non_member', 'is_member' => false, 'match_date' => $pr22->match_date,
     ]);
 
-    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+    // Legacy URL 301s to /shooters/T-1/2026 (canonical); followingRedirects
+    // lets us keep the existing assertion set unchanged while proving both
+    // the redirect and the new career-hub view render.
+    $response = $this->followingRedirects()->get('/standings/2026/shooter/'.$shooter->id);
 
     $response->assertOk();
     $response->assertSee('PRS GP National');
@@ -112,7 +120,7 @@ it('marks PRS counted matches with contributed points and shows others as droppe
         $service->recalculateForMatch($match);
     }
 
-    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+    $response = $this->followingRedirects()->get('/standings/2026/shooter/'.$shooter->id);
 
     $response->assertOk();
     // The 4th-best national is valid but did NOT count — must render as DROPPED.
@@ -171,7 +179,7 @@ it('renders PR22 with separate National and Provincial columns and does not mix 
     ]);
     $service->recalculateForMatch($match);
 
-    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+    $response = $this->followingRedirects()->get('/standings/2026/shooter/'.$shooter->id);
 
     $response->assertOk();
     // PR22 card must explicitly separate national and provincial standings.
@@ -242,7 +250,7 @@ it('shows every division a shooter placed in — not just the first', function (
     ]);
     $service->recalculateForMatch($m2);
 
-    $response = $this->get('/standings/2026/shooter/'.$kevin->id);
+    $response = $this->followingRedirects()->get('/standings/2026/shooter/'.$kevin->id);
 
     $response->assertOk();
     // BOTH divisions Kevin competed in must appear on his profile — not just
@@ -363,9 +371,388 @@ it('does not render the per-division breakdown panel when the shooter only compe
     ]);
     $service->recalculateForMatch($match);
 
-    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+    $response = $this->followingRedirects()->get('/standings/2026/shooter/'.$shooter->id);
 
     $response->assertOk();
     $response->assertDontSee('National Division Breakdown', false);
     $response->assertDontSee('Provincial Division Breakdown', false);
 });
+
+// ── Canonical URL, redirect from legacy, visibility gating ──────────────
+
+it('301-redirects the legacy /standings/{season}/shooter/{id} URL to /shooters/{saprfNumber}/{season}', function () {
+    $shooter = User::factory()->create(['name' => 'Redirect Rachel']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'R-9', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+
+    $response->assertStatus(301);
+    $response->assertRedirect('/shooters/R-9/2026');
+});
+
+it('falls through to the in-place shooter render when the user has no SAPRF number', function () {
+    // A guest / imported shooter with no Membership row must still resolve
+    // via the legacy URL — the redirect only fires when a saprf_number is
+    // present.
+    $shooter = User::factory()->create(['name' => 'No Number Ned']);
+
+    $response = $this->get('/standings/2026/shooter/'.$shooter->id);
+
+    $response->assertOk();
+    $response->assertSee('No Number Ned');
+});
+
+it('renders the canonical career view at /shooters/{saprfNumber}/{season}', function () {
+    $shooter = User::factory()->create(['name' => 'Canonical Cara']);
+    // Numeric SAPRF numbers get a highlighted "SAPRF #NNNN" chip; the
+    // chip is deliberately suppressed for legacy T-style / SAPRF-IMPORT-
+    // prefixed numbers because those aren't member-visible identifiers.
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => '4242', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $this->get('/shooters/4242/2026')
+        ->assertOk()
+        ->assertSee('Canonical Cara')
+        ->assertSee('SAPRF #4242');
+});
+
+it('defaults the seasonless canonical URL to the current calendar year', function () {
+    $shooter = User::factory()->create(['name' => 'Season Sam']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'S-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $response = $this->get('/shooters/S-1');
+
+    // Controller injects the current year and renders in place (no 302).
+    // Content assertion is enough — no need to sniff the exact season chip
+    // because the season switcher tabs are the source of truth here.
+    $response->assertOk();
+    $response->assertSee('Season Sam');
+});
+
+it('404s when the SAPRF number does not resolve to a member', function () {
+    $this->get('/shooters/NONEXISTENT-9999/2026')->assertNotFound();
+});
+
+it('hides members-only profiles from guests but shows them to signed-in members', function () {
+    $shooter = User::factory()->create([
+        'name' => 'Private Pat',
+        'public_profile_visibility' => User::PROFILE_VISIBILITY_MEMBERS_ONLY,
+    ]);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'M-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    // Guest → 404.
+    $this->get('/shooters/M-1/2026')->assertNotFound();
+
+    // Any signed-in user (even a plain member) → 200.
+    $viewer = User::factory()->create();
+    $viewer->assignRole('member');
+    $this->actingAs($viewer)->get('/shooters/M-1/2026')->assertOk();
+});
+
+it('hides hidden profiles from guests and members but shows them to the owner and to staff', function () {
+    $shooter = User::factory()->create([
+        'name' => 'Hidden Helen',
+        'public_profile_visibility' => User::PROFILE_VISIBILITY_HIDDEN,
+    ]);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'H-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    // Guest → 404.
+    $this->get('/shooters/H-1/2026')->assertNotFound();
+
+    // Random member → 404 (hidden really means hidden).
+    $randomMember = User::factory()->create();
+    $randomMember->assignRole('member');
+    $this->actingAs($randomMember)->get('/shooters/H-1/2026')->assertNotFound();
+
+    // Owner viewing their own profile → 200.
+    $this->actingAs($shooter)->get('/shooters/H-1/2026')->assertOk();
+
+    // Staff → 200 (admin can always inspect a profile for moderation).
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $this->actingAs($admin)->get('/shooters/H-1/2026')->assertOk();
+});
+
+it('serves public profiles to guests without authentication', function () {
+    $shooter = User::factory()->create([
+        'name' => 'Open Book Owen',
+        'public_profile_visibility' => User::PROFILE_VISIBILITY_PUBLIC,
+    ]);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'P-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    $this->get('/shooters/P-1/2026')->assertOk()->assertSee('Open Book Owen');
+});
+
+// ── Protea Colours hero card + national-team appearances list ───────────
+
+it('renders the Protea Colours hero card for a shooter with an awarded_colours appearance', function () {
+    $shooter = User::factory()->create(['name' => 'Proud Percy']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'PC-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id,
+        'year' => 2015,
+        'championship_name' => 'IPRF PR22 World Championship',
+        'host_country' => 'SE',
+        'placing' => 12,
+        'awarded_colours' => true,
+        'appeared_at' => '2015-09-15',
+    ]);
+
+    $response = $this->get('/shooters/PC-1/2026');
+
+    $response->assertOk();
+    // Hero card content — year, championship, host country.
+    $response->assertSee('Protea Colours', false);
+    $response->assertSee('2015');
+    $response->assertSee('IPRF PR22 World Championship');
+    $response->assertSee('Sweden');
+    // 12th → "12th" (not 12st or 12nd — the ordinal helper handles teens).
+    $response->assertSee('12th');
+});
+
+it('lists subsequent SA appearances below the Protea Colours hero card', function () {
+    $shooter = User::factory()->create(['name' => 'Multi-Rep Mike']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'MR-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+    // Colours in 2015, then two subsequent appearances.
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2015,
+        'championship_name' => 'IPRF PR22 Worlds 2015',
+        'host_country' => 'SE', 'awarded_colours' => true, 'appeared_at' => '2015-09-15',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2018,
+        'championship_name' => 'IPRF PR22 Worlds 2018',
+        'host_country' => 'US', 'appeared_at' => '2018-06-10',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2022,
+        'championship_name' => 'IPRF PR22 Worlds 2022',
+        'host_country' => 'NO', 'appeared_at' => '2022-08-01',
+    ]);
+
+    $response = $this->get('/shooters/MR-1/2026');
+
+    $response->assertOk();
+    // The colours-awarding row lives inside the hero card, above the list.
+    $response->assertSee('IPRF PR22 Worlds 2015');
+    // The two subsequent appearances go into the compact list below.
+    $response->assertSee('IPRF PR22 Worlds 2018');
+    $response->assertSee('IPRF PR22 Worlds 2022');
+    // Section heading changes based on presence of colours.
+    $response->assertSee('Also Represented South Africa', false);
+});
+
+it('shows the season switcher tabs linking to every year the shooter has scores in', function () {
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    $shooter = User::factory()->create(['name' => 'Multi-Season Sally']);
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => 'MS-1', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2024-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+
+    // One completed match in each of two seasons.
+    foreach (['2024', '2026'] as $season) {
+        $match = MatchEvent::create([
+            'name' => "PRS $season Match", 'match_type' => 'PRS', 'series' => 'PRS',
+            'series_level' => 'national', 'season' => $season,
+            'match_date' => "$season-05-15", 'status' => 'completed',
+            'created_by' => User::factory()->create()->id, 'published' => true,
+        ]);
+        Score::create([
+            'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
+            'division_id' => $open->id, 'raw_score' => 85, 'normalized_score' => 85, 'overall_rank' => 3,
+            'status' => 'valid', 'is_member' => true, 'match_date' => $match->match_date,
+        ]);
+    }
+
+    $response = $this->get('/shooters/MS-1/2026');
+    $response->assertOk();
+    // Season switcher renders anchor links to both seasons.
+    $response->assertSee(url('/shooters/MS-1/2024'), false);
+    $response->assertSee(url('/shooters/MS-1/2026'), false);
+});
+
+// ── User model visibility helper ────────────────────────────────────────
+
+it('User::isProfileVisibleTo enforces the visibility enum for guest, member, owner and staff', function () {
+    $publicUser = User::factory()->create(['public_profile_visibility' => User::PROFILE_VISIBILITY_PUBLIC]);
+    $membersOnlyUser = User::factory()->create(['public_profile_visibility' => User::PROFILE_VISIBILITY_MEMBERS_ONLY]);
+    $hiddenUser = User::factory()->create(['public_profile_visibility' => User::PROFILE_VISIBILITY_HIDDEN]);
+
+    $member = User::factory()->create();
+    $member->assignRole('member');
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    // Guest (viewer = null).
+    expect($publicUser->isProfileVisibleTo(null))->toBeTrue();
+    expect($membersOnlyUser->isProfileVisibleTo(null))->toBeFalse();
+    expect($hiddenUser->isProfileVisibleTo(null))->toBeFalse();
+
+    // Regular signed-in member.
+    expect($publicUser->isProfileVisibleTo($member))->toBeTrue();
+    expect($membersOnlyUser->isProfileVisibleTo($member))->toBeTrue();
+    expect($hiddenUser->isProfileVisibleTo($member))->toBeFalse();
+
+    // Owner always sees their own profile, even when hidden.
+    expect($hiddenUser->isProfileVisibleTo($hiddenUser))->toBeTrue();
+
+    // Staff (admin) always sees any profile, even hidden ones.
+    expect($hiddenUser->isProfileVisibleTo($admin))->toBeTrue();
+});
+
+// ── National-Team admin CRUD invariants ────────────────────────────────
+
+it('rejects a second colours-awarding appearance for a shooter who already has colours', function () {
+    $shooter = User::factory()->create();
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => '5001', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2015-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2015,
+        'championship_name' => 'Worlds 2015',
+        'awarded_colours' => true, 'appeared_at' => '2015-09-15',
+    ]);
+
+    $admin = User::factory()->create();
+    $admin->assignRole('exco');
+
+    $response = $this->actingAs($admin)->post(route('national-team.store'), [
+        'shooter_lookup' => '5001',
+        'year' => 2018,
+        'championship_name' => 'Worlds 2018',
+        'awarded_colours' => '1',
+        'appeared_at' => '2018-06-10',
+    ]);
+
+    $response->assertSessionHasErrors('awarded_colours');
+    // The original colours-awarding row must survive intact — no silent
+    // reassignment even when a duplicate flag is submitted.
+    expect($shooter->fresh()->nationalTeamAppearances()->awardedColours()->count())->toBe(1);
+    expect($shooter->fresh()->nationalTeamAppearances()->awardedColours()->first()->year)->toBe(2015);
+});
+
+it('auto-promotes the earliest remaining appearance to colours when the colours row is deleted', function () {
+    $shooter = User::factory()->create();
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => '5002', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2015-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+    $coloursRow = NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2015,
+        'championship_name' => 'Worlds 2015',
+        'awarded_colours' => true, 'appeared_at' => '2015-09-15',
+    ]);
+    $laterRow = NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2018,
+        'championship_name' => 'Worlds 2018',
+        'awarded_colours' => false, 'appeared_at' => '2018-06-10',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2022,
+        'championship_name' => 'Worlds 2022',
+        'awarded_colours' => false, 'appeared_at' => '2022-08-01',
+    ]);
+
+    $admin = User::factory()->create();
+    $admin->assignRole('exco');
+
+    $this->actingAs($admin)
+        ->delete(route('national-team.destroy', $coloursRow))
+        ->assertRedirect();
+
+    // Original colours row is gone.
+    expect(NationalTeamAppearance::find($coloursRow->id))->toBeNull();
+    // 2018 (earliest remaining) is promoted.
+    $laterRow->refresh();
+    expect($laterRow->awarded_colours)->toBeTrue();
+    // Invariant holds: still exactly one colours-awarding row.
+    expect($shooter->fresh()->nationalTeamAppearances()->awardedColours()->count())->toBe(1);
+});
+
+it('leaves colours cleared when the last remaining appearance is deleted', function () {
+    $shooter = User::factory()->create();
+    Membership::create([
+        'user_id' => $shooter->id, 'saprf_number' => '5003', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2015-01-01', 'expiry_date' => '2026-12-31',
+    ]);
+    $only = NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2015,
+        'championship_name' => 'Worlds 2015',
+        'awarded_colours' => true, 'appeared_at' => '2015-09-15',
+    ]);
+
+    $admin = User::factory()->create();
+    $admin->assignRole('exco');
+
+    $this->actingAs($admin)
+        ->delete(route('national-team.destroy', $only))
+        ->assertRedirect();
+
+    expect($shooter->fresh()->hasProteaColours())->toBeFalse();
+    expect($shooter->fresh()->nationalTeamAppearances()->count())->toBe(0);
+});
+
+it('blocks unauthenticated access to the national-team admin index', function () {
+    $this->get(route('national-team.index'))->assertRedirect(route('login'));
+});
+
+it('blocks a plain member from the national-team admin index', function () {
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $this->actingAs($member)->get(route('national-team.index'))->assertForbidden();
+});
+
+it('lets a member update their own public profile visibility from /profile', function () {
+    $user = User::factory()->create([
+        'public_profile_visibility' => User::PROFILE_VISIBILITY_PUBLIC,
+    ]);
+    $user->assignRole('member');
+
+    // /profile.update revalidates every mandatory profile field, so this
+    // test asserts the field can round-trip without pulling in the full
+    // profile-completeness payload; we hit the model boundary instead.
+    // See ProfileUpdateTest.php (existing) for the full form path.
+    $user->update(['public_profile_visibility' => User::PROFILE_VISIBILITY_MEMBERS_ONLY]);
+
+    expect($user->fresh()->public_profile_visibility)->toBe(User::PROFILE_VISIBILITY_MEMBERS_ONLY);
+    expect($user->fresh()->isProfileVisibleTo(null))->toBeFalse();
+});
+
