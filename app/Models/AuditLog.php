@@ -22,6 +22,7 @@ class AuditLog extends Model
 
     protected $fillable = [
         'user_id',
+        'impersonated_user_id',
         'actor_type',
         'action_type',
         'entity_type',
@@ -44,6 +45,21 @@ class AuditLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The member whose identity a developer had assumed when this row
+     * was written. Null unless the write happened inside an impersonation
+     * session. user_id remains the developer — the real actor.
+     */
+    public function impersonatedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'impersonated_user_id');
+    }
+
+    public function wasImpersonated(): bool
+    {
+        return $this->impersonated_user_id !== null;
     }
 
     public function scopeActorType($query, ?string $type)

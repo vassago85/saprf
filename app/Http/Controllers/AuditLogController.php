@@ -13,7 +13,7 @@ class AuditLogController extends Controller
         $category = $request->input('category');
 
         $auditLogs = AuditLog::query()
-            ->with('user')
+            ->with(['user', 'impersonatedUser'])
             ->actorType($category)
             ->latest('created_at')
             ->paginate(30)
@@ -34,7 +34,7 @@ class AuditLogController extends Controller
 
     public function show(AuditLog $auditLog): View
     {
-        $auditLog->load('user');
+        $auditLog->load(['user', 'impersonatedUser']);
 
         // Resolve the affected subject (member/membership) up front so the
         // view can render its details next to the entity ID.

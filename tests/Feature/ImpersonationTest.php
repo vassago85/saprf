@@ -105,6 +105,69 @@ it('silently no-ops the stop route when no impersonation is active', function ()
     expect(auth()->id())->toBe($user->id);
 });
 
+it('re-attributes writes made during impersonation to the developer', function () {
+    $developer = User::factory()->create(['name' => 'Dev Dana']);
+    $developer->assignRole('developer');
+    $target = User::factory()->create(['name' => 'Target Tim']);
+    $target->assignRole('member');
+
+    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    expect(auth()->id())->toBe($target->id);
+
+    // Controllers pass $request->user() — during impersonation that is
+    // the TARGET. The service must rewrite user_id to the developer and
+    // stamp impersonated_user_id so the audit log never pretends Tim
+    // made the change.
+    $log = app(\App\Services\AuditLogService::class)->log(
+        $target,
+        'profile.updated',
+        'User',
+        $target->id,
+        null,
+        ['public_profile_visibility' => 'hidden'],
+        'Visibility changed from profile form',
+    );
+
+    expect($log->user_id)->toBe($developer->id);
+    expect($log->impersonated_user_id)->toBe($target->id);
+    expect($log->actor_type)->toBe(AuditLog::ACTOR_ADMIN);
+    expect($log->wasImpersonated())->toBeTrue();
+});
+
+it('does not rewrite start/stop rows as impersonated writes', function () {
+    $developer = User::factory()->create(['name' => 'Dev Dana']);
+    $developer->assignRole('developer');
+    $target = User::factory()->create(['name' => 'Target Tim']);
+
+    $this->actingAs($developer)->get(route('impersonate.start', $target));
+
+    $started = AuditLog::query()->where('action_type', 'impersonation.started')->latest('id')->first();
+    expect($started->user_id)->toBe($developer->id);
+    expect($started->impersonated_user_id)->toBeNull();
+
+    $this->get(route('impersonate.stop'));
+
+    $stopped = AuditLog::query()->where('action_type', 'impersonation.stopped')->latest('id')->first();
+    expect($stopped->user_id)->toBe($developer->id);
+    expect($stopped->impersonated_user_id)->toBeNull();
+});
+
+it('leaves ordinary member writes untouched when no impersonation is active', function () {
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $log = app(\App\Services\AuditLogService::class)->log(
+        $member,
+        'profile.updated',
+        'User',
+        $member->id,
+    );
+
+    expect($log->user_id)->toBe($member->id);
+    expect($log->impersonated_user_id)->toBeNull();
+    expect($log->actor_type)->toBe(AuditLog::ACTOR_USER);
+});
+
 it('chains impersonations without stranding the developer as B when starting on C', function () {
     // Guard against "A → B → C leaves stop() returning to B, not A":
     // starting a fresh impersonation must always clear the previous

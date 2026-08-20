@@ -21,7 +21,9 @@ use Illuminate\Support\Facades\Auth;
  *   - Only users holding the `developer` role can START an impersonation.
  *   - Every start/stop is written to the audit log via AuditLogService so
  *     POPIA subject-access requests can show every time a staff member
- *     assumed a member's identity.
+ *     assumed a member's identity. Writes made *during* impersonation
+ *     are re-attributed to the developer (user_id) with the assumed
+ *     member stored on impersonated_user_id.
  *   - The developer's original user ID lives in the session under
  *     `impersonator_id` — that key is what the layout banner and the
  *     Stop route both read from. When it's absent, the app is in normal

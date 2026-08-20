@@ -52,7 +52,14 @@
                                     <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">User</span>
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $log->user->name ?? 'System' }}</td>
+                        <td class="px-5 py-3.5 text-sm text-stone-900">
+                            <div>{{ $log->user->name ?? 'System' }}</div>
+                            @if($log->wasImpersonated())
+                                <div class="text-xs text-red-700 mt-0.5">
+                                    acting as {{ $log->impersonatedUser?->name ?? ('#'.$log->impersonated_user_id) }}
+                                </div>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                             @switch($log->action_type)
                                 @case('created')

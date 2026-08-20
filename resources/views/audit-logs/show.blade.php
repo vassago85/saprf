@@ -35,6 +35,15 @@
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">User</dt>
                     <dd class="mt-1 text-sm text-stone-900">{{ $auditLog->user->name ?? 'System' }}</dd>
                 </div>
+                @if($auditLog->wasImpersonated())
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Acting as</dt>
+                        <dd class="mt-1 text-sm text-red-700">
+                            {{ $auditLog->impersonatedUser?->name ?? ('user #'.$auditLog->impersonated_user_id) }}
+                            <span class="block text-xs text-stone-500 mt-0.5">Developer impersonation — the named user did not make this change.</span>
+                        </dd>
+                    </div>
+                @endif
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Action</dt>
                     <dd class="mt-1.5">
