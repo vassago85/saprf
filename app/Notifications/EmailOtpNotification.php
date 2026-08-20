@@ -3,17 +3,25 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class EmailOtpNotification extends Notification
+/**
+ * Queued onto the `high` connection so a large announcement burst on
+ * `default` can't stall a user's OTP for minutes. The prod queue worker
+ * runs with `--queue=high,default` and drains `high` first.
+ */
+class EmailOtpNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
         private readonly string $otp,
-    ) {}
+    ) {
+        $this->onQueue('high');
+    }
 
     public function via(object $notifiable): array
     {

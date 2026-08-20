@@ -88,7 +88,11 @@ services:
       - DB_DATABASE=${DB_DATABASE:-saprf_platform}
       - DB_USERNAME=${DB_USERNAME:-saprf}
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
-    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    # `--queue=high,default` drains the `high` queue (auth-critical mail:
+    # OTP, password reset) before touching `default` (announcements, backups,
+    # etc). A ~200-message announcement burst therefore cannot delay a user's
+    # verification code.
+    command: php artisan queue:work --queue=high,default --sleep=3 --tries=3 --max-time=3600
     volumes:
       - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app

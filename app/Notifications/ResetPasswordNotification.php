@@ -3,20 +3,27 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
  * Password reset email with an absolute URL built from APP_URL so the link
  * works when opened on a different device/browser than the one that requested it.
+ *
+ * Queued on `high` so a large announcement burst on `default` can't hold
+ * up a user waiting on a reset link. The prod worker drains `high` first
+ * (see docker-compose.prod.yml queue service command).
  */
-class ResetPasswordNotification extends Notification
+class ResetPasswordNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
         private readonly string $token,
-    ) {}
+    ) {
+        $this->onQueue('high');
+    }
 
     public function via(object $notifiable): array
     {

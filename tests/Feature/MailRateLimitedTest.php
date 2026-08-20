@@ -6,12 +6,16 @@
  * Mailgun probation caps the domain at 100 messages/hour. AppServiceProvider
  * registers a "mail" rate limiter at 50/hour (with a 2/min burst cap) so
  * announcement / transactional notifications cannot exhaust the account.
- * Auth-critical mail (OTP + password reset) is DELIBERATELY excluded so
- * those messages send immediately and keep the remaining Mailgun headroom.
+ * Auth-critical mail (OTP + password reset) is DELIBERATELY excluded from
+ * the limiter and queued on `high` so announcement bursts on `default`
+ * cannot delay a user's login/reset email.
  *
  * Every non-auth notification opts into the limiter via RateLimited queue
  * middleware. This test locks that wiring in — future notifications added
  * without the middleware will visibly regress here.
+ *
+ * Note: the limiter itself is sized at 60/min and 500/hour in
+ * AppServiceProvider (raised so announcement fan-out does not burn tries).
  */
 
 use App\Models\Announcement;
@@ -43,7 +47,7 @@ use Illuminate\Support\Facades\RateLimiter;
 
 // ── Limiter definition ──────────────────────────────────────────────
 
-it('registers a "mail" rate limiter at 2/min and 50/hour', function () {
+it('registers a "mail" rate limiter at 60/min and 500/hour', function () {
     $limiter = RateLimiter::limiter('mail');
 
     expect($limiter)->not->toBeNull('AppServiceProvider must register a "mail" rate limiter');
@@ -52,11 +56,11 @@ it('registers a "mail" rate limiter at 2/min and 50/hour', function () {
     expect($limits)->toBeArray()->toHaveCount(2);
 
     expect($limits[0])->toBeInstanceOf(Limit::class);
-    expect($limits[0]->maxAttempts)->toBe(2);
+    expect($limits[0]->maxAttempts)->toBe(60);
     expect($limits[0]->decaySeconds)->toBe(60);
 
     expect($limits[1])->toBeInstanceOf(Limit::class);
-    expect($limits[1]->maxAttempts)->toBe(50);
+    expect($limits[1]->maxAttempts)->toBe(500);
     expect($limits[1]->decaySeconds)->toBe(3600);
 });
 
@@ -131,14 +135,28 @@ it('queues the notification and routes it through the mail rate limiter', functi
     expect($prop->getValue($rateLimited))->toBe('mail');
 })->with('throttled_notifications');
 
-// ── Auth-critical mail stays inline ─────────────────────────────────
+// ── Auth-critical mail: high queue, not the mail throttle ────────────
 
-it('does NOT queue OTP or password reset mail so users are never delayed at login', function (string $class) {
-    // Class-level check only — no need to instantiate. If someone flips
-    // one of these to ShouldQueue in a future refactor, this fails and
-    // forces a conversation about the auth-latency trade-off first.
+it('queues OTP and password reset on the high queue without the mail rate limiter', function (string $class) {
+    // Queued so a large announcement burst on `default` cannot stall auth
+    // mail. The worker drains `high` first (docker-compose*.yml). They must
+    // NOT use RateLimited('mail') — that limiter is for broadcast volume.
     expect(is_subclass_of($class, ShouldQueue::class))
-        ->toBeFalse("{$class} must stay inline: queueing it adds worker-sleep latency before the user's OTP/reset link arrives.");
+        ->toBeTrue("{$class} must implement ShouldQueue so it can ride the high queue.");
+
+    $notification = match ($class) {
+        EmailOtpNotification::class => new EmailOtpNotification('123456'),
+        ResetPasswordNotification::class => new ResetPasswordNotification('reset-token'),
+        default => throw new InvalidArgumentException($class),
+    };
+
+    expect($notification->queue)->toBe('high');
+
+    if (method_exists($notification, 'middleware')) {
+        $middleware = $notification->middleware();
+        $rateLimited = collect($middleware)->first(fn ($m) => $m instanceof RateLimited);
+        expect($rateLimited)->toBeNull("{$class} must not use the mail RateLimited middleware");
+    }
 })->with([
     EmailOtpNotification::class,
     ResetPasswordNotification::class,
