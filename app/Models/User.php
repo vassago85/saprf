@@ -48,6 +48,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'parent_id',
         'is_managed_account',
         'managed_relationship',
+        'public_profile_visibility',
     ];
 
     /**
@@ -312,6 +313,82 @@ class User extends Authenticatable implements MustVerifyEmail
     public function ammoLoads(): HasMany
     {
         return $this->hasMany(AmmoLoad::class);
+    }
+
+    /**
+     * Every year the user has shot for South Africa. Includes the
+     * one-and-only Protea Colours-awarding appearance plus every
+     * subsequent SA national-team representation. See NationalTeamAppearance.
+     */
+    public function nationalTeamAppearances(): HasMany
+    {
+        return $this->hasMany(NationalTeamAppearance::class);
+    }
+
+    /**
+     * The single appearance (if any) that granted this user their Protea
+     * Colours. hasOne rather than hasMany because the invariant enforced
+     * by NationalTeamAppearanceController is one-per-user.
+     */
+    public function proteaColoursAppearance(): HasOne
+    {
+        return $this->hasOne(NationalTeamAppearance::class)
+            ->where('awarded_colours', true);
+    }
+
+    public function hasProteaColours(): bool
+    {
+        if ($this->relationLoaded('proteaColoursAppearance')) {
+            return $this->getRelation('proteaColoursAppearance') !== null;
+        }
+
+        return $this->nationalTeamAppearances()
+            ->where('awarded_colours', true)
+            ->exists();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Public shooter profile visibility
+    // ──────────────────────────────────────────────────────────────────────
+
+    public const PROFILE_VISIBILITY_PUBLIC = 'public';
+    public const PROFILE_VISIBILITY_MEMBERS_ONLY = 'members_only';
+    public const PROFILE_VISIBILITY_HIDDEN = 'hidden';
+
+    public const PROFILE_VISIBILITY_OPTIONS = [
+        self::PROFILE_VISIBILITY_PUBLIC => 'Public — visible to anyone',
+        self::PROFILE_VISIBILITY_MEMBERS_ONLY => 'Members only — hidden from guests',
+        self::PROFILE_VISIBILITY_HIDDEN => 'Hidden — profile page returns 404',
+    ];
+
+    /**
+     * Can $viewer see this user's public shooter profile?
+     *
+     * Rules:
+     *   - Owner always sees their own profile.
+     *   - Staff (any of User::STAFF_ROLES) always see every profile — needed
+     *     for admin workflows regardless of member preference.
+     *   - Otherwise the target's public_profile_visibility gates access:
+     *       public        → anyone (including guests)
+     *       members_only  → any authenticated user
+     *       hidden        → nobody except owner/staff
+     */
+    public function isProfileVisibleTo(?User $viewer): bool
+    {
+        if ($viewer && $viewer->is($this)) {
+            return true;
+        }
+
+        if ($viewer && $viewer->isStaffMember()) {
+            return true;
+        }
+
+        return match ($this->public_profile_visibility ?? self::PROFILE_VISIBILITY_PUBLIC) {
+            self::PROFILE_VISIBILITY_PUBLIC => true,
+            self::PROFILE_VISIBILITY_MEMBERS_ONLY => $viewer !== null,
+            self::PROFILE_VISIBILITY_HIDDEN => false,
+            default => true,
+        };
     }
 
     public function getAdminProvinceIds(): array

@@ -4,6 +4,10 @@
     $sort = $sort ?? null;
     $direction = $direction ?? 'desc';
     $filterParams = $filterParams ?? [];
+    // Finale-eligibility map keyed by user_id. Missing key = no qualifier
+    // rule for this season/series (or no OOP nationals requirement) — in
+    // which case we render nothing at all so the leaderboard stays clean.
+    $qualificationByUser = $qualificationByUser ?? [];
 
     // Default direction for each column when a user first clicks its header.
     // Points/rank are numeric; name-based columns read better ascending.
@@ -121,10 +125,34 @@
                                 @endif
                             </td>
                             <td class="px-4 sm:px-5 py-4">
-                                <a href="{{ url('/standings/' . $season . '/shooter/' . ($standing->user_id ?? $standing->id)) }}"
-                                   class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
-                                    {{ $standing->user->name ?? '—' }}
-                                </a>
+                                @php
+                                    $q = $qualificationByUser[$standing->user_id] ?? null;
+                                    // Only render an indicator when the season
+                                    // has a real OOP requirement (required>0).
+                                    // Otherwise the flag is meaningless noise.
+                                    $showQualifierFlag = $q && $q['required'] > 0;
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5">
+                                    <a href="{{ url('/standings/' . $season . '/shooter/' . ($standing->user_id ?? $standing->id)) }}"
+                                       class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
+                                        {{ $standing->user->name ?? '—' }}
+                                    </a>
+                                    @if($showQualifierFlag)
+                                        @if($q['qualified'])
+                                            <span class="inline-flex items-center justify-center size-4 rounded-full bg-emerald-100 text-emerald-700"
+                                                  title="Finale-eligible — {{ $q['completed'] }} / {{ $q['required'] }} out-of-province nationals shot"
+                                                  aria-label="Finale eligible">
+                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center justify-center size-4 rounded-full ring-1 ring-stone-300 text-stone-400"
+                                                  title="Needs {{ $q['remaining'] }} more out-of-province national{{ $q['remaining'] === 1 ? '' : 's' }} to be finale-eligible ({{ $q['completed'] }} / {{ $q['required'] }})"
+                                                  aria-label="Not yet finale eligible">
+                                                <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+                                            </span>
+                                        @endif
+                                    @endif
+                                </span>
                                 @if($showDivision)
                                     <span class="sm:hidden block text-xs text-stone-400 mt-0.5">
                                         {{ $userDiv?->name ?? '—' }}

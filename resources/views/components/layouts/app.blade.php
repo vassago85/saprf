@@ -205,10 +205,15 @@
             @endrole
 
             @role('developer|exco|owner|admin|iprf_selector')
-            <flux:navlist.group heading="IPRF Selection" expandable :expanded="request()->routeIs('selection.*')">
+            <flux:navlist.group heading="IPRF Selection" expandable :expanded="request()->routeIs('selection.*', 'national-team.*')">
                 <flux:navlist.item icon="flag" :href="route('selection.cycles.index')" :current="request()->routeIs('selection.cycles.index', 'selection.cycles.create', 'selection.cycles.edit')">
                     Selection Cycles
                 </flux:navlist.item>
+                @role('developer|exco|owner|admin')
+                <flux:navlist.item icon="star" :href="route('national-team.index')" :current="request()->routeIs('national-team.*')">
+                    National Team &amp; Colours
+                </flux:navlist.item>
+                @endrole
                 <flux:navlist.item icon="document-text" :href="route('documents.index')" :current="request()->routeIs('documents.*')">
                     Published Documents
                 </flux:navlist.item>

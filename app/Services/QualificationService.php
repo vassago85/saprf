@@ -39,6 +39,62 @@ class QualificationService
     }
 
     /**
+     * Bulk equivalent of getQualificationStatus() for a batch of shooters.
+     * Used by the public standings leaderboard to render the finale-eligibility
+     * ✓ next to each shooter's name without triggering a per-row query.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, array{required:int, completed:int, qualified:bool, remaining:int}>
+     */
+    public function bulkFinalsQualification(array $userIds, string $series, string $season): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $rule = QualificationRule::query()
+            ->where('series', $series)
+            ->where('season', $season)
+            ->first();
+
+        $required = (int) ($rule?->min_out_of_province_matches ?? 0);
+
+        // OOP is defined *relative to each shooter's own province*, so we
+        // join users into the score aggregate and filter on the mismatch.
+        // One query for the whole page; MySQL/MariaDB handle the correlated
+        // "!=" comparison natively.
+        $counts = Score::query()
+            ->selectRaw('scores.user_id, COUNT(DISTINCT scores.match_id) AS oop_count')
+            ->join('match_events', 'match_events.id', '=', 'scores.match_id')
+            ->join('users', 'users.id', '=', 'scores.user_id')
+            ->where('scores.status', 'valid')
+            ->where('match_events.series', $series)
+            ->where('match_events.series_level', 'national')
+            ->where(function ($q) use ($season) {
+                $q->where('match_events.season', $season)
+                    ->orWhereRaw('YEAR(match_events.match_date) = ?', [$season]);
+            })
+            ->whereColumn('match_events.province_id', '!=', 'users.province_id')
+            ->whereIn('scores.user_id', $userIds)
+            ->groupBy('scores.user_id')
+            ->pluck('oop_count', 'scores.user_id')
+            ->all();
+
+        $out = [];
+        foreach ($userIds as $userId) {
+            $completed = (int) ($counts[$userId] ?? 0);
+            $out[$userId] = [
+                'required' => $required,
+                'completed' => $completed,
+                'qualified' => $required > 0 && $completed >= $required,
+                'remaining' => max(0, $required - $completed),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Member-dashboard qualification process for PRS and PR22.
      *
      * Always returns both series so the UI can show each process side by side.

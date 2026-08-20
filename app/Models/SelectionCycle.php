@@ -28,6 +28,9 @@ class SelectionCycle extends Model
         'series',
         'season',
         'championship_name',
+        'host_country',
+        'event_start_date',
+        'event_end_date',
         'qualifying_period_start',
         'qualifying_period_end',
         'declaration_deadline',
@@ -45,6 +48,8 @@ class SelectionCycle extends Model
     protected function casts(): array
     {
         return [
+            'event_start_date' => 'date',
+            'event_end_date' => 'date',
             'qualifying_period_start' => 'date',
             'qualifying_period_end' => 'date',
             'declaration_deadline' => 'datetime',

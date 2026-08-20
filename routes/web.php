@@ -86,7 +86,35 @@ Route::get('/contact/thanks', [\App\Http\Controllers\ContactController::class, '
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
-Route::get('/standings/{season}/shooter/{user}', [StandingController::class, 'publicShooter'])->name('standings.shooter');
+
+// Legacy shooter URL. Kept live so external bookmarks and the many
+// {{ url('/standings/'.$season.'/shooter/'.$user->id) }} template links
+// scattered through the app don't break. When the user has a SAPRF
+// membership number we 301 to the new canonical /shooters/{saprfNumber}
+// URL; when they don't (imports, guest shooters), we render in place.
+Route::get('/standings/{season}/shooter/{user}', function (string $season, \App\Models\User $user) {
+    $saprfNumber = $user->membership?->saprf_number;
+
+    if ($saprfNumber !== null && $saprfNumber !== '') {
+        return redirect()->route('shooters.show.season', [
+            'saprfNumber' => $saprfNumber,
+            'season' => $season,
+        ], 301);
+    }
+
+    return app(StandingController::class)->publicShooter($season, $user);
+})->name('standings.shooter');
+
+// Canonical public shooter profile. saprfNumber is a string on the
+// Membership model — some legacy imports use SAPRF-IMPORT-… prefixes,
+// so the where() constraint is deliberately permissive.
+Route::get('/shooters/{saprfNumber}', [\App\Http\Controllers\ShooterProfileController::class, 'show'])
+    ->where('saprfNumber', '[A-Za-z0-9\\-]+')
+    ->name('shooters.show');
+Route::get('/shooters/{saprfNumber}/{season}', [\App\Http\Controllers\ShooterProfileController::class, 'show'])
+    ->where('saprfNumber', '[A-Za-z0-9\\-]+')
+    ->where('season', '[0-9]{4}')
+    ->name('shooters.show.season');
 Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->name('membership.verify');
 
 // Public verbatim publication of the SAPRF selection policy (current
@@ -409,6 +437,17 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->parameters(['email-logs' => 'emailLog'])
             ->names('email-logs');
         Route::resource('sponsors', SponsorController::class)->except(['show']);
+
+        // National-team appearances (IPRF worlds + comparable events).
+        // Each row is one year a shooter represented SA; the
+        // awarded_colours flag on the ONE colours-awarding row shows the
+        // Protea Colours hero card on the shooter's public profile.
+        // Kept as its own admin resource (rather than a nested
+        // selection-cycle modal) because the initial backfill will be
+        // historical / pre-cycle.
+        Route::resource('national-team', \App\Http\Controllers\NationalTeamAppearanceController::class)
+            ->only(['index', 'create', 'store', 'destroy'])
+            ->parameters(['national-team' => 'nationalTeam']);
 
         // Shooting clubs — master list, recognition toggle, merge tool.
         // Recognition drives IPRF ELG-03 / ELG-05 checks.

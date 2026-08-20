@@ -155,6 +155,7 @@
             <h2 class="sr-only">Standings</h2>
             @include('standings._public-table', [
                 'standings' => $standings,
+                'qualificationByUser' => $qualificationByUser ?? [],
                 'showProvince' => true,
                 'showDivision' => true,
                 'series' => $series,
