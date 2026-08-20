@@ -227,6 +227,21 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/push/test', [PushSubscriptionController::class, 'test'])->name('push.test');
 });
 
+// Developer-only user impersonation. Sits OUTSIDE the profile.complete
+// gate — a developer may need to impersonate a member whose profile is
+// incomplete (that's often what they're trying to diagnose). The stop
+// route is deliberately not gated on the developer role because at
+// stop-time the session is authenticated as the impersonated target,
+// not the developer.
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware('role:developer')->group(function (): void {
+        Route::get('/impersonate/{user}', [\App\Http\Controllers\ImpersonationController::class, 'start'])
+            ->name('impersonate.start');
+    });
+    Route::get('/impersonate-stop', [\App\Http\Controllers\ImpersonationController::class, 'stop'])
+        ->name('impersonate.stop');
+});
+
 Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/view-mode', [DashboardController::class, 'switchViewMode'])->name('dashboard.view-mode');

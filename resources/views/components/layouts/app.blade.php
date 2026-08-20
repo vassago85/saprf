@@ -27,6 +27,34 @@
     @click="if ($event.target.closest('[data-flux-sidebar] a')) sidebarOpen = false">
     <x-skip-link />
 
+    {{-- Developer impersonation banner. Fixed to the top of every
+         authenticated page (admin console AND public pages routed
+         through x-layouts.public, which nests this layout). Only
+         renders when session.impersonator_id is set — a developer has
+         explicitly assumed another member's identity via
+         /impersonate/{id}. Kept red + prominent so a developer can't
+         accidentally take actions (send messages, revoke memberships)
+         while thinking they're on their own account. --}}
+    @if(session('impersonator_id'))
+        <div class="sticky top-0 z-50 bg-red-600 text-white shadow-md">
+            <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 text-sm font-medium">
+                <div class="flex items-center gap-2 min-w-0">
+                    <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /></svg>
+                    <span class="truncate">
+                        <strong>Impersonating:</strong>
+                        {{ auth()->user()?->name ?? 'member' }}
+                        <span class="hidden sm:inline text-red-100">— signed in as {{ session('impersonator_name', 'developer') }}</span>
+                    </span>
+                </div>
+                <a href="{{ route('impersonate.stop') }}"
+                   class="shrink-0 inline-flex items-center gap-1 rounded-md bg-white/15 px-3 py-1 text-xs font-semibold hover:bg-white/25 transition ring-1 ring-inset ring-white/30">
+                    Return to yourself
+                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
+                </a>
+            </div>
+        </div>
+    @endif
+
     {{-- Mobile sidebar backdrop (Flux Free doesn't ship this). --}}
     <div
         x-show="sidebarOpen"
