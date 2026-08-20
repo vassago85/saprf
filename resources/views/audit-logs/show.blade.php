@@ -19,7 +19,7 @@
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Source</dt>
                     <dd class="mt-1.5">
-                        @switch($auditLog->actor_type)
+                        @switch($auditLog->displayActorType($revealImpersonation))
                             @case(\App\Models\AuditLog::ACTOR_SYSTEM)
                                 <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">System</span>
                                 @break
@@ -33,9 +33,9 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">User</dt>
-                    <dd class="mt-1 text-sm text-stone-900">{{ $auditLog->user->name ?? 'System' }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900">{{ $auditLog->displayActorName($revealImpersonation) }}</dd>
                 </div>
-                @if($auditLog->wasImpersonated())
+                @if($revealImpersonation && $auditLog->wasImpersonated())
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Acting as</dt>
                         <dd class="mt-1 text-sm text-red-700">

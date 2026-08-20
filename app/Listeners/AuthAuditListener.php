@@ -33,6 +33,10 @@ class AuthAuditListener
 
     public function handleLogin(Login $event): void
     {
+        if ($this->isImpersonationAuthSwitch()) {
+            return;
+        }
+
         $user = $this->userFrom($event->user);
         if (! $user) {
             return;
@@ -52,6 +56,10 @@ class AuthAuditListener
 
     public function handleLogout(Logout $event): void
     {
+        if ($this->isImpersonationAuthSwitch()) {
+            return;
+        }
+
         $user = $this->userFrom($event->user);
         if (! $user) {
             // Guest logouts (session flush without an authenticated user) are
@@ -91,6 +99,18 @@ class AuthAuditListener
                 'user_exists' => $targetUser !== null,
             ]),
         );
+    }
+
+    /**
+     * Auth::loginUsingId on start/stop fires a real Login event, but that
+     * switch is not a member signing in. Logging it would put the
+     * developer's name on the shared /audit-logs page that admin and
+     * ExCo can see. impersonation.started / stopped already record the
+     * session for the developer paper-trail.
+     */
+    private function isImpersonationAuthSwitch(): bool
+    {
+        return $this->request->routeIs('impersonate.start', 'impersonate.stop');
     }
 
     /**

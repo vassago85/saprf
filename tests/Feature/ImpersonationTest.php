@@ -34,6 +34,7 @@ it('lets a developer impersonate another member and logs it', function () {
     expect($audit->user_id)->toBe($developer->id);
     expect($audit->entity_type)->toBe('User');
     expect($audit->entity_id)->toBe($target->id);
+    expect(AuditLog::query()->where('action_type', 'user.login')->count())->toBe(0);
 });
 
 it('lets an impersonated session hit /impersonate-stop and returns to the developer', function () {
@@ -61,6 +62,7 @@ it('lets an impersonated session hit /impersonate-stop and returns to the develo
     expect($audit)->not->toBeNull();
     expect($audit->user_id)->toBe($developer->id);
     expect($audit->entity_id)->toBe($target->id);
+    expect(AuditLog::query()->where('action_type', 'user.login')->count())->toBe(0);
 });
 
 it('blocks non-developers from starting impersonation via the middleware', function () {
@@ -150,6 +152,98 @@ it('does not rewrite start/stop rows as impersonated writes', function () {
     $stopped = AuditLog::query()->where('action_type', 'impersonation.stopped')->latest('id')->first();
     expect($stopped->user_id)->toBe($developer->id);
     expect($stopped->impersonated_user_id)->toBeNull();
+});
+
+it('hides impersonation start/stop from the shared audit log that admin and ExCo can see', function () {
+    $developer = User::factory()->create(['name' => 'Dev Dana', 'email_verified_at' => now()]);
+    $developer->assignRole('developer');
+    $target = User::factory()->create(['name' => 'Target Tim']);
+    $admin = User::factory()->create(['name' => 'Admin Amy', 'email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $this->get(route('impersonate.stop'));
+
+    $started = AuditLog::query()->where('action_type', 'impersonation.started')->latest('id')->first();
+    expect($started)->not->toBeNull();
+
+    // Admin / ExCo / owner share /audit-logs. Start/stop must not appear
+    // there, and a direct URL to the row 404s so the event is not
+    // confirmable.
+    $this->actingAs($admin)
+        ->get(route('audit-logs.index'))
+        ->assertOk()
+        ->assertDontSee('Impersonation.started')
+        ->assertDontSee('Impersonation.stopped')
+        ->assertDontSee('started impersonating');
+
+    $this->actingAs($admin)
+        ->get(route('audit-logs.show', $started))
+        ->assertNotFound();
+
+    // The developer still sees the paper trail.
+    $this->actingAs($developer)
+        ->get(route('audit-logs.index'))
+        ->assertOk()
+        ->assertSee('Impersonation.started')
+        ->assertSee('Impersonation.stopped');
+});
+
+it('does not show acting-as on the shared audit log for non-developers', function () {
+    $developer = User::factory()->create(['name' => 'Dev Dana', 'email_verified_at' => now()]);
+    $developer->assignRole('developer');
+    $target = User::factory()->create(['name' => 'Target Tim']);
+    $admin = User::factory()->create(['name' => 'Admin Amy', 'email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $log = app(\App\Services\AuditLogService::class)->log(
+        $target,
+        'profile.updated',
+        'User',
+        $target->id,
+    );
+    $this->get(route('impersonate.stop'));
+    session()->forget('success');
+
+    // Shared log: looks like Tim made a User change. No "acting as",
+    // no developer name. Stop first so the red banner (which names the
+    // developer) is not still sitting in the test session.
+    $this->actingAs($admin)
+        ->get(route('audit-logs.index'))
+        ->assertOk()
+        ->assertSee('Target Tim')
+        ->assertDontSee('acting as')
+        ->assertDontSee('Dev Dana');
+
+    $this->actingAs($admin)
+        ->get(route('audit-logs.show', $log))
+        ->assertOk()
+        ->assertSee('Target Tim')
+        ->assertDontSee('Acting as')
+        ->assertDontSee('Dev Dana');
+
+    // Shared filter tabs follow the same cover: the write is a User
+    // change, not an Admin change, even though the stored actor_type
+    // is admin (the developer).
+    $this->actingAs($admin)
+        ->get(route('audit-logs.index', ['category' => AuditLog::ACTOR_ADMIN]))
+        ->assertOk()
+        ->assertDontSee('Profile.updated');
+
+    $this->actingAs($admin)
+        ->get(route('audit-logs.index', ['category' => AuditLog::ACTOR_USER]))
+        ->assertOk()
+        ->assertSee('Profile.updated')
+        ->assertSee('Target Tim')
+        ->assertDontSee('Dev Dana');
+
+    // Developer log: real actor + acting-as line.
+    $this->actingAs($developer)
+        ->get(route('audit-logs.index'))
+        ->assertOk()
+        ->assertSee('Dev Dana')
+        ->assertSee('acting as Target Tim');
 });
 
 it('leaves ordinary member writes untouched when no impersonation is active', function () {

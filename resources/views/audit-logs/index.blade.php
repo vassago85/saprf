@@ -41,7 +41,7 @@
                     <tr class="hover:bg-stone-50 transition-colors">
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $log->created_at->format('d M Y H:i:s') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($log->actor_type)
+                            @switch($log->displayActorType($revealImpersonation))
                                 @case(\App\Models\AuditLog::ACTOR_SYSTEM)
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">System</span>
                                     @break
@@ -53,8 +53,8 @@
                             @endswitch
                         </td>
                         <td class="px-5 py-3.5 text-sm text-stone-900">
-                            <div>{{ $log->user->name ?? 'System' }}</div>
-                            @if($log->wasImpersonated())
+                            <div>{{ $log->displayActorName($revealImpersonation) }}</div>
+                            @if($revealImpersonation && $log->wasImpersonated())
                                 <div class="text-xs text-red-700 mt-0.5">
                                     acting as {{ $log->impersonatedUser?->name ?? ('#'.$log->impersonated_user_id) }}
                                 </div>

@@ -20,6 +20,16 @@ class AuditLog extends Model
 
     public const ACTOR_TYPES = [self::ACTOR_USER, self::ACTOR_ADMIN, self::ACTOR_SYSTEM];
 
+    /**
+     * Start/stop of a developer impersonation session. Written for the
+     * developer paper-trail but hidden from the shared /audit-logs list
+     * that admin, ExCo and owner can all see.
+     */
+    public const IMPERSONATION_ACTIONS = [
+        'impersonation.started',
+        'impersonation.stopped',
+    ];
+
     protected $fillable = [
         'user_id',
         'impersonated_user_id',
@@ -62,11 +72,78 @@ class AuditLog extends Model
         return $this->impersonated_user_id !== null;
     }
 
+    public function isImpersonationEvent(): bool
+    {
+        return in_array($this->action_type, self::IMPERSONATION_ACTIONS, true);
+    }
+
+    /**
+     * Shared /audit-logs is visible to admin, ExCo and owner — not just
+     * developers. Impersonation start/stop rows stay off that list.
+     */
+    public function scopeHideImpersonationEvents($query)
+    {
+        return $query->whereNotIn('action_type', self::IMPERSONATION_ACTIONS);
+    }
+
+    /**
+     * Name shown in the shared log. Non-developers see the assumed
+     * member (so a write during impersonation looks like a normal user
+     * change). Developers see the real actor.
+     */
+    public function displayActorName(bool $revealImpersonation): string
+    {
+        if (! $revealImpersonation && $this->wasImpersonated()) {
+            return $this->impersonatedUser?->name ?? 'User';
+        }
+
+        return $this->user?->name ?? 'System';
+    }
+
+    /**
+     * Badge shown in the shared log. A write made while impersonating
+     * looks like a member (User) change to everyone except developers.
+     */
+    public function displayActorType(bool $revealImpersonation): string
+    {
+        if (! $revealImpersonation && $this->wasImpersonated()) {
+            return self::ACTOR_USER;
+        }
+
+        return $this->actor_type ?? self::ACTOR_USER;
+    }
+
     public function scopeActorType($query, ?string $type)
     {
         return in_array($type, self::ACTOR_TYPES, true)
             ? $query->where('actor_type', $type)
             : $query;
+    }
+
+    /**
+     * Filter by the actor type as the viewer sees it. Shared /audit-logs
+     * treats impersonated writes as ordinary user changes so they do not
+     * land in the Admin tab.
+     */
+    public function scopeVisibleAsActorType($query, ?string $type, bool $revealImpersonation)
+    {
+        if (! in_array($type, self::ACTOR_TYPES, true)) {
+            return $query;
+        }
+
+        if ($revealImpersonation) {
+            return $query->where('actor_type', $type);
+        }
+
+        if ($type === self::ACTOR_USER) {
+            return $query->where(function ($inner) {
+                $inner->where('actor_type', self::ACTOR_USER)
+                    ->orWhereNotNull('impersonated_user_id');
+            });
+        }
+
+        return $query->where('actor_type', $type)
+            ->whereNull('impersonated_user_id');
     }
 
     /**
