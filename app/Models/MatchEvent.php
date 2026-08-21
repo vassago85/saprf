@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class MatchEvent extends Model
@@ -51,6 +52,7 @@ class MatchEvent extends Model
         'published',
         'also_counts_for_provincial',
         'everyone_counts',
+        'source_national_match_id',
         'provincial_stage_columns',
     ];
 
@@ -140,6 +142,22 @@ class MatchEvent extends Model
     public function scores(): HasMany
     {
         return $this->hasMany(Score::class, 'match_id');
+    }
+
+    /**
+     * When this match is a Day-1 provincial sibling, the 2-day national it came from.
+     */
+    public function sourceNationalMatch(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_national_match_id');
+    }
+
+    /**
+     * Day-1 provincial sibling created from this 2-day national (at most one).
+     */
+    public function provincialDay1Match(): HasOne
+    {
+        return $this->hasOne(self::class, 'source_national_match_id');
     }
 
     public function divisions(): BelongsToMany
@@ -261,6 +279,57 @@ class MatchEvent extends Model
     public function isMultiDay(): bool
     {
         return $this->match_end_date && ! $this->match_end_date->isSameDay($this->match_date);
+    }
+
+    public function isTwoDayNational(): bool
+    {
+        return $this->isMultiDay() && $this->series_level === 'national';
+    }
+
+    /**
+     * Find or create the provincial Day-1 sibling used so day-1 totals from a
+     * 2-day national feed shooter logs / provincial standings without dual-counting
+     * the national itself.
+     */
+    public function findOrCreateProvincialDay1Sibling(): self
+    {
+        if (! $this->isTwoDayNational()) {
+            throw new \InvalidArgumentException(
+                'Provincial Day-1 siblings can only be created from a 2-day national match.'
+            );
+        }
+
+        $existing = $this->provincialDay1Match;
+        if ($existing) {
+            return $existing;
+        }
+
+        return self::create([
+            'name' => $this->name.' — Provincial (Day 1)',
+            'match_type' => $this->match_type,
+            'series' => $this->series,
+            'series_level' => 'provincial',
+            'season' => $this->season,
+            'province_id' => $this->province_id,
+            'venue_name' => $this->venue_name,
+            'venue_location' => $this->venue_location,
+            'city' => $this->city,
+            'match_director' => $this->match_director,
+            'match_director_contact' => $this->match_director_contact,
+            'match_date' => $this->match_date,
+            'match_end_date' => null,
+            'status' => 'completed',
+            'created_by' => $this->created_by,
+            'published' => true,
+            'everyone_counts' => true,
+            'also_counts_for_provincial' => false,
+            'source_national_match_id' => $this->id,
+            'description' => 'Day-1 provincial results from the linked 2-day national. Counts toward provincial standings and shooter logs.',
+            'active_member_fee' => $this->active_member_fee ?? 0,
+            'non_member_fee' => $this->non_member_fee ?? 0,
+            'lapsed_member_fee' => $this->lapsed_member_fee ?? 0,
+            'junior_fee' => $this->junior_fee,
+        ]);
     }
 
     protected function locationDisplay(): Attribute

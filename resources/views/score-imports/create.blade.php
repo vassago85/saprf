@@ -8,21 +8,45 @@
 
         {{-- CSV Format Help --}}
         <details class="rounded-xl border border-sky-200 bg-sky-50/50 p-4 open:pb-4">
-            <summary class="cursor-pointer font-semibold text-sky-900 select-none">CSV format &amp; column requirements</summary>
+            <summary class="cursor-pointer font-semibold text-sky-900 select-none">CSV format &amp; example downloads</summary>
             <div class="mt-3 text-sm text-sky-900 space-y-2">
-                <p>The CSV must have a header row. <strong>Required columns:</strong> <code class="rounded bg-white px-1.5 py-0.5 text-xs">shooter_name</code> and <code class="rounded bg-white px-1.5 py-0.5 text-xs">raw_score</code>.</p>
-                <p><strong>Optional columns</strong> that the system understands:</p>
+                <p>The CSV must have a header row. <strong>Required:</strong> shooter identity (<code class="rounded bg-white px-1.5 py-0.5 text-xs">shooter_name</code>, or <code class="rounded bg-white px-1.5 py-0.5 text-xs">first</code> + <code class="rounded bg-white px-1.5 py-0.5 text-xs">last</code>) and a numeric total (<code class="rounded bg-white px-1.5 py-0.5 text-xs">raw_score</code>, <code class="rounded bg-white px-1.5 py-0.5 text-xs">Impacts</code>, <code class="rounded bg-white px-1.5 py-0.5 text-xs">Total</code>, etc.).</p>
+                <p><strong>Stage columns are optional</strong> — a Day 1 total or Overall total alone is enough for single-day and 2-day matches.</p>
+                <p><strong>Optional columns</strong> the system understands:</p>
                 <ul class="list-disc pl-5 space-y-0.5 text-xs">
                     <li><code class="rounded bg-white px-1.5 py-0.5">email</code> — links the score to an existing user account (recommended)</li>
                     <li><code class="rounded bg-white px-1.5 py-0.5">placement</code> — overall finishing position</li>
                     <li><code class="rounded bg-white px-1.5 py-0.5">division</code> — division slug or name (e.g. <code>open</code>, <code>factory</code>, <code>limited</code>, <code>ladies</code>, <code>junior</code>, <code>senior</code>)</li>
-                    <li><code class="rounded bg-white px-1.5 py-0.5">stage_1, stage_2, …</code> — per-stage points for provincial calculation</li>
+                    <li><code class="rounded bg-white px-1.5 py-0.5">stage_1, stage_2, …</code> — per-stage points when available</li>
                 </ul>
-                <p class="pt-2 text-xs text-sky-700">Column names are flexible — <code>Name</code>, <code>Shooter</code>, <code>Total Score</code>, <code>Points</code>, <code>Rank</code>, <code>Position</code>, <code>Class</code> etc. all map correctly.</p>
-                <a href="{{ route('score-imports.template') }}" class="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-sky-900 hover:underline">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
-                    Download blank CSV template
-                </a>
+                <p class="pt-2 text-xs text-sky-700">Column names are flexible — <code>Name</code>, <code>Shooter</code>, <code>Total Score</code>, <code>Points</code>, <code>Rank</code>, <code>Position</code>, <code>Class</code>, <code>Member Number</code> etc. all map correctly.</p>
+
+                <div class="mt-3 pt-3 border-t border-sky-200/70">
+                    <p class="text-xs font-semibold text-sky-900 mb-2">Example CSVs</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <a href="{{ route('score-imports.template', ['variant' => 'basic']) }}" class="flex items-start gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 hover:border-sky-400 hover:bg-sky-50 transition">
+                            <svg class="h-4 w-4 mt-0.5 text-sky-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                            <span class="text-xs">
+                                <span class="block font-semibold text-sky-900">Basic (totals only)</span>
+                                <span class="block text-sky-700 mt-0.5">Recommended. One row per shooter, no stages. Works for Day 1, Overall, and single-day matches.</span>
+                            </span>
+                        </a>
+                        <a href="{{ route('score-imports.template', ['variant' => 'detailed']) }}" class="flex items-start gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 hover:border-sky-400 hover:bg-sky-50 transition">
+                            <svg class="h-4 w-4 mt-0.5 text-sky-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                            <span class="text-xs">
+                                <span class="block font-semibold text-sky-900">Detailed (with stages)</span>
+                                <span class="block text-sky-700 mt-0.5">Optional. Adds <code>stage_1…stage_10</code> so per-stage points are recorded alongside the total.</span>
+                            </span>
+                        </a>
+                        <a href="{{ route('score-imports.template', ['variant' => 'impact']) }}" class="flex items-start gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 hover:border-sky-400 hover:bg-sky-50 transition">
+                            <svg class="h-4 w-4 mt-0.5 text-sky-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                            <span class="text-xs">
+                                <span class="block font-semibold text-sky-900">Impact export style</span>
+                                <span class="block text-sky-700 mt-0.5">Example of the columns Impact-scoring exports use — <code>First</code>, <code>Last</code>, <code>Member Number</code>, <code>Impacts</code>. Upload as-is.</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </details>
 
@@ -30,8 +54,8 @@
               x-data="{
                 matchMeta: @js($matchMeta),
                 matchId: '{{ old('match_id', $preselectedMatchId) }}',
-                day: '{{ old('day') }}',
-                get isTwoDay() { return this.matchId && this.matchMeta[this.matchId]?.is_two_day; }
+                scoreScope: '{{ old('score_scope') }}',
+                get isTwoDayNational() { return this.matchId && this.matchMeta[this.matchId]?.is_two_day_national; }
               }">
             @csrf
 
@@ -61,30 +85,31 @@
                     @error('source_type') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- Day picker (only visible for 2-day matches) --}}
-                <div x-show="isTwoDay" x-cloak class="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                    <label class="block text-sm font-medium text-stone-900 mb-2">Which day is this CSV? <span class="text-red-500">*</span></label>
-                    <div class="grid grid-cols-2 gap-3">
+                {{-- Day 1 / Overall (2-day nationals only) --}}
+                <div x-show="isTwoDayNational" x-cloak class="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                    <label class="block text-sm font-medium text-stone-900 mb-2">What does this CSV contain? <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition"
-                               :class="day === '1' ? 'border-blue-500 bg-white ring-1 ring-blue-500' : 'border-stone-200 bg-white hover:border-stone-300'">
-                            <input type="radio" name="day" value="1" x-model="day" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                               :class="scoreScope === 'day1' ? 'border-blue-500 bg-white ring-1 ring-blue-500' : 'border-stone-200 bg-white hover:border-stone-300'">
+                            <input type="radio" name="score_scope" value="day1" x-model="scoreScope" class="mt-0.5 text-blue-600 focus:ring-blue-500">
                             <span class="text-sm">
-                                <span class="block font-semibold text-stone-900">Day 1</span>
-                                <span class="block text-xs text-stone-500 mt-0.5">Saturday scores. Feeds the provincial-pool contribution.</span>
+                                <span class="block font-semibold text-stone-900">Day 1 scores</span>
+                                <span class="block text-xs text-stone-500 mt-0.5">Creates/updates a linked provincial match. Counts toward provincial standings and shooter logs.</span>
                             </span>
                         </label>
                         <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition"
-                               :class="day === '2' ? 'border-blue-500 bg-white ring-1 ring-blue-500' : 'border-stone-200 bg-white hover:border-stone-300'">
-                            <input type="radio" name="day" value="2" x-model="day" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                               :class="scoreScope === 'overall' ? 'border-blue-500 bg-white ring-1 ring-blue-500' : 'border-stone-200 bg-white hover:border-stone-300'">
+                            <input type="radio" name="score_scope" value="overall" x-model="scoreScope" class="mt-0.5 text-blue-600 focus:ring-blue-500">
                             <span class="text-sm">
-                                <span class="block font-semibold text-stone-900">Day 2</span>
-                                <span class="block text-xs text-stone-500 mt-0.5">Sunday scores. Combined with Day 1 for the national total.</span>
+                                <span class="block font-semibold text-stone-900">Overall scores</span>
+                                <span class="block text-xs text-stone-500 mt-0.5">Full 2-day match totals on this national. Does not feed provincial standings.</span>
                             </span>
                         </label>
                     </div>
                     <p class="mt-2 text-xs text-blue-800">
-                        Upload each day's CSV separately — the system merges them by shooter, so you can upload Day 1 first, then Day 2 later.
+                        Totals-only CSVs are fine — stage columns are not required. Upload Day 1 and Overall as separate files when you have them.
                     </p>
+                    @error('score_scope') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
@@ -112,8 +137,8 @@
                                @checked(old('replace_existing'))
                                class="mt-1 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
                         <div class="text-sm">
-                            <span class="font-semibold text-stone-900">Replace existing scores for this match</span>
-                            <p class="mt-0.5 text-xs text-stone-600">Delete any scores already recorded for this match before importing. Use this when re-uploading the definitive results file — otherwise scores will be duplicated.</p>
+                            <span class="font-semibold text-stone-900">Replace existing scores for the target match</span>
+                            <p class="mt-0.5 text-xs text-stone-600">Deletes scores already on the match this upload writes to (Day 1 → provincial sibling only; Overall → national only). Use when re-uploading definitive results.</p>
                         </div>
                     </label>
                 </div>
