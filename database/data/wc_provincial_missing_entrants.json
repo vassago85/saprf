@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-08-21",
+  "source": "wc_centrefire_provincial_entrants.csv (missing from event 103)",
+  "matches": [
+    {
+      "old_event_id": 245,
+      "name": "Centrefire WC Provincial",
+      "match_date": "2026-08-29",
+      "match_type": "prs",
+      "series_level": "provincial",
+      "venue": "Romansrivier Wolseley",
+      "province": "Western Cape",
+      "active_member_fee": 650,
+      "non_member_fee": 850,
+      "junior_fee": null,
+      "director_name": "Ruan Zeeman",
+      "event_url": "https://www.precisionrifle.co.za/events/245"
+    }
+  ],
+  "entrants": [
+    {
+      "old_event_id": 245,
+      "saprf_number": "695",
+      "name": "Patrick Capes",
+      "division": "factory",
+      "membership_type": "full",
+      "fee": 650
+    },
+    {
+      "old_event_id": 245,
+      "saprf_number": "1612",
+      "name": "James Pieters",
+      "division": "factory",
+      "membership_type": "free",
+      "fee": 650
+    },
+    {
+      "old_event_id": 245,
+      "saprf_number": "2139",
+      "name": "James Preyser",
+      "division": "open",
+      "membership_type": "free",
+      "fee": 650
+    },
+    {
+      "old_event_id": 245,
+      "saprf_number": "1909",
+      "name": "Nicolaas Smuts",
+      "division": "open",
+      "membership_type": "free",
+      "fee": 650
+    }
+  ]
+}
