@@ -136,6 +136,12 @@
                 <flux:navlist.item icon="fire" :href="route('ammo-loads.index')" :current="request()->routeIs('ammo-loads.*')">
                     My Ammo
                 </flux:navlist.item>
+                <flux:navlist.item icon="cube" :href="route('barrels.index')" :current="request()->routeIs('barrels.*')">
+                    My Barrels
+                </flux:navlist.item>
+                <flux:navlist.item icon="chart-bar" :href="route('ladder-sessions.index')" :current="request()->routeIs('ladder-sessions.*')">
+                    Ladder Analyser
+                </flux:navlist.item>
                 <flux:navlist.item icon="users" :href="route('family.index')" :current="request()->routeIs('family.*')">
                     My Family
                     @if(($familyCount = auth()->user()?->managedAccounts()->count() ?? 0) > 0)

@@ -2,17 +2,19 @@
 
 namespace App\Models;
 
+use App\Notifications\AccountHandoverInvitationNotification;
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Notifications\ResetPasswordNotification;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -228,7 +230,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function generateInvitationToken(): string
     {
-        $raw = \Illuminate\Support\Str::random(64);
+        $raw = Str::random(64);
 
         $this->forceFill([
             'invitation_token' => hash('sha256', $raw),
@@ -315,6 +317,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(AmmoLoad::class);
     }
 
+    public function barrels(): HasMany
+    {
+        return $this->hasMany(Barrel::class);
+    }
+
+    public function ladderSessions(): HasMany
+    {
+        return $this->hasMany(LadderSession::class);
+    }
+
     /**
      * Every year the user has shot for South Africa. Includes the
      * one-and-only Protea Colours-awarding appearance plus every
@@ -352,7 +364,9 @@ class User extends Authenticatable implements MustVerifyEmail
     // ──────────────────────────────────────────────────────────────────────
 
     public const PROFILE_VISIBILITY_PUBLIC = 'public';
+
     public const PROFILE_VISIBILITY_MEMBERS_ONLY = 'members_only';
+
     public const PROFILE_VISIBILITY_HIDDEN = 'hidden';
 
     public const PROFILE_VISIBILITY_OPTIONS = [
@@ -550,7 +564,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function routeNotificationForMail($notification = null): array|string
     {
-        if ($notification instanceof \App\Notifications\AccountHandoverInvitationNotification
+        if ($notification instanceof AccountHandoverInvitationNotification
             && $this->handover_email) {
             return $this->handover_email;
         }
@@ -567,16 +581,16 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function announcementRecipients(): HasMany
     {
-        return $this->hasMany(\App\Models\AnnouncementRecipient::class);
+        return $this->hasMany(AnnouncementRecipient::class);
     }
 
     public function notificationPreference(): HasOne
     {
-        return $this->hasOne(\App\Models\NotificationPreference::class);
+        return $this->hasOne(NotificationPreference::class);
     }
 
     public function pushSubscriptions(): HasMany
     {
-        return $this->hasMany(\App\Models\PushSubscription::class);
+        return $this->hasMany(PushSubscription::class);
     }
 }

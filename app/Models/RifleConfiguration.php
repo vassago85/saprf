@@ -90,6 +90,11 @@ class RifleConfiguration extends Model
         return $this->hasMany(AmmoLoad::class);
     }
 
+    public function barrels(): HasMany
+    {
+        return $this->hasMany(Barrel::class);
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(MatchRegistration::class);

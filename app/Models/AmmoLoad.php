@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AmmoLoad extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'rifle_configuration_id',
@@ -53,6 +56,11 @@ class AmmoLoad extends Model
     public function registrations(): HasMany
     {
         return $this->hasMany(MatchRegistration::class);
+    }
+
+    public function ladderSessions(): HasMany
+    {
+        return $this->hasMany(LadderSession::class);
     }
 
     public function scopeActive($query)

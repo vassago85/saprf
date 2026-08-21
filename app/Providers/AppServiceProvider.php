@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\Announcement;
+use App\Models\Barrel;
 use App\Models\Club;
 use App\Models\ContactMessage;
+use App\Models\LadderSession;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
@@ -14,10 +16,15 @@ use App\Models\SelectionAppeal;
 use App\Models\SelectionAthlete;
 use App\Models\SelectionCycle;
 use App\Models\SelectionWaiver;
+use App\Models\Setting;
+use App\Notifications\EmailOtpNotification;
+use App\Notifications\ResetPasswordNotification;
 use App\Observers\MembershipObserver;
 use App\Policies\AnnouncementPolicy;
+use App\Policies\BarrelPolicy;
 use App\Policies\ClubPolicy;
 use App\Policies\ContactMessagePolicy;
+use App\Policies\LadderSessionPolicy;
 use App\Policies\MatchPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\QualificationRulePolicy;
@@ -27,9 +34,6 @@ use App\Policies\Selection\SelectionAppealPolicy;
 use App\Policies\Selection\SelectionAthletePolicy;
 use App\Policies\Selection\SelectionCyclePolicy;
 use App\Policies\Selection\SelectionWaiverPolicy;
-use App\Models\Setting;
-use App\Notifications\EmailOtpNotification;
-use App\Notifications\ResetPasswordNotification;
 use App\Services\SettingsService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Notifications\Events\NotificationSending;
@@ -63,7 +67,17 @@ class AppServiceProvider extends ServiceProvider
         // Developers + EXCO bypass every policy check — developer is the sysadmin
         // superuser, EXCO is a shared board-walkthrough login that's been
         // explicitly granted owner-equivalent access by the user.
-        Gate::before(function ($user, $ability) {
+        //
+        // Exception: ladders and barrels are personal reloading records that
+        // several nationally-ranked shooters compete against each other on.
+        // The bypass explicitly does not extend to them, so the policy's
+        // ownership check is the only authorisation path in and out.
+        Gate::before(function ($user, $ability, $arguments = []) {
+            $subject = $arguments[0] ?? null;
+            if ($subject instanceof Barrel || $subject instanceof LadderSession) {
+                return null;
+            }
+
             return $user->hasAnyRole(['developer', 'exco']) ? true : null;
         });
 
@@ -79,6 +93,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SelectionWaiver::class, SelectionWaiverPolicy::class);
         Gate::policy(SelectionAppeal::class, SelectionAppealPolicy::class);
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
+        Gate::policy(Barrel::class, BarrelPolicy::class);
+        Gate::policy(LadderSession::class, LadderSessionPolicy::class);
 
         Membership::observe(MembershipObserver::class);
 

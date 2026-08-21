@@ -20,6 +20,8 @@ use App\Http\Controllers\QualificationRuleController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\AmmoLoadController;
+use App\Http\Controllers\BarrelController;
+use App\Http\Controllers\LadderSessionController;
 use App\Http\Controllers\RifleConfigurationController;
 use App\Http\Controllers\SascocReportController;
 use App\Http\Controllers\ScoreController;
@@ -291,6 +293,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/communications/{announcement}/acknowledge', [CommunicationsController::class, 'acknowledge'])->name('communications.acknowledge');
     Route::get('/communications/{announcement}/attachments/{attachment}', [CommunicationsController::class, 'attachment'])->name('communications.attachment');
 
+    // Stateless markdown -> HTML endpoint. Used by every composer (Exco
+    // announcement composer + MD match bulletin composer). No side effects,
+    // so we keep it outside the role gate so match directors can preview too.
+    Route::post('/announcements/body-preview', [AnnouncementController::class, 'bodyPreview'])->name('announcements.body-preview');
+
     // ── Notification Centre — Exco / Chair compose + admin ──
     Route::middleware(['role:developer|exco|chair'])->group(function (): void {
         Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
@@ -350,6 +357,20 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/ammo-loads/{ammoLoad}/edit', [AmmoLoadController::class, 'edit'])->name('ammo-loads.edit');
     Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
     Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
+
+    // Barrels — physical barrels, owner-only. Round count travels with the
+    // barrel rather than the rifle so ladder sessions and future truing data
+    // can attach cleanly.
+    Route::resource('barrels', BarrelController::class)->except(['show'])->names('barrels');
+
+    // Ladder Analyser — index/store/destroy live on the controller; the
+    // show/edit surface is a Volt component that recomputes on every wire
+    // update. Owner-only via LadderSessionPolicy.
+    Route::get('/ladder-sessions', [LadderSessionController::class, 'index'])->name('ladder-sessions.index');
+    Route::post('/ladder-sessions', [LadderSessionController::class, 'store'])->name('ladder-sessions.store');
+    Route::get('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'show'])->name('ladder-sessions.show');
+    Route::delete('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'destroy'])->name('ladder-sessions.destroy');
+    Route::get('/ladder-sessions/{ladderSession}/export.csv', [LadderSessionController::class, 'exportCsv'])->name('ladder-sessions.export.csv');
 
     // Venues — match directors can browse + submit new ones (auto goes to approval
     // queue); edits/deletes require federation admin or owner sign-off.
