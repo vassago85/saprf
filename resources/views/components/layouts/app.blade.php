@@ -7,7 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? 'SAPRF' }}</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png">
     <meta name="robots" content="noindex, nofollow">
 
     <x-pwa-meta />

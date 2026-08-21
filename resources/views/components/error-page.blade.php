@@ -12,7 +12,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>{{ $status }} · {{ $title }} — SAPRF</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|barlow-condensed:600,700,800&display=swap" rel="stylesheet" />

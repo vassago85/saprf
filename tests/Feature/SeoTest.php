@@ -56,6 +56,26 @@ it('renders homepage SEO tags and SportsOrganization JSON-LD', function () {
         ->assertSee('index, follow', false);
 });
 
+it('ships a square crawlable favicon for Google Search snippets', function () {
+    // Google ignores non-square / empty favicons and shows the generic globe.
+    // Keep both the PNG declared in <link rel="icon"> and the /favicon.ico
+    // browsers request by default as real, square assets.
+    expect(file_exists(public_path('favicon.png')))->toBeTrue();
+    expect(file_exists(public_path('favicon.ico')))->toBeTrue();
+    expect(filesize(public_path('favicon.ico')))->toBeGreaterThan(0);
+
+    [$width, $height] = getimagesize(public_path('favicon.png'));
+    expect($width)->toBe($height)
+        ->and($width % 48)->toBe(0)
+        ->and($width)->toBeGreaterThanOrEqual(48);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('rel="icon"', false)
+        ->assertSee('href="/favicon.png"', false)
+        ->assertSee('href="/favicon.ico"', false);
+});
+
 it('gives public listing pages their own meta descriptions', function () {
     $this->get(route('events.index'))
         ->assertOk()
