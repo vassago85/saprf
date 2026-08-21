@@ -15,6 +15,8 @@ class BarrelFactory extends Factory
 
     public function definition(): array
     {
+        $starting = fake()->numberBetween(0, 3000);
+
         return [
             'user_id' => User::factory(),
             'label' => fake()->randomElement(['Bartlein', 'Krieger', 'Proof', 'Rock']).' #'.fake()->numberBetween(1, 5),
@@ -22,7 +24,8 @@ class BarrelFactory extends Factory
             'maker' => fake()->randomElement(['Bartlein', 'Krieger', 'Proof Research', 'Rock Creek']),
             'length_mm' => fake()->randomElement([660, 680, 700, 720]),
             'twist_rate' => fake()->randomElement(['1:7', '1:7.5', '1:8', '1:8.5']),
-            'round_count' => fake()->numberBetween(0, 3000),
+            'starting_round_count' => $starting,
+            'round_count' => $starting,
         ];
     }
 

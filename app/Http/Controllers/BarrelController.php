@@ -36,11 +36,26 @@ class BarrelController extends Controller
     {
         $validated = $this->validated($request);
         $validated['user_id'] = $request->user()->id;
+        $validated['round_count'] = $validated['starting_round_count'];
 
-        Barrel::create($validated);
+        $barrel = Barrel::create($validated);
 
-        return redirect()->route('barrels.index')
+        return redirect()->route('barrels.show', $barrel)
             ->with('success', "Barrel '{$validated['label']}' added.");
+    }
+
+    public function show(Request $request, Barrel $barrel): View
+    {
+        $this->authorize('view', $barrel);
+
+        $barrel->load('rifleConfiguration');
+
+        $shotEntries = $barrel->shotEntries()
+            ->orderByDesc('fired_on')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('barrels.show', compact('barrel', 'shotEntries'));
     }
 
     public function edit(Request $request, Barrel $barrel): View
@@ -60,8 +75,9 @@ class BarrelController extends Controller
         $this->authorize('update', $barrel);
 
         $barrel->update($this->validated($request));
+        $barrel->recalculateRoundCount();
 
-        return redirect()->route('barrels.index')
+        return redirect()->route('barrels.show', $barrel)
             ->with('success', "Barrel '{$barrel->label}' updated.");
     }
 
@@ -86,7 +102,7 @@ class BarrelController extends Controller
             'maker' => ['nullable', 'string', 'max:80'],
             'length_mm' => ['nullable', 'integer', 'min:100', 'max:1500'],
             'twist_rate' => ['nullable', 'string', 'max:20'],
-            'round_count' => ['nullable', 'integer', 'min:0', 'max:200000'],
+            'starting_round_count' => ['nullable', 'integer', 'min:0', 'max:200000'],
             'installed_on' => ['nullable', 'date'],
             'retired_on' => ['nullable', 'date', 'after_or_equal:installed_on'],
             'rifle_configuration_id' => ['nullable', 'integer', 'exists:rifle_configurations,id'],
@@ -102,7 +118,7 @@ class BarrelController extends Controller
             }
         }
 
-        $data['round_count'] = $data['round_count'] ?? 0;
+        $data['starting_round_count'] = $data['starting_round_count'] ?? 0;
 
         return $data;
     }

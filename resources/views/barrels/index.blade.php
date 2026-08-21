@@ -45,7 +45,9 @@
                     <tbody class="divide-y divide-stone-100">
                         @foreach ($barrels as $barrel)
                             <tr class="{{ $barrel->retired_on ? 'text-stone-400' : '' }}">
-                                <td class="px-4 py-2 font-semibold text-stone-900">{{ $barrel->label }}</td>
+                                <td class="px-4 py-2 font-semibold">
+                                    <a href="{{ route('barrels.show', $barrel) }}" class="text-stone-900 hover:text-emerald-800">{{ $barrel->label }}</a>
+                                </td>
                                 <td class="px-4 py-2 text-stone-700">{{ $barrel->chambering ?: '—' }}</td>
                                 <td class="px-4 py-2 text-stone-700">{{ $barrel->maker ?: '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums text-stone-700">{{ number_format((int) $barrel->round_count) }}</td>
@@ -63,7 +65,10 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-right">
-                                    <a href="{{ route('barrels.edit', $barrel) }}" class="text-xs font-medium text-emerald-700 hover:text-emerald-800">Edit</a>
+                                    <div class="flex items-center justify-end gap-3">
+                                        <a href="{{ route('barrels.show', $barrel) }}" class="text-xs font-medium text-emerald-700 hover:text-emerald-800">View</a>
+                                        <a href="{{ route('barrels.edit', $barrel) }}" class="text-xs font-medium text-stone-500 hover:text-stone-700">Edit</a>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

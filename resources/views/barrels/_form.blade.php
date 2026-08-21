@@ -64,10 +64,11 @@
                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
     </div>
     <div>
-        <label for="round_count" class="block text-sm font-medium text-stone-700 mb-1">Round count</label>
-        <input type="number" min="0" max="200000" name="round_count" id="round_count"
-               value="{{ old('round_count', $barrel->round_count ?? 0) }}"
+        <label for="starting_round_count" class="block text-sm font-medium text-stone-700 mb-1">Starting rounds</label>
+        <input type="number" min="0" max="200000" name="starting_round_count" id="starting_round_count"
+               value="{{ old('starting_round_count', $barrel->starting_round_count ?? 0) }}"
                class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+        <p class="mt-1 text-xs text-stone-500">Rounds the barrel already had before you started logging. Practice and event rounds are added from the barrel page.</p>
     </div>
     <div>
         <label for="installed_on" class="block text-sm font-medium text-stone-700 mb-1">Installed on</label>

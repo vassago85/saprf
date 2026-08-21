@@ -21,6 +21,7 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\AmmoLoadController;
 use App\Http\Controllers\BarrelController;
+use App\Http\Controllers\BarrelShotEntryController;
 use App\Http\Controllers\LadderSessionController;
 use App\Http\Controllers\RifleConfigurationController;
 use App\Http\Controllers\SascocReportController;
@@ -360,8 +361,15 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     // Barrels — physical barrels, owner-only. Round count travels with the
     // barrel rather than the rifle so ladder sessions and future truing data
-    // can attach cleanly.
-    Route::resource('barrels', BarrelController::class)->except(['show'])->names('barrels');
+    // can attach cleanly. Practice and non-SAPRF shot entries live nested
+    // under a barrel and feed its cached lifetime round_count.
+    Route::resource('barrels', BarrelController::class)->names('barrels');
+    Route::post('/barrels/{barrel}/shot-entries', [BarrelShotEntryController::class, 'store'])
+        ->name('barrels.shot-entries.store');
+    Route::put('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'update'])
+        ->name('barrels.shot-entries.update');
+    Route::delete('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'destroy'])
+        ->name('barrels.shot-entries.destroy');
 
     // Ladder Analyser — index/store/destroy live on the controller; the
     // show/edit surface is a Volt component that recomputes on every wire

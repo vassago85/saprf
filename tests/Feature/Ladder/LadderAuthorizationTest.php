@@ -85,7 +85,7 @@ it('rejects another member trying to view or edit someone else\'s barrel', funct
 
     $this->actingAs($intruder)->get(route('barrels.edit', $barrel))->assertForbidden();
     $this->actingAs($intruder)->put(route('barrels.update', $barrel), [
-        'label' => 'Hacked', 'round_count' => 0,
+        'label' => 'Hacked', 'starting_round_count' => 0,
     ])->assertForbidden();
     $this->actingAs($intruder)->delete(route('barrels.destroy', $barrel))->assertForbidden();
 });
