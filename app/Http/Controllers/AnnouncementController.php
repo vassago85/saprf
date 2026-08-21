@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\Announcements\AnnouncementPublisher;
 use App\Services\Announcements\AudienceResolver;
 use App\Services\AuditLogService;
+use App\Support\AnnouncementBodyRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -371,6 +372,22 @@ class AnnouncementController extends Controller
                 'name' => $u->name,
                 'email' => $u->email,
             ])->values(),
+        ]);
+    }
+
+    /**
+     * Live markdown preview for the composer. Runs the exact same renderer
+     * used at send time (AnnouncementBodyRenderer) so what the operator sees
+     * is bit-for-bit what recipients get in-app and via email.
+     */
+    public function bodyPreview(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'body' => ['nullable', 'string', 'max:10000'],
+        ]);
+
+        return response()->json([
+            'html' => (string) AnnouncementBodyRenderer::toHtml((string) ($data['body'] ?? '')),
         ]);
     }
 

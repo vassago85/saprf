@@ -34,6 +34,7 @@
     <div class="max-w-4xl space-y-6"
         x-data="announcementComposer(@js([
             'previewUrl' => route('announcements.preview'),
+            'bodyPreviewUrl' => route('announcements.body-preview'),
             'csrf' => csrf_token(),
             'audienceInputs' => $audienceValueInputs,
             'retentionDefaults' => $retentionDefaults,
@@ -70,9 +71,37 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-stone-700">Body</label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium text-stone-700">Body</label>
+                        <div class="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 text-xs">
+                            <button type="button" @click="bodyView = 'write'"
+                                :class="bodyView === 'write' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'"
+                                class="rounded-md px-3 py-1 font-semibold transition">Write</button>
+                            <button type="button" @click="bodyView = 'preview'; refreshBodyPreview()"
+                                :class="bodyView === 'preview' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'"
+                                class="rounded-md px-3 py-1 font-semibold transition">Preview</button>
+                        </div>
+                    </div>
+
                     <textarea name="body" required rows="8" maxlength="10000"
-                        class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono">{{ old('body') }}</textarea>
+                        x-show="bodyView === 'write'"
+                        x-model="body"
+                        @input.debounce.400ms="refreshBodyPreview()"
+                        class="mt-0 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono">{{ old('body') }}</textarea>
+
+                    <div x-show="bodyView === 'preview'" x-cloak
+                        class="mt-0 min-h-[12rem] rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900">
+                        <template x-if="bodyPreviewing">
+                            <p class="text-xs text-stone-400 italic">Rendering…</p>
+                        </template>
+                        <template x-if="!bodyPreviewing && !body.trim()">
+                            <p class="text-xs text-stone-400 italic">Nothing to preview yet — switch back to Write and enter some text.</p>
+                        </template>
+                        <div x-show="!bodyPreviewing && body.trim()"
+                            class="prose prose-sm max-w-none prose-headings:font-heading prose-headings:text-stone-900 prose-a:text-emerald-700 hover:prose-a:text-emerald-800"
+                            x-html="bodyPreviewHtml"></div>
+                    </div>
+
                     <div class="mt-1 text-xs text-stone-500">
                         <p>Plain text works as-is — line breaks are preserved. Optional formatting:</p>
                         <ul class="mt-1 ml-4 list-disc space-y-0.5 text-stone-400">
@@ -307,6 +336,10 @@
                     previewCount: 0,
                     previewSample: [],
                     previewing: false,
+                    bodyView: 'write',
+                    body: {!! json_encode(old('body', '')) !!},
+                    bodyPreviewHtml: '',
+                    bodyPreviewing: false,
                     audienceInputs: config.audienceInputs,
                     retentionDefaults: config.retentionDefaults || {},
                     retentionFixedCategories: config.retentionFixedCategories || [],
@@ -376,6 +409,31 @@
                             this.previewSample = [];
                         } finally {
                             this.previewing = false;
+                        }
+                    },
+
+                    async refreshBodyPreview() {
+                        if (!config.bodyPreviewUrl) return;
+                        this.bodyPreviewing = true;
+                        try {
+                            const res = await fetch(config.bodyPreviewUrl, {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': config.csrf,
+                                    'Accept': 'application/json',
+                                },
+                                body: JSON.stringify({ body: this.body }),
+                            });
+                            if (!res.ok) throw new Error('body preview failed');
+                            const json = await res.json();
+                            this.bodyPreviewHtml = json.html || '';
+                        } catch (e) {
+                            console.warn('[SAPRF] body preview failed', e);
+                            this.bodyPreviewHtml = '<p class="text-red-600">Preview failed — the announcement will still send, this is just a rendering hiccup.</p>';
+                        } finally {
+                            this.bodyPreviewing = false;
                         }
                     },
                 };

@@ -89,3 +89,31 @@ it('renders the audience preview endpoint for exco only', function () {
         ->assertOk()
         ->assertJsonStructure(['count', 'sample']);
 });
+
+it('renders the body preview endpoint for any authenticated user', function () {
+    // The body preview endpoint runs the exact same markdown renderer as
+    // the final send path, so match directors and Exco should both be
+    // able to hit it — it just echoes rendered HTML, no side effects.
+    $member = User::factory()->create(['email_verified_at' => now()]);
+    $member->assignRole('member');
+
+    $response = $this->actingAs($member)
+        ->postJson(route('announcements.body-preview'), [
+            'body' => "## Heading\n\n**bold** and *italic* text.\n\n- one\n- two",
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['html']);
+
+    $html = $response->json('html');
+    expect($html)
+        ->toContain('<h2>')
+        ->toContain('<strong>bold</strong>')
+        ->toContain('<em>italic</em>')
+        ->toContain('<ul>')
+        ->toContain('<li>one</li>');
+});
+
+it('rejects the body preview endpoint for guests', function () {
+    $this->postJson(route('announcements.body-preview'), ['body' => 'hi'])
+        ->assertUnauthorized();
+});

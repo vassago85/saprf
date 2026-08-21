@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Club;
+use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\MembershipFeeTier;
 use App\Models\Province;
@@ -12,7 +13,9 @@ use App\Models\User;
 use App\Notifications\MemberInvitationNotification;
 use App\Services\AuditLogService;
 use App\Services\GreenQrCodePng;
+use App\Services\ScoreValidationService;
 use App\Services\SettingsService;
+use App\Services\StandingsCalculationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -281,8 +284,12 @@ class MembershipController extends Controller
         ]);
     }
 
-    public function update(Request $request, Membership $membership): RedirectResponse
-    {
+    public function update(
+        Request $request,
+        Membership $membership,
+        ScoreValidationService $scoreValidation,
+        StandingsCalculationService $standings,
+    ): RedirectResponse {
         $this->authorize('update', $membership);
 
         $validated = $request->validate([
@@ -380,6 +387,17 @@ class MembershipController extends Controller
             $old,
             $membership->only($trackedFields),
         );
+
+        // Expanding/correcting the paid window (or flipping status/payment)
+        // must reclassify this shooter's scores — MembershipObserver only auto-
+        // promotes pending on activate/pay, and leaves expiry-only expansions
+        // to an explicit reevaluation path.
+        if ($membership->user_id) {
+            $affectedMatchIds = $scoreValidation->reevaluateScoresForUser($membership->user_id);
+            foreach (MatchEvent::whereIn('id', $affectedMatchIds)->get() as $match) {
+                $standings->recalculateForMatch($match);
+            }
+        }
 
         return redirect()->route('memberships.show', $membership)
             ->with('success', 'Membership updated successfully.');
