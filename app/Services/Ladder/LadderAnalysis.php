@@ -227,9 +227,11 @@ final class LadderAnalysis
     }
 
     /**
-     * Residuals — one per step with include_in_fit=false. Excluded from the
-     * fit but shown prominently: this is the departure from trend, which the
-     * spec identifies as the single most informative number the tool produces.
+     * Residuals — one per step that does not contribute to the fit. That
+     * covers both user-excluded steps AND single-shot steps that were
+     * implicitly excluded because n<2. Both cases deserve a residual: the
+     * point of the chart is the departure from trend, and hiding it for a
+     * single-shot outlier is exactly the wrong call.
      *
      * @param  list<LadderStepStats>  $stepStats
      * @return array<int, float>
@@ -242,7 +244,7 @@ final class LadderAnalysis
 
         $out = [];
         foreach ($stepStats as $s) {
-            if ($s->includeInFit) {
+            if ($s->contributesToFit) {
                 continue;
             }
             if ($s->n < 1) {

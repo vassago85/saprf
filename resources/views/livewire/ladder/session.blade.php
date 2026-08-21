@@ -378,17 +378,18 @@ new class extends Component
         $xMin -= $xSpan * 0.05;
         $xMax += $xSpan * 0.05;
 
-        // y-range: from all shots (excluding excluded), padded
+        // y-range: from all shots (excluding excluded). Snap min/max out to
+        // "nice" round numbers so the axis labels read as 2560, 2580, 2600,…
+        // rather than the weird 2563, 2603,… linear-interpolation values.
         $allV = $steps->flatMap(fn ($s) => $s->velocities)->all();
-        $yMin = min($allV);
-        $yMax = max($allV);
-        if ($yMin === $yMax) {
-            $yMin -= 1.0;
-            $yMax += 1.0;
+        $yDataMin = min($allV);
+        $yDataMax = max($allV);
+        if ($yDataMin === $yDataMax) {
+            $yDataMin -= 1.0;
+            $yDataMax += 1.0;
         }
-        $ySpan = $yMax - $yMin;
-        $yMin -= $ySpan * 0.10;
-        $yMax += $ySpan * 0.10;
+        $padding = ($yDataMax - $yDataMin) * 0.10;
+        [$yMin, $yMax, $yTickValues] = self::niceAxis($yDataMin - $padding, $yDataMax + $padding);
 
         $mapX = function (float $v) use ($xMin, $xMax, $plotX, $plotWidth) {
             return $plotX + ($v - $xMin) / ($xMax - $xMin) * $plotWidth;
@@ -401,13 +402,14 @@ new class extends Component
         // x ticks: one per step value.
         $xTicks = [];
         foreach ($steps as $s) {
-            $xTicks[] = ['x' => $mapX($s->value), 'label' => rtrim(rtrim(number_format($s->value, 3, '.', ''), '0'), '.')];
+            $xTicks[] = [
+                'x' => $mapX($s->value),
+                'label' => rtrim(rtrim(number_format($s->value, 3, '.', ''), '0'), '.'),
+            ];
         }
-        // y ticks: 5 evenly spaced.
         $yTicks = [];
-        for ($i = 0; $i <= 4; $i++) {
-            $v = $yMin + $i * ($yMax - $yMin) / 4.0;
-            $yTicks[] = ['y' => $mapY($v), 'label' => (string) round($v)];
+        foreach ($yTickValues as $v) {
+            $yTicks[] = ['y' => $mapY($v), 'label' => (string) (int) round($v)];
         }
 
         // Point data — shots and per-step means.
@@ -479,6 +481,43 @@ new class extends Component
             'xTicks', 'yTicks', 'points', 'lineStart', 'lineEnd', 'residuals',
         ) + ['hasData' => true];
     }
+
+    /**
+     * Snap an axis range to round numbers with a "nice" step size in the
+     * {1, 2, 5} × 10^n family, so a raw range like 2562.7–2717.3 renders
+     * as 2560–2720 with ticks every 40 rather than the linear-interpolation
+     * values 2563 / 2594 / 2625 / 2656 / 2687 / 2717.
+     *
+     * @return array{0: float, 1: float, 2: list<float>}
+     */
+    protected static function niceAxis(float $min, float $max, int $desiredTicks = 5): array
+    {
+        $range = $max - $min;
+        if ($range <= 0.0) {
+            return [$min, $max, [$min]];
+        }
+
+        $rough = $range / $desiredTicks;
+        $magnitude = 10.0 ** floor(log10($rough));
+        $normalized = $rough / $magnitude;
+        $niceNorm = match (true) {
+            $normalized < 1.5 => 1.0,
+            $normalized < 3.0 => 2.0,
+            $normalized < 7.0 => 5.0,
+            default => 10.0,
+        };
+        $step = $niceNorm * $magnitude;
+
+        $niceMin = floor($min / $step) * $step;
+        $niceMax = ceil($max / $step) * $step;
+
+        $ticks = [];
+        for ($v = $niceMin; $v <= $niceMax + $step / 2; $v += $step) {
+            $ticks[] = $v;
+        }
+
+        return [$niceMin, $niceMax, $ticks];
+    }
 } ?>
 
 <div>
@@ -496,6 +535,14 @@ new class extends Component
             body { background: white !important; }
             .ladder-print-hide, aside, header, nav, footer { display: none !important; }
             .ladder-print-only { display: block !important; }
+            /* Force <details> panels open on print so glossaries appear on paper. */
+            details > *:not(summary) { display: block !important; }
+            details > summary { list-style: none; }
+            details > summary::-webkit-details-marker { display: none; }
+        }
+        .ladder-hint {
+            border-bottom: 1px dotted #a8a29e;
+            cursor: help;
         }
     </style>
 
@@ -549,8 +596,8 @@ new class extends Component
         </section>
 
         <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="rounded-xl border border-stone-200 bg-white p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Fitted slope</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Velocity change per unit of the variable. OLS line through the in-fit step means, weighted by SE. Steps with n<2 can't contribute.">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Fitted slope</p>
                 <p class="mt-1 text-lg font-bold text-stone-900">
                     {{ $result->trend !== null ? number_format($result->trend->slope, 2).' '.$variable->slopeUnit() : '—' }}
                 </p>
@@ -558,8 +605,8 @@ new class extends Component
                     {{ $result->trend !== null ? $result->trend->stepsUsed.' steps in fit' : 'need ≥2 steps' }}
                 </p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Pooled SD</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Best estimate of within-step shot-to-shot spread, pooled across every step with n≥2. What the ammo does once charge variation is taken out.">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Pooled SD</p>
                 <p class="mt-1 text-lg font-bold text-stone-900">
                     {{ $result->pooledSd !== null ? number_format($result->pooledSd, 2).' fps' : '—' }}
                 </p>
@@ -567,8 +614,8 @@ new class extends Component
                     {{ $result->pooledDf !== null ? 'df '.$result->pooledDf : 'no repeated steps' }}
                 </p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Pairs separating</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Of the adjacent step pairs, how many are statistically distinguishable at p<0.05 by Welch's t on the means.">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Pairs separating</p>
                 @php
                     $testable = collect($result->pairs)->count();
                     $separating = collect($result->pairs)->filter(fn($p) => $p->classification === \App\Enums\PairSeparation::Separates)->count();
@@ -576,8 +623,8 @@ new class extends Component
                 <p class="mt-1 text-lg font-bold text-stone-900">{{ $separating }} of {{ $testable }}</p>
                 <p class="mt-1 text-xs text-stone-500">adjacent Welch's t, p&lt;0.05</p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Largest residual</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Biggest departure from the fitted trend line among steps not contributing to the fit. Sign preserved.">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Largest residual</p>
                 @php $largest = $result->largestResidual(); @endphp
                 <p class="mt-1 text-lg font-bold text-stone-900">
                     {{ $largest !== null ? ($largest >= 0 ? '+' : '').number_format($largest, 2).' fps' : '—' }}
@@ -586,6 +633,142 @@ new class extends Component
             </div>
         </section>
 
+        {{-- Glossary. Collapsed by default; opens with a click. Prints expanded
+             so a paper copy handed to another shooter is self-explanatory. --}}
+        <details class="rounded-xl border border-stone-200 bg-white">
+            <summary class="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-stone-900 hover:bg-stone-50 rounded-xl">
+                How to read this analysis
+                <span class="ml-1 text-xs font-normal text-stone-500">— every metric on this page, in plain terms</span>
+            </summary>
+            <div class="border-t border-stone-100 px-4 py-4 space-y-5 text-sm text-stone-700">
+
+                <div>
+                    <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Summary cards</p>
+                    <dl class="space-y-2">
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Fitted slope</dt>
+                            <dd>Velocity gained per unit of {{ strtolower($variable->label()) }} ({{ $variable->slopeUnit() }}). OLS line through the step means you've marked "in fit," weighted by each step's standard error. Steps with n&nbsp;&lt;&nbsp;2 can't contribute regardless of the checkbox — you can't estimate a mean with uncertainty from one shot.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Pooled SD</dt>
+                            <dd>Best estimate of shot-to-shot spread, pooled across every step with n&nbsp;≥&nbsp;2. This is what the ammo does once you take charge variation out of the picture. The "df" underneath is the total degrees of freedom that went into the pool.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Pairs separating</dt>
+                            <dd>Of the adjacent step pairs, how many are statistically distinguishable at p&nbsp;&lt;&nbsp;0.05 by Welch's t on the means. "0 of 6" means the string sizes are too small to tell any two adjacent charges apart with confidence.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Largest residual</dt>
+                            <dd>Biggest departure from the fitted trend line among steps that don't contribute to the fit. Sign is preserved: <span class="font-mono">+38</span> means the point sat 38 fps above the line, <span class="font-mono">−12</span> means below.</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Chart</p>
+                    <ul class="space-y-1.5 list-disc list-inside">
+                        <li><span class="font-semibold">Solid green circle</span> — step mean, in the fit.</li>
+                        <li><span class="font-semibold">Solid grey circle</span> — step mean, NOT in the fit (either you toggled it off or n&nbsp;&lt;&nbsp;2).</li>
+                        <li><span class="font-semibold">Vertical bar with T-caps</span> — ±1 standard error of the mean. About a 68% range on where the true mean sits.</li>
+                        <li><span class="font-semibold">Faint dots</span> — the individual shot velocities. Tight cluster = tight string.</li>
+                        <li><span class="font-semibold">Dashed green line</span> — the fitted trend through the in-fit means.</li>
+                        <li><span class="font-semibold">Dashed grey drop-line with number</span> — residual: how far a non-fit point sits above (+) or below (−) the trend. This is where the ladder is "not doing what the trend says it should."</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Per-step statistics table</p>
+                    <dl class="space-y-2">
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">n</dt>
+                            <dd>Number of shots on that step (excluded shots don't count).</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Mean</dt>
+                            <dd>Arithmetic average of the shot velocities on that step.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">SD</dt>
+                            <dd>Sample standard deviation of the shots on that step. Blank when n&nbsp;&lt;&nbsp;2 — SD is undefined for a single shot.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">SD 90% CI</dt>
+                            <dd>90% confidence interval for the <em>true</em> SD of that load, given how few shots you fired. Built from the chi-square distribution: a 3-shot sample SD of 6 fps is compatible with a real SD of 3.5–29 fps. Wide bands are the honest truth about tiny samples, not a bug.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">ES</dt>
+                            <dd>Extreme spread: max velocity minus min velocity. Popular but statistically weak — ES grows with n even when the underlying spread hasn't. Use SD as the real spread number and treat ES as a talking point.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Δ from prev</dt>
+                            <dd>How far this step's mean sits above (+) or below (−) the previous step's mean. Reads the ladder linearly rather than statistically.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">Residual</dt>
+                            <dd>Shown alongside the step value for non-fit steps: the vertical distance from this step's mean to the fitted trend. Same value plotted as a drop-line on the chart.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">In fit</dt>
+                            <dd>Toggle to include or exclude this step from the OLS fit. Excluded steps still show their point and residual on the chart — they're just not shaping the trend line.</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                @if (!empty($result->pairs))
+                    <div>
+                        <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Adjacent comparisons (Welch's t)</p>
+                        <p class="text-xs text-stone-500 mb-2">Each row asks: given the small strings we fired, is the difference between these two adjacent charges believable, or is it noise?</p>
+                        <dl class="space-y-2">
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">d (fps)</dt>
+                                <dd>mean(step B) − mean(step A). Positive = charge B is faster.</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">SE(d)</dt>
+                                <dd>Standard error of the difference, using each step's own SD/n. This is where small-sample humility lives — SE(d) is often larger than d itself in a 3-shot ladder.</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">t</dt>
+                                <dd>Welch's t statistic = d ÷ SE(d). Large |t| = the difference is large relative to the noise.</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">df</dt>
+                                <dd>Welch–Satterthwaite degrees of freedom. Usually fractional and near n₁+n₂−2 but drops sharply when one step is much noisier than the other.</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">p</dt>
+                                <dd>Two-tailed p-value from Student's t at the df above. Smaller = more confident the difference isn't noise. This tool uses 0.05 as the "separates" threshold and 0.15 as "marginal."</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">Step slope</dt>
+                                <dd>d divided by the increment size, in {{ $variable->slopeUnit() }}. If a single pair's step slope is more than about 3× the overall fitted slope it flags in the verdict — usually barrel conditioning if the ladder was fired in ascending order.</dd>
+                            </div>
+                            <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                                <dt class="font-semibold text-stone-800">Result</dt>
+                                <dd><span class="text-emerald-700 font-semibold">Separates</span> = p&nbsp;&lt;&nbsp;0.05. <span class="text-amber-700 font-semibold">Marginal</span> = 0.05&nbsp;≤&nbsp;p&nbsp;&lt;&nbsp;0.15. <span class="text-stone-500">Indistinguishable</span> = p&nbsp;≥&nbsp;0.15.</dd>
+                            </div>
+                        </dl>
+                    </div>
+                @endif
+
+                <div>
+                    <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Rounds required</p>
+                    <p>Given the pooled SD, how many shots per step you'd need to reliably resolve the "Resolve&nbsp;d" figure as a real difference (80% power at α&nbsp;=&nbsp;0.05, Welch's t on equal-n strings). Change the field to see the trade-off: asking to resolve 5&nbsp;fps demands a lot of shots, resolving 40&nbsp;fps is easy.</p>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Verdict &amp; conditioning flags</p>
+                    <ul class="space-y-1.5 list-disc list-inside">
+                        <li><span class="font-semibold text-emerald-800">Nodes found</span> — at least one adjacent pair separates and there's a plausible flat spot in the trend.</li>
+                        <li><span class="font-semibold text-amber-800">No node supported</span> — the trend is linear enough (or the noise large enough) that no plateau is defensible from this data.</li>
+                        <li><span class="font-semibold text-stone-700">Analysis not viable</span> — too few steps or too few shots to say anything at all.</li>
+                        <li><span class="font-semibold">Conditioning flag</span> — a pair whose step slope is more than ≈3× the fitted slope. Fired ascending, this typically marks where the barrel finished conditioning: fresh copper laid down, velocity jumped, everything after is on a new baseline.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </details>
+
         {{-- Chart --}}
         <section class="rounded-xl border border-stone-200 bg-white p-4">
             <div class="flex items-center justify-between mb-3">
@@ -593,9 +776,13 @@ new class extends Component
                     <p class="text-sm font-semibold text-stone-900">Mean velocity vs {{ $variable->label() }}</p>
                     <p class="text-xs text-stone-500">Points = step means, bars = ±1 SE, faint dots = individual shots.</p>
                 </div>
-                <div class="flex items-center gap-3 text-xs text-stone-600">
-                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-emerald-700"></span>In fit</span>
-                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-stone-400"></span>Not in fit</span>
+                <div class="flex items-center gap-4 text-xs text-stone-600">
+                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700"></span>In fit</span>
+                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-stone-400"></span>Not in fit</span>
+                    <span class="inline-flex items-center gap-1">
+                        <svg width="18" height="6" class="shrink-0" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3" stroke="#047857" stroke-width="2" stroke-dasharray="4 3" /></svg>
+                        Fitted trend
+                    </span>
                 </div>
             </div>
             @if ($chart['hasData'])
@@ -614,8 +801,11 @@ new class extends Component
                               font-size="11" fill="#78716c" text-anchor="end">{{ $tick['label'] }}</text>
                     @endforeach
 
-                    {{-- X tick labels --}}
+                    {{-- X grid (subtle, one line per step value) + tick labels --}}
                     @foreach ($chart['xTicks'] as $tick)
+                        <line x1="{{ $tick['x'] }}" y1="{{ $chart['plotY'] }}"
+                              x2="{{ $tick['x'] }}" y2="{{ $chart['plotY'] + $chart['plotHeight'] }}"
+                              stroke="#e7e5e4" stroke-dasharray="2 3" />
                         <line x1="{{ $tick['x'] }}" y1="{{ $chart['plotY'] + $chart['plotHeight'] }}"
                               x2="{{ $tick['x'] }}" y2="{{ $chart['plotY'] + $chart['plotHeight'] + 4 }}"
                               stroke="#78716c" />
@@ -695,14 +885,28 @@ new class extends Component
                     <thead class="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
                         <tr>
                             <th class="px-3 py-2 text-left">{{ $variable->axisLabel() }}</th>
-                            <th class="px-3 py-2 text-right">n</th>
-                            <th class="px-3 py-2 text-right">Mean</th>
-                            <th class="px-3 py-2 text-right">SD</th>
-                            <th class="px-3 py-2 text-right">SD 90% CI</th>
-                            <th class="px-3 py-2 text-right">ES</th>
-                            <th class="px-3 py-2 text-right">Δ from prev</th>
+                            <th class="px-3 py-2 text-right" title="Number of shots on this step (excluded shots don't count).">
+                                <span class="ladder-hint">n</span>
+                            </th>
+                            <th class="px-3 py-2 text-right" title="Arithmetic average of the shot velocities on this step.">
+                                <span class="ladder-hint">Mean</span>
+                            </th>
+                            <th class="px-3 py-2 text-right" title="Sample standard deviation of the shots on this step. Undefined for n<2.">
+                                <span class="ladder-hint">SD</span>
+                            </th>
+                            <th class="px-3 py-2 text-right" title="90% confidence interval for the TRUE SD of this load, given how few shots were fired. Chi-square construction. Wide bands are the honest truth about small samples.">
+                                <span class="ladder-hint">SD 90% CI</span>
+                            </th>
+                            <th class="px-3 py-2 text-right" title="Extreme spread: max − min. Popular but weak — ES grows with n even when the underlying spread hasn't. Prefer SD.">
+                                <span class="ladder-hint">ES</span>
+                            </th>
+                            <th class="px-3 py-2 text-right" title="How far this step's mean sits above (+) or below (−) the previous step's mean. Linear read of the ladder, no statistics.">
+                                <span class="ladder-hint">Δ from prev</span>
+                            </th>
                             <th class="px-3 py-2 text-left">Shots</th>
-                            <th class="px-3 py-2 text-center ladder-print-hide">In fit</th>
+                            <th class="px-3 py-2 text-center ladder-print-hide" title="Include or exclude this step from the OLS trend fit. Excluded steps still show their point and residual on the chart.">
+                                <span class="ladder-hint">In fit</span>
+                            </th>
                             <th class="px-3 py-2 ladder-print-hide"></th>
                         </tr>
                     </thead>
@@ -796,13 +1000,27 @@ new class extends Component
                         <thead class="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
                             <tr>
                                 <th class="px-3 py-2 text-left">Pair</th>
-                                <th class="px-3 py-2 text-right">d (fps)</th>
-                                <th class="px-3 py-2 text-right">SE(d)</th>
-                                <th class="px-3 py-2 text-right">t</th>
-                                <th class="px-3 py-2 text-right">df</th>
-                                <th class="px-3 py-2 text-right">p</th>
-                                <th class="px-3 py-2 text-right">Step slope</th>
-                                <th class="px-3 py-2 text-left">Result</th>
+                                <th class="px-3 py-2 text-right" title="Difference of means: step B mean − step A mean. Positive means charge B is faster.">
+                                    <span class="ladder-hint">d (fps)</span>
+                                </th>
+                                <th class="px-3 py-2 text-right" title="Standard error of the difference, using each step's own SD/n. Often larger than d itself in 3-shot strings.">
+                                    <span class="ladder-hint">SE(d)</span>
+                                </th>
+                                <th class="px-3 py-2 text-right" title="Welch's t statistic: d ÷ SE(d). Large |t| means the difference is large relative to the noise.">
+                                    <span class="ladder-hint">t</span>
+                                </th>
+                                <th class="px-3 py-2 text-right" title="Welch–Satterthwaite degrees of freedom. Usually fractional; drops sharply when one step is much noisier than the other.">
+                                    <span class="ladder-hint">df</span>
+                                </th>
+                                <th class="px-3 py-2 text-right" title="Two-tailed p-value from Student's t. Smaller = more confident the difference isn't noise. This tool uses 0.05 for 'separates' and 0.15 for 'marginal'.">
+                                    <span class="ladder-hint">p</span>
+                                </th>
+                                <th class="px-3 py-2 text-right" title="d divided by the increment size. Flags in the verdict if any single pair's slope exceeds ~3× the overall fitted slope — typically barrel conditioning if fired ascending.">
+                                    <span class="ladder-hint">Step slope</span>
+                                </th>
+                                <th class="px-3 py-2 text-left" title="Separates = p<0.05. Marginal = 0.05≤p<0.15. Indistinguishable = p≥0.15.">
+                                    <span class="ladder-hint">Result</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-100">
