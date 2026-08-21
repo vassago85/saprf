@@ -79,4 +79,50 @@ final readonly class LadderAnalysisResult
 
         return $max;
     }
+
+    /**
+     * The consistency SD figure to quote — pooled-within-step when we have
+     * repeats, otherwise the residual SD from a single-shot fit. This is what
+     * drives roundsRequired and the ±1 SD band on the chart. Null when neither
+     * is available (e.g. two-step ladder with only one shot per step).
+     */
+    public function effectiveSd(): ?float
+    {
+        if ($this->pooledSd !== null) {
+            return $this->pooledSd;
+        }
+
+        return $this->trend?->residualSd;
+    }
+
+    /**
+     * Degrees of freedom that back {@see effectiveSd()}, so the UI can quote
+     * "df 8, pooled" or "df 6, from residual scatter" accurately.
+     */
+    public function effectiveDf(): ?int
+    {
+        if ($this->pooledSd !== null) {
+            return $this->pooledDf;
+        }
+
+        return $this->trend?->residualDf;
+    }
+
+    /**
+     * "pooled" when the SD figure comes from within-step scatter,
+     * "residual" when it comes from the fit residuals of a single-shot
+     * ladder, or "none" when we have no consistency figure at all.
+     */
+    public function effectiveSdSource(): string
+    {
+        if ($this->pooledSd !== null) {
+            return 'pooled';
+        }
+
+        if ($this->trend?->residualSd !== null) {
+            return 'residual';
+        }
+
+        return 'none';
+    }
 }

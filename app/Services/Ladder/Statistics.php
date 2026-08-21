@@ -166,6 +166,42 @@ final class Statistics
     }
 
     /**
+     * Two-tailed t-quantile: t such that P(|T| > t) = alpha, for T ~ t(df).
+     *
+     * Implemented as bisection over the existing studentTwoTailP CDF. Twenty-
+     * odd iterations gets us to ~1e-6 accuracy, which is well inside the
+     * numerical precision of everything downstream (slope 95% CI etc.). No
+     * lookup table so this works cleanly for fractional df (Welch results)
+     * even though we currently only call it with integer df.
+     */
+    public static function tQuantileTwoTailed(float $alpha, float $df): float
+    {
+        if ($df <= 0.0 || $alpha <= 0.0) {
+            return INF;
+        }
+        if ($alpha >= 1.0) {
+            return 0.0;
+        }
+
+        $lo = 0.0;
+        $hi = 1000.0;
+        for ($i = 0; $i < 80; $i++) {
+            $mid = ($lo + $hi) / 2.0;
+            $p = self::studentTwoTailP($mid, $df);
+            if (abs($p - $alpha) < 1.0e-9) {
+                return $mid;
+            }
+            if ($p > $alpha) {
+                $lo = $mid;
+            } else {
+                $hi = $mid;
+            }
+        }
+
+        return ($lo + $hi) / 2.0;
+    }
+
+    /**
      * Welch–Satterthwaite degrees of freedom for the difference of two means
      * with the given per-group standard errors and sample sizes.
      */

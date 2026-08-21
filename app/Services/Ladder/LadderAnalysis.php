@@ -58,12 +58,16 @@ final class LadderAnalysis
         $trend = self::fit($stepStats, $steps);
         $residuals = self::residuals($stepStats, $trend);
         $pairs = self::pairwise($stepStats, $trend);
-        $verdict = self::verdict($stepStats, $pairs, $pooledSd, $resolvingDelta);
+        $verdict = self::verdict($stepStats, $pairs, $pooledSd, $trend, $resolvingDelta);
         $sdComparison = self::sdComparison($stepStats);
 
+        // Prefer pooled SD when we have it, fall back to the fit's residual
+        // SD for single-shot ladders. Same rounds-required formula in either
+        // case — the SD that goes in is just estimated a different way.
+        $sdForPower = $pooledSd ?? $trend?->residualSd;
         $roundsRequired = null;
-        if ($pooledSd !== null && $pooledSd > 0.0 && $resolvingDelta > 0.0) {
-            $roundsRequired = (int) ceil(15.7 * $pooledSd * $pooledSd / ($resolvingDelta * $resolvingDelta));
+        if ($sdForPower !== null && $sdForPower > 0.0 && $resolvingDelta > 0.0) {
+            $roundsRequired = (int) ceil(15.7 * $sdForPower * $sdForPower / ($resolvingDelta * $resolvingDelta));
         }
 
         return new LadderAnalysisResult(
@@ -176,17 +180,41 @@ final class LadderAnalysis
     }
 
     /**
-     * OLS on the step means of every step contributing to the fit (n≥2 and
-     * include_in_fit=true). Requires at least two distinct step values.
+     * OLS on step means. Two paths — the multi-shot path (n≥2 && in-fit) is
+     * tried first because per-step SDs pool cleanly into a real pooled SD;
+     * the single-shot path (any n, in-fit) runs only as a fallback for
+     * one-shot-per-step ladders where the multi-shot path has nothing to
+     * work with.
      *
      * @param  list<LadderStepStats>  $stepStats
      */
     private static function fit(array $stepStats, $steps): ?LadderTrendFit
     {
+        $primary = self::fitOls($stepStats, minN: 2, singleShotMode: false);
+        if ($primary !== null) {
+            return $primary;
+        }
+
+        return self::fitOls($stepStats, minN: 1, singleShotMode: true);
+    }
+
+    /**
+     * Run OLS through the step means passing the given inclusion criteria and
+     * enrich the result with R², residual SD, and a 95% CI on the slope. All
+     * three become null when there are fewer than three points in the fit —
+     * n=2 gives you a line but no scatter to estimate uncertainty from.
+     *
+     * @param  list<LadderStepStats>  $stepStats
+     */
+    private static function fitOls(array $stepStats, int $minN, bool $singleShotMode): ?LadderTrendFit
+    {
         $xs = [];
         $ys = [];
         foreach ($stepStats as $s) {
-            if (! $s->contributesToFit) {
+            if (! $s->includeInFit) {
+                continue;
+            }
+            if ($s->n < $minN) {
                 continue;
             }
             $xs[] = $s->value;
@@ -194,35 +222,65 @@ final class LadderAnalysis
         }
 
         $n = count($xs);
-        if ($n < 2) {
-            return null;
-        }
-        if (count(array_unique($xs)) < 2) {
+        if ($n < 2 || count(array_unique($xs)) < 2) {
             return null;
         }
 
         $meanX = array_sum($xs) / $n;
         $meanY = array_sum($ys) / $n;
 
-        $num = 0.0;
-        $den = 0.0;
+        $sumDx2 = 0.0;
+        $sumDxDy = 0.0;
         for ($i = 0; $i < $n; $i++) {
             $dx = $xs[$i] - $meanX;
-            $num += $dx * ($ys[$i] - $meanY);
-            $den += $dx * $dx;
+            $sumDx2 += $dx * $dx;
+            $sumDxDy += $dx * ($ys[$i] - $meanY);
         }
 
-        if ($den == 0.0) {
+        if ($sumDx2 == 0.0) {
             return null;
         }
 
-        $slope = $num / $den;
+        $slope = $sumDxDy / $sumDx2;
         $intercept = $meanY - $slope * $meanX;
+
+        // Residual scatter around the line. SS_res drives residual SD (via
+        // n-2 df) and R² (via 1 - SS_res / SS_tot). Meaningful only for n≥3.
+        $ssRes = 0.0;
+        $ssTot = 0.0;
+        for ($i = 0; $i < $n; $i++) {
+            $ssRes += ($ys[$i] - ($intercept + $slope * $xs[$i])) ** 2;
+            $ssTot += ($ys[$i] - $meanY) ** 2;
+        }
+
+        $rSquared = null;
+        $residualSd = null;
+        $residualDf = null;
+        $slopeSe = null;
+        $slopeCiLower = null;
+        $slopeCiUpper = null;
+
+        if ($n >= 3) {
+            $residualDf = $n - 2;
+            $residualSd = sqrt($ssRes / $residualDf);
+            $slopeSe = $residualSd / sqrt($sumDx2);
+            $tCrit = Statistics::tQuantileTwoTailed(0.05, (float) $residualDf);
+            $slopeCiLower = $slope - $tCrit * $slopeSe;
+            $slopeCiUpper = $slope + $tCrit * $slopeSe;
+            $rSquared = $ssTot > 0.0 ? 1.0 - ($ssRes / $ssTot) : null;
+        }
 
         return new LadderTrendFit(
             slope: $slope,
             intercept: $intercept,
             stepsUsed: $n,
+            rSquared: $rSquared,
+            residualSd: $residualSd,
+            residualDf: $residualDf,
+            slopeSe: $slopeSe,
+            slopeCiLower: $slopeCiLower,
+            slopeCiUpper: $slopeCiUpper,
+            singleShotMode: $singleShotMode,
         );
     }
 
@@ -239,6 +297,14 @@ final class LadderAnalysis
     private static function residuals(array $stepStats, ?LadderTrendFit $trend): array
     {
         if ($trend === null) {
+            return [];
+        }
+
+        // Single-shot mode: every point IS the fit, so the ±1 SD band around
+        // the trend line does the informational work that per-point residual
+        // drop-lines do in the multi-shot case. Drawing labelled drops off
+        // every point would just cover the chart in numbers.
+        if ($trend->singleShotMode) {
             return [];
         }
 
@@ -324,7 +390,7 @@ final class LadderAnalysis
      * @param  list<LadderStepStats>  $stepStats
      * @param  list<LadderPairComparison>  $pairs
      */
-    private static function verdict(array $stepStats, array $pairs, ?float $pooledSd, float $resolvingDelta): LadderVerdict
+    private static function verdict(array $stepStats, array $pairs, ?float $pooledSd, ?LadderTrendFit $trend, float $resolvingDelta): LadderVerdict
     {
         $hasAnyTestable = false;
         foreach ($stepStats as $s) {
@@ -332,6 +398,35 @@ final class LadderAnalysis
                 $hasAnyTestable = true;
                 break;
             }
+        }
+
+        // Single-shot ladder path — reached when no step has repeats but the
+        // fallback fit succeeded. We can still quote a consistency figure
+        // from the fit residuals, but no node can be tested from single shots.
+        if (! $hasAnyTestable && $trend !== null && $trend->singleShotMode && $trend->residualSd !== null) {
+            $rounds = null;
+            if ($trend->residualSd > 0.0 && $resolvingDelta > 0.0) {
+                $rounds = (int) ceil(15.7 * $trend->residualSd * $trend->residualSd / ($resolvingDelta * $resolvingDelta));
+            }
+
+            $text = sprintf(
+                'Single-shot ladder — shot-to-shot SD from the fit residuals is %s fps at df %d. No repeated shots to test node separation.',
+                self::formatNumber($trend->residualSd, 2),
+                $trend->residualDf,
+            );
+
+            if ($rounds !== null) {
+                $text .= sprintf(
+                    ' Resolving a %s fps difference between charges at that SD needs about %d rounds per step.',
+                    self::formatNumber($resolvingDelta, 0),
+                    $rounds,
+                );
+            }
+
+            return new LadderVerdict(
+                case: LadderVerdict::NO_NODE_SUPPORTED,
+                text: $text,
+            );
         }
 
         if (! $hasAnyTestable) {

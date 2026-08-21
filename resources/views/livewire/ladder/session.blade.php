@@ -363,7 +363,7 @@ new class extends Component
                 'plotWidth' => $plotWidth, 'plotHeight' => $plotHeight,
                 'xTicks' => [], 'yTicks' => [], 'points' => [],
                 'trace' => [],
-                'lineStart' => null, 'lineEnd' => null,
+                'lineStart' => null, 'lineEnd' => null, 'sdBand' => null,
                 'residuals' => [], 'hasData' => false,
             ];
         }
@@ -455,15 +455,33 @@ new class extends Component
         // beside a trend line, not floating on their own.
         $lineStart = null;
         $lineEnd = null;
+        $sdBand = null;
         if ($result->trend !== null) {
+            $lineStartX = $xMin + ($xSpan * 0.05);
+            $lineEndX = $xMax - ($xSpan * 0.05);
             $lineStart = [
-                'x' => $mapX($xMin + ($xSpan * 0.05)),
-                'y' => $mapY($result->trend->predict($xMin + $xSpan * 0.05)),
+                'x' => $mapX($lineStartX),
+                'y' => $mapY($result->trend->predict($lineStartX)),
             ];
             $lineEnd = [
-                'x' => $mapX($xMax - ($xSpan * 0.05)),
-                'y' => $mapY($result->trend->predict($xMax - $xSpan * 0.05)),
+                'x' => $mapX($lineEndX),
+                'y' => $mapY($result->trend->predict($lineEndX)),
             ];
+
+            // ±1 SD envelope around the trend line. Uses whichever SD figure
+            // the result treats as authoritative — pooled when we have it,
+            // residual otherwise. Represented as a polygon between the upper
+            // and lower parallels of the fitted line.
+            $effSd = $result->effectiveSd();
+            if ($effSd !== null && $effSd > 0.0) {
+                $sdBand = [
+                    'upperStart' => ['x' => $mapX($lineStartX), 'y' => $mapY($result->trend->predict($lineStartX) + $effSd)],
+                    'upperEnd' => ['x' => $mapX($lineEndX), 'y' => $mapY($result->trend->predict($lineEndX) + $effSd)],
+                    'lowerStart' => ['x' => $mapX($lineStartX), 'y' => $mapY($result->trend->predict($lineStartX) - $effSd)],
+                    'lowerEnd' => ['x' => $mapX($lineEndX), 'y' => $mapY($result->trend->predict($lineEndX) - $effSd)],
+                    'sd' => $effSd,
+                ];
+            }
         }
 
         // Residual drops — from fitted line down/up to the step mean, with the
@@ -489,7 +507,7 @@ new class extends Component
             'width', 'height',
             'marginLeft', 'marginRight', 'marginTop', 'marginBottom',
             'plotX', 'plotY', 'plotWidth', 'plotHeight',
-            'xTicks', 'yTicks', 'points', 'trace', 'lineStart', 'lineEnd', 'residuals',
+            'xTicks', 'yTicks', 'points', 'trace', 'lineStart', 'lineEnd', 'sdBand', 'residuals',
         ) + ['hasData' => true];
     }
 
@@ -606,42 +624,79 @@ new class extends Component
             @endif
         </section>
 
+        @php
+            $sdSource = $result->effectiveSdSource();
+            $effSd = $result->effectiveSd();
+            $effDf = $result->effectiveDf();
+            $singleShot = $result->trend?->singleShotMode ?? false;
+        @endphp
         <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Velocity change per unit of the variable. OLS line through the in-fit step means, weighted by SE. Steps with n<2 can't contribute.">
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Velocity change per unit of the variable. OLS line through the in-fit step means. 95% CI reflects how tightly the data pins down the slope — a wide CI means the fit is less certain than the point estimate suggests.">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Fitted slope</p>
                 <p class="mt-1 text-lg font-bold text-stone-900">
                     {{ $result->trend !== null ? number_format($result->trend->slope, 2).' '.$variable->slopeUnit() : '—' }}
                 </p>
                 <p class="mt-1 text-xs text-stone-500">
-                    {{ $result->trend !== null ? $result->trend->stepsUsed.' steps in fit' : 'need ≥2 steps' }}
+                    @if ($result->trend?->slopeCiLower !== null)
+                        95% CI {{ number_format($result->trend->slopeCiLower, 1) }} – {{ number_format($result->trend->slopeCiUpper, 1) }}
+                    @elseif ($result->trend !== null)
+                        {{ $result->trend->stepsUsed }} steps in fit (need ≥3 for CI)
+                    @else
+                        need ≥2 steps
+                    @endif
                 </p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Best estimate of within-step shot-to-shot spread, pooled across every step with n≥2. What the ammo does once charge variation is taken out.">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Pooled SD</p>
+            <div class="rounded-xl border border-stone-200 bg-white p-4" title="{{ $sdSource === 'residual' ? 'Shot-to-shot SD estimated from the residual scatter around the fitted line, at n−2 degrees of freedom. The standard technique for single-shot ladders.' : 'Best estimate of within-step shot-to-shot spread, pooled across every step with n≥2.' }}">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">
+                    {{ $sdSource === 'residual' ? 'Residual SD' : 'Pooled SD' }}
+                </p>
                 <p class="mt-1 text-lg font-bold text-stone-900">
-                    {{ $result->pooledSd !== null ? number_format($result->pooledSd, 2).' fps' : '—' }}
+                    {{ $effSd !== null ? number_format($effSd, 2).' fps' : '—' }}
                 </p>
                 <p class="mt-1 text-xs text-stone-500">
-                    {{ $result->pooledDf !== null ? 'df '.$result->pooledDf : 'no repeated steps' }}
+                    @if ($sdSource === 'residual')
+                        df {{ $effDf }} · from fit residuals
+                    @elseif ($sdSource === 'pooled')
+                        df {{ $effDf }} · pooled within-step
+                    @else
+                        no consistency figure
+                    @endif
                 </p>
             </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Of the adjacent step pairs, how many are statistically distinguishable at p<0.05 by Welch's t on the means.">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Pairs separating</p>
-                @php
-                    $testable = collect($result->pairs)->count();
-                    $separating = collect($result->pairs)->filter(fn($p) => $p->classification === \App\Enums\PairSeparation::Separates)->count();
-                @endphp
-                <p class="mt-1 text-lg font-bold text-stone-900">{{ $separating }} of {{ $testable }}</p>
-                <p class="mt-1 text-xs text-stone-500">adjacent Welch's t, p&lt;0.05</p>
-            </div>
-            <div class="rounded-xl border border-stone-200 bg-white p-4" title="Biggest departure from the fitted trend line among steps not contributing to the fit. Sign preserved.">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Largest residual</p>
-                @php $largest = $result->largestResidual(); @endphp
-                <p class="mt-1 text-lg font-bold text-stone-900">
-                    {{ $largest !== null ? ($largest >= 0 ? '+' : '').number_format($largest, 2).' fps' : '—' }}
-                </p>
-                <p class="mt-1 text-xs text-stone-500">against fitted trend</p>
-            </div>
+            @if ($singleShot)
+                <div class="rounded-xl border border-stone-200 bg-white p-4" title="Coefficient of determination — fraction of the velocity variation explained by the linear charge relationship. Close to 1 = highly linear; low R² = the line is a poor summary of the data.">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">R² of the fit</p>
+                    <p class="mt-1 text-lg font-bold text-stone-900">
+                        {{ $result->trend?->rSquared !== null ? number_format($result->trend->rSquared, 3) : '—' }}
+                    </p>
+                    <p class="mt-1 text-xs text-stone-500">
+                        {{ $result->trend?->rSquared !== null ? 'charge explains '.round($result->trend->rSquared * 100).'% of it' : 'need ≥3 steps' }}
+                    </p>
+                </div>
+                <div class="rounded-xl border border-stone-200 bg-white p-4" title="Number of single-shot charges the fit runs through. More points tightens the slope CI and lowers the SD estimate's uncertainty.">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Steps in fit</p>
+                    <p class="mt-1 text-lg font-bold text-stone-900">{{ $result->trend?->stepsUsed ?? 0 }}</p>
+                    <p class="mt-1 text-xs text-stone-500">single-shot ladder</p>
+                </div>
+            @else
+                <div class="rounded-xl border border-stone-200 bg-white p-4" title="Of the adjacent step pairs, how many are statistically distinguishable at p<0.05 by Welch's t on the means.">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Pairs separating</p>
+                    @php
+                        $testable = collect($result->pairs)->count();
+                        $separating = collect($result->pairs)->filter(fn($p) => $p->classification === \App\Enums\PairSeparation::Separates)->count();
+                    @endphp
+                    <p class="mt-1 text-lg font-bold text-stone-900">{{ $separating }} of {{ $testable }}</p>
+                    <p class="mt-1 text-xs text-stone-500">adjacent Welch's t, p&lt;0.05</p>
+                </div>
+                <div class="rounded-xl border border-stone-200 bg-white p-4" title="Biggest departure from the fitted trend line among steps not contributing to the fit. Sign preserved.">
+                    <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-500 ladder-hint">Largest residual</p>
+                    @php $largest = $result->largestResidual(); @endphp
+                    <p class="mt-1 text-lg font-bold text-stone-900">
+                        {{ $largest !== null ? ($largest >= 0 ? '+' : '').number_format($largest, 2).' fps' : '—' }}
+                    </p>
+                    <p class="mt-1 text-xs text-stone-500">against fitted trend</p>
+                </div>
+            @endif
         </section>
 
         {{-- Glossary. Collapsed by default; opens with a click. Prints expanded
@@ -658,15 +713,19 @@ new class extends Component
                     <dl class="space-y-2">
                         <div class="grid sm:grid-cols-[160px_1fr] gap-2">
                             <dt class="font-semibold text-stone-800">Fitted slope</dt>
-                            <dd>Velocity gained per unit of {{ strtolower($variable->label()) }} ({{ $variable->slopeUnit() }}). OLS line through the step means you've marked "in fit," weighted by each step's standard error. Steps with n&nbsp;&lt;&nbsp;2 can't contribute regardless of the checkbox — you can't estimate a mean with uncertainty from one shot.</dd>
+                            <dd>Velocity gained per unit of {{ strtolower($variable->label()) }} ({{ $variable->slopeUnit() }}). OLS line through the step means you've marked "in fit." The <strong>95% CI</strong> underneath tells you how tightly the data pins that slope down — a wide CI means the point estimate is more uncertain than it looks.</dd>
                         </div>
                         <div class="grid sm:grid-cols-[160px_1fr] gap-2">
-                            <dt class="font-semibold text-stone-800">Pooled SD</dt>
-                            <dd>Best estimate of shot-to-shot spread, pooled across every step with n&nbsp;≥&nbsp;2. This is what the ammo does once you take charge variation out of the picture. The "df" underneath is the total degrees of freedom that went into the pool.</dd>
+                            <dt class="font-semibold text-stone-800">Pooled SD / Residual SD</dt>
+                            <dd>The shot-to-shot spread figure. If you have any step with n&nbsp;≥&nbsp;2, this is <strong>pooled SD</strong> from within-step scatter — the honest way to measure the ammo's consistency, at whatever total df the pool gives you. If every step has n&nbsp;=&nbsp;1 (a single-shot ladder), it flips to <strong>residual SD</strong> — computed from the scatter of the shots around the fitted line, at df&nbsp;=&nbsp;n&nbsp;−&nbsp;2. Both are valid consistency figures; the residual method is the only one available for single-shot protocols and is more powerful than any three-shot string as soon as you have ≥5 charges.</dd>
                         </div>
                         <div class="grid sm:grid-cols-[160px_1fr] gap-2">
                             <dt class="font-semibold text-stone-800">Pairs separating</dt>
-                            <dd>Of the adjacent step pairs, how many are statistically distinguishable at p&nbsp;&lt;&nbsp;0.05 by Welch's t on the means. "0 of 6" means the string sizes are too small to tell any two adjacent charges apart with confidence.</dd>
+                            <dd>Of the adjacent step pairs, how many are statistically distinguishable at p&nbsp;&lt;&nbsp;0.05 by Welch's t on the means. "0 of 6" means the string sizes are too small to tell any two adjacent charges apart with confidence. Not shown in single-shot mode — Welch needs a SE on each side, and you can't get one from a single shot.</dd>
+                        </div>
+                        <div class="grid sm:grid-cols-[160px_1fr] gap-2">
+                            <dt class="font-semibold text-stone-800">R² of the fit</dt>
+                            <dd>Fraction of the velocity variation explained by the linear charge relationship. R²&nbsp;=&nbsp;0.98 means charge weight accounts for 98% of what you see and only 2% is left over as scatter — a clean linear ladder. Low R² means the line is a poor summary and the residuals are large relative to the trend. Shown in single-shot mode where it's the primary honesty check on the fit; the number is still computed in multi-shot mode and available via the trend's DTO if you export the analysis.</dd>
                         </div>
                         <div class="grid sm:grid-cols-[160px_1fr] gap-2">
                             <dt class="font-semibold text-stone-800">Largest residual</dt>
@@ -684,7 +743,8 @@ new class extends Component
                         <li><span class="font-semibold">Vertical bar with T-caps</span> — ±1 standard error of the mean. About a 68% range on where the true mean sits.</li>
                         <li><span class="font-semibold">Faint dots</span> — the individual shot velocities. Tight cluster = tight string.</li>
                         <li><span class="font-semibold">Dashed green line</span> — the OLS fitted trend through the in-fit means.</li>
-                        <li><span class="font-semibold text-red-700">Dashed red drop-line with number</span> — residual: how far a non-fit point sits above (+) or below (−) the trend. The whole point of the chart.</li>
+                        <li><span class="font-semibold">Pale green band</span> — <strong>±1 SD envelope</strong> around the fitted trend, using the pooled or residual SD (whichever the analysis is quoting). Points sitting comfortably inside the band are consistent with the load's own noise; points outside it are genuinely departing from trend, not just landing in the natural scatter.</li>
+                        <li><span class="font-semibold text-red-700">Dashed red drop-line with number</span> — residual: how far a non-fit point sits above (+) or below (−) the trend. In single-shot mode these are suppressed and the SD band tells the story instead.</li>
                     </ul>
                 </div>
 
@@ -788,13 +848,19 @@ new class extends Component
                     <p class="text-sm font-semibold text-stone-900">Mean velocity vs {{ $variable->label() }}</p>
                     <p class="text-xs text-stone-500">Points = step means, bars = ±1 SE, faint dots = individual shots.</p>
                 </div>
-                <div class="flex items-center gap-4 text-xs text-stone-600">
+                <div class="flex items-center gap-4 text-xs text-stone-600 flex-wrap justify-end">
                     <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700"></span>In fit</span>
                     <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-red-600"></span>Excluded from fit</span>
                     <span class="inline-flex items-center gap-1">
                         <svg width="18" height="6" class="shrink-0" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3" stroke="#047857" stroke-width="2" stroke-dasharray="4 3" /></svg>
                         Fitted trend
                     </span>
+                    @if ($result->effectiveSd() !== null)
+                        <span class="inline-flex items-center gap-1">
+                            <span class="inline-block h-2.5 w-3.5 rounded-sm" style="background-color: rgba(4, 120, 87, 0.15);"></span>
+                            ±1 SD band
+                        </span>
+                    @endif
                 </div>
             </div>
             @if ($chart['hasData'])
@@ -825,7 +891,17 @@ new class extends Component
                               font-size="11" fill="#78716c" text-anchor="middle">{{ $tick['label'] }}</text>
                     @endforeach
 
-                    {{-- Fitted trend (dashed, sits behind everything). --}}
+                    {{-- ±1 SD band around the fitted line. Behind everything.
+                         In multi-shot mode this uses pooled SD from within-step
+                         scatter; in single-shot mode it uses residual SD from
+                         the fit itself. Either way, points landing outside the
+                         band are visibly departing from the load's own noise. --}}
+                    @if ($chart['sdBand'] !== null)
+                        <polygon points="{{ $chart['sdBand']['upperStart']['x'] }},{{ $chart['sdBand']['upperStart']['y'] }} {{ $chart['sdBand']['upperEnd']['x'] }},{{ $chart['sdBand']['upperEnd']['y'] }} {{ $chart['sdBand']['lowerEnd']['x'] }},{{ $chart['sdBand']['lowerEnd']['y'] }} {{ $chart['sdBand']['lowerStart']['x'] }},{{ $chart['sdBand']['lowerStart']['y'] }}"
+                                 fill="#047857" fill-opacity="0.08" stroke="none" />
+                    @endif
+
+                    {{-- Fitted trend (dashed, sits behind everything else). --}}
                     @if ($chart['lineStart'] !== null)
                         <line x1="{{ $chart['lineStart']['x'] }}" y1="{{ $chart['lineStart']['y'] }}"
                               x2="{{ $chart['lineEnd']['x'] }}" y2="{{ $chart['lineEnd']['y'] }}"
@@ -1079,11 +1155,14 @@ new class extends Component
             </section>
         @endif
 
-        {{-- Rounds required --}}
-        @if ($result->pooledSd !== null)
+        {{-- Rounds required — reads the same in either SD source, only the
+             wording of "where the SD figure came from" changes. --}}
+        @if ($result->effectiveSd() !== null && $result->roundsRequired !== null)
             <section class="rounded-xl border border-stone-200 bg-white p-4">
                 <p class="text-sm text-stone-700">
-                    Given the pooled SD of {{ number_format($result->pooledSd, 2) }} fps,
+                    Given the
+                    {{ $result->effectiveSdSource() === 'residual' ? 'residual SD' : 'pooled SD' }}
+                    of {{ number_format($result->effectiveSd(), 2) }} fps,
                     resolving a {{ number_format($result->resolvingDelta, 1) }} fps difference between adjacent charges
                     with 80% power at α = 0.05 requires
                     <span class="font-bold text-stone-900">{{ $result->roundsRequired }} shots per step</span>.

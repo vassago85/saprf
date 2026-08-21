@@ -165,7 +165,10 @@ it('yields slope 68 fps/gr when every step is toggled into the fit', function ()
     expect($separating->first()->toValue)->toBe(40.4);
 });
 
-it('returns NothingTestable when no step has n>=2', function () {
+it('falls back to a single-shot fit when no step has n>=2', function () {
+    // Three single-shot charges. Multi-shot fit path has nothing to work with
+    // (no n>=2 step), so the fallback kicks in and runs OLS through all three
+    // means. Residual SD becomes the consistency figure at df = n − 2 = 1.
     $session = buildLadderFixture([
         ['value' => 40.0, 'velocities' => [2576.0]],
         ['value' => 40.2, 'velocities' => [2582.0]],
@@ -174,10 +177,66 @@ it('returns NothingTestable when no step has n>=2', function () {
 
     $result = LadderAnalysis::analyze($session);
 
-    expect($result->verdict->case)->toBe(LadderVerdict::NOTHING_TESTABLE);
     expect($result->pooledSd)->toBeNull();
-    expect($result->trend)->toBeNull();
-    expect($result->roundsRequired)->toBeNull();
+    expect($result->trend)->not->toBeNull();
+    expect($result->trend->singleShotMode)->toBeTrue();
+    expect($result->trend->stepsUsed)->toBe(3);
+    expect($result->trend->residualDf)->toBe(1);
+    expect($result->trend->residualSd)->not->toBeNull();
+    // The verdict reads as "no node supported" with the residual SD cited;
+    // it's no longer "nothing testable" because we CAN report consistency
+    // from the fit residuals, just not adjacent-pair separation.
+    expect($result->verdict->case)->toBe(LadderVerdict::NO_NODE_SUPPORTED);
+    expect($result->verdict->text)->toContain('Single-shot ladder');
+    // Rounds-required uses residual SD now that pooled is unavailable.
+    expect($result->roundsRequired)->not->toBeNull();
+});
+
+it('yields NothingTestable only when there are fewer than three points AND no repeats', function () {
+    // Two single-shot points can produce a line but no residual scatter
+    // (df=0), so there's no consistency figure to report. This is the
+    // remaining case where the verdict genuinely has nothing to say.
+    $session = buildLadderFixture([
+        ['value' => 40.0, 'velocities' => [2576.0]],
+        ['value' => 40.2, 'velocities' => [2582.0]],
+    ]);
+
+    $result = LadderAnalysis::analyze($session);
+
+    expect($result->pooledSd)->toBeNull();
+    // The two-point fit succeeds structurally but yields no residual SD.
+    expect($result->trend?->residualSd)->toBeNull();
+    expect($result->verdict->case)->toBe(LadderVerdict::NOTHING_TESTABLE);
+});
+
+it('computes R-squared and a slope 95% CI on a clean single-shot ladder', function () {
+    // Friend's H4350 ladder — eight single-shot charges. Expected slope is
+    // roughly 69 fps/gr with R² ~= 0.98; the exact numbers depend on the
+    // OLS math and are asserted with sensible tolerance rather than to
+    // absurd decimals.
+    $session = buildLadderFixture([
+        ['value' => 38.4, 'velocities' => [2638.8]],
+        ['value' => 38.6, 'velocities' => [2649.5]],
+        ['value' => 38.8, 'velocities' => [2677.5]],
+        ['value' => 40.0, 'velocities' => [2769.0]],
+        ['value' => 40.2, 'velocities' => [2758.9]],
+        ['value' => 40.4, 'velocities' => [2770.6]],
+        ['value' => 40.6, 'velocities' => [2794.6]],
+        ['value' => 40.8, 'velocities' => [2806.0]],
+    ]);
+
+    $result = LadderAnalysis::analyze($session);
+
+    expect($result->trend)->not->toBeNull();
+    expect($result->trend->singleShotMode)->toBeTrue();
+    expect($result->trend->slope)->toBeGreaterThan(68.0)->toBeLessThan(70.0);
+    expect($result->trend->rSquared)->toBeGreaterThan(0.97)->toBeLessThan(0.99);
+    expect($result->trend->residualDf)->toBe(6);
+    expect($result->trend->residualSd)->toBeGreaterThan(8.0)->toBeLessThan(11.0);
+    expect($result->trend->slopeCiLower)->not->toBeNull();
+    expect($result->trend->slopeCiUpper)->not->toBeNull();
+    expect($result->trend->slopeCiLower)->toBeLessThan($result->trend->slope);
+    expect($result->trend->slopeCiUpper)->toBeGreaterThan($result->trend->slope);
 });
 
 it('returns NoNodeSupported and cites rounds required when nothing separates', function () {
