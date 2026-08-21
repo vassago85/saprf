@@ -1,45 +1,82 @@
 <?php
 
+use App\Http\Controllers\AmmoLoadController;
+use App\Http\Controllers\AmmoStringController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\ForcePasswordChangeController;
+use App\Http\Controllers\BarrelController;
+use App\Http\Controllers\BarrelShotEntryController;
+use App\Http\Controllers\ClubController;
 use App\Http\Controllers\CommunicationsController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Developer\BackupController;
+use App\Http\Controllers\Developer\MailSettingsController;
+use App\Http\Controllers\DivisionController;
+use App\Http\Controllers\DocumentsController;
+use App\Http\Controllers\EmailLogController;
+use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\FaqController;
+use App\Http\Controllers\FinancialController;
+use App\Http\Controllers\FirearmReferenceController;
+use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\LadderSessionController;
+use App\Http\Controllers\LegalController;
+use App\Http\Controllers\LlmsTxtController;
+use App\Http\Controllers\MailgunWebhookController;
 use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\MatchExpenseController;
 use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
+use App\Http\Controllers\NationalTeamAppearanceController;
 use App\Http\Controllers\NotificationPreferencesController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\QualificationRuleController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\ReportsController;
-use App\Http\Controllers\AmmoLoadController;
-use App\Http\Controllers\BarrelController;
-use App\Http\Controllers\BarrelShotEntryController;
-use App\Http\Controllers\LadderSessionController;
 use App\Http\Controllers\RifleConfigurationController;
+use App\Http\Controllers\RulesController;
 use App\Http\Controllers\SascocReportController;
+use App\Http\Controllers\SavedDistributionListController;
 use App\Http\Controllers\ScoreController;
 use App\Http\Controllers\ScoreImportController;
+use App\Http\Controllers\Selection\PublicSelectionPolicyController;
+use App\Http\Controllers\Selection\SelectionAppealController;
+use App\Http\Controllers\Selection\SelectionAthleteController;
+use App\Http\Controllers\Selection\SelectionCycleController;
+use App\Http\Controllers\Selection\SelectionDeclarationController;
+use App\Http\Controllers\Selection\SelectionEvaluationController;
+use App\Http\Controllers\Selection\SelectionPolicyController;
+use App\Http\Controllers\Selection\SelectionWaiverController;
+use App\Http\Controllers\Selection\ShooterSelectionController;
+use App\Http\Controllers\ShooterProfileController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\SponsorTierController;
-use App\Http\Controllers\DivisionController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\UserManagementController;
-use App\Http\Controllers\MatchExpenseController;
-use App\Http\Controllers\FinancialController;
-use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\VenueController;
+use App\Http\Middleware\ForcePasswordChange;
+use App\Models\User;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Livewire\Volt\Volt;
 
 // ── Public Pages ──
@@ -55,17 +92,17 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
-Route::get('/llms.txt', [\App\Http\Controllers\LlmsTxtController::class, 'index'])->name('llms');
-Route::get('/llms-full.txt', [\App\Http\Controllers\LlmsTxtController::class, 'full'])->name('llms.full');
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('/llms.txt', [LlmsTxtController::class, 'index'])->name('llms');
+Route::get('/llms-full.txt', [LlmsTxtController::class, 'full'])->name('llms.full');
 // Legal + governance documents are served by a controller so we can render
 // the verbatim MD source under docs/legal/ and, for the T&Cs, inject the
 // current membership-fee liability cap.
-Route::get('/privacy', [\App\Http\Controllers\LegalController::class, 'privacy'])->name('legal.privacy');
-Route::get('/terms', [\App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
-Route::get('/code-of-conduct', [\App\Http\Controllers\LegalController::class, 'codeOfConduct'])->name('legal.code-of-conduct');
-Route::get('/conflict-of-interest', [\App\Http\Controllers\LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
-Route::get('/constitution', [\App\Http\Controllers\LegalController::class, 'constitution'])->name('legal.constitution');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
+Route::get('/code-of-conduct', [LegalController::class, 'codeOfConduct'])->name('legal.code-of-conduct');
+Route::get('/conflict-of-interest', [LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
+Route::get('/constitution', [LegalController::class, 'constitution'])->name('legal.constitution');
 
 // Sport rulebooks — rendered via the same MarkdownDocument pipeline as the
 // legal docs so they share the sticky ToC / clause gutter / print chrome.
@@ -74,18 +111,18 @@ Route::get('/constitution', [\App\Http\Controllers\LegalController::class, 'cons
 // Nested under /rules/ deliberately — the admin panel already owns /divisions
 // via Route::resource('divisions', DivisionController::class), so the public
 // pages get a /rules/ prefix to avoid the URL collision.
-Route::get('/rules', [\App\Http\Controllers\RulesController::class, 'rulesAndRegulations'])->name('rules.regulations');
-Route::get('/rules/divisions', [\App\Http\Controllers\RulesController::class, 'divisions'])->name('rules.divisions');
-Route::get('/rules/pr22-rimfire', [\App\Http\Controllers\RulesController::class, 'pr22RimfireSeries'])->name('rules.pr22-rimfire');
+Route::get('/rules', [RulesController::class, 'rulesAndRegulations'])->name('rules.regulations');
+Route::get('/rules/divisions', [RulesController::class, 'divisions'])->name('rules.divisions');
+Route::get('/rules/pr22-rimfire', [RulesController::class, 'pr22RimfireSeries'])->name('rules.pr22-rimfire');
 
 // Public FAQ. Markdown source at docs/faq.md; controller splits on H2 for accordion rendering.
-Route::get('/faq', [\App\Http\Controllers\FaqController::class, 'index'])->name('faq.index');
+Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
 
 // Public contact form (with honeypot + time-trap in the controller).
 // Deliberately unauthenticated so anyone can reach the federation.
-Route::get('/contact', [\App\Http\Controllers\ContactController::class, 'create'])->name('contact.create');
-Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'store'])->name('contact.store');
-Route::get('/contact/thanks', [\App\Http\Controllers\ContactController::class, 'thanks'])->name('contact.thanks');
+Route::get('/contact', [ContactController::class, 'create'])->name('contact.create');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('contact.thanks');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
@@ -95,7 +132,7 @@ Route::get('/standings', [StandingController::class, 'publicIndex'])->name('stan
 // scattered through the app don't break. When the user has a SAPRF
 // membership number we 301 to the new canonical /shooters/{saprfNumber}
 // URL; when they don't (imports, guest shooters), we render in place.
-Route::get('/standings/{season}/shooter/{user}', function (string $season, \App\Models\User $user) {
+Route::get('/standings/{season}/shooter/{user}', function (string $season, User $user) {
     $saprfNumber = $user->membership?->saprf_number;
 
     if ($saprfNumber !== null && $saprfNumber !== '') {
@@ -111,10 +148,10 @@ Route::get('/standings/{season}/shooter/{user}', function (string $season, \App\
 // Canonical public shooter profile. saprfNumber is a string on the
 // Membership model — some legacy imports use SAPRF-IMPORT-… prefixes,
 // so the where() constraint is deliberately permissive.
-Route::get('/shooters/{saprfNumber}', [\App\Http\Controllers\ShooterProfileController::class, 'show'])
+Route::get('/shooters/{saprfNumber}', [ShooterProfileController::class, 'show'])
     ->where('saprfNumber', '[A-Za-z0-9\\-]+')
     ->name('shooters.show');
-Route::get('/shooters/{saprfNumber}/{season}', [\App\Http\Controllers\ShooterProfileController::class, 'show'])
+Route::get('/shooters/{saprfNumber}/{season}', [ShooterProfileController::class, 'show'])
     ->where('saprfNumber', '[A-Za-z0-9\\-]+')
     ->where('season', '[0-9]{4}')
     ->name('shooters.show.season');
@@ -122,7 +159,7 @@ Route::get('/verify/{saprfNumber}', [MembershipController::class, 'verify'])->na
 
 // Public verbatim publication of the SAPRF selection policy (current
 // season by default, historical seasons via the optional second segment).
-Route::get('/selection/{series}-policy/{season?}', [\App\Http\Controllers\Selection\PublicSelectionPolicyController::class, 'show'])
+Route::get('/selection/{series}-policy/{season?}', [PublicSelectionPolicyController::class, 'show'])
     ->where('series', 'pr22|prs')
     ->where('season', '[0-9]{4}')
     ->name('selection.policy.public');
@@ -131,38 +168,38 @@ Route::get('/selection/{series}-policy/{season?}', [\App\Http\Controllers\Select
 // policy, selection process and legal document. Unauth so anyone can find
 // governance material without needing to know the individual URLs. Ships
 // with a cross-document search at /documents/search?q=…
-Route::get('/documents', [\App\Http\Controllers\DocumentsController::class, 'index'])
+Route::get('/documents', [DocumentsController::class, 'index'])
     ->name('documents.index');
-Route::get('/documents/search', [\App\Http\Controllers\DocumentsController::class, 'search'])
+Route::get('/documents/search', [DocumentsController::class, 'search'])
     ->name('documents.search');
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
     ->name('payments.notify')
     ->withoutMiddleware([
-        \Illuminate\Cookie\Middleware\EncryptCookies::class,
-        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
-        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-        \App\Http\Middleware\ForcePasswordChange::class,
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        PreventRequestForgery::class,
+        ValidateCsrfToken::class,
+        ForcePasswordChange::class,
     ]);
 
 // ── Mailgun webhook (delivered / failed / complained events) ──
 // No auth / session / CSRF — Mailgun POSTs here from its own servers.
 // The controller itself verifies the HMAC-SHA256 signature on every
 // request and rejects anything with a bad signature or stale timestamp.
-Route::post('/webhooks/mailgun', [\App\Http\Controllers\MailgunWebhookController::class, 'handle'])
+Route::post('/webhooks/mailgun', [MailgunWebhookController::class, 'handle'])
     ->name('webhooks.mailgun')
     ->withoutMiddleware([
-        \Illuminate\Cookie\Middleware\EncryptCookies::class,
-        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
-        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-        \App\Http\Middleware\ForcePasswordChange::class,
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        PreventRequestForgery::class,
+        ValidateCsrfToken::class,
+        ForcePasswordChange::class,
     ]);
 
 // ── RFC 8058 one-click email unsubscribe ──
@@ -170,13 +207,13 @@ Route::post('/webhooks/mailgun', [\App\Http\Controllers\MailgunWebhookController
 // its built-in "Unsubscribe" link on a message that carries our
 // List-Unsubscribe / List-Unsubscribe-Post headers. GET is supported
 // so the same link works when a human clicks it in the message body.
-Route::match(['GET', 'POST'], '/email/unsubscribe/{user}', [\App\Http\Controllers\EmailUnsubscribeController::class, 'handle'])
+Route::match(['GET', 'POST'], '/email/unsubscribe/{user}', [EmailUnsubscribeController::class, 'handle'])
     ->middleware('signed')
     ->name('email.unsubscribe')
     ->withoutMiddleware([
-        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
-        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-        \App\Http\Middleware\ForcePasswordChange::class,
+        PreventRequestForgery::class,
+        ValidateCsrfToken::class,
+        ForcePasswordChange::class,
     ]);
 
 // ── Public Account Handover (junior accepts their account from parent) ──
@@ -197,6 +234,7 @@ Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
+
     return redirect('/');
 })->name('logout')->middleware('auth');
 
@@ -216,8 +254,8 @@ Route::middleware('auth')->group(function (): void {
 // Force password change — must be reachable BEFORE the profile.complete + verified
 // gates so a fresh seeded user with a starter password can change it.
 Route::middleware('auth')->group(function (): void {
-    Route::get('/password/force-change', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'edit'])->name('password.force.edit');
-    Route::put('/password/force-change', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'update'])->name('password.force.update');
+    Route::get('/password/force-change', [ForcePasswordChangeController::class, 'edit'])->name('password.force.edit');
+    Route::put('/password/force-change', [ForcePasswordChangeController::class, 'update'])->name('password.force.update');
 });
 
 // PWA Web Push — routes are auth+verified only (NOT gated by profile.complete)
@@ -238,10 +276,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 // not the developer.
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('role:developer')->group(function (): void {
-        Route::get('/impersonate/{user}', [\App\Http\Controllers\ImpersonationController::class, 'start'])
+        Route::get('/impersonate/{user}', [ImpersonationController::class, 'start'])
             ->name('impersonate.start');
     });
-    Route::get('/impersonate-stop', [\App\Http\Controllers\ImpersonationController::class, 'stop'])
+    Route::get('/impersonate-stop', [ImpersonationController::class, 'stop'])
         ->name('impersonate.stop');
 });
 
@@ -249,10 +287,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/view-mode', [DashboardController::class, 'switchViewMode'])->name('dashboard.view-mode');
 
-        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
-        Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::put('/profile/notification-preferences', [NotificationPreferencesController::class, 'update'])
-            ->name('profile.notification-preferences.update');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/notification-preferences', [NotificationPreferencesController::class, 'update'])
+        ->name('profile.notification-preferences.update');
 
     // Family / Managed Junior Accounts
     Route::prefix('family')->name('family.')->group(function (): void {
@@ -268,13 +306,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     });
 
     // Firearm reference data — user-submitted entries
-    Route::post('/api/firearm-makes', [\App\Http\Controllers\FirearmReferenceController::class, 'storeMake'])->name('api.firearm-makes.store');
-    Route::post('/api/firearm-models', [\App\Http\Controllers\FirearmReferenceController::class, 'storeModel'])->name('api.firearm-models.store');
-    Route::post('/api/firearm-calibres', [\App\Http\Controllers\FirearmReferenceController::class, 'storeCalibre'])->name('api.firearm-calibres.store');
+    Route::post('/api/firearm-makes', [FirearmReferenceController::class, 'storeMake'])->name('api.firearm-makes.store');
+    Route::post('/api/firearm-models', [FirearmReferenceController::class, 'storeModel'])->name('api.firearm-models.store');
+    Route::post('/api/firearm-calibres', [FirearmReferenceController::class, 'storeCalibre'])->name('api.firearm-calibres.store');
 
     // Optic reference data — user-submitted entries
-    Route::post('/api/optic-makes', [\App\Http\Controllers\FirearmReferenceController::class, 'storeOpticMake'])->name('api.optic-makes.store');
-    Route::post('/api/optic-models', [\App\Http\Controllers\FirearmReferenceController::class, 'storeOpticModel'])->name('api.optic-models.store');
+    Route::post('/api/optic-makes', [FirearmReferenceController::class, 'storeOpticMake'])->name('api.optic-makes.store');
+    Route::post('/api/optic-models', [FirearmReferenceController::class, 'storeOpticModel'])->name('api.optic-models.store');
 
     // Standings (dashboard context — authenticated)
     Route::get('/app/standings', [StandingController::class, 'index'])->name('standings.index');
@@ -317,13 +355,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
         // Reusable audience rule sets — Exco-only CRUD; resolver expands
         // saved_list rules embedded on any announcement at send time.
-        Route::get('/saved-lists', [\App\Http\Controllers\SavedDistributionListController::class, 'index'])->name('saved-lists.index');
-        Route::get('/saved-lists/create', [\App\Http\Controllers\SavedDistributionListController::class, 'create'])->name('saved-lists.create');
-        Route::post('/saved-lists', [\App\Http\Controllers\SavedDistributionListController::class, 'store'])->name('saved-lists.store');
-        Route::post('/saved-lists/preview', [\App\Http\Controllers\SavedDistributionListController::class, 'preview'])->name('saved-lists.preview');
-        Route::get('/saved-lists/{savedList}/edit', [\App\Http\Controllers\SavedDistributionListController::class, 'edit'])->name('saved-lists.edit');
-        Route::put('/saved-lists/{savedList}', [\App\Http\Controllers\SavedDistributionListController::class, 'update'])->name('saved-lists.update');
-        Route::delete('/saved-lists/{savedList}', [\App\Http\Controllers\SavedDistributionListController::class, 'destroy'])->name('saved-lists.destroy');
+        Route::get('/saved-lists', [SavedDistributionListController::class, 'index'])->name('saved-lists.index');
+        Route::get('/saved-lists/create', [SavedDistributionListController::class, 'create'])->name('saved-lists.create');
+        Route::post('/saved-lists', [SavedDistributionListController::class, 'store'])->name('saved-lists.store');
+        Route::post('/saved-lists/preview', [SavedDistributionListController::class, 'preview'])->name('saved-lists.preview');
+        Route::get('/saved-lists/{savedList}/edit', [SavedDistributionListController::class, 'edit'])->name('saved-lists.edit');
+        Route::put('/saved-lists/{savedList}', [SavedDistributionListController::class, 'update'])->name('saved-lists.update');
+        Route::delete('/saved-lists/{savedList}', [SavedDistributionListController::class, 'destroy'])->name('saved-lists.destroy');
     });
 
     // Payments
@@ -379,6 +417,15 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'show'])->name('ladder-sessions.show');
     Route::delete('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'destroy'])->name('ladder-sessions.destroy');
     Route::get('/ladder-sessions/{ladderSession}/export.csv', [LadderSessionController::class, 'exportCsv'])->name('ladder-sessions.export.csv');
+
+    // Confirmation-string analyser — one load, N shots, in fire order. Same
+    // controller-plus-Volt-view shape as ladders. Owner-only via
+    // AmmoStringPolicy which the developer/exco global gate bypass carves out.
+    Route::get('/ammo-strings', [AmmoStringController::class, 'index'])->name('ammo-strings.index');
+    Route::post('/ammo-strings', [AmmoStringController::class, 'store'])->name('ammo-strings.store');
+    Route::get('/ammo-strings/{ammoString}', [AmmoStringController::class, 'show'])->name('ammo-strings.show');
+    Route::delete('/ammo-strings/{ammoString}', [AmmoStringController::class, 'destroy'])->name('ammo-strings.destroy');
+    Route::get('/ammo-strings/{ammoString}/export.csv', [AmmoStringController::class, 'exportCsv'])->name('ammo-strings.export.csv');
 
     // Venues — match directors can browse + submit new ones (auto goes to approval
     // queue); edits/deletes require federation admin or owner sign-off.
@@ -470,13 +517,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])
             ->names('audit-logs');
-        Route::post('/email-logs/dismiss-queued', [\App\Http\Controllers\EmailLogController::class, 'dismissQueued'])
+        Route::post('/email-logs/dismiss-queued', [EmailLogController::class, 'dismissQueued'])
             ->name('email-logs.dismiss-queued');
-        Route::post('/email-logs/{emailLog}/dismiss', [\App\Http\Controllers\EmailLogController::class, 'dismiss'])
+        Route::post('/email-logs/{emailLog}/dismiss', [EmailLogController::class, 'dismiss'])
             ->name('email-logs.dismiss');
-        Route::post('/email-logs/{emailLog}/resend', [\App\Http\Controllers\EmailLogController::class, 'resend'])
+        Route::post('/email-logs/{emailLog}/resend', [EmailLogController::class, 'resend'])
             ->name('email-logs.resend');
-        Route::resource('email-logs', \App\Http\Controllers\EmailLogController::class)
+        Route::resource('email-logs', EmailLogController::class)
             ->only(['index', 'show'])
             ->parameters(['email-logs' => 'emailLog'])
             ->names('email-logs');
@@ -489,27 +536,27 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Kept as its own admin resource (rather than a nested
         // selection-cycle modal) because the initial backfill will be
         // historical / pre-cycle.
-        Route::resource('national-team', \App\Http\Controllers\NationalTeamAppearanceController::class)
+        Route::resource('national-team', NationalTeamAppearanceController::class)
             ->only(['index', 'create', 'store', 'destroy'])
             ->parameters(['national-team' => 'nationalTeam']);
 
         // Shooting clubs — master list, recognition toggle, merge tool.
         // Recognition drives IPRF ELG-03 / ELG-05 checks.
-        Route::get('/clubs', [\App\Http\Controllers\ClubController::class, 'index'])->name('clubs.index');
-        Route::get('/clubs/create', [\App\Http\Controllers\ClubController::class, 'create'])->name('clubs.create');
-        Route::post('/clubs', [\App\Http\Controllers\ClubController::class, 'store'])->name('clubs.store');
-        Route::get('/clubs/{club}/edit', [\App\Http\Controllers\ClubController::class, 'edit'])->name('clubs.edit');
-        Route::put('/clubs/{club}', [\App\Http\Controllers\ClubController::class, 'update'])->name('clubs.update');
-        Route::post('/clubs/{club}/toggle-recognition', [\App\Http\Controllers\ClubController::class, 'toggleRecognition'])->name('clubs.toggle-recognition');
-        Route::get('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'mergeForm'])->name('clubs.merge-form');
-        Route::post('/clubs/{club}/merge', [\App\Http\Controllers\ClubController::class, 'merge'])->name('clubs.merge');
-        Route::delete('/clubs/{club}', [\App\Http\Controllers\ClubController::class, 'destroy'])->name('clubs.destroy');
+        Route::get('/clubs', [ClubController::class, 'index'])->name('clubs.index');
+        Route::get('/clubs/create', [ClubController::class, 'create'])->name('clubs.create');
+        Route::post('/clubs', [ClubController::class, 'store'])->name('clubs.store');
+        Route::get('/clubs/{club}/edit', [ClubController::class, 'edit'])->name('clubs.edit');
+        Route::put('/clubs/{club}', [ClubController::class, 'update'])->name('clubs.update');
+        Route::post('/clubs/{club}/toggle-recognition', [ClubController::class, 'toggleRecognition'])->name('clubs.toggle-recognition');
+        Route::get('/clubs/{club}/merge', [ClubController::class, 'mergeForm'])->name('clubs.merge-form');
+        Route::post('/clubs/{club}/merge', [ClubController::class, 'merge'])->name('clubs.merge');
+        Route::delete('/clubs/{club}', [ClubController::class, 'destroy'])->name('clubs.destroy');
 
         // Public /contact form submissions — triage inbox for admins.
-        Route::get('/contact-messages', [\App\Http\Controllers\ContactController::class, 'index'])->name('contact-messages.index');
-        Route::get('/contact-messages/{contactMessage}', [\App\Http\Controllers\ContactController::class, 'show'])->name('contact-messages.show');
-        Route::post('/contact-messages/{contactMessage}/mark-handled', [\App\Http\Controllers\ContactController::class, 'markHandled'])->name('contact-messages.mark-handled');
-        Route::post('/contact-messages/{contactMessage}/reopen', [\App\Http\Controllers\ContactController::class, 'reopen'])->name('contact-messages.reopen');
+        Route::get('/contact-messages', [ContactController::class, 'index'])->name('contact-messages.index');
+        Route::get('/contact-messages/{contactMessage}', [ContactController::class, 'show'])->name('contact-messages.show');
+        Route::post('/contact-messages/{contactMessage}/mark-handled', [ContactController::class, 'markHandled'])->name('contact-messages.mark-handled');
+        Route::post('/contact-messages/{contactMessage}/reopen', [ContactController::class, 'reopen'])->name('contact-messages.reopen');
     });
 
     // The per-match report is separately reachable by the match director who
@@ -597,13 +644,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     // Developer (sysadmin tools)
     Route::middleware(['role:developer|exco|owner'])->prefix('developer')->name('developer.')->group(function (): void {
-        Route::get('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'index'])->name('mail.index');
-        Route::put('/mail', [\App\Http\Controllers\Developer\MailSettingsController::class, 'update'])->name('mail.update');
-        Route::post('/mail/test', [\App\Http\Controllers\Developer\MailSettingsController::class, 'test'])->name('mail.test');
+        Route::get('/mail', [MailSettingsController::class, 'index'])->name('mail.index');
+        Route::put('/mail', [MailSettingsController::class, 'update'])->name('mail.update');
+        Route::post('/mail/test', [MailSettingsController::class, 'test'])->name('mail.test');
 
-        Route::get('/backups', [\App\Http\Controllers\Developer\BackupController::class, 'index'])->name('backups.index');
-        Route::post('/backups', [\App\Http\Controllers\Developer\BackupController::class, 'store'])->name('backups.store');
-        Route::get('/backups/download/{disk}/{path}', [\App\Http\Controllers\Developer\BackupController::class, 'download'])
+        Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
+        Route::get('/backups/download/{disk}/{path}', [BackupController::class, 'download'])
             ->where('path', '.*')->name('backups.download');
     });
 
@@ -612,10 +659,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Eligibility-to-Compete form, and see their live ELG / PART status. The
     // staff-only subsystem below is a separate group.
     Route::prefix('iprf')->name('iprf.')->group(function (): void {
-        Route::get('/', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'index'])->name('index');
-        Route::post('/{cycle}/opt-in', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'optIn'])->name('opt-in');
-        Route::post('/{cycle}/withdraw', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'withdraw'])->name('withdraw');
-        Route::post('/{cycle}/form', [\App\Http\Controllers\Selection\ShooterSelectionController::class, 'storeForm'])->name('form');
+        Route::get('/', [ShooterSelectionController::class, 'index'])->name('index');
+        Route::post('/{cycle}/opt-in', [ShooterSelectionController::class, 'optIn'])->name('opt-in');
+        Route::post('/{cycle}/withdraw', [ShooterSelectionController::class, 'withdraw'])->name('withdraw');
+        Route::post('/{cycle}/form', [ShooterSelectionController::class, 'storeForm'])->name('form');
     });
 
     // IPRF / national team selection subsystem.
@@ -623,33 +670,33 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         ->prefix('selection')
         ->name('selection.')
         ->group(function (): void {
-            Route::get('/cycles', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'index'])->name('cycles.index');
-            Route::get('/cycles/create', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'create'])->name('cycles.create');
-            Route::post('/cycles', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'store'])->name('cycles.store');
-            Route::get('/cycles/{cycle}', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'show'])->name('cycles.show');
-            Route::get('/cycles/{cycle}/edit', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'edit'])->name('cycles.edit');
-            Route::put('/cycles/{cycle}', [\App\Http\Controllers\Selection\SelectionCycleController::class, 'update'])->name('cycles.update');
+            Route::get('/cycles', [SelectionCycleController::class, 'index'])->name('cycles.index');
+            Route::get('/cycles/create', [SelectionCycleController::class, 'create'])->name('cycles.create');
+            Route::post('/cycles', [SelectionCycleController::class, 'store'])->name('cycles.store');
+            Route::get('/cycles/{cycle}', [SelectionCycleController::class, 'show'])->name('cycles.show');
+            Route::get('/cycles/{cycle}/edit', [SelectionCycleController::class, 'edit'])->name('cycles.edit');
+            Route::put('/cycles/{cycle}', [SelectionCycleController::class, 'update'])->name('cycles.update');
 
-            Route::post('/cycles/{cycle}/policies', [\App\Http\Controllers\Selection\SelectionPolicyController::class, 'store'])->name('cycles.policies.store');
-            Route::get('/cycles/{cycle}/policies/{policy}', [\App\Http\Controllers\Selection\SelectionPolicyController::class, 'show'])->name('cycles.policies.show');
+            Route::post('/cycles/{cycle}/policies', [SelectionPolicyController::class, 'store'])->name('cycles.policies.store');
+            Route::get('/cycles/{cycle}/policies/{policy}', [SelectionPolicyController::class, 'show'])->name('cycles.policies.show');
 
-            Route::post('/cycles/{cycle}/reevaluate', [\App\Http\Controllers\Selection\SelectionEvaluationController::class, 'run'])->name('cycles.reevaluate');
+            Route::post('/cycles/{cycle}/reevaluate', [SelectionEvaluationController::class, 'run'])->name('cycles.reevaluate');
 
-            Route::get('/cycles/{cycle}/athletes', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'index'])->name('cycles.athletes.index');
-            Route::get('/cycles/{cycle}/athletes/create', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'create'])->name('cycles.athletes.create');
-            Route::post('/cycles/{cycle}/athletes', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'store'])->name('cycles.athletes.store');
-            Route::post('/cycles/{cycle}/athletes/bulk-register', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'bulkRegister'])->name('cycles.athletes.bulk-register');
-            Route::get('/cycles/{cycle}/athletes/{athlete}', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'show'])->name('cycles.athletes.show');
-            Route::put('/cycles/{cycle}/athletes/{athlete}', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'update'])->name('cycles.athletes.update');
-            Route::post('/cycles/{cycle}/athletes/{athlete}/reevaluate', [\App\Http\Controllers\Selection\SelectionAthleteController::class, 'reevaluate'])->name('cycles.athletes.reevaluate');
+            Route::get('/cycles/{cycle}/athletes', [SelectionAthleteController::class, 'index'])->name('cycles.athletes.index');
+            Route::get('/cycles/{cycle}/athletes/create', [SelectionAthleteController::class, 'create'])->name('cycles.athletes.create');
+            Route::post('/cycles/{cycle}/athletes', [SelectionAthleteController::class, 'store'])->name('cycles.athletes.store');
+            Route::post('/cycles/{cycle}/athletes/bulk-register', [SelectionAthleteController::class, 'bulkRegister'])->name('cycles.athletes.bulk-register');
+            Route::get('/cycles/{cycle}/athletes/{athlete}', [SelectionAthleteController::class, 'show'])->name('cycles.athletes.show');
+            Route::put('/cycles/{cycle}/athletes/{athlete}', [SelectionAthleteController::class, 'update'])->name('cycles.athletes.update');
+            Route::post('/cycles/{cycle}/athletes/{athlete}/reevaluate', [SelectionAthleteController::class, 'reevaluate'])->name('cycles.athletes.reevaluate');
 
-            Route::post('/cycles/{cycle}/athletes/{athlete}/declaration', [\App\Http\Controllers\Selection\SelectionDeclarationController::class, 'store'])->name('cycles.athletes.declaration.store');
+            Route::post('/cycles/{cycle}/athletes/{athlete}/declaration', [SelectionDeclarationController::class, 'store'])->name('cycles.athletes.declaration.store');
 
-            Route::post('/cycles/{cycle}/athletes/{athlete}/waivers', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'store'])->name('cycles.athletes.waivers.store');
-            Route::put('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'decide'])->name('cycles.athletes.waivers.decide');
-            Route::get('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}/download', [\App\Http\Controllers\Selection\SelectionWaiverController::class, 'download'])->name('cycles.athletes.waivers.download');
+            Route::post('/cycles/{cycle}/athletes/{athlete}/waivers', [SelectionWaiverController::class, 'store'])->name('cycles.athletes.waivers.store');
+            Route::put('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}', [SelectionWaiverController::class, 'decide'])->name('cycles.athletes.waivers.decide');
+            Route::get('/cycles/{cycle}/athletes/{athlete}/waivers/{waiver}/download', [SelectionWaiverController::class, 'download'])->name('cycles.athletes.waivers.download');
 
-            Route::post('/cycles/{cycle}/athletes/{athlete}/appeals', [\App\Http\Controllers\Selection\SelectionAppealController::class, 'store'])->name('cycles.athletes.appeals.store');
-            Route::put('/cycles/{cycle}/athletes/{athlete}/appeals/{appeal}', [\App\Http\Controllers\Selection\SelectionAppealController::class, 'decide'])->name('cycles.athletes.appeals.decide');
+            Route::post('/cycles/{cycle}/athletes/{athlete}/appeals', [SelectionAppealController::class, 'store'])->name('cycles.athletes.appeals.store');
+            Route::put('/cycles/{cycle}/athletes/{athlete}/appeals/{appeal}', [SelectionAppealController::class, 'decide'])->name('cycles.athletes.appeals.decide');
         });
 });

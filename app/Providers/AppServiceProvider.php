@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\AmmoString;
 use App\Models\Announcement;
 use App\Models\Barrel;
 use App\Models\Club;
@@ -20,6 +21,7 @@ use App\Models\Setting;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Observers\MembershipObserver;
+use App\Policies\AmmoStringPolicy;
 use App\Policies\AnnouncementPolicy;
 use App\Policies\BarrelPolicy;
 use App\Policies\ClubPolicy;
@@ -68,13 +70,16 @@ class AppServiceProvider extends ServiceProvider
         // superuser, EXCO is a shared board-walkthrough login that's been
         // explicitly granted owner-equivalent access by the user.
         //
-        // Exception: ladders and barrels are personal reloading records that
-        // several nationally-ranked shooters compete against each other on.
-        // The bypass explicitly does not extend to them, so the policy's
-        // ownership check is the only authorisation path in and out.
+        // Exception: barrels, ladder sessions, and confirmation strings are
+        // personal reloading records that several nationally-ranked shooters
+        // compete against each other on. The bypass explicitly does not
+        // extend to them, so the policy's ownership check is the only
+        // authorisation path in and out.
         Gate::before(function ($user, $ability, $arguments = []) {
             $subject = $arguments[0] ?? null;
-            if ($subject instanceof Barrel || $subject instanceof LadderSession) {
+            if ($subject instanceof Barrel
+                || $subject instanceof LadderSession
+                || $subject instanceof AmmoString) {
                 return null;
             }
 
@@ -95,6 +100,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::policy(Barrel::class, BarrelPolicy::class);
         Gate::policy(LadderSession::class, LadderSessionPolicy::class);
+        Gate::policy(AmmoString::class, AmmoStringPolicy::class);
 
         Membership::observe(MembershipObserver::class);
 

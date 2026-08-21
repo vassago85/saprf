@@ -143,6 +143,9 @@
                 <flux:navlist.item icon="chart-bar" :href="route('ladder-sessions.index')" :current="request()->routeIs('ladder-sessions.*')">
                     Ladder Analyser
                 </flux:navlist.item>
+                <flux:navlist.item icon="beaker" :href="route('ammo-strings.index')" :current="request()->routeIs('ammo-strings.*')">
+                    String Analyser
+                </flux:navlist.item>
                 <flux:navlist.item icon="users" :href="route('family.index')" :current="request()->routeIs('family.*')">
                     My Family
                     @if(($familyCount = auth()->user()?->managedAccounts()->count() ?? 0) > 0)

@@ -29,12 +29,19 @@ class AmmoLoad extends Model
         'velocity',
         'notes',
         'is_active',
+        'measured_sd_fps',
+        'measured_sd_n',
+        'measured_sd_at',
+        'measured_sd_string_id',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'measured_sd_fps' => 'decimal:2',
+            'measured_sd_n' => 'integer',
+            'measured_sd_at' => 'datetime',
         ];
     }
 
@@ -61,6 +68,20 @@ class AmmoLoad extends Model
     public function ladderSessions(): HasMany
     {
         return $this->hasMany(LadderSession::class);
+    }
+
+    public function strings(): HasMany
+    {
+        return $this->hasMany(AmmoString::class);
+    }
+
+    /**
+     * The specific confirmation string that produced the current measured-SD
+     * snapshot. Null unless a string has ever been saved for this load.
+     */
+    public function measuredSdString(): BelongsTo
+    {
+        return $this->belongsTo(AmmoString::class, 'measured_sd_string_id');
     }
 
     public function scopeActive($query)
