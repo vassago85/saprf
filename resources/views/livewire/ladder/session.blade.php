@@ -362,6 +362,7 @@ new class extends Component
                 'plotX' => $plotX, 'plotY' => $plotY,
                 'plotWidth' => $plotWidth, 'plotHeight' => $plotHeight,
                 'xTicks' => [], 'yTicks' => [], 'points' => [],
+                'trace' => [],
                 'lineStart' => null, 'lineEnd' => null,
                 'residuals' => [], 'hasData' => false,
             ];
@@ -440,6 +441,16 @@ new class extends Component
             ];
         }
 
+        // Trace — the shooter's-eye "ladder as I marked it" polyline through
+        // consecutive in-fit means. Drawn behind the individual markers so the
+        // points sit on top. Steps toggled out of the fit break the trace,
+        // which is precisely how the reference design communicates exclusion.
+        $trace = collect($points)
+            ->filter(fn ($p) => $p['inFit'])
+            ->map(fn ($p) => ['x' => $p['x'], 'y' => $p['y']])
+            ->values()
+            ->all();
+
         // Fitted line — extend across the whole x-range so excluded steps sit
         // beside a trend line, not floating on their own.
         $lineStart = null;
@@ -478,7 +489,7 @@ new class extends Component
             'width', 'height',
             'marginLeft', 'marginRight', 'marginTop', 'marginBottom',
             'plotX', 'plotY', 'plotWidth', 'plotHeight',
-            'xTicks', 'yTicks', 'points', 'lineStart', 'lineEnd', 'residuals',
+            'xTicks', 'yTicks', 'points', 'trace', 'lineStart', 'lineEnd', 'residuals',
         ) + ['hasData' => true];
     }
 
@@ -667,12 +678,13 @@ new class extends Component
                 <div>
                     <p class="font-semibold text-stone-900 text-xs uppercase tracking-wider mb-2">Chart</p>
                     <ul class="space-y-1.5 list-disc list-inside">
-                        <li><span class="font-semibold">Solid green circle</span> — step mean, in the fit.</li>
-                        <li><span class="font-semibold">Solid grey circle</span> — step mean, NOT in the fit (either you toggled it off or n&nbsp;&lt;&nbsp;2).</li>
+                        <li><span class="font-semibold text-emerald-800">Solid green circle</span> — step mean, in the fit. Green points are joined by a light polyline so you can read the ladder's shape at a glance.</li>
+                        <li><span class="font-semibold text-red-700">Solid red circle</span> — step mean, excluded from the fit (either you toggled it off or n&nbsp;&lt;&nbsp;2). Never joined to the trace.</li>
+                        <li><span class="font-semibold">Number above each point</span> — that step's mean velocity in fps, coloured to match the marker.</li>
                         <li><span class="font-semibold">Vertical bar with T-caps</span> — ±1 standard error of the mean. About a 68% range on where the true mean sits.</li>
                         <li><span class="font-semibold">Faint dots</span> — the individual shot velocities. Tight cluster = tight string.</li>
-                        <li><span class="font-semibold">Dashed green line</span> — the fitted trend through the in-fit means.</li>
-                        <li><span class="font-semibold">Dashed grey drop-line with number</span> — residual: how far a non-fit point sits above (+) or below (−) the trend. This is where the ladder is "not doing what the trend says it should."</li>
+                        <li><span class="font-semibold">Dashed green line</span> — the OLS fitted trend through the in-fit means.</li>
+                        <li><span class="font-semibold text-red-700">Dashed red drop-line with number</span> — residual: how far a non-fit point sits above (+) or below (−) the trend. The whole point of the chart.</li>
                     </ul>
                 </div>
 
@@ -778,7 +790,7 @@ new class extends Component
                 </div>
                 <div class="flex items-center gap-4 text-xs text-stone-600">
                     <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-700"></span>In fit</span>
-                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-stone-400"></span>Not in fit</span>
+                    <span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-red-600"></span>Excluded from fit</span>
                     <span class="inline-flex items-center gap-1">
                         <svg width="18" height="6" class="shrink-0" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3" stroke="#047857" stroke-width="2" stroke-dasharray="4 3" /></svg>
                         Fitted trend
@@ -813,26 +825,34 @@ new class extends Component
                               font-size="11" fill="#78716c" text-anchor="middle">{{ $tick['label'] }}</text>
                     @endforeach
 
-                    {{-- Fitted line (dashed) --}}
+                    {{-- Fitted trend (dashed, sits behind everything). --}}
                     @if ($chart['lineStart'] !== null)
                         <line x1="{{ $chart['lineStart']['x'] }}" y1="{{ $chart['lineStart']['y'] }}"
                               x2="{{ $chart['lineEnd']['x'] }}" y2="{{ $chart['lineEnd']['y'] }}"
                               stroke="#047857" stroke-width="2" stroke-dasharray="5 4" />
                     @endif
 
-                    {{-- Residual drop lines --}}
+                    {{-- Residual drop lines. --}}
                     @foreach ($chart['residuals'] as $r)
                         <line x1="{{ $r['x'] }}" y1="{{ $r['yLine'] }}"
                               x2="{{ $r['x'] }}" y2="{{ $r['yPoint'] }}"
-                              stroke="#a3a3a3" stroke-width="1" stroke-dasharray="2 2" />
+                              stroke="#dc2626" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
                         <text x="{{ $r['x'] + 6 }}" y="{{ ($r['yLine'] + $r['yPoint']) / 2 }}"
-                              font-size="10" fill="#57534e">
+                              font-size="10" fill="#b91c1c" font-weight="600">
                             {{ ($r['residual'] >= 0 ? '+' : '').number_format($r['residual'], 1) }}
                         </text>
                     @endforeach
 
+                    {{-- Trace — polyline through consecutive in-fit means. Reads
+                         as "the ladder as I marked it." --}}
+                    @if (count($chart['trace']) >= 2)
+                        <polyline points="@foreach ($chart['trace'] as $t){{ $t['x'] }},{{ $t['y'] }} @endforeach"
+                                  fill="none" stroke="#047857" stroke-width="1.5" opacity="0.55" />
+                    @endif
+
                     {{-- Points --}}
                     @foreach ($chart['points'] as $pt)
+                        @php $markerColor = $pt['inFit'] ? '#047857' : '#dc2626'; @endphp
                         {{-- Faint shot dots behind --}}
                         @foreach ($pt['shots'] as $s)
                             <circle cx="{{ $s['x'] }}" cy="{{ $s['y'] }}" r="2.5"
@@ -842,17 +862,23 @@ new class extends Component
                         @if ($pt['errorBar'] !== null)
                             <line x1="{{ $pt['errorBar']['x'] }}" y1="{{ $pt['errorBar']['y1'] }}"
                                   x2="{{ $pt['errorBar']['x'] }}" y2="{{ $pt['errorBar']['y2'] }}"
-                                  stroke="{{ $pt['contributesToFit'] ? '#047857' : '#a8a29e' }}" stroke-width="2" />
+                                  stroke="{{ $markerColor }}" stroke-width="2" />
                             <line x1="{{ $pt['errorBar']['x'] - 5 }}" y1="{{ $pt['errorBar']['y1'] }}"
                                   x2="{{ $pt['errorBar']['x'] + 5 }}" y2="{{ $pt['errorBar']['y1'] }}"
-                                  stroke="{{ $pt['contributesToFit'] ? '#047857' : '#a8a29e' }}" stroke-width="2" />
+                                  stroke="{{ $markerColor }}" stroke-width="2" />
                             <line x1="{{ $pt['errorBar']['x'] - 5 }}" y1="{{ $pt['errorBar']['y2'] }}"
                                   x2="{{ $pt['errorBar']['x'] + 5 }}" y2="{{ $pt['errorBar']['y2'] }}"
-                                  stroke="{{ $pt['contributesToFit'] ? '#047857' : '#a8a29e' }}" stroke-width="2" />
+                                  stroke="{{ $markerColor }}" stroke-width="2" />
                         @endif
                         {{-- Mean marker --}}
                         <circle cx="{{ $pt['x'] }}" cy="{{ $pt['y'] }}" r="5"
-                                fill="{{ $pt['contributesToFit'] ? '#047857' : '#a8a29e' }}" />
+                                fill="{{ $markerColor }}" />
+                        {{-- Mean value label above the marker, colour-matched to the point. --}}
+                        <text x="{{ $pt['x'] }}" y="{{ $pt['y'] - 10 }}"
+                              font-size="10" font-weight="600" text-anchor="middle"
+                              fill="{{ $markerColor }}">
+                            {{ number_format($pt['mean'], 0) }}
+                        </text>
                     @endforeach
 
                     <text x="{{ $chart['width'] / 2 }}" y="{{ $chart['height'] - 6 }}"
