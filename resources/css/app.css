@@ -193,3 +193,27 @@ ui-sidebar-toggle,
     display: none !important;
     pointer-events: none !important;
 }
+
+/* iOS PWA bottom nav (`<x-ios-pwa-nav>`) is `position: fixed; bottom: 0;
+   z-index: 40`. The Flux sidebar is z-20, so on an iPhone / iPad installed
+   PWA the bottom ~3.5rem of the sidebar (which is exactly where the
+   profile + Sign Out button live, pinned there by `<flux:spacer />`) sits
+   under the nav bar and cannot be tapped. The `data-ios-pwa` flag is set
+   on <body> by the same script that shows the nav bar (see
+   ios-pwa-nav.blade.php), so we key off it to add matching bottom padding
+   inside the sidebar. Scoped tightly — desktop non-iOS users see no
+   change, and closing the sidebar restores full space to the main content. */
+body[data-ios-pwa="true"] [data-flux-sidebar] {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* While the sidebar is open on mobile, hide the fixed iOS PWA nav bar.
+   The sidebar is the navigation surface at that point, so leaving Back /
+   Home / Inbox / Menu tappable underneath it is confusing and — as above
+   — it eats the tap zone for Sign Out. Coupled with the padding rule
+   above, this makes the bottom of the sidebar reachable even on the
+   rare iPhone SE-sized viewport where padding alone might leave the
+   button hairline-close to the fold. */
+body[data-sidebar-open] #ios-pwa-nav {
+    display: none !important;
+}

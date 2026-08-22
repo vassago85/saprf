@@ -351,11 +351,23 @@
             </flux:navlist.item>
         </flux:navlist>
 
-        <form method="POST" action="{{ route('logout') }}">
+        {{-- Sign Out lives in its own form because logout must be a POST
+             (CSRF protected). Styled to match the navlist rows above so
+             members recognise it as a nav action rather than a random
+             button. The extra bottom margin keeps it clear of iOS home-
+             indicator gestures and the sidebar's own padding-bottom that
+             kicks in for installed PWAs (see app.css). --}}
+        <form method="POST" action="{{ route('logout') }}" class="mt-1">
             @csrf
-            <flux:button type="submit" variant="subtle" class="w-full justify-start" icon="arrow-right-start-on-rectangle">
-                Sign Out
-            </flux:button>
+            <button
+                type="submit"
+                class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
+                </svg>
+                <span>Sign Out</span>
+            </button>
         </form>
     </flux:sidebar>
 

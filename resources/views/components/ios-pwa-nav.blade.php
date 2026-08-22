@@ -23,6 +23,7 @@
 --}}
 
 <div
+    id="ios-pwa-nav"
     x-data="iosPwaNav()"
     x-init="init()"
     x-show="visible"
