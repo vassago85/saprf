@@ -92,6 +92,7 @@ it('matches by real email when the display name differs', function () {
         ->and($membership->payment_status)->toBe('paid');
 });
 
+it('does not create users or memberships for unmatched legacy rows', function () {
     $beforeUsers = User::count();
     $beforeMemberships = Membership::count();
 

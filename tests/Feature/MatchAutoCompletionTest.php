@@ -35,7 +35,7 @@ function autoCompletionCsv(string $name, string $email, float $score = 50.0): Up
     return UploadedFile::fake()->createWithContent('scores.csv', $contents);
 }
 
-function makeMatch(array $overrides = []): MatchEvent
+function makeAutoCompletionMatch(array $overrides = []): MatchEvent
 {
     return MatchEvent::create(array_merge([
         'name' => 'Test Provincial',
@@ -55,7 +55,7 @@ function makeMatch(array $overrides = []): MatchEvent
 }
 
 it('auto-completes a single-day match after a successful score import', function () {
-    $match = makeMatch(['status' => 'open']);
+    $match = makeAutoCompletionMatch(['status' => 'open']);
 
     $this->actingAs($this->admin)->post(route('score-imports.store'), [
         'match_id' => $match->id,
@@ -70,7 +70,7 @@ it('does not auto-complete a match whose end date is still in the future', funct
     // Day-1 upload for a 2-day national that runs today + tomorrow. Even though
     // scores are in for day 1, the event is still running so registration/status
     // must not close under the shooters.
-    $match = makeMatch([
+    $match = makeAutoCompletionMatch([
         'match_date' => now()->toDateString(),
         'match_end_date' => now()->addDay()->toDateString(),
         'status' => 'open',
@@ -86,7 +86,7 @@ it('does not auto-complete a match whose end date is still in the future', funct
 });
 
 it('leaves cancelled matches alone even when scores land after the fact', function () {
-    $match = makeMatch(['status' => 'cancelled']);
+    $match = makeAutoCompletionMatch(['status' => 'cancelled']);
 
     $this->actingAs($this->admin)->post(route('score-imports.store'), [
         'match_id' => $match->id,
@@ -98,32 +98,32 @@ it('leaves cancelled matches alone even when scores land after the fact', functi
 });
 
 it('scheduled job completes any match whose last day has passed', function () {
-    $pastSingleDay = makeMatch([
+    $pastSingleDay = makeAutoCompletionMatch([
         'name' => 'Yesterday Provincial',
         'match_date' => now()->subDay()->toDateString(),
         'status' => 'open',
     ]);
 
-    $pastTwoDay = makeMatch([
+    $pastTwoDay = makeAutoCompletionMatch([
         'name' => 'Two-Day National',
         'match_date' => now()->subDays(3)->toDateString(),
         'match_end_date' => now()->subDays(2)->toDateString(),
         'status' => 'closed',
     ]);
 
-    $runningToday = makeMatch([
+    $runningToday = makeAutoCompletionMatch([
         'name' => 'Live Match',
         'match_date' => now()->toDateString(),
         'status' => 'open',
     ]);
 
-    $alreadyCompleted = makeMatch([
+    $alreadyCompleted = makeAutoCompletionMatch([
         'name' => 'Old Completed',
         'match_date' => now()->subDays(10)->toDateString(),
         'status' => 'completed',
     ]);
 
-    $cancelled = makeMatch([
+    $cancelled = makeAutoCompletionMatch([
         'name' => 'Cancelled Match',
         'match_date' => now()->subDay()->toDateString(),
         'status' => 'cancelled',
@@ -139,7 +139,7 @@ it('scheduled job completes any match whose last day has passed', function () {
 });
 
 it('shows a request-payout prompt on the import page after auto-completion', function () {
-    $match = makeMatch(['status' => 'open']);
+    $match = makeAutoCompletionMatch(['status' => 'open']);
 
     $this->actingAs($this->admin)->post(route('score-imports.store'), [
         'match_id' => $match->id,
