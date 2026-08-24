@@ -83,8 +83,10 @@
                 <div class="space-y-1.5">
                     @foreach($match->scores->take(3) as $score)
                         @php $medals = ['text-amber-500', 'text-stone-400', 'text-amber-700']; @endphp
+                        {{-- Use $loop->iteration so the podium always numbers 1/2/3 even
+                             when scores were imported without a placement column set. --}}
                         <div class="flex items-center gap-2.5">
-                            <span class="text-xs font-bold w-4 text-right {{ $medals[$loop->index] ?? 'text-stone-300' }}">{{ $score->placement }}</span>
+                            <span class="text-xs font-bold w-4 text-right {{ $medals[$loop->index] ?? 'text-stone-300' }}">{{ $loop->iteration }}</span>
                             <span class="text-xs text-stone-700 font-medium truncate flex-1">{{ $score->shooter_name }}</span>
                             <span class="text-[11px] text-stone-400 font-medium tabular-nums">{{ number_format($score->raw_score, 1) }}</span>
                         </div>

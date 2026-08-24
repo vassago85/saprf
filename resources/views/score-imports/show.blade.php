@@ -68,6 +68,7 @@
     @endif
 
     @if ($canRequestMdPayout)
+        @php $alreadyCompleted = $scoreImport->match->status === 'completed'; @endphp
         <div
             x-data="{ dismissed: false }"
             x-show="!dismissed"
@@ -80,18 +81,30 @@
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-base font-semibold text-emerald-900">Scores are in — close out this match?</h3>
+                    <h3 class="text-base font-semibold text-emerald-900">
+                        @if ($alreadyCompleted)
+                            Match closed — request your payout?
+                        @else
+                            Scores are in — close out this match?
+                        @endif
+                    </h3>
                     <p class="mt-1 text-sm text-emerald-800">
-                        Mark <span class="font-medium">{{ $scoreImport->match->name }}</span> as
-                        <span class="font-medium">completed</span> and file your match-director payout request in one step.
-                        An admin will review it and settle payment.
+                        @if ($alreadyCompleted)
+                            <span class="font-medium">{{ $scoreImport->match->name }}</span> was
+                            auto-completed when the scores landed. File your match-director payout
+                            request now — an admin will review it and settle payment.
+                        @else
+                            Mark <span class="font-medium">{{ $scoreImport->match->name }}</span> as
+                            <span class="font-medium">completed</span> and file your match-director payout request in one step.
+                            An admin will review it and settle payment.
+                        @endif
                     </p>
                     <div class="mt-4 flex flex-wrap items-center gap-3">
                         <form method="POST" action="{{ route('matches.complete-and-request-payout', $scoreImport->match) }}">
                             @csrf
                             <button type="submit"
                                 class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                                Complete match &amp; request payout
+                                {{ $alreadyCompleted ? 'Request match director payout' : 'Complete match & request payout' }}
                             </button>
                         </form>
                         <button type="button" @click="dismissed = true"

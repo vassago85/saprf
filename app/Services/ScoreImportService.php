@@ -149,6 +149,8 @@ class ScoreImportService
             ]);
         }
 
+        $this->autoCompleteMatch($scoreImport->match->fresh());
+
         $this->auditLogService->log(
             auth()->user(),
             'score.import.completed',
@@ -159,6 +161,42 @@ class ScoreImportService
         );
 
         return $count;
+    }
+
+    /**
+     * Once scores are in, transition the match to `completed` so the events
+     * list flips to the results layout (podium + View Results) without an
+     * MD having to remember to click "Complete match" separately.
+     *
+     * Guard rails:
+     *  - Never touch a match that's already `completed` or `cancelled`.
+     *  - Never close out a match whose effective end date is still in the
+     *    future — day-1 of a 2-day national is still an ongoing event, and
+     *    a preliminary/partial upload before match day shouldn't shut
+     *    registration.
+     */
+    private function autoCompleteMatch(\App\Models\MatchEvent $match): void
+    {
+        if (in_array($match->status, ['completed', 'cancelled'], true)) {
+            return;
+        }
+
+        $effectiveEnd = $match->match_end_date ?? $match->match_date;
+        if ($effectiveEnd === null || $effectiveEnd->isFuture()) {
+            return;
+        }
+
+        $previousStatus = $match->status;
+        $match->update(['status' => 'completed']);
+
+        $this->auditLogService->log(
+            auth()->user(),
+            'match.auto_completed_after_import',
+            'MatchEvent',
+            $match->id,
+            ['status' => $previousStatus],
+            ['status' => 'completed'],
+        );
     }
 
     /**

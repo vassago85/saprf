@@ -138,9 +138,15 @@ class ScoreImportController extends Controller
         $viewerOwnsMatch = $user && ($match->created_by === $user->id
             || $user->hasAnyRole(['owner', 'admin', 'exco', 'developer']));
 
+        // Note: we no longer require `$match->status !== 'completed'`. The
+        // score-import pipeline now auto-transitions the match to `completed`
+        // as soon as scores land, so hiding the payout prompt on that state
+        // would leave MDs with no path to file for their fee. The controller
+        // action is safely idempotent — it only creates a payout when none
+        // already exists, so status alone doesn't gate the button.
         $canRequestMdPayout = $viewerOwnsMatch
             && $scoreImport->import_status === 'completed'
-            && $match->status !== 'completed'
+            && $match->status !== 'cancelled'
             && ! $match->payouts()->where('payee_type', 'match_director')->exists();
 
         return view('score-imports.show', compact(

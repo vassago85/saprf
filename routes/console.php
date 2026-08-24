@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\AutoCompletePastMatchesJob;
 use App\Jobs\DispatchScheduledAnnouncementsJob;
 use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
@@ -15,6 +16,10 @@ Artisan::command('inspire', function () {
 Schedule::job(new ResolvePendingScoresJob)->dailyAt('01:00');
 Schedule::job(new ExpireSponsorsJob)->dailyAt('00:15');
 Schedule::job(new ExpireMembershipsJob)->dailyAt('02:00');
+// Close out any match whose last day has passed. Runs after ExpireMembershipsJob
+// so a lapsed member's status is settled before their last match's scores are
+// finalised (affects the counts_for_season flag on shooter logs).
+Schedule::job(new AutoCompletePastMatchesJob)->dailyAt('02:15');
 
 // Pick up any announcements the composer scheduled for a future time
 // and push them into the resolve/dispatch pipeline. Cheap query, so we
