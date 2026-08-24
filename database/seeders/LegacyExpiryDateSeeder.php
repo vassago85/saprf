@@ -3,18 +3,25 @@
 namespace Database\Seeders;
 
 use App\Models\Membership;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Backfill membership start/expiry dates from the legacy precisionrifle.co.za
  * database for paid members who already exist on this platform.
  *
- * Only updates rows we can match unambiguously by normalized full name against
- * an existing paid membership. Does not create users or memberships.
+ * Match order (first unambiguous hit wins):
+ *   1. SA ID number (13 digits)
+ *   2. Real email address
+ *   3. Normalized full name
+ *   4. First name + surname tokens
  *
- * Run manually: php artisan db:seed --class=LegacyExpiryDateSeeder
+ * Only updates existing paid memberships. Does not create users or memberships.
+ *
+ * Run manually:
+ *   LEGACY_EXPIRY_DRY_RUN=1 php artisan db:seed --class=LegacyExpiryDateSeeder --force
+ *   php artisan db:seed --class=LegacyExpiryDateSeeder --force
  */
 class LegacyExpiryDateSeeder extends Seeder
 {
@@ -22,6 +29,9 @@ class LegacyExpiryDateSeeder extends Seeder
 
     /** @var array<string, true> */
     private array $reportedAmbiguous = [];
+
+    /** @var array<string, Collection<int, Membership>> */
+    private array $index = [];
 
     public function run(): void
     {
@@ -42,9 +52,14 @@ class LegacyExpiryDateSeeder extends Seeder
             'skipped_past' => 0,
             'skipped_no_match' => 0,
             'skipped_ambiguous' => 0,
-            'skipped_not_paid' => 0,
             'errors' => 0,
+            'matched_by_id' => 0,
+            'matched_by_email' => 0,
+            'matched_by_name' => 0,
+            'matched_by_name_parts' => 0,
         ];
+
+        $this->buildPaidMembershipIndex();
 
         $this->command?->info('=== LegacyExpiryDateSeeder ===');
         $this->command?->line('File: '.self::DATA_FILE);
@@ -70,32 +85,27 @@ class LegacyExpiryDateSeeder extends Seeder
             }
 
             $displayName = trim($row['first_name'].' '.$row['surname']);
-            $normalized = $this->normalizeName($displayName);
-            if ($normalized === '') {
-                $stats['errors']++;
+            $match = $this->resolveMembership($row, $displayName);
 
-                continue;
-            }
-
-            $memberships = $this->findPaidMembershipsByName($normalized);
-            if ($memberships->isEmpty()) {
+            if ($match === null) {
                 $stats['skipped_no_match']++;
 
                 continue;
             }
 
-            if ($memberships->count() > 1) {
+            if ($match['ambiguous']) {
                 $stats['skipped_ambiguous']++;
-                if (! isset($this->reportedAmbiguous[$normalized])) {
-                    $this->reportedAmbiguous[$normalized] = true;
-                    $this->command?->warn("Ambiguous name '{$displayName}' — {$memberships->count()} paid memberships");
+                $key = $match['method'].':'.$displayName;
+                if (! isset($this->reportedAmbiguous[$key])) {
+                    $this->reportedAmbiguous[$key] = true;
+                    $this->command?->warn("Ambiguous {$match['method']} match for '{$displayName}'");
                 }
 
                 continue;
             }
 
             /** @var Membership $membership */
-            $membership = $memberships->first();
+            $membership = $match['membership'];
             $changes = $this->plannedChanges($membership, $start, $expiry);
 
             if ($changes === []) {
@@ -114,8 +124,9 @@ class LegacyExpiryDateSeeder extends Seeder
             }
 
             $stats['updated']++;
+            $stats['matched_by_'.$match['method']]++;
             if ($this->command?->getOutput()->isVerbose()) {
-                $this->command?->line("  {$displayName}: ".implode(', ', $changes));
+                $this->command?->line("  [{$match['method']}] {$displayName}: ".implode(', ', $changes));
             }
         }
 
@@ -131,8 +142,100 @@ class LegacyExpiryDateSeeder extends Seeder
         }
     }
 
+    private function buildPaidMembershipIndex(): void
+    {
+        $this->index = [
+            'id' => [],
+            'email' => [],
+            'name' => [],
+            'name_parts' => [],
+        ];
+
+        $memberships = Membership::query()
+            ->where('membership_type', 'paid')
+            ->with('user:id,name,email,sa_id_number')
+            ->get();
+
+        foreach ($memberships as $membership) {
+            $user = $membership->user;
+            if (! $user) {
+                continue;
+            }
+
+            $id = $this->realIdNumber($user->sa_id_number);
+            if ($id) {
+                $this->index['id'][$id] ??= collect();
+                $this->index['id'][$id]->push($membership);
+            }
+
+            $email = $this->realEmail($user->email);
+            if ($email) {
+                $this->index['email'][$email] ??= collect();
+                $this->index['email'][$email]->push($membership);
+            }
+
+            $name = $this->normalizeName($user->name);
+            if ($name !== '') {
+                $this->index['name'][$name] ??= collect();
+                $this->index['name'][$name]->push($membership);
+            }
+
+            $parts = $this->namePartsKey($user->name);
+            if ($parts !== '') {
+                $this->index['name_parts'][$parts] ??= collect();
+                $this->index['name_parts'][$parts]->push($membership);
+            }
+        }
+    }
+
     /**
-     * @return array<int, array{first_name: string, surname: string, start_date: string, expiry_date: string}>
+     * @param  array{first_name: string, surname: string, email: string, sa_id_number: string, start_date: string, expiry_date: string}  $row
+     * @return array{membership: Membership, method: string, ambiguous: bool}|null
+     */
+    private function resolveMembership(array $row, string $displayName): ?array
+    {
+        $strategies = [];
+
+        $id = $this->realIdNumber($row['sa_id_number'] ?? '');
+        if ($id) {
+            $strategies[] = ['method' => 'id', 'key' => $id, 'bucket' => 'id'];
+        }
+
+        $email = $this->realEmail($row['email'] ?? '');
+        if ($email) {
+            $strategies[] = ['method' => 'email', 'key' => $email, 'bucket' => 'email'];
+        }
+
+        $name = $this->normalizeName($displayName);
+        if ($name !== '') {
+            $strategies[] = ['method' => 'name', 'key' => $name, 'bucket' => 'name'];
+        }
+
+        $parts = $this->namePartsKey($displayName);
+        if ($parts !== '') {
+            $strategies[] = ['method' => 'name_parts', 'key' => $parts, 'bucket' => 'name_parts'];
+        }
+
+        foreach ($strategies as $strategy) {
+            /** @var Collection<int, Membership>|null $hits */
+            $hits = $this->index[$strategy['bucket']][$strategy['key']] ?? null;
+            if ($hits === null || $hits->isEmpty()) {
+                continue;
+            }
+
+            $unique = $hits->unique('id')->values();
+            if ($unique->count() > 1) {
+                return ['membership' => $unique->first(), 'method' => $strategy['method'], 'ambiguous' => true];
+            }
+
+            return ['membership' => $unique->first(), 'method' => $strategy['method'], 'ambiguous' => false];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, array{first_name: string, surname: string, email: string, sa_id_number: string, start_date: string, expiry_date: string}>
      */
     private function readRows(string $path): array
     {
@@ -171,6 +274,8 @@ class LegacyExpiryDateSeeder extends Seeder
             $rows[$lineNo] = [
                 'first_name' => trim((string) ($data['first_name'] ?? '')),
                 'surname' => trim((string) ($data['surname'] ?? '')),
+                'email' => trim((string) ($data['email'] ?? '')),
+                'sa_id_number' => trim((string) ($data['sa_id_number'] ?? '')),
                 'start_date' => trim((string) ($data['start_date'] ?? '')),
                 'expiry_date' => trim((string) ($data['expiry_date'] ?? '')),
             ];
@@ -189,24 +294,47 @@ class LegacyExpiryDateSeeder extends Seeder
         return trim($name);
     }
 
-    /**
-     * @return \Illuminate\Support\Collection<int, Membership>
-     */
-    private function findPaidMembershipsByName(string $normalizedName): \Illuminate\Support\Collection
+    private function namePartsKey(string $name): string
     {
-        return Membership::query()
-            ->where('membership_type', 'paid')
-            ->with('user:id,name')
-            ->get()
-            ->filter(function (Membership $membership) use ($normalizedName): bool {
-                $userName = $membership->user?->name;
-                if (! $userName) {
-                    return false;
-                }
+        $normalized = $this->normalizeName($name);
+        $tokens = array_values(array_filter(explode(' ', $normalized)));
+        if (count($tokens) < 2) {
+            return '';
+        }
 
-                return $this->normalizeName($userName) === $normalizedName;
-            })
-            ->values();
+        return $tokens[0].' '.$tokens[count($tokens) - 1];
+    }
+
+    private function realEmail(?string $email): ?string
+    {
+        if ($email === null || trim($email) === '') {
+            return null;
+        }
+
+        $email = strtolower(trim($email));
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        if (preg_match('/@(example\.co\.za|import\.saprf\.local|saprf\.co\.za)$/', $email)) {
+            return null;
+        }
+
+        return $email;
+    }
+
+    private function realIdNumber(?string $id): ?string
+    {
+        if ($id === null || trim($id) === '') {
+            return null;
+        }
+
+        $id = trim($id);
+        if (! preg_match('/^\d{13}$/', $id)) {
+            return null;
+        }
+
+        return $id;
     }
 
     /**
