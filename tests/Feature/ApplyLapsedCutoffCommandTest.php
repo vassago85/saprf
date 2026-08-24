@@ -103,6 +103,30 @@ it('is idempotent: re-running does not re-email members already flipped', functi
     Notification::assertSentToTimes($user, MembershipExpiredNotification::class, 1);
 });
 
+it('sweeps already-expired members that missed the once-off cutoff notice', function () {
+    // Members whose status was stamped straight to 'expired' by the older
+    // scores:reevaluate housekeeping never received the cutoff email —
+    // the backfill must catch them too, not only fresh 'lapsed' rows.
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-CUTOFF-BACKFILL-PREEXPIRED',
+        'membership_type' => 'paid',
+        'status' => 'expired',
+        'payment_status' => 'paid',
+        'expiry_date' => Carbon::today()->subDays(MembershipValidationService::LAPSED_CUTOFF_DAYS + 30),
+    ]);
+
+    Artisan::call('saprf:apply-lapsed-cutoff');
+
+    Notification::assertSentTo($user, MembershipExpiredNotification::class);
+
+    // Second run: the audit-log marker prevents a re-send even though the
+    // status is unchanged.
+    Artisan::call('saprf:apply-lapsed-cutoff');
+    Notification::assertSentToTimes($user, MembershipExpiredNotification::class, 1);
+});
+
 it('dry-run writes nothing and sends nothing', function () {
     $user = User::factory()->create();
     Membership::create([

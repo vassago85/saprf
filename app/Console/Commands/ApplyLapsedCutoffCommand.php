@@ -7,6 +7,7 @@ use App\Notifications\MembershipExpiredNotification;
 use App\Services\AuditLogService;
 use App\Services\MembershipValidationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * One-off backfill for the 90-day lapsed cutoff.
@@ -19,9 +20,16 @@ use Illuminate\Console\Command;
  * shipped so they aren't blindsided at the next registration.
  *
  * Idempotent:
- *   - Only touches memberships still on status='lapsed'. Anything already
- *     status='expired' is skipped, so re-running is safe.
+ *   - Skips any membership that already has a `membership.marked_expired`
+ *     audit row (i.e. a prior run of this command already processed it).
  *   - Revoked / free-type memberships are never touched.
+ *
+ * Why both `lapsed` and `expired` are candidates: memberships auto-lapsed by
+ * ExpireMembershipsJob carry status='lapsed' until they cross the cutoff;
+ * memberships that went through the older `scores:reevaluate` housekeeping
+ * were stamped straight to status='expired' well before the feature shipped.
+ * Both cohorts missed the once-off cutoff notice — this command sweeps them
+ * regardless of which label they currently carry.
  */
 class ApplyLapsedCutoffCommand extends Command
 {
@@ -39,9 +47,16 @@ class ApplyLapsedCutoffCommand extends Command
 
         $memberships = Membership::query()
             ->where('membership_type', '!=', 'free')
-            ->where('status', 'lapsed')
+            ->whereIn('status', ['lapsed', 'expired'])
             ->whereNotNull('expiry_date')
             ->where('expiry_date', '<', $cutoff)
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('audit_logs')
+                    ->whereColumn('audit_logs.entity_id', 'memberships.id')
+                    ->where('audit_logs.entity_type', 'Membership')
+                    ->where('audit_logs.action_type', 'membership.marked_expired');
+            })
             ->with('user')
             ->get();
 
@@ -79,7 +94,10 @@ class ApplyLapsedCutoffCommand extends Command
             }
 
             $previous = $membership->status;
-            $membership->update(['status' => 'expired']);
+            if ($previous !== 'expired') {
+                $membership->update(['status' => 'expired']);
+                $flipped++;
+            }
 
             $audit->log(
                 null,
@@ -90,7 +108,6 @@ class ApplyLapsedCutoffCommand extends Command
                 ['status' => 'expired', 'expired_on' => $membership->expiry_date->toDateString()],
                 'Applied 90-day lapsed cutoff (expired ' . $membership->expiry_date->format('d M Y') . ')',
             );
-            $flipped++;
 
             if ($skipEmail) {
                 continue;
