@@ -195,6 +195,61 @@ test('classifyRegistrationCategory returns non_member for no membership', functi
     expect($this->service->classifyRegistrationCategory($user, Carbon::today()))->toBe('non_member');
 });
 
+test('classifyRegistrationCategory keeps a recently-lapsed member in the lapsed_member bracket', function () {
+    // Membership expired within the LAPSED_CUTOFF_DAYS grace window: still
+    // eligible for the lapsed-surcharge fee, not full non-member pricing.
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-RECENTLY-LAPSED',
+        'membership_type' => 'paid',
+        'status' => 'lapsed',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(2),
+        'expiry_date' => Carbon::today()->subDays(30),
+    ]);
+    $user->refresh();
+
+    expect($this->service->classifyRegistrationCategory($user))->toBe('lapsed_member');
+});
+
+test('classifyRegistrationCategory downgrades to non_member past the lapsed cutoff', function () {
+    // The federation's stance: "lapsed" is a short renewal grace, not an
+    // indefinite discount. Once expiry_date is > LAPSED_CUTOFF_DAYS ago,
+    // pricing treats them the same as a walk-in non-member.
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-LONG-LAPSED',
+        'membership_type' => 'paid',
+        'status' => 'lapsed',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(2),
+        'expiry_date' => Carbon::today()->subDays(\App\Services\MembershipValidationService::LAPSED_CUTOFF_DAYS + 1),
+    ]);
+    $user->refresh();
+
+    expect($this->service->classifyRegistrationCategory($user))->toBe('non_member');
+});
+
+test('classifyRegistrationCategory keeps a member exactly on the cutoff day as lapsed_member', function () {
+    // Boundary: expiry_date === today - LAPSED_CUTOFF_DAYS is INSIDE the
+    // grace window. The downgrade only kicks in the day after.
+    $user = User::factory()->create();
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-TEST-CUTOFF-EDGE',
+        'membership_type' => 'paid',
+        'status' => 'lapsed',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(2),
+        'expiry_date' => Carbon::today()->subDays(\App\Services\MembershipValidationService::LAPSED_CUTOFF_DAYS),
+    ]);
+    $user->refresh();
+
+    expect($this->service->classifyRegistrationCategory($user))->toBe('lapsed_member');
+});
+
 test('classifyRegistrationCategory matches the admin listing "Active" pill for imported members without payment_status=paid', function () {
     // Real bug: imported members (e.g. Asharuf Moorad SAPRF 399) show up as
     // "Active" in the admin membership listing (which reads

@@ -9,6 +9,18 @@ use Carbon\CarbonInterface;
 
 class MembershipValidationService
 {
+    /**
+     * How long a shooter stays in the `lapsed_member` fee bracket after their
+     * expiry_date. Beyond this cutoff they classify as `non_member` and pay
+     * the full non-member rate — the federation's stance is that "lapsed" is
+     * a short renewal grace, not an indefinite discount.
+     *
+     * Kept as a class constant (not a Settings row) so the pricing engine and
+     * the ExpireMembershipsJob "you've crossed the cutoff" mailer are always
+     * in lockstep. If you tune this, remember both sides move together.
+     */
+    public const LAPSED_CUTOFF_DAYS = 90;
+
     public function isMembershipValidOnDate(?Membership $membership, CarbonInterface $date): bool
     {
         if (! $membership) {
@@ -150,6 +162,15 @@ class MembershipValidationService
 
         if ($membership->isActiveMember()) {
             return 'active_member';
+        }
+
+        // Past the lapsed-grace window? Treat them the same as a walk-in
+        // non-member for pricing. "lapsed_member" is a short renewal grace,
+        // not a permanent discount — once expiry_date is > LAPSED_CUTOFF_DAYS
+        // in the past, they pay the full non-member rate at their next entry.
+        if ($membership->expiry_date
+            && $membership->expiry_date->lt(now()->startOfDay()->subDays(self::LAPSED_CUTOFF_DAYS))) {
+            return 'non_member';
         }
 
         return 'lapsed_member';

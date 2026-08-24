@@ -3,9 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\Membership;
+use App\Notifications\MembershipExpiredNotification;
 use App\Notifications\MembershipExpiringSoonNotification;
 use App\Notifications\MembershipLapsedNotification;
 use App\Services\AuditLogService;
+use App\Services\MembershipValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,6 +25,7 @@ class ExpireMembershipsJob implements ShouldQueue
     {
         $this->expireOverdueMemberships($audit);
         $this->sendExpiryReminders();
+        $this->sendLapsedCutoffNotices();
     }
 
     private function expireOverdueMemberships(AuditLogService $audit): void
@@ -92,6 +95,45 @@ class ExpireMembershipsJob implements ShouldQueue
                         'error' => $e->getMessage(),
                     ]);
                 }
+            }
+        }
+    }
+
+    /**
+     * Notify shooters whose membership crosses the lapsed-fee cutoff today.
+     * From tomorrow onwards their next entry is priced at the non-member
+     * rate rather than the lapsed-member surcharge — this is the one and
+     * only "you're now fully expired" warning.
+     *
+     * Idempotency: the query is keyed on the exact cutoff date, so the
+     * daily job hits each membership at most once. If the job misses a
+     * day (server down, redeploy at 02:00) that cohort skips this mail —
+     * same trade-off `sendExpiryReminders` accepts for -30/-7 reminders.
+     */
+    private function sendLapsedCutoffNotices(): void
+    {
+        $target = now()->startOfDay()
+            ->subDays(MembershipValidationService::LAPSED_CUTOFF_DAYS)
+            ->toDateString();
+
+        $memberships = Membership::query()
+            ->where('status', 'lapsed')
+            ->whereDate('expiry_date', $target)
+            ->with('user')
+            ->get();
+
+        foreach ($memberships as $membership) {
+            if (! $membership->user) {
+                continue;
+            }
+
+            try {
+                $membership->user->notify(new MembershipExpiredNotification($membership));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send lapsed-cutoff notification', [
+                    'membership_id' => $membership->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

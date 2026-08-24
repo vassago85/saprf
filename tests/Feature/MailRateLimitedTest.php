@@ -34,6 +34,7 @@ use App\Notifications\MatchAnnouncementNotification;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\MemberInvitationNotification;
 use App\Notifications\MembershipConfirmedNotification;
+use App\Notifications\MembershipExpiredNotification;
 use App\Notifications\MembershipExpiringSoonNotification;
 use App\Notifications\MembershipLapsedNotification;
 use App\Notifications\PaymentReceivedNotification;
@@ -84,6 +85,9 @@ dataset('throttled_notifications', [
     ],
     'MembershipExpiringSoonNotification' => [
         fn () => new MembershipExpiringSoonNotification(new Membership(), 30),
+    ],
+    'MembershipExpiredNotification' => [
+        fn () => new MembershipExpiredNotification(new Membership()),
     ],
     'MatchRegistrationConfirmedNotification' => [
         fn () => new MatchRegistrationConfirmedNotification(new MatchRegistration()),
