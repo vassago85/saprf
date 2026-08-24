@@ -38,15 +38,14 @@ it('reports canSwitchViewMode true for staff and false for members', function ()
     $admin = User::factory()->create();
     $admin->assignRole('admin');
     $exco = User::factory()->create();
-    $exco->assignRole('exco'); // seedRoles doesn't include exco; assignRole auto-creates
+    $exco->assignRole('exco');
+    $provincial = User::factory()->create();
+    $provincial->assignRole('provincial_admin');
 
     expect($member->canSwitchViewMode())->toBeFalse()
         ->and($admin->canSwitchViewMode())->toBeTrue()
-        ->and($exco->canSwitchViewMode())->toBeTrue();
-})->skip(function () {
-    // Skipped if exco role isn't in this test's DB — the assignRole call
-    // above would fail. We seed it inline instead.
-    return false;
+        ->and($exco->canSwitchViewMode())->toBeTrue()
+        ->and($provincial->canSwitchViewMode())->toBeTrue();
 });
 
 // ── Switching action ─────────────────────────────────────────────────

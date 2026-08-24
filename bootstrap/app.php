@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Middleware\EnsureProfileComplete;
+use App\Http\Middleware\ForcePasswordChange;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SyncViewModeWithRoute;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,16 +22,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'profile.complete' => \App\Http\Middleware\EnsureProfileComplete::class,
-            'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'profile.complete' => EnsureProfileComplete::class,
+            'force_password_change' => ForcePasswordChange::class,
         ]);
 
-        $middleware->appendToGroup('web', \App\Http\Middleware\ForcePasswordChange::class);
+        $middleware->appendToGroup('web', ForcePasswordChange::class);
+        $middleware->appendToGroup('web', SyncViewModeWithRoute::class);
 
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->append(SecurityHeaders::class);
 
         $middleware->validateCsrfTokens(except: [
             'webhooks/payfast',

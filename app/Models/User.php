@@ -423,6 +423,23 @@ class User extends Authenticatable implements MustVerifyEmail
     public const STAFF_ROLES = ['developer', 'exco', 'chair', 'owner', 'admin', 'match_director', 'iprf_selector'];
 
     /**
+     * Roles that have an admin console in addition to the shooter
+     * experience. Provincial admins are included here (they have Reports)
+     * but are deliberately not in STAFF_ROLES — that list also gates
+     * profile visibility and other staff authority.
+     */
+    public const VIEW_SWITCH_ROLES = [
+        'developer',
+        'exco',
+        'chair',
+        'owner',
+        'admin',
+        'match_director',
+        'iprf_selector',
+        'provincial_admin',
+    ];
+
+    /**
      * Does this user act with staff/admin authority anywhere on the platform?
      */
     public function isStaffMember(): bool
@@ -460,7 +477,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canSwitchViewMode(): bool
     {
-        return $this->hasAnyRole(self::STAFF_ROLES);
+        return $this->hasAnyRole(self::VIEW_SWITCH_ROLES);
     }
 
     /**
