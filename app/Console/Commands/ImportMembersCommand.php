@@ -19,7 +19,8 @@ use Illuminate\Support\Str;
  *
  * Match order (first hit wins):
  *   1. SAPRF number  (via memberships.saprf_number)
- *   2. Real email    (users.email exact match)
+ *   2. Real email    (users.email exact match) — wins over a scraper stub that
+ *      already holds the same SAPRF number when the real member registered separately
  *   3. Placeholder email derived from the row's name (first.last@import.saprf.local)
  *   4. Normalized name (LOWER(users.name) = LOWER(row.name), whitespace collapsed)
  *
@@ -58,7 +59,7 @@ class ImportMembersCommand extends Command
         'id_number' => 'sa_id_number', 'id' => 'sa_id_number', 'national_id' => 'sa_id_number', 'rsa_id' => 'sa_id_number',
         'dob' => 'date_of_birth', 'birth_date' => 'date_of_birth', 'birthdate' => 'date_of_birth', 'birthday' => 'date_of_birth',
         'province_name' => 'province', 'province_abbr' => 'province', 'province_code' => 'province',
-        'member_number' => 'saprf_number', 'membership_number' => 'saprf_number', 'saprf' => 'saprf_number', 'saprf_no' => 'saprf_number', 'saprfnr' => 'saprf_number',
+        'member_number' => 'saprf_number', 'membership_number' => 'saprf_number', 'membership_no' => 'saprf_number', 'saprf' => 'saprf_number', 'saprf_no' => 'saprf_number', 'saprfnr' => 'saprf_number',
         'type' => 'membership_type', 'membership' => 'membership_type',
         'membership_status' => 'status',
         'payment' => 'payment_status',
@@ -179,9 +180,28 @@ class ImportMembersCommand extends Command
     {
         $rowSaprf = trim((string) ($row['saprf_number'] ?? ''));
 
+        $viaSaprf = null;
         if ($rowSaprf !== '') {
-            $viaSaprf = Membership::where('saprf_number', $rowSaprf)->first();
-            if ($viaSaprf) return $viaSaprf->user;
+            $membership = Membership::where('saprf_number', $rowSaprf)->first();
+            if ($membership) {
+                $viaSaprf = $membership->user;
+            }
+        }
+
+        $viaEmail = !empty($row['email'])
+            ? User::where('email', $row['email'])->first()
+            : null;
+
+        // Scraper split: a stub holds the legacy SAPRF number while the real member
+        // already registered with their email on a separate account.
+        if ($viaSaprf && $viaEmail && $viaSaprf->id !== $viaEmail->id
+            && $this->isMergeableStub($viaSaprf)
+            && !$this->belongsToDifferentRealMember($viaEmail, $rowSaprf)) {
+            return $viaEmail;
+        }
+
+        if ($viaSaprf) {
+            return $viaSaprf;
         }
 
         // Weaker fallbacks (email / placeholder / name). These must not hijack a
@@ -189,11 +209,8 @@ class ImportMembersCommand extends Command
         // silently merge two distinct people who happen to share a name or email.
         // Stubs (SAPRF-IMPORT-… numbers) stay mergeable so legacy member data can
         // still enrich the pr22/prs stub accounts.
-        $candidate = null;
+        $candidate = $viaEmail;
 
-        if (!empty($row['email'])) {
-            $candidate = User::where('email', $row['email'])->first();
-        }
         if (!$candidate) {
             $placeholder = $this->placeholderEmailFor($row['name']);
             $candidate = User::where('email', $placeholder)->first();
@@ -233,6 +250,28 @@ class ImportMembersCommand extends Command
         return $saprf === '' || str_starts_with($saprf, 'SAPRF-IMPORT-');
     }
 
+    /**
+     * Move a legacy SAPRF number off scraper stubs so it can attach to the real account.
+     */
+    private function releaseSaprfNumberFromStubs(string $saprfNumber, int $exceptUserId): void
+    {
+        $stubs = Membership::where('saprf_number', $saprfNumber)
+            ->where('user_id', '!=', $exceptUserId)
+            ->with('user')
+            ->get();
+
+        foreach ($stubs as $membership) {
+            if (!$membership->user || !$this->isMergeableStub($membership->user)) {
+                continue;
+            }
+            do {
+                $replacement = 'SAPRF-IMPORT-'.strtoupper(Str::random(6));
+            } while (Membership::where('saprf_number', $replacement)->exists());
+            $membership->saprf_number = $replacement;
+            $membership->save();
+        }
+    }
+
     private function applyUserChanges(?User $existing, array $row, $provinces, $divisions, ?string $bulkRole): array
     {
         $changes = [];
@@ -268,17 +307,14 @@ class ImportMembersCommand extends Command
             if (!Str::endsWith($existing->email, '@saprf.co.za')
                 && !empty($row['email'])
                 && $existing->email !== $row['email']
-                && (Str::endsWith($existing->email, '@import.saprf.local') || $this->option('dry-run'))) {
-                $userUpdates['email'] = $row['email'];
-                if (!$existing->email_verified_at) {
-                    $userUpdates['email_verified_at'] = null;
-                    $userUpdates['must_change_password'] = true;
-                }
-            } elseif (!Str::endsWith($existing->email, '@saprf.co.za')
-                && !empty($row['email'])
-                && $existing->email !== $row['email']
                 && Str::endsWith($existing->email, '@import.saprf.local')) {
-                $userUpdates['email'] = $row['email'];
+                if (!User::where('email', $row['email'])->where('id', '!=', $existing->id)->exists()) {
+                    $userUpdates['email'] = $row['email'];
+                    if (!$existing->email_verified_at) {
+                        $userUpdates['email_verified_at'] = null;
+                        $userUpdates['must_change_password'] = true;
+                    }
+                }
             }
 
             foreach ([
@@ -395,7 +431,12 @@ class ImportMembersCommand extends Command
         $changes = [];
 
         $attrs = [];
-        if (!empty($row['saprf_number'])) $attrs['saprf_number'] = $row['saprf_number'];
+        if (!empty($row['saprf_number'])) {
+            if (!$this->option('dry-run')) {
+                $this->releaseSaprfNumberFromStubs($row['saprf_number'], $user->id);
+            }
+            $attrs['saprf_number'] = $row['saprf_number'];
+        }
         if (!empty($row['membership_type'])) $attrs['membership_type'] = strtolower($row['membership_type']);
         if (!empty($row['status'])) $attrs['status'] = strtolower($row['status']);
         if (!empty($row['payment_status'])) $attrs['payment_status'] = strtolower($row['payment_status']);

@@ -1,0 +1,192 @@
+first_name,surname,email,sa_id_number,saprf_number,membership_type,status,payment_status,start_date,expiry_date
+Grant,Anderson,grant@armormax.co.za,6407025014086,2,paid,active,paid,2019-07-19,2026-10-13
+Justin,Louw,justinllouw@gmail.com,1D76657075754F2D90D979C646E5BFE6,7,paid,active,paid,2019-07-22,2027-08-29
+Mohsin,Tajbhai,mosh338@gmail.com,EEA3780A7E1F4F9B8B41EA05AF43CE03,9,paid,active,paid,2019-07-21,2026-10-23
+Martin,"De Klerk",martin@ndk.co.za,8ABCC215DE0C4D2F8EC59051B6D1AFEC,14,paid,active,paid,2019-07-22,2027-01-10
+"Le Riche","Coetzer Snr",super38@worldonline.co.za,6702135020084,16,paid,active,paid,2019-07-22,2027-07-20
+Derek,Reyneke,dreyneke@outlook.com,6508055154088,17,paid,active,paid,2019-07-22,2026-10-03
+Schalk,Jacobs,schalk1407@gmail.com,8307145005089,23,paid,active,paid,2019-07-22,2027-02-22
+Jason,Marais,jasonmarais00@gmail.com,0201165067087,25,paid,active,paid,2019-07-22,2027-07-15
+Hendrik,Nel,hendrik.nel@fnb.co.za,7502165126085,27,paid,active,paid,2019-07-22,2026-09-11
+Pieter,Cronje,pc750109@gmail.com,7501095021085,28,paid,active,paid,2019-07-22,2027-05-31
+Warren,Britnell,warren@britplast.co.za,8003250000000,29,paid,active,paid,2019-07-22,2026-10-01
+Konrad,Grabe,konrad@ryncor.co.za,75890B62564D4BD59CEA30D72E163870,31,paid,active,paid,2019-07-22,2027-07-31
+"Daphne Louise",Taylor,louise@ontargetafrica.co.za,C7A20FB64D0648239733DBD9F4380884,42,paid,active,paid,2019-07-23,2027-01-21
+Louis,Raubenheimer,blaasbalk@gmail.com,81C07708CC264BCCB53FD84A3F64FDFD,61,paid,active,paid,2019-07-24,2026-10-09
+Greg,Sykes,308wingreg@gmail.com,6701115078088,83,paid,active,paid,2019-08-01,2027-01-30
+Marcel,Steyn,marcelsteyn686@gmail.com,B4A645DEDB524C86AB22B29A6E003B89,84,paid,active,paid,2019-08-07,2027-01-25
+James,Devine,jamesd@flyingsquad.co.za,5D7CEA4C09FA470CA339ED6A829550E9,107,paid,active,paid,2019-09-02,2026-10-20
+Liesl,Baben,lbaben@gmail.com,8211290095087,125,paid,active,paid,2019-10-03,2027-06-15
+Natasha,Britnell,natasha@britplast.co.za,FE7588FDBA8E418B823A222EC119653D,156,paid,active,paid,2019-10-30,2027-05-19
+Willem,"Van Biljon",willemvanbiljon0@gmail.com,12134F8C72A24C44AF94CA3FA98997CD,160,paid,active,paid,2019-10-31,2027-08-14
+Clive,Mey,clive.mey@draglobal.com,7201195104085,165,paid,active,paid,2019-11-19,2027-01-19
+Hanno,"Van Niekerk",hanno.vniekerk@gmail.com,A028795157F74B8DA908113BE0DDBB84,185,paid,active,paid,2020-01-06,2026-10-07
+Perry,"De Jager",pwdejager@gmail.com,7605065270083,196,paid,active,paid,2020-01-15,2026-11-28
+Handre,"van Niekerk",handrevanniekerk@gmail.com,8805105036085,199,paid,active,paid,2020-01-15,2026-10-04
+Wayne,Lesch,wayne@guntech.co.za,8107175004089,214,paid,active,paid,2020-01-22,2026-11-19
+Dirk,Pio,dirkpio01@gmail.com,81DCFCED7A4E44AB85FBA0DE2AC18769,230,paid,active,paid,2020-02-02,2027-02-09
+Glen,Clark,glen.clark@ecampty.co.za,6710195174089,243,paid,active,paid,2020-02-05,2027-01-14
+Jandre,Badenhorst,jandrebaden@gmail.com,9904155042082,311,paid,active,paid,2020-06-16,2027-01-13
+Walter,Capes,capesw@live.com,6510235026087,346,paid,active,paid,2020-08-13,2027-01-09
+Jacques,Matthee,jacquesmatthee2@gmail.com,3A86561BFF944FF49A636A4AECEEFEBA,347,paid,active,paid,2020-08-13,2026-10-07
+Asharuf,Moorad,airmoorad@gmail.com,08E2C6FDA34D4EDA975FE514EBEE0B18,399,paid,active,paid,2020-08-14,2027-02-08
+Aliza,Mey,die5meys@gmail.com,7303170075080,427,paid,active,paid,2020-08-28,2027-02-11
+Terblanche,"De Jager",dejagerterblanche@gmail.com,9705025089082,452,paid,active,paid,2020-08-30,2027-09-04
+Marjee,Badenhorst,marjeebaden@gmail.com,9701175072085,462,paid,active,paid,2020-09-02,2027-01-13
+Russell,Ferreira,russ@diamondtrailers.co.za,7001095061082,474,paid,active,paid,2020-09-23,2026-12-17
+Francois,Stoltz,francois.stoltz@gmail.com,30B73F02E87F4A9587D96840782B52A7,476,paid,active,paid,2020-09-29,2027-01-21
+"Jacobus Johannes",Visser,jjvisser09@gmail.com,8006175068088,496,paid,active,paid,2020-10-09,2027-01-14
+Kim-Leigh,Ferreira,kim@diamondtrailers.co.za,FF625837586E4327ACA15E763BF5873C,507,paid,active,paid,2020-10-13,2026-12-22
+Liezel,Foot,liezelfoot@gmail.com,8306240127087,572,paid,active,paid,2020-12-14,2027-01-15
+Maurice,Booyens,maurice.booyens@gmail.com,2706A35071E54D69B4789B4524136171,619,paid,active,paid,2021-01-22,2026-11-14
+Andre,Symington,asymington@ensafrica.com,6906025009087,640,paid,active,paid,2021-02-08,2027-03-13
+Andries,Lategan,lategan@global.co.za,0552D72E393E48DAA0C6849CF39931D5,683,paid,active,paid,2021-02-15,2027-02-18
+Ruan,Zeeman,ruan@romansrivier.co.za,9603025088081,686,paid,active,paid,2021-02-17,2027-03-23
+Pieter,Neethling,venaticsgear1@gmail.com,3B0FA3284C9644E1B6224E3330A6AC13,692,paid,active,paid,2021-02-27,2026-10-13
+Patrick,Capes,prcapes@live.com,9009155048087,695,paid,active,paid,2021-03-03,2027-03-02
+AJ,Deysel,aj@driven.co.za,30CC5FBD0D1F488687CE908F3DC50F70,711,paid,active,paid,2021-03-29,2026-09-30
+Barend,Nel,barend.nel2@gmail.com,110902,731,paid,active,paid,2021-05-11,2027-01-13
+Riaan,Kunneke,riaan7007@gmail.com,7007315030088,741,paid,active,paid,2021-05-26,2027-03-07
+Etienne,"De Waal",etienne.dewaal@gmail.com,6806110000000,804,paid,active,paid,2021-07-27,2026-10-12
+Pieter,Pieterse,pieter.p@me.com,8108250000000,835,paid,active,paid,2021-08-18,2027-02-19
+Paul,Rainier-Pope,templepope@gmail.com,6809215029081,838,paid,active,paid,2021-08-22,2027-03-09
+Shaun,Crous,beardedpistol@gmail.com,9101295295080,872,paid,active,paid,2021-10-28,2026-11-05
+Herman,Brink,hermanbrink76@gmail.com,7603035046089,882,paid,active,paid,2021-11-12,2027-01-27
+Edward,Henwood,eddiehenwoodcon@gmail.com,9012180000000,883,paid,active,paid,2021-11-15,2027-01-08
+Neil,Erwin,neil@trugrid.co.za,6706185010085,885,paid,active,paid,2021-11-17,2026-10-14
+Barend,"Nel Jnr",barendjohannesn@gmail.com,1109015201088,903,paid,active,paid,2023-08-17,2026-12-31
+Bosman,"Le Roux",bosmanlroux@gmail.com,9205170000000,925,paid,active,paid,2022-01-17,2027-02-24
+Danie,"du Preez",drdp@absamail.co.za,6611145074082,927,paid,active,paid,2022-01-18,2026-12-30
+Leon,Goosen,leogoos@gmail.com,8612210000000,934,paid,active,paid,2022-01-31,2027-02-02
+Malcolm,Coetzee,mrcoetzee101@gmail.com,9004225231086,935,paid,active,paid,2022-01-31,2026-09-15
+Stefan,Kruger,stefan.louis.kruger@gmail.com,9209230000000,950,paid,active,paid,2022-02-12,2027-01-01
+Trevor,Graham,trevorgraham@live.co.za,7002120000000,969,paid,active,paid,2022-02-23,2027-01-18
+Stelios,Christofi,stelios@kizotrading.co.za,7112285239089,972,paid,active,paid,2022-02-24,2027-02-21
+Marieke,"Van Rooyen",vanrooyen8@gmail.com,7010130000000,986,paid,active,paid,2022-03-15,2027-03-29
+Conner,Britnell,lbritnell@mweb.co.za,1008115406086,988,paid,active,paid,2022-03-16,2026-12-31
+Catelynn,Britnell,natashabritnell2525@gmail.com,0812100486081,989,paid,active,paid,2022-03-16,2026-12-31
+Johan,Symington,asymington@telkomsa.net,1005195399082,990,paid,active,paid,2022-03-16,2026-12-31
+Donovan,Cook,donnic9907@gmail.com,612045000000,993,paid,active,paid,2022-03-22,2026-12-31
+Jc,Robertson,jcrobster@gmail.com,8404070000000,1009,paid,active,paid,2022-04-15,2027-01-24
+George,Laranjeira,georgecng@vodamail.co.za,7403135108081,1034,paid,active,paid,2022-05-24,2026-10-10
+Gerhard,Slabbert,slabbertgerhard2@gmail.com,8307290000000,1065,paid,active,paid,2022-06-24,2026-12-19
+Theo,Pienaar,theopienaar3@gmail.com,6406305009089,1077,paid,active,paid,2022-06-29,2027-08-27
+Tinus,Cronje,tc060626@gmail.com,0606265113088,1083,paid,active,paid,2022-07-11,2026-12-31
+Dirk,"Van Staden",dirk0116@gmail.com,9001165040089,1107,paid,active,paid,2022-08-05,2027-06-08
+Sean,Graham,seangraham@live.co.za,9404285149089,1127,paid,active,paid,2022-08-29,2027-05-05
+Angelo,"Van Zyl",vanzyl.angelo@gmail.com,8808015015082,1147,paid,active,paid,2022-10-16,2027-01-09
+Cornelis,"van As",muisvanas@gmail.com,6901275062084,1175,paid,active,paid,2022-12-31,2027-02-04
+Johan,Nel,johan_nel2005@outlook.com,0502155319085,1180,paid,active,paid,2023-01-18,2027-01-18
+Herman,Potgieter,herman@cceglobal.co.za,6806215188081,1184,paid,active,paid,2023-01-20,2027-01-21
+Lehan,Potgieter,lehan@cceglobal.co.za,0812115218081,1185,paid,active,paid,2023-01-20,2027-01-09
+Diana,Zoccola,dianazoccola21@gmail.com,7109080057088,1194,paid,active,paid,2023-01-26,2027-03-11
+Sean,Swarts,seanswarts@gmail.com,8607145261081,1196,paid,active,paid,2023-02-03,2027-02-21
+Kevin,Goncalves,kevinmgoncalves@hotmail.com,2E31EB1823B149D09C97B223B2C0DA29,1199,paid,active,paid,2023-02-16,2027-08-02
+Henna,"du Plessis",hennadup@gmail.com,8906115075087,1206,paid,active,paid,2023-03-06,2027-07-17
+Heinrich,Strauss,heinrichstrauss1@gmail.com,6608165012083,1209,paid,active,paid,2023-04-03,2027-05-28
+Chris,Leeson,chris@cazzmania.co.za,8909265137087,1217,paid,active,paid,2023-05-31,2027-01-14
+Coenie,"Van Tonder",coenievt@gmail.com,8610195002082,1227,paid,active,paid,2023-07-23,2027-05-28
+MC,"Van Tonder",terblanchebelinda@gmail.com,1201185601088,1232,paid,active,paid,2023-07-23,2026-12-31
+Rudolf,Viljoen,rudo@hidrotech.co.za,9103285078088,1240,paid,active,paid,2023-09-13,2026-09-11
+Jacques,Potgieter,jacquespotgieter47@gmail.com,9611155116085,1248,paid,active,paid,2023-09-14,2027-03-09
+Ignatius,Lambert,info@conservgroup.co.za,7709195095087,1260,paid,active,paid,2023-09-18,2027-01-04
+Diederick,Koekemoer,erichkoekemoer@outlook.com,9409155132081,1261,paid,active,paid,2023-09-19,2026-12-22
+Deon,"Le Roux",deon@mondeon.co.za,7703115037089,1262,paid,active,paid,2023-09-19,2026-09-28
+Ann-Marie,Lategan,annmarielategan@gmail.com,9106280137080,1267,paid,active,paid,2023-09-24,2026-09-24
+Nico,Bredenkamp,nico@neobiz.co.za,6101105051080,1269,paid,active,paid,2023-09-26,2026-12-06
+Monica,"Le Roux",monica@mondeon.co.za,7512230260082,1277,paid,active,paid,2023-09-28,2026-09-28
+TW,"Van Zyl",tw_vanzyl@yahoo.com,8602255005089,1293,paid,active,paid,2023-10-07,2027-03-15
+Kurt,Peneder,kurt.peneder@gmail.com,7407105071087,1297,paid,active,paid,2023-10-09,2027-01-08
+Ettienne,Hennop,elhennop@yahoo.com,670220515089,1310,paid,active,paid,2023-10-27,2027-06-10
+Pieter,"le Roux",gokinetix@gmail.com,7212295026086,1322,paid,active,paid,2023-11-10,2027-01-26
+Kobus,Swart,kobusswart31@gmail.com,8011125051085,1331,paid,active,paid,2023-11-22,2027-01-01
+Dennis,"Van der merwe",dennis@connectapump.co.za,8608085006080,1335,paid,active,paid,2023-12-01,2026-12-17
+Jeanette,Coetzee,jeanettecoetzee91@gmail.com,9110020036081,1342,paid,active,paid,2023-12-01,2026-12-01
+Lodewyk,"Jansen van vuuren",lodewykjvv@gmail.com,7710195037087,1364,paid,active,paid,2023-12-26,2027-01-26
+Deon,Retief,retiefdeon4@gmail.com,8911065066086,1365,paid,active,paid,2023-12-26,2027-01-23
+Francois,"de Kock",dekock.francois@gmail.com,8703065045081,1383,paid,active,paid,2023-12-30,2027-03-04
+Paul,Fick,fickph@gmail.com,7901055072088,1411,paid,active,paid,2024-01-11,2027-04-28
+Zanel,Nel,zanelnel1@gmail.com,9107160067082,1424,paid,active,paid,2024-01-19,2027-01-13
+Andre,Steenkamp,andre.intouch@telkomsa.net,6507015196080,1436,paid,active,paid,2024-01-29,2027-01-26
+Jandre,Coetzee,coetzee.jandre@gmail.com,9206155008083,1437,paid,active,paid,2024-02-05,2026-09-28
+Andries,Aucamp,andriesaucamp123@gmail.com,7804065149088,1452,paid,active,paid,2024-02-12,2027-08-17
+Jac,"van Zyl",jvanzyl1@sars.gov.za,7812185025088,1453,paid,active,paid,2024-02-12,2027-03-12
+Devan,Nell,devan.nell.2001@gmail.com,0110315037082,1459,paid,active,paid,2024-02-16,2026-11-07
+Jaco,Bosman,jaco@hydraulicmedic.co.za,7603025050083,1468,paid,active,paid,2024-03-05,2027-03-10
+Karl,Geyer,kggeyer@gmail.com,8209135057080,1477,paid,active,paid,2024-03-18,2027-03-17
+Aaron,Burstein,photo.arb@gmail.com,9606285092081,1478,paid,active,paid,2024-03-18,2027-02-08
+"Petrus Rasmus","Jansen van Vuuren",rassie.vanvuuren@gmail.com,8510065082083,1482,paid,active,paid,2024-03-20,2027-03-20
+Henri,Klopper,klopper.henri@gmail.com,8508175007018,1500,paid,active,paid,2024-04-03,2027-01-28
+Hendrik,"van zyl",hendrikvz07@gmail.com,8907075124089,1549,paid,active,paid,2024-04-21,2026-10-29
+Michael,Mavrakis,mmavrakisinv@vodamail.co.za,8102095031080,1562,paid,active,paid,2024-04-30,2027-04-30
+"Gerrit Johann Olivier",Botha,lisejansenvanvuuren@gmail.com,1109145530083,1565,paid,active,paid,2024-05-03,2026-12-31
+Gerhard,Rorich,gerhard.rorich@gmail.com,8812215007089,1573,paid,active,paid,2024-05-17,2026-11-05
+Belinda,Botha,belinda46.bb@gmail.com,8804040005081,1576,paid,active,paid,2024-05-22,2026-11-03
+Antonie,Roets,tiaanroets21@gmail.com,0111065044088,1586,paid,active,paid,2024-06-03,2027-06-11
+Wynand,Brand,wynandbrand@icloud.com,9403105096082,1588,paid,active,paid,2024-06-06,2027-02-18
+Pieter,Niemand,pieter@flexiforce.co.za,8703055119082,1592,paid,active,paid,2024-06-10,2027-07-27
+Reinard,Stapelberg,reinard@enso.co.za,8710175042080,1598,paid,active,paid,2024-06-24,2027-01-21
+Stephen,Swart,stephenswart30@gmail.com,8704305139080,1624,paid,active,paid,2024-07-15,2027-07-20
+Gerhard,Hanekom,ghanekom@gmail.com,8005085026186,1645,paid,active,paid,2024-07-29,2027-02-17
+Schalk,"van der Merwe",vandermerwes1988@gmail.com,8809065056083,1656,paid,active,paid,2024-08-19,2026-10-02
+Dumisani,Shabangu,dumisani888@gmail.com,8802085672088,1682,paid,active,paid,2024-09-25,2027-01-20
+Riaan,Kruger,rkrugertsti@gmail.com,8304055084089,1689,paid,active,paid,2024-10-02,2027-01-22
+Johan,Greeff,jgreeff80@gmail.com,8010115075088,1696,paid,active,paid,2024-10-04,2027-07-19
+Paul,Charsley,p.charsley@gmail.com,8507026265088,1701,paid,active,paid,2024-10-08,2026-10-09
+Donovan,Souvaris,dsouvaris@hytronic.co.za,7707165219083,1703,paid,active,paid,2024-10-09,2026-11-24
+Jared,Souvaris,dsouvaris@gmail.com,0712215493081,1704,paid,active,paid,2024-10-09,2026-11-24
+Jaco,"van Tonder",jacovtonder7@gmail.com,8005125027087,1707,paid,active,paid,2024-10-15,2027-01-03
+Ernst,Moller,ernstmoller_10@hotmail.com,8505215004086,1739,paid,active,paid,2024-11-17,2026-11-24
+Justin,Coverly,justin.coverly@gmail.com,8703055079082,1745,paid,active,paid,2024-11-20,2027-03-07
+Gert,"Van Der Walt",broergert@gmail.com,7907085069085,1756,paid,active,paid,2024-12-28,2027-01-01
+Grant,Bower,grantpbower@gmail.com,7402125270083,1760,paid,active,paid,2025-01-03,2027-05-04
+Francois,Lombaard,lombaardbrent@gmail.com,0302235092087,1761,paid,active,paid,2025-01-04,2027-03-02
+Tony,"Van Heerden",tonyvh@nexusag.net,9510105163082,1763,paid,active,paid,2025-01-06,2027-03-25
+Duan,Viljoen,duanviljoen@yahoo.com,9010135084085,1764,paid,active,paid,2025-01-07,2027-01-07
+Deon,Jordaan,deonjordaan7@gmail.com,6906055161089,1767,paid,active,paid,2025-01-11,2027-01-11
+Jozef,Kriek,drkriek3@gmail.com,8310145236086,1770,paid,active,paid,2025-01-14,2027-01-14
+Brandon,Frazer,bran.frazer1@gmail.com,9112305016085,1800,paid,active,paid,2025-03-03,2027-05-08
+Eerick,Horn,eerickhorn.tpt@gmail.com,9009095039089,1810,paid,active,paid,2025-03-10,2027-03-09
+Francois,"Van wyk",francois@fhcivils.co.za,9001015114084,1815,paid,active,paid,2025-03-18,2026-10-06
+Jandre,Weideman,jandre1weideman@gmail.com,9502265179081,1819,paid,active,paid,2025-03-25,2027-05-11
+Lin├⌐,"de Witt",linedewitt.ldw@gmail.com,0101190072088,1820,paid,active,paid,2025-03-25,2027-03-30
+Patric,Fourie,ops@pct-gp.co.za,7708025087082,1854,paid,active,paid,2025-05-15,2027-05-19
+Marius,Gericke,mariusg@lantic.net,6604275019084,1855,paid,active,paid,2025-05-15,2027-04-16
+Jacques,Mey,jacques@issenisp.co.za,7004275082084,1857,paid,active,paid,2025-05-17,2027-05-18
+Johann,"Van Der Merwe",boontjievis@gmail.com,8705225388087,1872,paid,active,paid,2025-07-02,2027-06-02
+Franco,Cilliers,fa.cilliers@gmail.com,8706095010082,1878,paid,active,paid,2025-07-06,2026-11-11
+Stephanus,"Janse van Rensburg",stevenjvr@me.com,6509015043080,1884,paid,active,paid,2025-07-14,2027-07-14
+Adrian,"Janse van Rensburg",rianjvr2303@gmail.com,6903235035085,1885,paid,active,paid,2025-07-14,2027-07-15
+Chris,Pretorius,golfpretorius8@gmail.com,8906155028087,1892,paid,active,paid,2025-07-30,2026-09-22
+Werner,Walkinshaw,wwalkinshaw@gmail.com,9602105015089,1910,paid,active,paid,2025-08-20,2027-04-28
+Lian,"Van der Merwe",lian.vdm4@gmail.com,0909295797080,1920,paid,active,paid,2025-09-03,2027-01-20
+Erich,"Van der Merwe",erich.vdm4@gmail.com,0909295798088,1921,paid,active,paid,2025-09-03,2027-01-20
+Marius,Oosthuysen,marius.oost@mweb.co.za,7901055063087,1924,paid,active,paid,2025-09-09,2026-09-10
+Gabriel,"van Blerk",gabrielvanblerk355@gmail.com,1005171084,1935,paid,active,paid,2025-09-23,2026-09-23
+Jaco,Neethling,fjneet@gmail.com,9011075104081,1937,paid,active,paid,2025-10-06,2026-10-06
+Niel,Symington,niel@eeconstruction.co.za,890511544085,1938,paid,active,paid,2025-10-06,2026-10-06
+STACEY,COETZER,staceyycoetzer@gmail.com,9706050046088,1941,paid,active,paid,2025-10-07,2026-10-07
+K,DRESSELHAUS,orders@skietfabriek.co.za,9103910126088,1942,paid,active,paid,2025-10-08,2026-10-08
+Stephan,"van der Merwe",stepvandermerwe@gmail.com,8010095102084,1955,paid,active,paid,2025-10-25,2026-12-18
+Andre,Malan,andrem@fairtree.com,6707275126088,1959,paid,active,paid,2025-11-16,2026-12-18
+Eghard,"Van Den Berg",eghard9@gmail.com,9601105214080,1960,paid,active,paid,2025-11-16,2027-01-01
+Janalt,Damstra,janaltbraces@icloud.com,7309225008083,1969,paid,active,paid,2025-11-27,2026-11-27
+Bianca,Viljoen,bianca.homeier@gmail.com,9208080233083,1971,paid,active,paid,2025-12-06,2026-12-06
+"Le Roye","Van Der Merwe",leroye@riverton.co.za,8512175065081,1978,paid,active,paid,2025-12-29,2026-12-29
+Bertus,Kleyn,bertuskleyn96@gmail.com,9608035064089,1980,paid,active,paid,2026-01-01,2027-01-04
+Daniel,G,danielgerntholtz@icloud.com,0904015348082,1981,paid,active,paid,2026-01-02,2027-01-02
+Johan,"Van Zyl",johan.vanzyl@riskxgroup.com,7407045087087,1982,paid,active,paid,2026-01-02,2027-01-11
+Megan,Heydenreich,megan.heydenreich@gmail.com,9811190036088,1983,paid,active,paid,2026-01-03,2027-01-03
+Ricus,Warmenhoven,ricusw@gmail.com,9707305457088,1984,paid,active,paid,2026-01-03,2027-01-03
+Gabriel,"Van Blerk",vanblerkgabriel98@gmail.com,20100510,1987,paid,active,paid,2026-01-05,2027-01-05
+Nicholas,Harlow,n.harlow@icloud.com,8611115044089,1988,paid,active,paid,2026-01-05,2027-02-16
+Duane,Brummer,duane.brummer11@gmail.com,1102035819088,2002,paid,active,paid,2026-01-14,2027-01-14
+Mico,Brummer,micobrummer@gmail.com,1306125577080,2003,paid,active,paid,2026-01-14,2027-01-14
+Carla,Nel,carlanel13@gmail.com,0005170076086,2006,paid,active,paid,2026-01-17,2027-06-22
+Tiaan,Scheepers,tiaanscheepers2015@gmail.com,0208135126083,2010,paid,active,paid,2026-01-19,2027-01-19
+"Adriani Mari",Brummer,adriani0607@icloud.com,1107060340082,2011,paid,active,paid,2026-01-19,2027-01-19
+Michelle,"Janse van Rensburg",michellejvr17@gmail.com,9406170048086,2027,paid,active,paid,2026-02-21,2027-05-23
+Gawie,Hugo,gawie@rsc1.co.za,6711265020087,2035,paid,active,paid,2026-02-27,2027-05-21
+Piet,Wolfaardt,pwolfaardt44@gmail.com,9104145024080,2070,paid,active,paid,2026-04-17,2027-06-10
+Andries,Erasmus,bowtech.andries@gmail.com,9708125012087,2102,paid,active,paid,2026-06-29,2027-06-29
+"Sean William",ONeill,oneills76@yahoo.com,9209015036088,2113,paid,active,paid,2026-07-21,2027-07-21

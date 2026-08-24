@@ -150,6 +150,56 @@ CSV);
         ->and($u->phone)->toBeNull();          // "NO PHONE" dropped
 });
 
+it('merges onto the real email account when a scraper stub already holds the SAPRF number', function () {
+    $real = User::create([
+        'name' => 'Daphne Louise Taylor',
+        'email' => 'louise@ontargetafrica.co.za',
+        'password' => Hash::make('secret'),
+        'is_active' => true,
+    ]);
+    Membership::create([
+        'user_id' => $real->id,
+        'saprf_number' => 'SAPRF-2026-00001',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2026-12-31',
+    ]);
+
+    $stub = User::create([
+        'name' => 'Daphne Louise Taylor',
+        'email' => 'daphne.taylor@import.saprf.local',
+        'password' => Hash::make('unusable'),
+        'is_active' => true,
+    ]);
+    Membership::create([
+        'user_id' => $stub->id,
+        'saprf_number' => '42',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'waived',
+        'start_date' => '2019-07-23',
+        'expiry_date' => '2026-12-31',
+    ]);
+
+    $csv = writeMembersCsv(<<<CSV
+name,email,saprf_number,membership_type,status,payment_status,start_date,expiry_date
+Daphne Louise Taylor,louise@ontargetafrica.co.za,42,paid,active,paid,2019-07-23,2027-01-21
+CSV);
+
+    Artisan::call('users:import-members', ['file' => $csv]);
+
+    $real->refresh();
+    $stub->refresh();
+
+    expect($real->email)->toBe('louise@ontargetafrica.co.za')
+        ->and($real->membership->saprf_number)->toBe('42')
+        ->and($real->membership->expiry_date->toDateString())->toBe('2027-01-21')
+        ->and($stub->membership->saprf_number)->not->toBe('42')
+        ->and($stub->email)->toBe('daphne.taylor@import.saprf.local');
+});
+
 it('protects @saprf.co.za staff emails from being overwritten', function () {
     $staff = User::create([
         'name' => 'Admin Person',
