@@ -337,47 +337,113 @@
                                 <p class="text-sm text-stone-400">No shooters have registered yet.</p>
                             </div>
                         @else
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full">
-                                    <thead>
-                                        <tr class="border-b border-stone-100 bg-stone-50/60">
-                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 w-10">#</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Division</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Province</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-stone-100">
-                                        @foreach($entries as $i => $entry)
-                                            <tr class="hover:bg-stone-50 transition-colors">
-                                                <td class="px-6 py-3 text-sm text-stone-400 tabular-nums">{{ $i + 1 }}</td>
-                                                <td class="px-6 py-3 text-sm font-medium text-stone-900">{{ $entry->user?->name ?? $entry->shooter_name }}</td>
-                                                <td class="px-6 py-3 text-sm">
-                                                    @if($entry->division)
-                                                        <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{{ $entry->division->name }}</span>
-                                                    @else
-                                                        <span class="text-stone-400">—</span>
-                                                    @endif
-                                                </td>
-                                                <td class="px-6 py-3 text-sm text-stone-500">{{ $entry->user?->province?->name ?? '—' }}</td>
-                                                <td class="px-6 py-3">
-                                                    @switch($entry->registration_status)
-                                                        @case('confirmed')
-                                                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Confirmed</span>
-                                                            @break
-                                                        @case('waitlisted')
-                                                            <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Waitlisted</span>
-                                                            @break
-                                                        @default
-                                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
-                                                    @endswitch
-                                                </td>
+                            @php
+                                $entryRows = $entries->map(function ($entry) {
+                                    $status = $entry->registration_status;
+
+                                    return [
+                                        'id' => $entry->id,
+                                        'name' => $entry->user?->name ?? $entry->shooter_name,
+                                        'division' => $entry->division?->name ?? '',
+                                        'division_order' => $entry->division?->display_order ?? 999,
+                                        'province' => $entry->user?->province?->name ?? '',
+                                        'status' => $status,
+                                        'status_label' => match ($status) {
+                                            'confirmed' => 'Confirmed',
+                                            'waitlisted' => 'Waitlisted',
+                                            default => 'Pending',
+                                        },
+                                        'status_class' => match ($status) {
+                                            'confirmed' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+                                            'waitlisted' => 'bg-sky-50 text-sky-700 ring-sky-600/20',
+                                            default => 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                                        },
+                                        'status_order' => match ($status) {
+                                            'confirmed' => 1,
+                                            'waitlisted' => 2,
+                                            default => 3,
+                                        },
+                                    ];
+                                })->values()->all();
+                            @endphp
+                            <div x-data="entryList({{ Js::from($entryRows) }})">
+                                <div class="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-stone-100 bg-stone-50/40">
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Sort by</span>
+                                    <div class="flex flex-wrap rounded-lg bg-stone-100 p-0.5 w-fit">
+                                        <button type="button" @click="setSort('division')" :class="sort === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'division').toString()">Division</button>
+                                        <button type="button" @click="setSort('shooter')" :class="sort === 'shooter' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'shooter').toString()">Shooter</button>
+                                        <button type="button" @click="setSort('province')" :class="sort === 'province' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'province').toString()">Province</button>
+                                        <button type="button" @click="setSort('status')" :class="sort === 'status' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'status').toString()">Status</button>
+                                    </div>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full">
+                                        <thead>
+                                            <tr class="border-b border-stone-100 bg-stone-50/60">
+                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 w-10">#</th>
+                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
+                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Division</th>
+                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Province</th>
+                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
                                             </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody class="divide-y divide-stone-100">
+                                            <template x-for="(entry, i) in sortedEntries" :key="entry.id">
+                                                <tr class="hover:bg-stone-50 transition-colors">
+                                                    <td class="px-6 py-3 text-sm text-stone-400 tabular-nums" x-text="i + 1"></td>
+                                                    <td class="px-6 py-3 text-sm font-medium text-stone-900" x-text="entry.name"></td>
+                                                    <td class="px-6 py-3 text-sm">
+                                                        <template x-if="entry.division">
+                                                            <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="entry.division"></span>
+                                                        </template>
+                                                        <template x-if="!entry.division">
+                                                            <span class="text-stone-400">—</span>
+                                                        </template>
+                                                    </td>
+                                                    <td class="px-6 py-3 text-sm text-stone-500" x-text="entry.province || '—'"></td>
+                                                    <td class="px-6 py-3">
+                                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="entry.status_class" x-text="entry.status_label"></span>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
+                            <script>
+                            document.addEventListener('alpine:init', () => {
+                                Alpine.data('entryList', (entries) => ({
+                                    entries,
+                                    sort: 'division',
+
+                                    setSort(key) {
+                                        this.sort = key;
+                                    },
+
+                                    get sortedEntries() {
+                                        const rows = [...this.entries];
+                                        const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+                                        rows.sort((a, b) => {
+                                            if (this.sort === 'shooter') {
+                                                return byName(a, b);
+                                            }
+                                            if (this.sort === 'province') {
+                                                if (! a.province && b.province) return 1;
+                                                if (a.province && ! b.province) return -1;
+                                                return (a.province || '').localeCompare(b.province || '', undefined, { sensitivity: 'base' }) || byName(a, b);
+                                            }
+                                            if (this.sort === 'status') {
+                                                return (a.status_order - b.status_order) || byName(a, b);
+                                            }
+                                            return (a.division_order - b.division_order) || byName(a, b);
+                                        });
+
+                                        return rows;
+                                    },
+                                }));
+                            });
+                            </script>
                         @endif
                         </div>{{-- /#entry-list-panel --}}
                     </div>

@@ -466,11 +466,19 @@ class MatchController extends Controller
 
         // Public entry list — everyone can see who has registered. Cancelled /
         // withdrawn entries are hidden; fees stay private to organisers.
+        // Default order is division (display_order), then shooter name — the
+        // event page lets visitors re-sort client-side from there.
         $entries = $match->registrations()
             ->where('registration_status', '!=', 'cancelled')
-            ->with('user:id,name,province_id', 'user.province:id,name', 'division:id,name')
-            ->orderBy('registered_at')
-            ->get();
+            ->with('user:id,name,province_id', 'user.province:id,name', 'division:id,name,display_order')
+            ->get()
+            ->sortBy(function ($entry) {
+                $order = $entry->division?->display_order ?? 999;
+                $name = strtolower((string) ($entry->user?->name ?? $entry->shooter_name ?? ''));
+
+                return sprintf('%04d-%s', $order, $name);
+            })
+            ->values();
 
         // Reconciliation summary shown above the entrant list once results
         // are up: how many entered vs how many actually scored vs how many

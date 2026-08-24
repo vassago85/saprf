@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Province;
@@ -216,6 +217,30 @@ it('hides fee details from a staff user viewing their own list in shooter mode',
         ->assertOk()
         ->assertSee($admin->name)
         ->assertDontSee('1,500.00');
+});
+
+it('sorts upcoming match entries by division by default and exposes sort buttons', function () {
+    $open = Division::create(['slug' => 'open-sort', 'name' => 'Open', 'display_order' => 1, 'is_active' => true]);
+    $tactical = Division::create(['slug' => 'tactical-sort', 'name' => 'Tactical', 'display_order' => 2, 'is_active' => true]);
+    $factory = Division::create(['slug' => 'factory-sort', 'name' => 'Factory', 'display_order' => 3, 'is_active' => true]);
+
+    // Register in reverse division order so registered_at would put Factory first.
+    registerShooter($this->match, 'Alpha Factory', ['division_id' => $factory->id]);
+    registerShooter($this->match, 'Zulu Tactical', ['division_id' => $tactical->id]);
+    registerShooter($this->match, 'Mike Open', ['division_id' => $open->id]);
+
+    $response = $this->get(route('events.show', $this->match))->assertOk();
+
+    expect($response->viewData('entries')->pluck('shooter_name')->all())
+        ->toBe(['Mike Open', 'Zulu Tactical', 'Alpha Factory']);
+
+    $response
+        ->assertSee('Sort by')
+        ->assertSee('entryList(')
+        ->assertSee('@click="setSort(\'division\')"', false)
+        ->assertSee('@click="setSort(\'shooter\')"', false)
+        ->assertSee('@click="setSort(\'province\')"', false)
+        ->assertSee('@click="setSort(\'status\')"', false);
 });
 
 it('still shows a member only their own registrations when no match is given', function () {
