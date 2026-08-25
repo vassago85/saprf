@@ -93,6 +93,16 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        // Legacy imports and mobile keyboards frequently deposit non-digit
+        // characters (spaces, hyphens, non-breaking spaces) into the SA ID
+        // field. Strip them before validation so `digits:13` doesn't reject a
+        // value that is otherwise correct, and null-out an empty passport
+        // string so `required_without` behaves symmetrically.
+        $request->merge([
+            'sa_id_number' => self::normaliseSaIdNumber($request->input('sa_id_number')),
+            'passport_number' => self::normalisePassportNumber($request->input('passport_number')),
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
@@ -117,11 +127,12 @@ class ProfileController extends Controller
             // hidden (404) entirely. Enum-validated so a crafted request
             // can't inject a value outside the migration's enum.
             'public_profile_visibility' => ['required', Rule::in(array_keys(User::PROFILE_VISIBILITY_OPTIONS))],
-            'current_password' => ['nullable', 'required_with:new_password', 'current_password'],
-            'new_password' => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
         ], [
             'sa_id_number.required_without' => 'Enter your 13-digit SA ID number, or a passport number if you are not a South African citizen.',
             'passport_number.required_without' => 'Enter a passport number, or your 13-digit SA ID number.',
+            'sa_id_number.digits' => 'SA ID number must be exactly 13 digits.',
+            'sa_id_number.unique' => 'That SA ID is already on another account. Please contact the SAPRF admins.',
+            'email.unique' => 'That email address is already in use by another member.',
             'date_of_birth.required' => 'Your date of birth is required for SASCOC reporting.',
             'gender.required' => 'Please select your gender for SASCOC reporting.',
             'ethnicity.required' => 'Please select your ethnicity for SASCOC reporting.',
@@ -145,20 +156,73 @@ class ProfileController extends Controller
             default => null,
         };
 
-        if (! empty($validated['new_password'])) {
-            $user->password = Hash::make($validated['new_password']);
-        }
-
-        unset(
-            $validated['current_password'],
-            $validated['new_password'],
-            $validated['previously_disadvantaged_choice'],
-        );
+        unset($validated['previously_disadvantaged_choice']);
 
         $user->fill($validated);
         $user->save();
 
         return redirect()->route('profile')
             ->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Password change lives on its own form + route. Bundling it with the
+     * profile update meant Safari + iCloud Keychain silently autofilled the
+     * `current_password` field on unrelated saves and Laravel then rejected
+     * the whole form with "current password is incorrect" — even for members
+     * who only wanted to change their phone number. Splitting the two also
+     * means we can require both fields here without having to make them
+     * optional-when-empty on the details form.
+     */
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        ], [
+            'current_password.current_password' => 'The current password you entered is incorrect.',
+            'new_password.confirmed' => 'The new password and confirmation do not match.',
+        ]);
+
+        $user->password = Hash::make($request->input('new_password'));
+        $user->save();
+
+        return redirect()->route('profile')
+            ->with('success', 'Password updated successfully.');
+    }
+
+    /**
+     * Strip everything but digits, then coerce empty to null so that
+     * `required_without:passport_number` correctly treats a whitespace-only
+     * value as "not supplied". Also handles the non-breaking space (U+00A0)
+     * that iOS autocorrect and some CSV imports insert.
+     */
+    private static function normaliseSaIdNumber(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/u', '', $value) ?? '';
+
+        return $digits === '' ? null : $digits;
+    }
+
+    /**
+     * Trim the passport number and coerce empty string to null; the
+     * `required_without:sa_id_number` rule requires that pairing to be
+     * symmetric.
+     */
+    private static function normalisePassportNumber(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

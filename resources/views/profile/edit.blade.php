@@ -31,6 +31,7 @@
 
             @if ($errors->any())
                 <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    <p class="font-semibold mb-1">Your changes couldn't be saved yet — please fix the highlighted fields below:</p>
                     <ul class="list-inside list-disc space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -44,50 +45,73 @@
 
                 <div>
                     <label for="name" class="block text-sm font-medium text-stone-700">Full Name <span class="text-red-600">*</span></label>
-                    <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required class="mt-1 block w-full rounded-lg border @error('name') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="email" class="block text-sm font-medium text-stone-700">Email Address <span class="text-red-600">*</span></label>
-                    <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required class="mt-1 block w-full rounded-lg border @error('email') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="phone" class="block text-sm font-medium text-stone-700">Phone Number</label>
-                    <input type="tel" name="phone" id="phone" value="{{ old('phone', $user->phone) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="tel" name="phone" id="phone" value="{{ old('phone', $user->phone) }}" class="mt-1 block w-full rounded-lg border @error('phone') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('phone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="sa_id_number" class="block text-sm font-medium text-stone-700">SA ID Number <span class="text-red-600">*</span></label>
-                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" pattern="\d{13}" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->sa_id_number) && empty($user->passport_number)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
-                    <p class="mt-1 text-xs text-stone-400">Required for SASCOC reporting. 13 digits only. Not a South African citizen? Leave this blank and complete <strong>Passport Number</strong> below instead.</p>
+                    {{-- Deliberately NO client-side `pattern` here: Safari on
+                         Mac enforces it *before* submitting and shows a tooltip
+                         many users miss, so the Save button appears dead. The
+                         controller strips non-digits and revalidates with
+                         `digits:13` — same guarantee, but with a visible error
+                         message when it fails. --}}
+                    <input type="text" name="sa_id_number" id="sa_id_number" value="{{ old('sa_id_number', $user->sa_id_number) }}" maxlength="13" inputmode="numeric" autocomplete="off" placeholder="13-digit SA ID number" class="mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @error('sa_id_number') border-red-400 @elseif(session('profile_incomplete') && empty($user->sa_id_number) && empty($user->passport_number)) !border-amber-400 !ring-1 !ring-amber-400 @else border-stone-300 @enderror">
+                    @error('sa_id_number')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">Required for SASCOC reporting. 13 digits only. Not a South African citizen? Leave this blank and complete <strong>Passport Number</strong> below instead.</p>
+                    @enderror
                 </div>
 
                 <div>
                     <label for="passport_number" class="block text-sm font-medium text-stone-700">Passport Number</label>
-                    <input type="text" name="passport_number" id="passport_number" value="{{ old('passport_number', $user->passport_number) }}" maxlength="50" placeholder="Non-SA citizens only" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <p class="mt-1 text-xs text-stone-400">Only capture this if you don't have a South African ID.</p>
+                    <input type="text" name="passport_number" id="passport_number" value="{{ old('passport_number', $user->passport_number) }}" maxlength="50" autocomplete="off" placeholder="Non-SA citizens only" class="mt-1 block w-full rounded-lg border @error('passport_number') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('passport_number')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">Only capture this if you don't have a South African ID.</p>
+                    @enderror
                 </div>
 
                 <div>
                     <label for="mil_le_number" class="block text-sm font-medium text-stone-700">Mil / LE Number</label>
-                    <input type="text" name="mil_le_number" id="mil_le_number" value="{{ old('mil_le_number', $user->mil_le_number) }}" maxlength="50" placeholder="Optional — military or law-enforcement service number" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <input type="text" name="mil_le_number" id="mil_le_number" value="{{ old('mil_le_number', $user->mil_le_number) }}" maxlength="50" placeholder="Optional — military or law-enforcement service number" class="mt-1 block w-full rounded-lg border @error('mil_le_number') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm placeholder:text-stone-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('mil_le_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="date_of_birth" class="block text-sm font-medium text-stone-700">Date of Birth <span class="text-red-600">*</span></label>
-                    <input type="date" name="date_of_birth" id="date_of_birth" required value="{{ old('date_of_birth', $user->date_of_birth?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->date_of_birth)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
-                    <p class="mt-1 text-xs text-stone-400">Used for SASCOC reporting and eligibility checks.</p>
+                    <input type="date" name="date_of_birth" id="date_of_birth" required value="{{ old('date_of_birth', $user->date_of_birth?->format('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @error('date_of_birth') border-red-400 @elseif(session('profile_incomplete') && empty($user->date_of_birth)) !border-amber-400 !ring-1 !ring-amber-400 @else border-stone-300 @enderror">
+                    @error('date_of_birth')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">Used for SASCOC reporting and eligibility checks.</p>
+                    @enderror
                 </div>
 
                 <div>
                     <label for="province_id" class="block text-sm font-medium text-stone-700">Province <span class="text-red-600">*</span></label>
-                    <select name="province_id" id="province_id" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @if(session('profile_incomplete') && empty($user->province_id)) !border-amber-400 !ring-1 !ring-amber-400 @endif">
+                    <select name="province_id" id="province_id" required class="mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 @error('province_id') border-red-400 @elseif(session('profile_incomplete') && empty($user->province_id)) !border-amber-400 !ring-1 !ring-amber-400 @else border-stone-300 @enderror">
                         <option value="" disabled @selected(empty(old('province_id', $user->province_id)))>— Select province —</option>
                         @foreach($provinces as $province)
                             <option value="{{ $province->id }}" @selected(old('province_id', $user->province_id) == $province->id)>{{ $province->name }}</option>
                         @endforeach
                     </select>
+                    @error('province_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="border-t border-stone-200 pt-5">
@@ -98,33 +122,36 @@
                 <div>
                     <label for="gender" class="block text-sm font-medium text-stone-700">Gender <span class="text-red-600">*</span></label>
                     @php($genderCurrent = old('gender', $user->gender))
-                    <select name="gender" id="gender" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <select name="gender" id="gender" required class="mt-1 block w-full rounded-lg border @error('gender') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled @selected(empty($genderCurrent))>— Select —</option>
                         @foreach($genderOptions as $value => $label)
                             <option value="{{ $value }}" @selected($genderCurrent === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
+                    @error('gender') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="ethnicity" class="block text-sm font-medium text-stone-700">Ethnicity <span class="text-red-600">*</span></label>
                     @php($ethnicityCurrent = old('ethnicity', $user->ethnicity))
-                    <select name="ethnicity" id="ethnicity" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <select name="ethnicity" id="ethnicity" required class="mt-1 block w-full rounded-lg border @error('ethnicity') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled @selected(empty($ethnicityCurrent))>— Select —</option>
                         @foreach($ethnicityOptions as $value => $label)
                             <option value="{{ $value }}" @selected($ethnicityCurrent === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
+                    @error('ethnicity') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="previously_disadvantaged_choice" class="block text-sm font-medium text-stone-700">Previously Disadvantaged <span class="text-red-600">*</span></label>
                     @php($pdCurrent = old('previously_disadvantaged_choice', $user->previously_disadvantaged === true ? 'yes' : ($user->previously_disadvantaged === false ? 'no' : '')))
-                    <select name="previously_disadvantaged_choice" id="previously_disadvantaged_choice" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <select name="previously_disadvantaged_choice" id="previously_disadvantaged_choice" required class="mt-1 block w-full rounded-lg border @error('previously_disadvantaged_choice') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled @selected($pdCurrent === '')>— Select —</option>
                         <option value="yes" @selected($pdCurrent === 'yes')>Yes</option>
                         <option value="no" @selected($pdCurrent === 'no')>No</option>
                     </select>
+                    @error('previously_disadvantaged_choice') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="border-t border-stone-200 pt-5">
@@ -134,7 +161,7 @@
 
                 <div>
                     <label for="club_id" class="block text-sm font-medium text-stone-700">Primary Club <span class="text-red-600">*</span></label>
-                    <select name="club_id" id="club_id" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <select name="club_id" id="club_id" required class="mt-1 block w-full rounded-lg border @error('club_id') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled @selected(empty(old('club_id', $user->club_id)))>— Select your club —</option>
                         @foreach($clubs as $provinceName => $provinceClubs)
                             <optgroup label="{{ $provinceName }}">
@@ -146,7 +173,11 @@
                             </optgroup>
                         @endforeach
                     </select>
-                    <p class="mt-1 text-xs text-stone-400">Selection eligibility (ELG-03) requires either provincial residency <em>or</em> membership of a SAPRF-recognised club.</p>
+                    @error('club_id')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">Selection eligibility (ELG-03) requires either provincial residency <em>or</em> membership of a SAPRF-recognised club.</p>
+                    @enderror
                 </div>
 
                 <div>
@@ -162,18 +193,26 @@
                             <span>No</span>
                         </label>
                     </div>
-                    <p class="mt-1 text-xs text-stone-400">Required by IPRF (ELG-02) to represent South Africa.</p>
+                    @error('sa_citizen')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">Required by IPRF (ELG-02) to represent South Africa.</p>
+                    @enderror
                 </div>
 
                 <div>
                     <label for="country_of_residence" class="block text-sm font-medium text-stone-700">Country of Residence <span class="text-red-600">*</span></label>
-                    <select name="country_of_residence" id="country_of_residence" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <select name="country_of_residence" id="country_of_residence" required class="mt-1 block w-full rounded-lg border @error('country_of_residence') border-red-400 @else border-stone-300 @enderror px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled @selected(empty(old('country_of_residence', $user->country_of_residence)))>— Select —</option>
                         @foreach($countries as $code => $label)
                             <option value="{{ $code }}" @selected(old('country_of_residence', $user->country_of_residence) === $code)>{{ $label }}</option>
                         @endforeach
                     </select>
-                    <p class="mt-1 text-xs text-stone-400">If you live outside South Africa, ELG-04 requires that you shot the mandatory SA Championship match in the qualifying year.</p>
+                    @error('country_of_residence')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-stone-400">If you live outside South Africa, ELG-04 requires that you shot the mandatory SA Championship match in the qualifying year.</p>
+                    @enderror
                 </div>
             </div>
 
@@ -226,10 +265,24 @@
                 @endif
             </div>
 
+            <div class="flex items-center gap-3">
+                <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Changes</button>
+                <a href="{{ route('dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900">Cancel</a>
+            </div>
+        </form>
+
+        {{-- Password change is its own form so Safari + iCloud Keychain
+             autofilling `current_password` on page load can't ever poison a
+             details-only save. The route + middleware exempt this so a member
+             with an incomplete profile can still reset their password. --}}
+        <form method="POST" action="{{ route('profile.password.update') }}" class="space-y-6">
+            @csrf
+            @method('PUT')
+
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
                 <div>
                     <h2 class="font-heading text-lg font-semibold text-stone-900">Change Password</h2>
-                    <p class="mt-1 text-sm text-stone-500">Leave blank if you don't want to change your password.</p>
+                    <p class="mt-1 text-sm text-stone-500">Only fill this in if you want to change your password.</p>
                 </div>
 
                 <x-password-field name="current_password" id="current_password" label="Current Password"
@@ -243,11 +296,10 @@
                 </x-password-field>
 
                 <x-password-field name="new_password_confirmation" id="new_password_confirmation" label="Confirm New Password" :checklist="false" />
-            </div>
 
-            <div class="flex items-center gap-3">
-                <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Save Changes</button>
-                <a href="{{ route('dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900">Cancel</a>
+                <div>
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Update Password</button>
+                </div>
             </div>
         </form>
 

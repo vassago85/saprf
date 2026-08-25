@@ -18,6 +18,7 @@ class EnsureProfileComplete
     private const EXEMPT_ROUTES = [
         'profile',
         'profile.update',
+        'profile.password.update',
         'logout',
         'verification.notice',
     ];

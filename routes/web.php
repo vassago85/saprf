@@ -289,6 +289,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::put('/profile/notification-preferences', [NotificationPreferencesController::class, 'update'])
         ->name('profile.notification-preferences.update');
 
