@@ -199,6 +199,14 @@ class DocumentsController extends Controller
                         'badge' => null,
                         'last_updated' => $this->docMtime('docs/legal/conflict-of-interest.md'),
                     ],
+                    [
+                        'title' => 'Judicial Code',
+                        'subtitle' => 'v1.0 · January 2019',
+                        'description' => 'The judicial processes SAPPRF uses to fairly regulate disputes between members, contraventions of the Constitution / Rules & Regulations / Code of Conduct, and serious firearm safety infractions — covering mediation, arbitration, disciplinary, and appeal processes.',
+                        'url' => route('legal.judicial-code'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/legal/judicial-code.md'),
+                    ],
                 ],
             ],
         ];

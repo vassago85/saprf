@@ -123,6 +123,12 @@ class DocumentSearch
             'md_path' => 'docs/legal/conflict-of-interest.md',
         ],
         [
+            'doc_title' => 'Judicial Code',
+            'kicker' => 'Legal',
+            'route' => 'legal.judicial-code',
+            'md_path' => 'docs/legal/judicial-code.md',
+        ],
+        [
             'doc_title' => 'Frequently Asked Questions',
             'kicker' => 'Help',
             'route' => 'faq.index',

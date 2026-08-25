@@ -53,6 +53,17 @@ class LegalController extends Controller
         return view('legal.constitution', $this->loadMarkdownDocument('docs/legal/constitution.md'));
     }
 
+    public function judicialCode(): View
+    {
+        // The Judicial Code is unusual among the legal docs in that it also
+        // has a signed PDF original we surface via the "Download original
+        // PDF" pill in the page header. All other legal docs are markdown-
+        // only for now.
+        return view('legal.judicial-code', $this->loadMarkdownDocument('docs/legal/judicial-code.md') + [
+            'pdf_url' => asset('publications/saprf-judicial-code.pdf'),
+        ]);
+    }
+
     /**
      * Load a verbatim markdown document from disk and prepare the props every
      * legal page needs.

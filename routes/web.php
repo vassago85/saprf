@@ -103,6 +103,7 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/code-of-conduct', [LegalController::class, 'codeOfConduct'])->name('legal.code-of-conduct');
 Route::get('/conflict-of-interest', [LegalController::class, 'conflictOfInterest'])->name('legal.conflict-of-interest');
 Route::get('/constitution', [LegalController::class, 'constitution'])->name('legal.constitution');
+Route::get('/judicial-code', [LegalController::class, 'judicialCode'])->name('legal.judicial-code');
 
 // Sport rulebooks — rendered via the same MarkdownDocument pipeline as the
 // legal docs so they share the sticky ToC / clause gutter / print chrome.

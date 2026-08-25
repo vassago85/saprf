@@ -26,7 +26,8 @@ test('documents index lists the legal and governance documents', function () {
         ->assertSee('Privacy Policy')
         ->assertSee('POPIA compliance')
         ->assertSee('Code of Conduct')
-        ->assertSee('Conflict of Interest Policy');
+        ->assertSee('Conflict of Interest Policy')
+        ->assertSee('Judicial Code');
 });
 
 test('every document link on the index resolves to a working page', function () {
@@ -40,6 +41,22 @@ test('every document link on the index resolves to a working page', function () 
     $this->get(route('legal.privacy'))->assertOk();
     $this->get(route('legal.code-of-conduct'))->assertOk();
     $this->get(route('legal.conflict-of-interest'))->assertOk();
+    $this->get(route('legal.judicial-code'))->assertOk();
+});
+
+test('judicial code page links the signed PDF and renders a distinctive section', function () {
+    $response = $this->get(route('legal.judicial-code'))->assertOk();
+
+    // Header pill points at the signed PDF original under public/publications.
+    $response->assertSee('publications/saprf-judicial-code.pdf', escape: false)
+        ->assertSee('Download original PDF');
+
+    // Distinctive body content from the source markdown.
+    $response->assertSee('Grievance / Mediation Process')
+        ->assertSee('Arbitration Process');
+
+    // Signed PDF exists on disk (linked from the page header).
+    expect(is_file(public_path('publications/saprf-judicial-code.pdf')))->toBeTrue();
 });
 
 test('documents index lists the rules and regulations rulebooks', function () {
