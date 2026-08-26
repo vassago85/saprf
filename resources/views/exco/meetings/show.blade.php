@@ -9,10 +9,26 @@
                     @if ($meeting->location) · {{ $meeting->location }} @endif
                 </p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $meeting->status->badgeClass() }}">
                     {{ $meeting->status->label() }}
                 </span>
+                @if ($meeting->minutesAreCirculated())
+                    <span class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                        Circulated
+                    </span>
+                @endif
+                @if ($meeting->minutesAreAdopted())
+                    <span class="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+                        Adopted
+                    </span>
+                @endif
+                @unless ($meeting->isDraft())
+                    <a href="{{ route('exco.meetings.minutes.print', $meeting) }}" target="_blank"
+                        class="rounded-lg bg-white ring-1 ring-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                        Print / PDF
+                    </a>
+                @endunless
                 @unless($meeting->isClosed())
                     <a href="{{ route('exco.meetings.edit', $meeting) }}"
                         class="rounded-lg bg-white ring-1 ring-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
@@ -50,6 +66,99 @@
                 @endif
             </div>
         </div>
+
+        {{-- Minutes circulation + adoption. Only surfaces once the sitting is
+             closed — you can't circulate minutes of a meeting that is still
+             in progress. Two-step: circulated → adopted. --}}
+        @if ($meeting->isClosed())
+            <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="font-heading text-base font-semibold text-stone-900">Minutes lifecycle</h2>
+                        <p class="mt-0.5 text-xs text-stone-500">Track when the drafted minutes were sent out for review and when they were formally adopted at a subsequent sitting.</p>
+                    </div>
+                    <a href="{{ route('exco.meetings.minutes.print', $meeting) }}" target="_blank"
+                        class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                        Download minutes (PDF)
+                    </a>
+                </div>
+
+                <ol class="mt-4 space-y-3">
+                    {{-- Step 1: Circulated --}}
+                    <li class="flex items-start gap-3">
+                        <span class="mt-0.5 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold
+                            {{ $meeting->minutesAreCirculated() ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-500' }}">
+                            {{ $meeting->minutesAreCirculated() ? '✓' : '1' }}
+                        </span>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-stone-900">Circulated to ExCo</p>
+                            @if ($meeting->minutesAreCirculated())
+                                <p class="mt-0.5 text-xs text-stone-500">
+                                    {{ $meeting->minutes_circulated_at->format('D d M Y H:i') }}
+                                    @if ($meeting->minutesCirculator) by {{ $meeting->minutesCirculator->name }} @endif
+                                </p>
+                            @else
+                                <p class="mt-0.5 text-xs text-stone-500">Download the PDF above, email it to ExCo, then click below to record circulation.</p>
+                                <form method="POST" action="{{ route('exco.meetings.mark-circulated', $meeting) }}" class="mt-2">
+                                    @csrf
+                                    <button type="submit" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
+                                        Mark as circulated
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </li>
+
+                    {{-- Step 2: Adopted --}}
+                    <li class="flex items-start gap-3">
+                        <span class="mt-0.5 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold
+                            {{ $meeting->minutesAreAdopted() ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-500' }}">
+                            {{ $meeting->minutesAreAdopted() ? '✓' : '2' }}
+                        </span>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-stone-900">Adopted at a subsequent sitting</p>
+                            @if ($meeting->minutesAreAdopted())
+                                <p class="mt-0.5 text-xs text-stone-500">
+                                    {{ $meeting->minutes_adopted_at->format('D d M Y') }}
+                                    @if ($meeting->adoptedAtMeeting)
+                                        at
+                                        <a href="{{ route('exco.meetings.show', $meeting->adoptedAtMeeting) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">
+                                            {{ $meeting->adoptedAtMeeting->title }}
+                                        </a>
+                                    @endif
+                                </p>
+                            @elseif ($meeting->minutesAreCirculated())
+                                <p class="mt-0.5 text-xs text-stone-500">Once ExCo has adopted these minutes (usually as item 1 of the next sitting), record it here.</p>
+                                @if ($adoptionCandidates->isNotEmpty())
+                                    <form method="POST" action="{{ route('exco.meetings.mark-adopted', $meeting) }}" class="mt-2 flex flex-wrap items-center gap-2">
+                                        @csrf
+                                        <label for="adopted_at_meeting_id" class="text-xs text-stone-500">Adopted at:</label>
+                                        <select name="adopted_at_meeting_id" id="adopted_at_meeting_id" required
+                                            class="rounded-lg border border-stone-300 px-2 py-1 text-xs">
+                                            <option value="">— pick a meeting —</option>
+                                            @foreach ($adoptionCandidates as $candidate)
+                                                <option value="{{ $candidate->id }}">
+                                                    {{ $candidate->title }} ({{ $candidate->scheduled_at->format('d M Y') }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                            Mark as adopted
+                                        </button>
+                                    </form>
+                                @else
+                                    <p class="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-500">
+                                        Create the next sitting first — its title will appear here as the adopting meeting.
+                                    </p>
+                                @endif
+                            @else
+                                <p class="mt-0.5 text-xs text-stone-400">Circulate the minutes first.</p>
+                            @endif
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        @endif
 
         @if ($meeting->attendance_notes)
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
@@ -198,8 +307,31 @@
             </div>
 
             @unless ($meeting->isClosed())
+                <details class="mt-6 rounded-lg border border-stone-200 bg-stone-50/60 p-4">
+                    <summary class="cursor-pointer text-sm font-semibold text-stone-800">
+                        Bulk import agenda items from JSON
+                    </summary>
+                    <p class="mt-2 text-xs text-stone-500">
+                        Paste an <code>agenda_items</code> array to append multiple items at once. Use the
+                        <a href="{{ route('exco.prompts') }}" class="font-semibold text-emerald-700 hover:text-emerald-800">notice → JSON AI prompt</a>
+                        to convert a written agenda into this shape.
+                    </p>
+                    <form method="POST" action="{{ route('exco.meetings.agenda.import', $meeting) }}" class="mt-3 space-y-2">
+                        @csrf
+                        <textarea name="payload" rows="8" required
+                            class="block w-full rounded-lg border border-stone-300 px-3 py-2 font-mono text-xs"
+                            placeholder='{ "agenda_items": [ { "title": "Welcome", "briefing": "..." } ] }'></textarea>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                Import items
+                            </button>
+                        </div>
+                    </form>
+                </details>
+
                 <form method="POST" action="{{ route('exco.meetings.agenda.store', $meeting) }}"
-                    class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                    class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
                     @csrf
                     <h3 class="text-sm font-semibold text-emerald-900">Add agenda item</h3>
                     <div>

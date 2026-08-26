@@ -375,6 +375,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Confidential to ExCo/Chair (developer for support). Owner/admin
     // do NOT get in here even though they see most other admin surfaces.
     Route::middleware(['role:developer|exco|chair'])->prefix('exco')->name('exco.')->group(function (): void {
+        // AI prompt reference. Anyone with ExCo access can view.
+        Route::get('/prompts', [ExcoMeetingController::class, 'prompts'])->name('prompts');
+
+        // JSON import. Uses the notice→JSON AI prompt to shell up a
+        // whole meeting + agenda in one paste. Defined BEFORE the
+        // /meetings/{meeting} routes so /meetings/import is not caught
+        // by the {meeting} wildcard.
+        Route::get('/meetings/import', [ExcoMeetingController::class, 'showImportForm'])->name('meetings.import.form');
+        Route::post('/meetings/import', [ExcoMeetingController::class, 'import'])->name('meetings.import');
+
         // Meetings + nested agenda items.
         Route::get('/meetings', [ExcoMeetingController::class, 'index'])->name('meetings.index');
         Route::get('/meetings/create', [ExcoMeetingController::class, 'create'])->name('meetings.create');
@@ -385,7 +395,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::delete('/meetings/{meeting}', [ExcoMeetingController::class, 'destroy'])->name('meetings.destroy');
         Route::post('/meetings/{meeting}/transition', [ExcoMeetingController::class, 'transition'])->name('meetings.transition');
 
+        // Printable minutes + circulation/adoption lifecycle.
+        Route::get('/meetings/{meeting}/minutes/print', [ExcoMeetingController::class, 'printMinutes'])->name('meetings.minutes.print');
+        Route::post('/meetings/{meeting}/mark-circulated', [ExcoMeetingController::class, 'markCirculated'])->name('meetings.mark-circulated');
+        Route::post('/meetings/{meeting}/mark-adopted', [ExcoMeetingController::class, 'markAdopted'])->name('meetings.mark-adopted');
+
         Route::post('/meetings/{meeting}/agenda', [ExcoAgendaItemController::class, 'store'])->name('meetings.agenda.store');
+        Route::post('/meetings/{meeting}/agenda/import', [ExcoMeetingController::class, 'importAgenda'])->name('meetings.agenda.import');
         Route::put('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'update'])->name('meetings.agenda.update');
         Route::delete('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'destroy'])->name('meetings.agenda.destroy');
         Route::post('/meetings/{meeting}/agenda/{agendaItem}/move', [ExcoAgendaItemController::class, 'move'])->name('meetings.agenda.move');

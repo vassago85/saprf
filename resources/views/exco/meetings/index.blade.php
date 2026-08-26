@@ -5,11 +5,18 @@
                 <h1 class="font-heading text-3xl font-bold text-stone-900">ExCo Meetings</h1>
                 <p class="mt-1 text-sm text-stone-500">Agenda, minutes and follow-up actions for the National Executive Committee.</p>
             </div>
-            <a href="{{ route('exco.meetings.create') }}"
-                class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                New meeting
-            </a>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('exco.meetings.import.form') }}"
+                    class="inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                    Import from JSON
+                </a>
+                <a href="{{ route('exco.meetings.create') }}"
+                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    New meeting
+                </a>
+            </div>
         </div>
 
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
