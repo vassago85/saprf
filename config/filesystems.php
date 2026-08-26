@@ -58,6 +58,17 @@ return [
             'report' => false,
         ],
 
+        // Private disk for confidential disciplinary case attachments.
+        // POPIA-sensitive: never expose via the public URL, never share
+        // a signed URL. Download only through the ExCo-gated controller
+        // after the role check has run.
+        'disciplinary' => [
+            'driver' => 'local',
+            'root' => storage_path('app/disciplinary'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

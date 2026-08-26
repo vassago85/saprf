@@ -18,6 +18,10 @@ use App\Http\Controllers\Developer\MailSettingsController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\EmailLogController;
+use App\Http\Controllers\Exco\DisciplinaryCaseController;
+use App\Http\Controllers\Exco\ExcoActionController;
+use App\Http\Controllers\Exco\ExcoAgendaItemController;
+use App\Http\Controllers\Exco\ExcoMeetingController;
 use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FaqController;
@@ -365,6 +369,52 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/saved-lists/{savedList}/edit', [SavedDistributionListController::class, 'edit'])->name('saved-lists.edit');
         Route::put('/saved-lists/{savedList}', [SavedDistributionListController::class, 'update'])->name('saved-lists.update');
         Route::delete('/saved-lists/{savedList}', [SavedDistributionListController::class, 'destroy'])->name('saved-lists.destroy');
+    });
+
+    // ── ExCo workspace — meetings, action items, disciplinary cases ──
+    // Confidential to ExCo/Chair (developer for support). Owner/admin
+    // do NOT get in here even though they see most other admin surfaces.
+    Route::middleware(['role:developer|exco|chair'])->prefix('exco')->name('exco.')->group(function (): void {
+        // Meetings + nested agenda items.
+        Route::get('/meetings', [ExcoMeetingController::class, 'index'])->name('meetings.index');
+        Route::get('/meetings/create', [ExcoMeetingController::class, 'create'])->name('meetings.create');
+        Route::post('/meetings', [ExcoMeetingController::class, 'store'])->name('meetings.store');
+        Route::get('/meetings/{meeting}', [ExcoMeetingController::class, 'show'])->name('meetings.show');
+        Route::get('/meetings/{meeting}/edit', [ExcoMeetingController::class, 'edit'])->name('meetings.edit');
+        Route::put('/meetings/{meeting}', [ExcoMeetingController::class, 'update'])->name('meetings.update');
+        Route::delete('/meetings/{meeting}', [ExcoMeetingController::class, 'destroy'])->name('meetings.destroy');
+        Route::post('/meetings/{meeting}/transition', [ExcoMeetingController::class, 'transition'])->name('meetings.transition');
+
+        Route::post('/meetings/{meeting}/agenda', [ExcoAgendaItemController::class, 'store'])->name('meetings.agenda.store');
+        Route::put('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'update'])->name('meetings.agenda.update');
+        Route::delete('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'destroy'])->name('meetings.agenda.destroy');
+        Route::post('/meetings/{meeting}/agenda/{agendaItem}/move', [ExcoAgendaItemController::class, 'move'])->name('meetings.agenda.move');
+
+        Route::post('/meetings/{meeting}/actions', [ExcoActionController::class, 'storeForMeeting'])->name('meetings.actions.store');
+
+        // Actions (standalone list + CRUD).
+        Route::get('/actions', [ExcoActionController::class, 'index'])->name('actions.index');
+        Route::post('/actions', [ExcoActionController::class, 'store'])->name('actions.store');
+        Route::put('/actions/{action}', [ExcoActionController::class, 'update'])->name('actions.update');
+        Route::post('/actions/{action}/status', [ExcoActionController::class, 'setStatus'])->name('actions.set-status');
+        Route::delete('/actions/{action}', [ExcoActionController::class, 'destroy'])->name('actions.destroy');
+
+        // Disciplinary case register.
+        Route::get('/disciplinary', [DisciplinaryCaseController::class, 'index'])->name('disciplinary.index');
+        Route::get('/disciplinary/create', [DisciplinaryCaseController::class, 'create'])->name('disciplinary.create');
+        Route::post('/disciplinary', [DisciplinaryCaseController::class, 'store'])->name('disciplinary.store');
+        Route::get('/disciplinary/subject-search', [DisciplinaryCaseController::class, 'subjectSearch'])->name('disciplinary.subject-search');
+        Route::get('/disciplinary/{case}', [DisciplinaryCaseController::class, 'show'])->name('disciplinary.show');
+        Route::get('/disciplinary/{case}/edit', [DisciplinaryCaseController::class, 'edit'])->name('disciplinary.edit');
+        Route::put('/disciplinary/{case}', [DisciplinaryCaseController::class, 'update'])->name('disciplinary.update');
+        Route::delete('/disciplinary/{case}', [DisciplinaryCaseController::class, 'destroy'])->name('disciplinary.destroy');
+
+        Route::post('/disciplinary/{case}/notes', [DisciplinaryCaseController::class, 'storeNote'])->name('disciplinary.notes.store');
+        Route::delete('/disciplinary/{case}/notes/{note}', [DisciplinaryCaseController::class, 'destroyNote'])->name('disciplinary.notes.destroy');
+
+        Route::post('/disciplinary/{case}/attachments', [DisciplinaryCaseController::class, 'uploadAttachment'])->name('disciplinary.attachments.store');
+        Route::get('/disciplinary/{case}/attachments/{attachment}', [DisciplinaryCaseController::class, 'downloadAttachment'])->name('disciplinary.attachments.download');
+        Route::delete('/disciplinary/{case}/attachments/{attachment}', [DisciplinaryCaseController::class, 'destroyAttachment'])->name('disciplinary.attachments.destroy');
     });
 
     // Payments

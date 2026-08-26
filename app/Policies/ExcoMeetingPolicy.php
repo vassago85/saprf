@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Policies;
+
+use App\Enums\ExcoMeetingStatus;
+use App\Models\ExcoMeeting;
+use App\Models\User;
+
+/**
+ * Gate: `Gate::before` in AppServiceProvider auto-allows every ability
+ * for `developer` and `exco`. Chair inherits from Exco via the
+ * user-management assignment rule, so `isExco()` is the single source
+ * of truth for "can act on ExCo meetings". Owner and admin have no
+ * business reading these rows and are refused here.
+ *
+ * Route middleware (`role:developer|exco|chair`) is the primary gate;
+ * this policy is the belt-and-braces check for controller actions that
+ * call `authorize()` explicitly.
+ */
+class ExcoMeetingPolicy
+{
+    public function viewAny(User $user): bool
+    {
+        return $user->isExco();
+    }
+
+    public function view(User $user, ExcoMeeting $meeting): bool
+    {
+        return $user->isExco();
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->isExco();
+    }
+
+    /**
+     * Every ExCo member can edit meeting metadata (title, date, notes)
+     * up until the sitting is closed. Once closed the record is
+     * historical — re-opening requires a policy change / migration.
+     */
+    public function update(User $user, ExcoMeeting $meeting): bool
+    {
+        return $user->isExco()
+            && $meeting->status !== ExcoMeetingStatus::Closed;
+    }
+
+    /**
+     * Deletion is limited to Draft meetings. Once minutes have been
+     * captured (status `held`+) the row is part of the ExCo history
+     * and must be preserved.
+     */
+    public function delete(User $user, ExcoMeeting $meeting): bool
+    {
+        return $user->isExco()
+            && $meeting->status === ExcoMeetingStatus::Draft;
+    }
+}

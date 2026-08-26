@@ -329,6 +329,45 @@ final class SidebarNavigation
                     ],
                 ],
             ],
+            // ExCo workspace: meetings, action items, disciplinary case
+            // register. Restricted at the item level to developer / exco /
+            // chair — owner and admin do not see these links even though
+            // they are otherwise senior staff. Matches the route middleware.
+            [
+                'key' => 'exco',
+                'heading' => 'ExCo',
+                'contexts' => [self::CONTEXT_ADMIN],
+                'expandable' => true,
+                'items' => [
+                    [
+                        'id' => 'exco-meetings',
+                        'label' => 'Meetings',
+                        'route' => 'exco.meetings.index',
+                        'icon' => 'calendar-days',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'chair'],
+                        'current_route_is' => ['exco.meetings.*'],
+                    ],
+                    [
+                        'id' => 'exco-actions',
+                        'label' => 'Actions',
+                        'route' => 'exco.actions.index',
+                        'icon' => 'clipboard-document-check',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'chair'],
+                        'current_route_is' => ['exco.actions.*'],
+                    ],
+                    [
+                        'id' => 'exco-disciplinary',
+                        'label' => 'Disciplinary',
+                        'route' => 'exco.disciplinary.index',
+                        'icon' => 'shield-exclamation',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'chair'],
+                        'current_route_is' => ['exco.disciplinary.*'],
+                    ],
+                ],
+            ],
             [
                 'key' => 'reports',
                 'heading' => 'Reports',
