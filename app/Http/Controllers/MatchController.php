@@ -334,7 +334,11 @@ class MatchController extends Controller
                 'Member Number',
             ]);
 
-            $squad = 1;
+            // Leave the Squad column blank on every row: Impact Scoring
+            // creates one squad per unique value on import, so any per-shooter
+            // number (1, 2, 3, …) would produce a squad-of-one for every
+            // shooter. Emitting empty lands everyone in the unassigned pool
+            // and the MD squads them up inside Impact Scoring.
             foreach ($registrations as $reg) {
                 $user = $reg->user;
 
@@ -342,12 +346,10 @@ class MatchController extends Controller
                     $reg->email ?: $user?->email ?: '',
                     $reg->shooter_name ?: $user?->name ?: '',
                     $reg->phone ?: $user?->phone ?: '',
-                    (string) $squad,
+                    '',
                     $match->match_type ?: 'Open',
                     $user?->membership?->saprf_number ?: '',
                 ]);
-
-                $squad++;
             }
 
             fclose($out);
