@@ -129,6 +129,12 @@ class DocumentSearch
             'md_path' => 'docs/legal/judicial-code.md',
         ],
         [
+            'doc_title' => 'Social Media Policy',
+            'kicker' => 'Legal',
+            'route' => 'legal.social-media-policy',
+            'md_path' => 'docs/legal/social-media-policy.md',
+        ],
+        [
             'doc_title' => 'Frequently Asked Questions',
             'kicker' => 'Help',
             'route' => 'faq.index',

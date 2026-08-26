@@ -55,12 +55,20 @@ class LegalController extends Controller
 
     public function judicialCode(): View
     {
-        // The Judicial Code is unusual among the legal docs in that it also
-        // has a signed PDF original we surface via the "Download original
-        // PDF" pill in the page header. All other legal docs are markdown-
-        // only for now.
+        // The Judicial Code and Social Media Policy are the two legal docs
+        // that also have a signed PDF original — we surface it via the
+        // "Download original PDF" pill in the page header. The T&Cs,
+        // Privacy, Code of Conduct, Constitution and Conflict of Interest
+        // are markdown-only.
         return view('legal.judicial-code', $this->loadMarkdownDocument('docs/legal/judicial-code.md') + [
             'pdf_url' => asset('publications/saprf-judicial-code.pdf'),
+        ]);
+    }
+
+    public function socialMediaPolicy(): View
+    {
+        return view('legal.social-media-policy', $this->loadMarkdownDocument('docs/legal/social-media-policy.md') + [
+            'pdf_url' => asset('publications/saprf-social-media-policy.pdf'),
         ]);
     }
 

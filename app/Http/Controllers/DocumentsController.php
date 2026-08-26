@@ -207,6 +207,14 @@ class DocumentsController extends Controller
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/legal/judicial-code.md'),
                     ],
+                    [
+                        'title' => 'Social Media Policy',
+                        'subtitle' => 'v1.3 · May 2019',
+                        'description' => 'The acceptable-use rules for social media by every SAPRF member, athlete, coach, official, employee and committee member — covering personal accounts, off-range conduct that is documented digitally, use of the SAPRF/PRS-SA identity, and the consequences of a breach under the Code of Conduct.',
+                        'url' => route('legal.social-media-policy'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/legal/social-media-policy.md'),
+                    ],
                 ],
             ],
         ];

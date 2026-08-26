@@ -27,7 +27,8 @@ test('documents index lists the legal and governance documents', function () {
         ->assertSee('POPIA compliance')
         ->assertSee('Code of Conduct')
         ->assertSee('Conflict of Interest Policy')
-        ->assertSee('Judicial Code');
+        ->assertSee('Judicial Code')
+        ->assertSee('Social Media Policy');
 });
 
 test('every document link on the index resolves to a working page', function () {
@@ -42,6 +43,7 @@ test('every document link on the index resolves to a working page', function () 
     $this->get(route('legal.code-of-conduct'))->assertOk();
     $this->get(route('legal.conflict-of-interest'))->assertOk();
     $this->get(route('legal.judicial-code'))->assertOk();
+    $this->get(route('legal.social-media-policy'))->assertOk();
 });
 
 test('judicial code page links the signed PDF and renders a distinctive section', function () {
@@ -57,6 +59,22 @@ test('judicial code page links the signed PDF and renders a distinctive section'
 
     // Signed PDF exists on disk (linked from the page header).
     expect(is_file(public_path('publications/saprf-judicial-code.pdf')))->toBeTrue();
+});
+
+test('social media policy page links the signed PDF and renders a distinctive section', function () {
+    $response = $this->get(route('legal.social-media-policy'))->assertOk();
+
+    $response->assertSee('publications/saprf-social-media-policy.pdf', escape: false)
+        ->assertSee('Download original PDF');
+
+    // Distinctive body content — verbatim phrases only this policy carries.
+    // assertSee escapes by default; the rendered HTML has a literal
+    // apostrophe (CommonMark's html_input: escape only touches tags), so
+    // we skip escaping here.
+    $response->assertSee('Key Policy Principals')
+        ->assertSee('Don\'t speak on our behalf', escape: false);
+
+    expect(is_file(public_path('publications/saprf-social-media-policy.pdf')))->toBeTrue();
 });
 
 test('documents index lists the rules and regulations rulebooks', function () {
