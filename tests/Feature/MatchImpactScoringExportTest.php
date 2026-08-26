@@ -14,15 +14,18 @@
  * this file cares only about the CSV body.
  */
 
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\Province;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\DivisionCategorySeeder;
 
 beforeEach(function () {
     seedRoles();
+    $this->seed(DivisionCategorySeeder::class);
 
     $province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
 
@@ -46,7 +49,7 @@ beforeEach(function () {
     ]);
 });
 
-function seedImpactRegistration(MatchEvent $match, string $name, string $saprf, int $secondsOffset): void
+function seedImpactRegistration(MatchEvent $match, string $name, string $saprf, int $secondsOffset, ?string $divisionSlug = null): void
 {
     $user = User::factory()->create([
         'name' => $name,
@@ -68,6 +71,7 @@ function seedImpactRegistration(MatchEvent $match, string $name, string $saprf, 
     MatchRegistration::create([
         'match_id' => $match->id,
         'user_id' => $user->id,
+        'division_id' => $divisionSlug ? Division::where('slug', $divisionSlug)->value('id') : null,
         'shooter_name' => $user->name,
         'email' => $user->email,
         'phone' => $user->phone,
@@ -103,6 +107,32 @@ it('emits an empty Squad column on every row so Impact Scoring does not create o
         expect($cols)->toHaveCount(6);
         expect($cols[3])->toBe('');
     }
+});
+
+it('carries each shooter\'s division into the Division column (blank when the registration has no division yet)', function () {
+    // First shooter: registered under the Open division.
+    // Second shooter: no division_id set on the registration yet.
+    // Old bug: the exporter hard-coded the match's series (PR22/PRS) into
+    //          the Division column for every row.
+    seedImpactRegistration($this->match, 'Open Shooter', '900', 1, 'open');
+    seedImpactRegistration($this->match, 'Undecided Shooter', '901', 2);
+
+    $response = $this->actingAs($this->md)
+        ->get(route('matches.export-impact-scoring', $this->match))
+        ->assertOk();
+
+    $rows = array_values(array_filter(preg_split("/\r?\n/", trim($response->streamedContent()))));
+    $byName = [];
+    foreach (array_slice($rows, 1) as $row) {
+        $cols = str_getcsv($row);
+        $byName[$cols[1]] = $cols[4];
+    }
+
+    expect($byName['Open Shooter'])->toBe('Open');
+    expect($byName['Undecided Shooter'])->toBe('');
+
+    // Belt & braces: no row still leaks the match series into the column.
+    expect($byName)->not->toContain('PR22');
 });
 
 it('excludes cancelled registrations from the export', function () {

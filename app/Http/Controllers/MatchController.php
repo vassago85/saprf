@@ -316,7 +316,7 @@ class MatchController extends Controller
 
         $registrations = $match->registrations()
             ->where('registration_status', '!=', 'cancelled')
-            ->with(['user.province', 'user.membership'])
+            ->with(['user.province', 'user.membership', 'division'])
             ->orderBy('registered_at')
             ->get();
 
@@ -339,6 +339,11 @@ class MatchController extends Controller
             // number (1, 2, 3, …) would produce a squad-of-one for every
             // shooter. Emitting empty lands everyone in the unassigned pool
             // and the MD squads them up inside Impact Scoring.
+            //
+            // The Division column carries the shooter's actual competition
+            // division (Open, Ladies, Senior, …) from the registration — not
+            // the match series (PR22/PRS), which is what this used to emit.
+            // Blank when the registration has no division set yet.
             foreach ($registrations as $reg) {
                 $user = $reg->user;
 
@@ -347,7 +352,7 @@ class MatchController extends Controller
                     $reg->shooter_name ?: $user?->name ?: '',
                     $reg->phone ?: $user?->phone ?: '',
                     '',
-                    $match->match_type ?: 'Open',
+                    $reg->division?->name ?: '',
                     $user?->membership?->saprf_number ?: '',
                 ]);
             }
