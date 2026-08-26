@@ -17,6 +17,10 @@
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
         @endif
 
+        @if (session('error'))
+            <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ session('error') }}</div>
+        @endif
+
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
@@ -38,11 +42,21 @@
                 <div class="whitespace-pre-wrap rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-800">{{ $message->message }}</div>
             </div>
 
-            <div class="flex items-center gap-3">
-                <a href="mailto:{{ $message->email }}?subject={{ urlencode('Re: ' . $message->subject) }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
-                    Reply by email
-                </a>
-            </div>
+            @if ($message->spam_status === \App\Models\ContactMessage::SPAM_CLEAN)
+                <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-3">Reply</h2>
+                    <p class="mb-3 text-sm text-stone-600">Send a reply via Mailgun to <span class="font-mono text-stone-800">{{ $message->email }}</span>. The enquiry stays open until you mark it handled.</p>
+                    <form method="POST" action="{{ route('contact-messages.reply', $message) }}" class="space-y-3">
+                        @csrf
+                        <div>
+                            <label for="reply" class="block text-sm font-medium text-stone-700 mb-1">Your reply</label>
+                            <textarea name="reply" id="reply" rows="6" maxlength="5000" required class="w-full rounded-lg border border-stone-300 text-sm py-2 px-3">{{ old('reply') }}</textarea>
+                            @error('reply')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                        <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Send reply</button>
+                    </form>
+                </div>
+            @endif
         </div>
 
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">

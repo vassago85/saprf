@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\ContactMessage;
 use App\Notifications\ContactMessageReceivedNotification;
+use App\Notifications\ContactMessageReplyNotification;
 use App\Services\StaffInboxService;
+use App\Support\MailgunPause;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
@@ -124,6 +127,39 @@ class ContactController extends Controller
         Gate::authorize('view', $contactMessage);
 
         return view('contact-messages.show', ['message' => $contactMessage->load('handler:id,name')]);
+    }
+
+    public function reply(Request $request, ContactMessage $contactMessage, MailgunPause $mailgunPause): RedirectResponse
+    {
+        Gate::authorize('update', $contactMessage);
+
+        if ($contactMessage->spam_status !== ContactMessage::SPAM_CLEAN) {
+            return back()->with('error', 'Replies can only be sent for clean enquiries.');
+        }
+
+        $data = $request->validate([
+            'reply' => ['required', 'string', 'min:1', 'max:5000'],
+        ]);
+
+        $mailgunPause->assertAvailable();
+
+        try {
+            Notification::route('mail', $contactMessage->email)
+                ->notify(new ContactMessageReplyNotification(
+                    $contactMessage,
+                    $data['reply'],
+                    $request->user(),
+                ));
+        } catch (\Throwable $e) {
+            $mailgunPause->rememberFromError($e->getMessage());
+
+            return back()
+                ->withInput()
+                ->with('error', 'Reply failed to send: '.$e->getMessage());
+        }
+
+        return redirect()->route('contact-messages.show', $contactMessage)
+            ->with('success', 'Reply sent to '.$contactMessage->email.'.');
     }
 
     public function markHandled(Request $request, ContactMessage $contactMessage): RedirectResponse

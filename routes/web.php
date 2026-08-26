@@ -558,6 +558,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Public /contact form submissions — triage inbox for admins.
         Route::get('/contact-messages', [ContactController::class, 'index'])->name('contact-messages.index');
         Route::get('/contact-messages/{contactMessage}', [ContactController::class, 'show'])->name('contact-messages.show');
+        Route::post('/contact-messages/{contactMessage}/reply', [ContactController::class, 'reply'])->name('contact-messages.reply');
         Route::post('/contact-messages/{contactMessage}/mark-handled', [ContactController::class, 'markHandled'])->name('contact-messages.mark-handled');
         Route::post('/contact-messages/{contactMessage}/reopen', [ContactController::class, 'reopen'])->name('contact-messages.reopen');
     });

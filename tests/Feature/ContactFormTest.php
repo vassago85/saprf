@@ -3,6 +3,7 @@
 use App\Models\ContactMessage;
 use App\Models\User;
 use App\Notifications\ContactMessageReceivedNotification;
+use App\Notifications\ContactMessageReplyNotification;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -173,4 +174,83 @@ test('an admin can mark a message as handled', function () {
     expect($message->handled_at)->not->toBeNull()
         ->and($message->handled_by)->toBe($admin->id)
         ->and($message->handled_notes)->toBe('Replied via email');
+});
+
+test('opening a clean contact message does not mark it as handled', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $message = ContactMessage::create([
+        'first_name' => 'Bob', 'surname' => 'Byte', 'email' => 'bob@example.com',
+        'subject' => 'A question', 'message' => 'test message here',
+        'spam_status' => ContactMessage::SPAM_CLEAN,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('contact-messages.show', $message))
+        ->assertOk()
+        ->assertSee('Mark as handled');
+
+    $message->refresh();
+    expect($message->handled_at)->toBeNull();
+});
+
+test('an admin can send a mailgun reply without marking the enquiry handled', function () {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $message = ContactMessage::create([
+        'first_name' => 'Bob', 'surname' => 'Byte', 'email' => 'bob@example.com',
+        'subject' => 'A question', 'message' => 'test message here',
+        'spam_status' => ContactMessage::SPAM_CLEAN,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('contact-messages.reply', $message), [
+            'reply' => 'Thanks for your enquiry. We will get back to you shortly.',
+        ])
+        ->assertRedirect(route('contact-messages.show', $message))
+        ->assertSessionHas('success');
+
+    Notification::assertSentOnDemand(ContactMessageReplyNotification::class);
+
+    $message->refresh();
+    expect($message->handled_at)->toBeNull();
+});
+
+test('a reply cannot be sent for spam enquiries', function () {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $message = ContactMessage::create([
+        'first_name' => 'Bob', 'surname' => 'Byte', 'email' => 'bob@example.com',
+        'subject' => 'A question', 'message' => 'test message here',
+        'spam_status' => ContactMessage::SPAM_HONEYPOT,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('contact-messages.reply', $message), ['reply' => 'Hello there'])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    Notification::assertNothingSent();
+});
+
+test('opening a spam contact message does not mark it as handled', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $message = ContactMessage::create([
+        'first_name' => 'Bob', 'surname' => 'Byte', 'email' => 'bob@example.com',
+        'subject' => 'A question', 'message' => 'test message here',
+        'spam_status' => ContactMessage::SPAM_HONEYPOT,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('contact-messages.show', $message))
+        ->assertOk()
+        ->assertSee('Mark as handled');
+
+    $message->refresh();
+    expect($message->handled_at)->toBeNull();
 });

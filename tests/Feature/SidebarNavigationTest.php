@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ContactMessage;
 use App\Models\User;
 use App\Support\SidebarNavigation;
 
@@ -228,4 +229,24 @@ it('treats registrations as dual-purpose and does not auto-switch', function () 
 
     expect(session('view_mode'))->toBeNull()
         ->and($admin->fresh()->effectiveViewMode())->toBe('admin');
+});
+
+it('shows a parent badge on communications when a child has notifications', function () {
+    $admin = staffUser('admin');
+
+    ContactMessage::create([
+        'first_name' => 'Bob',
+        'surname' => 'Byte',
+        'email' => 'bob@example.com',
+        'subject' => 'A question',
+        'message' => 'test message here please read',
+        'spam_status' => ContactMessage::SPAM_CLEAN,
+    ]);
+
+    $sections = SidebarNavigation::sectionsFor($admin, 'admin');
+    $communications = collect($sections)->firstWhere('key', 'communications');
+
+    expect($communications)->not->toBeNull()
+        ->and($communications['badge'])->toBe(1)
+        ->and($communications['badge_color'])->toBe('amber');
 });

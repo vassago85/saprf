@@ -542,7 +542,7 @@ final class SidebarNavigation
      * Sections visible to this user in this view mode, with hrefs / current
      * / badges resolved for the current request.
      *
-     * @return list<array{key: string, heading: string, expandable: bool, expanded: bool, items: list<array<string, mixed>>}>
+     * @return list<array{key: string, heading: string, expandable: bool, expanded: bool, badge: int|null, badge_color: string, items: list<array<string, mixed>>}>
      */
     public static function sectionsFor(User $user, string $viewMode, ?Request $request = null): array
     {
@@ -585,6 +585,8 @@ final class SidebarNavigation
                 continue;
             }
 
+            [$sectionBadge, $sectionBadgeColor] = self::aggregateSectionBadge($items);
+
             // Shooter Federation is three flat links — keep it open.
             // Admin Federation (and other large admin groups) collapse
             // unless they contain the active route.
@@ -596,6 +598,8 @@ final class SidebarNavigation
                 'expandable' => $expandable,
                 'expanded' => $expandable && $sectionHasCurrent,
                 'has_current' => $sectionHasCurrent,
+                'badge' => $sectionBadge,
+                'badge_color' => $sectionBadgeColor,
                 'items' => $items,
             ];
 
@@ -789,5 +793,32 @@ final class SidebarNavigation
         };
 
         return $value > 0 ? $value : null;
+    }
+
+    /**
+     * Sum child item badges onto the section heading. Amber wins when any
+     * child uses it (e.g. unhandled contact enquiries).
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return array{0: int|null, 1: string}
+     */
+    private static function aggregateSectionBadge(array $items): array
+    {
+        $total = 0;
+        $color = 'emerald';
+
+        foreach ($items as $item) {
+            if ($item['badge'] === null) {
+                continue;
+            }
+
+            $total += (int) $item['badge'];
+
+            if (($item['badge_color'] ?? 'emerald') === 'amber') {
+                $color = 'amber';
+            }
+        }
+
+        return [$total > 0 ? $total : null, $color];
     }
 }
