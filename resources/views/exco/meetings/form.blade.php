@@ -78,14 +78,14 @@
                     class="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">
                     {{ $meeting ? 'Save changes' : 'Create meeting' }}
                 </button>
-                @if ($meeting && $meeting->isDraft())
+                @if ($meeting && ! $meeting->isClosed())
                     <form method="POST" action="{{ route('exco.meetings.destroy', $meeting) }}"
-                        onsubmit="return confirm('Delete this draft meeting? Agenda items on it will be removed. This cannot be undone.');">
+                        onsubmit="return confirm('Delete this meeting? Agenda items, minutes and actions on it will be removed. This cannot be undone.');">
                         @csrf
                         @method('DELETE')
                         <button type="submit"
                             class="rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">
-                            Delete draft
+                            Delete meeting
                         </button>
                     </form>
                 @endif

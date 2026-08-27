@@ -163,18 +163,22 @@ class ExcoMeetingController extends Controller
     }
 
     /**
-     * Delete a meeting. Only draft meetings can be deleted so that the
-     * historical record of held/closed sittings is preserved.
+     * Delete a meeting. Draft and held meetings can be deleted (for
+     * cleanup of test sittings or sittings that were started but never
+     * finished). Closed meetings are historical and locked — reopen
+     * them via the database if you really need to remove one.
      */
     public function destroy(Request $request, ExcoMeeting $meeting): RedirectResponse
     {
-        if (! $meeting->isDraft()) {
-            return back()->with('error', 'Only draft meetings can be deleted. Close it instead.');
+        if ($meeting->isClosed()) {
+            return back()->with('error', 'Closed meetings cannot be deleted — the record is historical.');
         }
 
         $snapshot = [
             'title' => $meeting->title,
             'scheduled_at' => $meeting->scheduled_at->toIso8601String(),
+            'status' => $meeting->status->value,
+            'agenda_count' => $meeting->agendaItems()->count(),
         ];
 
         $meeting->delete();

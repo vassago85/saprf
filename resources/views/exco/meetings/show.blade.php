@@ -492,5 +492,32 @@
                 </form>
             @endunless
         </div>
+
+        {{-- Danger zone. Draft + held meetings can be removed for cleanup;
+             closed meetings are historical and the destroy() controller
+             refuses them regardless of what this template offers. --}}
+        @unless ($meeting->isClosed())
+            <div class="rounded-xl border border-red-200 bg-red-50/40 p-5 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="font-heading text-sm font-semibold text-red-900">Delete this meeting</h2>
+                        <p class="mt-0.5 text-xs text-red-800/80">
+                            Removes the meeting, all its agenda items and all its follow-up actions.
+                            Only available while the meeting is a draft or in progress — closed meetings
+                            are locked so the record can't be tampered with.
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ route('exco.meetings.destroy', $meeting) }}"
+                        onsubmit="return confirm('Delete this meeting? Agenda items, minutes and actions on it will be removed. This cannot be undone.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                            class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
+                            Delete meeting
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endunless
     </div>
 </x-layouts.app>

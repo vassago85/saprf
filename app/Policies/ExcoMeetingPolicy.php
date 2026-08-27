@@ -46,13 +46,14 @@ class ExcoMeetingPolicy
     }
 
     /**
-     * Deletion is limited to Draft meetings. Once minutes have been
-     * captured (status `held`+) the row is part of the ExCo history
-     * and must be preserved.
+     * Deletion is allowed for draft and held meetings so ExCo can
+     * clean up test sittings or abandoned sessions. Closed meetings
+     * are historical and locked — the destroy() controller enforces
+     * the same rule, this policy is the belt-and-braces check.
      */
     public function delete(User $user, ExcoMeeting $meeting): bool
     {
         return $user->isExco()
-            && $meeting->status === ExcoMeetingStatus::Draft;
+            && $meeting->status !== ExcoMeetingStatus::Closed;
     }
 }

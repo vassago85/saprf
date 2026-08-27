@@ -198,7 +198,7 @@ it('reorders agenda items', function () {
         ->and($a->fresh()->sort_order)->toBe(2);
 });
 
-it('deletes only draft meetings', function () {
+it('deletes draft and held meetings but preserves closed ones', function () {
     $exco = meetingExco();
 
     $draft = ExcoMeeting::create([
@@ -217,11 +217,24 @@ it('deletes only draft meetings', function () {
         'created_by' => $exco->id,
     ]);
 
+    $closed = ExcoMeeting::create([
+        'title' => 'Closed',
+        'type' => ExcoMeetingType::Regular,
+        'scheduled_at' => now(),
+        'status' => ExcoMeetingStatus::Closed,
+        'created_by' => $exco->id,
+    ]);
+
+    // Draft and held: both go away for cleanup of test / abandoned sittings.
     $this->actingAs($exco)->delete(route('exco.meetings.destroy', $draft))->assertRedirect();
     expect(ExcoMeeting::find($draft->id))->toBeNull();
 
     $this->actingAs($exco)->delete(route('exco.meetings.destroy', $held))->assertRedirect();
-    expect(ExcoMeeting::find($held->id))->not->toBeNull();
+    expect(ExcoMeeting::find($held->id))->toBeNull();
+
+    // Closed: refused. Historical record is preserved.
+    $this->actingAs($exco)->delete(route('exco.meetings.destroy', $closed))->assertRedirect();
+    expect(ExcoMeeting::find($closed->id))->not->toBeNull();
 });
 
 it('toggles action status open <-> done', function () {
