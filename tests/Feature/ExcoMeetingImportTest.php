@@ -197,7 +197,8 @@ it('renders the AI prompts reference page', function () {
         ->get(route('exco.prompts'))
         ->assertOk()
         ->assertSee('Meeting notice → JSON')
-        ->assertSee('Transcript → structured minutes');
+        ->assertSee('Transcript → minutes JSON (bulk import)')
+        ->assertSee('Transcript → prose minutes (manual paste)');
 });
 
 it('blocks the AI prompts page for non-exco', function () {

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\AuditLogService;
 use App\Support\ExcoAiPrompts;
 use App\Support\ExcoMeetingImporter;
+use App\Support\ExcoMinutesImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -112,6 +113,17 @@ class ExcoMeetingController extends Controller
             ->orderBy('scheduled_at')
             ->get(['id', 'title', 'scheduled_at']);
 
+        // Meeting-aware transcript→minutes prompt: bake the current
+        // agenda in so the AI can't drift on titles. Only relevant
+        // once minutes are being captured (held / closed) — hidden on
+        // drafts by the view.
+        $minutesPrompt = ExcoAiPrompts::transcriptToMinutesJson(
+            $meeting->agendaItems->map(fn ($item, $i) => [
+                'index' => $i + 1,
+                'title' => $item->title,
+            ])->all(),
+        );
+
         return view('exco.meetings.show', [
             'meeting' => $meeting,
             'visibilities' => ExcoAgendaItemVisibility::cases(),
@@ -121,6 +133,7 @@ class ExcoMeetingController extends Controller
                 ->get(['id', 'reference', 'title']),
             'actionStatuses' => ExcoActionStatus::cases(),
             'adoptionCandidates' => $adoptionCandidates,
+            'minutesPrompt' => $minutesPrompt,
         ]);
     }
 
@@ -247,6 +260,7 @@ class ExcoMeetingController extends Controller
     {
         return view('exco.prompts.index', [
             'noticeToJson' => ExcoAiPrompts::noticeToJson(),
+            'transcriptToMinutesJson' => ExcoAiPrompts::transcriptToMinutesJson(),
             'transcriptToMinutes' => ExcoAiPrompts::transcriptToMinutes(),
         ]);
     }
@@ -320,6 +334,68 @@ class ExcoMeetingController extends Controller
 
         return redirect()->route('exco.meetings.show', $meeting)
             ->with('success', "Imported {$inserted} agenda item(s).");
+    }
+
+    /**
+     * Consume a JSON payload with per-item minutes (and optional
+     * decisions + actions) produced by the transcript→minutes AI
+     * prompt. Applies to draft/held meetings; closed is locked to
+     * preserve the historical record.
+     */
+    public function importMinutes(Request $request, ExcoMeeting $meeting): RedirectResponse
+    {
+        if ($meeting->isClosed()) {
+            return back()->with('error', 'Cannot import minutes into a closed meeting.');
+        }
+
+        $raw = (string) $request->input('payload', '');
+
+        try {
+            $payload = ExcoMinutesImporter::parse($raw);
+            $summary = ExcoMinutesImporter::apply($meeting, $payload, $request->user()->id);
+        } catch (ValidationException $e) {
+            return back()
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'exco_meeting.minutes_imported',
+            'ExcoMeeting',
+            $meeting->id,
+            null,
+            [
+                'items_updated' => $summary['items_updated'],
+                'actions_created' => $summary['actions_created'],
+                'items_skipped' => count($summary['items_skipped']),
+            ],
+        );
+
+        $flash = sprintf(
+            'Imported minutes for %d agenda item%s and created %d action item%s.',
+            $summary['items_updated'],
+            $summary['items_updated'] === 1 ? '' : 's',
+            $summary['actions_created'],
+            $summary['actions_created'] === 1 ? '' : 's',
+        );
+
+        if ($summary['actions_with_unmatched_owners'] > 0) {
+            $flash .= sprintf(
+                ' %d action%s had an owner name the platform could not resolve — check the details field.',
+                $summary['actions_with_unmatched_owners'],
+                $summary['actions_with_unmatched_owners'] === 1 ? '' : 's',
+            );
+        }
+
+        if ($summary['items_skipped'] !== []) {
+            return redirect()->route('exco.meetings.show', $meeting)
+                ->with('success', $flash)
+                ->with('minutes_import_skipped', $summary['items_skipped']);
+        }
+
+        return redirect()->route('exco.meetings.show', $meeting)
+            ->with('success', $flash);
     }
 
     /**

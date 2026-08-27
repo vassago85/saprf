@@ -75,9 +75,92 @@ PROMPT;
     }
 
     /**
-     * Prompt that turns a raw transcript (Happy Scribe, otter.ai,
-     * hand-typed notes) into the structured per-item minutes block
-     * that pastes straight into the Minutes textarea.
+     * Prompt that turns a raw transcript into the JSON shape accepted
+     * by the bulk minutes importer (ExcoMeetingController::importMinutes).
+     *
+     * When `$agendaItems` is provided (list of ['index' => int, 'title'
+     * => string]) the schema block is pre-populated with the real
+     * agenda so the AI cannot drift on titles or invent items. The
+     * show page passes the meeting's live agenda; the AI Prompts page
+     * uses the generic placeholder version.
+     *
+     * @param  list<array{index: int, title: string}>|null  $agendaItems
+     */
+    public static function transcriptToMinutesJson(?array $agendaItems = null): string
+    {
+        if ($agendaItems === null || $agendaItems === []) {
+            $itemsBlock = <<<'ITEMS'
+    { "index": 1, "title": "<paste agenda item 1 title>", "minutes": "...", "decisions": [], "actions": [] },
+    { "index": 2, "title": "<paste agenda item 2 title>", "minutes": "...", "decisions": [], "actions": [] }
+ITEMS;
+        } else {
+            $lines = [];
+            foreach ($agendaItems as $item) {
+                $index = (int) $item['index'];
+                $title = str_replace(['"', "\n"], ['\"', ' '], (string) $item['title']);
+                $lines[] = sprintf(
+                    '    { "index": %d, "title": "%s", "minutes": "...", "decisions": [], "actions": [] }',
+                    $index,
+                    $title,
+                );
+            }
+            $itemsBlock = implode(",\n", $lines);
+        }
+
+        return <<<PROMPT
+AI-PROMPT v1 — SAPRF ExCo transcript → minutes JSON (bulk import)
+
+You are turning a raw meeting transcript (Happy Scribe / otter.ai / typed
+notes) into the JSON payload accepted by the SAPRF ExCo minutes bulk
+importer. It goes back into the platform in one paste and updates every
+agenda item at once.
+
+Rules:
+1. Preserve the "index" and "title" of each agenda item EXACTLY as
+   listed below. Do not reorder, do not add items, do not remove them.
+2. If an item was not discussed during the meeting, still return it —
+   set "minutes" to "Not discussed." and leave "decisions" and
+   "actions" as empty arrays.
+3. Never invent facts, names, numbers or decisions that are not in
+   the transcript. If something is unclear, use [unclear] rather
+   than guess.
+4. Neutral, formal tone. No editorialising. Preserve exact wording
+   of any motion or resolution (mover, seconder, vote result).
+5. "minutes": 2–6 sentences summarising discussion and outcome.
+6. "decisions": bullet-worthy resolutions taken. Omit if none.
+7. "actions": tasks assigned in the room. Each action:
+     - "title":   short imperative (e.g. "Circulate August minutes").
+     - "owner":   full name of the ExCo member responsible. Use the
+                  exact name spelling from the attendance list. If
+                  unknown, leave empty string.
+     - "due":     "YYYY-MM-DD", or "next meeting", or "" if unknown.
+     - "details": optional context, one sentence.
+8. If the transcript uses generic speaker labels ("Speaker 1" etc.),
+   do NOT guess who spoke — attribute to "the Chair", "the Secretary",
+   "a member" based on role context.
+9. Output ONLY valid JSON — no markdown fences, no commentary before
+   or after, no trailing prose.
+
+Schema (fill "minutes" / "decisions" / "actions" for each item, keep
+"index" and "title" untouched):
+
+{
+  "items": [
+$itemsBlock
+  ]
+}
+
+RAW NOTES / TRANSCRIPT
+======================
+<paste your raw notes or transcript here>
+PROMPT;
+    }
+
+    /**
+     * Legacy prompt that turns a raw transcript into per-item prose
+     * blocks the user pastes one-by-one into the Minutes textarea.
+     * Kept alongside the JSON version for anyone who prefers the
+     * manual paste workflow.
      */
     public static function transcriptToMinutes(): string
     {

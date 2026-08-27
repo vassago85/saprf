@@ -167,6 +167,69 @@
             </div>
         @endif
 
+        {{-- Skipped-items callout from the previous bulk minutes import.
+             Persists once via session flash so the user sees why anything
+             was left out (title mismatch, missing index) without needing
+             to re-check the JSON. --}}
+        @if (session()->has('minutes_import_skipped'))
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p class="font-semibold">Some items were skipped by the last minutes import:</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-xs">
+                    @foreach (session('minutes_import_skipped') as $skip)
+                        <li>Item {{ $skip['index'] }}: {{ $skip['reason'] }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- Bulk minutes import. Available for held meetings only —
+             draft has no minutes to capture yet, closed is locked.
+             Meeting-aware AI prompt is baked into a copy-to-clipboard
+             tile so the user never has to hand-craft the JSON shape. --}}
+        @if ($meeting->status->value === 'held')
+            <details class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+                <summary class="cursor-pointer text-sm font-semibold text-emerald-900">
+                    Bulk import minutes from JSON (after the meeting)
+                </summary>
+                <div class="mt-3 space-y-4 text-sm text-stone-700">
+                    <p>
+                        Feed your transcript to an AI with the prompt below, paste the resulting JSON into the
+                        textarea, and the platform will populate every agenda item's minutes and create the action
+                        items in one submit. Minutes are OVERWRITTEN on re-import; actions are APPENDED.
+                    </p>
+
+                    <div class="rounded-xl border border-stone-200 bg-white shadow-sm" x-data="{ copied: false }">
+                        <div class="flex items-center justify-between border-b border-stone-200 px-4 py-2">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                                AI prompt (agenda baked in)
+                            </p>
+                            <button type="button"
+                                @click="navigator.clipboard.writeText($refs.mp.innerText); copied = true; setTimeout(() => copied = false, 2000)"
+                                class="rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-800">
+                                <span x-show="!copied">Copy prompt</span>
+                                <span x-show="copied" x-cloak>Copied ✓</span>
+                            </button>
+                        </div>
+                        <pre x-ref="mp" class="max-h-[300px] overflow-auto bg-stone-950 px-4 py-3 text-[11px] leading-relaxed text-stone-100 whitespace-pre-wrap">{{ $minutesPrompt }}</pre>
+                    </div>
+
+                    <form method="POST" action="{{ route('exco.meetings.minutes.import', $meeting) }}" class="space-y-2">
+                        @csrf
+                        <label class="block text-xs font-semibold uppercase text-stone-500">Paste JSON back here</label>
+                        <textarea name="payload" rows="10" required
+                            class="block w-full rounded-lg border border-stone-300 px-3 py-2 font-mono text-xs"
+                            placeholder='{ "items": [ { "index": 1, "title": "Welcome...", "minutes": "...", "decisions": [], "actions": [] } ] }'>{{ old('payload') }}</textarea>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                Import minutes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+        @endif
+
         {{-- Agenda + minutes --}}
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between">

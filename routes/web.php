@@ -402,6 +402,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
 
         Route::post('/meetings/{meeting}/agenda', [ExcoAgendaItemController::class, 'store'])->name('meetings.agenda.store');
         Route::post('/meetings/{meeting}/agenda/import', [ExcoMeetingController::class, 'importAgenda'])->name('meetings.agenda.import');
+        Route::post('/meetings/{meeting}/minutes/import', [ExcoMeetingController::class, 'importMinutes'])->name('meetings.minutes.import');
         Route::put('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'update'])->name('meetings.agenda.update');
         Route::delete('/meetings/{meeting}/agenda/{agendaItem}', [ExcoAgendaItemController::class, 'destroy'])->name('meetings.agenda.destroy');
         Route::post('/meetings/{meeting}/agenda/{agendaItem}/move', [ExcoAgendaItemController::class, 'move'])->name('meetings.agenda.move');

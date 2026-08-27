@@ -40,14 +40,37 @@
             <pre x-ref="notice" class="max-h-[420px] overflow-auto bg-stone-950 px-5 py-4 text-xs leading-relaxed text-stone-100 whitespace-pre-wrap">{{ $noticeToJson }}</pre>
         </div>
 
-        {{-- Prompt 2: Transcript → minutes --}}
+        {{-- Prompt 2: Transcript → minutes JSON (bulk import) --}}
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm" x-data="{ copied: false }">
             <div class="flex items-center justify-between border-b border-stone-200 px-5 py-4">
                 <div>
-                    <h2 class="font-heading text-lg font-semibold text-stone-900">Transcript → structured minutes</h2>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Transcript → minutes JSON (bulk import)</h2>
                     <p class="mt-0.5 text-xs text-stone-500">
-                        Use after the meeting. Paste the block for each agenda item into that item's <em>Minutes</em>
-                        field on the meeting show page.
+                        Use after the meeting. Paste the resulting JSON into the <em>Bulk import minutes</em> block
+                        on the meeting show page — it populates every agenda item and creates the action items in
+                        one submit. Prefer the meeting-specific version of this prompt on the show page itself,
+                        which bakes the exact agenda in.
+                    </p>
+                </div>
+                <button type="button"
+                    @click="navigator.clipboard.writeText($refs.mjson.innerText); copied = true; setTimeout(() => copied = false, 2000)"
+                    class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                    <span x-show="!copied">Copy prompt</span>
+                    <span x-show="copied" x-cloak>Copied ✓</span>
+                </button>
+            </div>
+            <pre x-ref="mjson" class="max-h-[420px] overflow-auto bg-stone-950 px-5 py-4 text-xs leading-relaxed text-stone-100 whitespace-pre-wrap">{{ $transcriptToMinutesJson }}</pre>
+        </div>
+
+        {{-- Prompt 3: Transcript → prose minutes (legacy / manual paste) --}}
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm" x-data="{ copied: false }">
+            <div class="flex items-center justify-between border-b border-stone-200 px-5 py-4">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Transcript → prose minutes (manual paste)</h2>
+                    <p class="mt-0.5 text-xs text-stone-500">
+                        Alternative for anyone who prefers to paste minutes per item by hand. Outputs one prose
+                        block per agenda item; paste each block into that item's Minutes field. Prefer the JSON
+                        version above unless you want to eyeball each block first.
                     </p>
                 </div>
                 <button type="button"
@@ -73,8 +96,10 @@
                     notes). Don't try to type minutes into the platform live.
                 </li>
                 <li>
-                    <span class="font-semibold">After the meeting:</span> feed the transcript to an AI with the
-                    second prompt. Paste each item's block into the matching Minutes field.
+                    <span class="font-semibold">After the meeting:</span> on the meeting show page, open
+                    <em>Bulk import minutes from JSON</em>. Copy the meeting-specific prompt (agenda is baked in),
+                    feed it plus your transcript to an AI, then paste the JSON back into the textarea and submit —
+                    every agenda item gets its minutes and every action item is created in one go.
                 </li>
                 <li>
                     <span class="font-semibold">Circulate:</span> once minutes are drafted, hit "Download minutes"
