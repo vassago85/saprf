@@ -591,6 +591,67 @@ class ExcoMeetingController extends Controller
     }
 
     /**
+     * Re-send the "draft minutes for review" email without re-stamping
+     * the circulated_at timestamp. Useful when a new ExCo member is
+     * added after circulation, when a bounce is cleared, or when the
+     * original send was silently truncated (as happened before the
+     * email_verified_at filter was dropped).
+     *
+     * Deliberately gated to the review window (circulated but not yet
+     * adopted) and not-archived — after adoption there's nothing left
+     * to review, and archived meetings should be read-only.
+     */
+    public function resendCirculation(Request $request, ExcoMeeting $meeting): RedirectResponse
+    {
+        if ($meeting->isArchived()) {
+            return back()->with('error', 'This meeting is archived. Restore it before making changes.');
+        }
+
+        if (! $meeting->minutesAreCirculated()) {
+            return back()->with('error', 'Minutes have not been circulated yet — use "Circulate minutes" instead.');
+        }
+
+        if ($meeting->minutesAreAdopted()) {
+            return back()->with('error', 'These minutes have already been adopted; no need to re-send the review email.');
+        }
+
+        $recipients = $this->circulationRecipients($request->user());
+        $sentCount = 0;
+
+        if ($recipients->isNotEmpty()) {
+            try {
+                Notification::send(
+                    $recipients,
+                    new MinutesCirculatedNotification($meeting, $request->user()),
+                );
+                $sentCount = $recipients->count();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to re-send minutes-circulated email', [
+                    'meeting_id' => $meeting->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return back()->with('error', 'Could not re-send the email. Check the email log for details.');
+            }
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'exco_meeting.minutes_recirculated',
+            'ExcoMeeting',
+            $meeting->id,
+            null,
+            ['recipient_count' => $sentCount],
+        );
+
+        $flash = $sentCount > 0
+            ? "Re-sent the draft minutes email to {$sentCount} ExCo member".($sentCount === 1 ? '' : 's').'.'
+            : 'No eligible ExCo members found — nothing was re-sent.';
+
+        return back()->with('success', $flash);
+    }
+
+    /**
      * ExCo/Chair users who should receive the "please review the draft
      * minutes" email.
      *

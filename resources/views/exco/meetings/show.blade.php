@@ -129,6 +129,21 @@
                                     @if ($meeting->minutesCirculator) by {{ $meeting->minutesCirculator->name }} @endif.
                                     Members can now submit proposed amendments below.
                                 </p>
+                                {{-- Re-send button. Handy when a new ExCo member was added
+                                     after circulation, when a previous bounce has been
+                                     cleared, or when the original send silently missed
+                                     some members. Hidden once minutes are adopted or the
+                                     meeting is archived. --}}
+                                @if (! $meeting->minutesAreAdopted() && ! $meeting->isArchived())
+                                    <form method="POST" action="{{ route('exco.meetings.resend-circulation', $meeting) }}" class="mt-2"
+                                        onsubmit="return confirm('Re-send the draft minutes email to every eligible ExCo / Chair member?');">
+                                        @csrf
+                                        <button type="submit"
+                                            class="rounded-lg border border-amber-600 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50">
+                                            Re-send email to ExCo
+                                        </button>
+                                    </form>
+                                @endif
                             @else
                                 <p class="mt-0.5 text-xs text-stone-500">
                                     Clicking below marks the minutes as circulated <span class="font-semibold">and</span> emails the draft to every ExCo / Chair member with a link back here to submit amendments.

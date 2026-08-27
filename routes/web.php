@@ -404,6 +404,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Printable minutes + circulation/adoption lifecycle.
         Route::get('/meetings/{meeting}/minutes/print', [ExcoMeetingController::class, 'printMinutes'])->name('meetings.minutes.print');
         Route::post('/meetings/{meeting}/mark-circulated', [ExcoMeetingController::class, 'markCirculated'])->name('meetings.mark-circulated');
+        Route::post('/meetings/{meeting}/resend-circulation', [ExcoMeetingController::class, 'resendCirculation'])->name('meetings.resend-circulation');
         Route::post('/meetings/{meeting}/mark-adopted', [ExcoMeetingController::class, 'markAdopted'])->name('meetings.mark-adopted');
 
         Route::post('/meetings/{meeting}/agenda', [ExcoAgendaItemController::class, 'store'])->name('meetings.agenda.store');

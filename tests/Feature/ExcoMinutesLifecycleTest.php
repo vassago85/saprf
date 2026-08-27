@@ -200,3 +200,107 @@ it('validates adopted_at_meeting_id refers to a real meeting', function () {
 
     expect($meeting->fresh()->minutesAreAdopted())->toBeFalse();
 });
+
+it('re-sends the draft minutes email to every eligible ExCo member', function () {
+    Notification::fake();
+
+    $circulator = lifecycleExco();
+    $peerA = User::factory()->create(['email_verified_at' => now()]);
+    $peerA->assignRole(['exco', 'member']);
+    $peerA = $peerA->fresh();
+    // Unverified — must also be included on re-send.
+    $peerB = User::factory()->create(['email_verified_at' => null]);
+    $peerB->assignRole(['exco', 'member']);
+    $peerB = $peerB->fresh();
+
+    $meeting = makeClosedMeeting($circulator);
+    $this->actingAs($circulator)->post(route('exco.meetings.mark-circulated', $meeting));
+    Notification::assertSentToTimes($peerA, MinutesCirculatedNotification::class, 1);
+    Notification::assertSentToTimes($peerB, MinutesCirculatedNotification::class, 1);
+
+    // Now re-send. Both peers should get a SECOND copy; the circulator
+    // stays excluded.
+    $this->actingAs($circulator)
+        ->post(route('exco.meetings.resend-circulation', $meeting))
+        ->assertRedirect();
+
+    Notification::assertSentToTimes($peerA, MinutesCirculatedNotification::class, 2);
+    Notification::assertSentToTimes($peerB, MinutesCirculatedNotification::class, 2);
+    Notification::assertNotSentTo($circulator, MinutesCirculatedNotification::class);
+
+    // Re-send must NOT reset the original circulation timestamp — the
+    // review window still anchors to the first send.
+    $originalCirculatedAt = $meeting->fresh()->minutes_circulated_at;
+    expect($originalCirculatedAt)->not->toBeNull()
+        ->and($meeting->fresh()->minutes_circulated_at->eq($originalCirculatedAt))->toBeTrue();
+});
+
+it('refuses to re-send if minutes have not been circulated yet', function () {
+    Notification::fake();
+
+    $exco = lifecycleExco();
+    $peer = User::factory()->create();
+    $peer->assignRole(['exco', 'member']);
+
+    $meeting = makeClosedMeeting($exco);
+    // No mark-circulated call happens.
+
+    $this->actingAs($exco)
+        ->post(route('exco.meetings.resend-circulation', $meeting))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    Notification::assertNothingSent();
+});
+
+it('refuses to re-send after minutes have been adopted', function () {
+    Notification::fake();
+
+    $exco = lifecycleExco();
+    $august = makeClosedMeeting($exco, 'ExCo — August 2026');
+    $september = ExcoMeeting::create([
+        'title' => 'ExCo — September 2026',
+        'type' => ExcoMeetingType::Regular,
+        'scheduled_at' => now()->addWeek(),
+        'status' => ExcoMeetingStatus::Draft,
+        'created_by' => $exco->id,
+    ]);
+
+    $this->actingAs($exco)->post(route('exco.meetings.mark-circulated', $august));
+    $this->actingAs($exco)->post(route('exco.meetings.mark-adopted', $august), [
+        'adopted_at_meeting_id' => $september->id,
+    ]);
+
+    expect($august->fresh()->minutesAreAdopted())->toBeTrue();
+
+    Notification::fake(); // reset the recorder so we only see resend traffic
+
+    $this->actingAs($exco)
+        ->post(route('exco.meetings.resend-circulation', $august))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    Notification::assertNothingSent();
+});
+
+it('refuses to re-send from an archived meeting', function () {
+    Notification::fake();
+
+    $exco = lifecycleExco();
+    $meeting = makeClosedMeeting($exco);
+    $this->actingAs($exco)->post(route('exco.meetings.mark-circulated', $meeting));
+
+    // Archive.
+    $this->actingAs($exco)
+        ->post(route('exco.meetings.archive', $meeting), ['archive_reason' => 'duplicate']);
+    expect($meeting->fresh()->isArchived())->toBeTrue();
+
+    Notification::fake();
+
+    $this->actingAs($exco)
+        ->post(route('exco.meetings.resend-circulation', $meeting))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    Notification::assertNothingSent();
+});
