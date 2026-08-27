@@ -125,15 +125,19 @@
                             <p class="text-sm font-semibold text-stone-900">Circulated to ExCo</p>
                             @if ($meeting->minutesAreCirculated())
                                 <p class="mt-0.5 text-xs text-stone-500">
-                                    {{ $meeting->minutes_circulated_at->format('D d M Y H:i') }}
-                                    @if ($meeting->minutesCirculator) by {{ $meeting->minutesCirculator->name }} @endif
+                                    Emailed to ExCo on {{ $meeting->minutes_circulated_at->format('D d M Y H:i') }}
+                                    @if ($meeting->minutesCirculator) by {{ $meeting->minutesCirculator->name }} @endif.
+                                    Members can now submit proposed amendments below.
                                 </p>
                             @else
-                                <p class="mt-0.5 text-xs text-stone-500">Download the PDF above, email it to ExCo, then click below to record circulation.</p>
-                                <form method="POST" action="{{ route('exco.meetings.mark-circulated', $meeting) }}" class="mt-2">
+                                <p class="mt-0.5 text-xs text-stone-500">
+                                    Clicking below marks the minutes as circulated <span class="font-semibold">and</span> emails the draft to every ExCo / Chair member with a link back here to submit amendments.
+                                </p>
+                                <form method="POST" action="{{ route('exco.meetings.mark-circulated', $meeting) }}" class="mt-2"
+                                    onsubmit="return confirm('Circulate the minutes now? An email will be sent to every ExCo / Chair member.');">
                                     @csrf
                                     <button type="submit" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
-                                        Mark as circulated
+                                        Circulate minutes (email + record)
                                     </button>
                                 </form>
                             @endif
@@ -188,6 +192,183 @@
                         </div>
                     </li>
                 </ol>
+            </div>
+        @endif
+
+        {{-- Proposed amendments to circulated minutes. Renders in three
+             modes:
+               (1) Not circulated yet -> hidden entirely.
+               (2) In review window   -> submission form + pending list
+                                         with chair Accept/Reject buttons.
+               (3) Adopted / archived -> read-only historical list. --}}
+        @if ($meeting->minutesAreCirculated() && $meeting->amendments->isNotEmpty() || $meeting->isInReviewWindow())
+            @php
+                $pendingAmendments = $meeting->amendments->filter(fn ($a) => $a->isPending());
+                $resolvedAmendments = $meeting->amendments->reject(fn ($a) => $a->isPending());
+            @endphp
+            <div class="rounded-xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="font-heading text-base font-semibold text-stone-900">Proposed amendments</h2>
+                        <p class="mt-0.5 text-xs text-stone-600">
+                            @if ($meeting->isInReviewWindow())
+                                Any ExCo member can propose a correction to the circulated minutes. The chair reviews each proposal and either edits the minutes to apply it, or records why it was declined. The window closes when the minutes are adopted at the next sitting.
+                            @else
+                                Historical record of every amendment proposed on these minutes during the review window.
+                            @endif
+                        </p>
+                    </div>
+                    @if ($pendingAmendments->isNotEmpty())
+                        <span class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                            {{ $pendingAmendments->count() }} pending
+                        </span>
+                    @endif
+                </div>
+
+                {{-- Pending list (with resolve controls in the review window) --}}
+                @if ($pendingAmendments->isNotEmpty())
+                    <div class="mt-4 space-y-3">
+                        @foreach ($pendingAmendments as $amendment)
+                            <div class="rounded-lg border border-amber-200 bg-white p-3 shadow-sm">
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-xs text-stone-500">
+                                            <span class="font-semibold text-stone-800">{{ $amendment->proposer?->name ?? 'Unknown' }}</span>
+                                            · {{ $amendment->created_at->format('d M Y H:i') }}
+                                            @if ($amendment->agendaItem)
+                                                · on item <span class="font-semibold">{{ $amendment->agendaItem->title }}</span>
+                                            @else
+                                                · general comment
+                                            @endif
+                                        </p>
+                                        <p class="mt-1 whitespace-pre-wrap text-sm text-stone-800">{{ $amendment->proposed_text }}</p>
+                                    </div>
+                                    <span class="inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {{ $amendment->status->badgeClass() }}">
+                                        {{ $amendment->status->label() }}
+                                    </span>
+                                </div>
+
+                                @if ($meeting->isInReviewWindow())
+                                    <div class="mt-3 border-t border-stone-100 pt-3">
+                                        {{-- Proposer can withdraw their own pending amendment. --}}
+                                        @if ($amendment->proposed_by === auth()->id())
+                                            <form method="POST" action="{{ route('exco.meetings.amendments.destroy', [$meeting, $amendment]) }}"
+                                                onsubmit="return confirm('Withdraw this amendment?');" class="mb-2">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
+                                                    Withdraw my amendment
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        <form method="POST" action="{{ route('exco.meetings.amendments.resolve', [$meeting, $amendment]) }}"
+                                            class="space-y-2">
+                                            @csrf
+                                            <label class="block text-[11px] font-semibold uppercase text-stone-500">Chair's note (optional)</label>
+                                            <textarea name="notes" rows="2" maxlength="2000"
+                                                placeholder="e.g. Applied to item 4, second paragraph."
+                                                class="block w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs"></textarea>
+                                            <div class="flex flex-wrap gap-2">
+                                                @if ($amendment->agendaItem)
+                                                    <a href="{{ route('exco.meetings.show', ['meeting' => $meeting, 'open' => $amendment->agendaItem->id]) }}#item-{{ $amendment->agendaItem->id }}"
+                                                        class="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200">
+                                                        Jump to item
+                                                    </a>
+                                                @endif
+                                                <button type="submit" name="decision" value="accepted"
+                                                    class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                                    Accept
+                                                </button>
+                                                <button type="submit" name="decision" value="rejected"
+                                                    class="rounded-lg bg-white ring-1 ring-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- Resolved list (always read-only) --}}
+                @if ($resolvedAmendments->isNotEmpty())
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-xs font-semibold text-stone-600 hover:text-stone-800">
+                            Resolved amendments ({{ $resolvedAmendments->count() }})
+                        </summary>
+                        <div class="mt-2 space-y-2">
+                            @foreach ($resolvedAmendments as $amendment)
+                                <div class="rounded-lg border border-stone-200 bg-white p-3">
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-xs text-stone-500">
+                                                <span class="font-semibold text-stone-800">{{ $amendment->proposer?->name ?? 'Unknown' }}</span>
+                                                · {{ $amendment->created_at->format('d M Y H:i') }}
+                                                @if ($amendment->agendaItem)
+                                                    · on item <span class="font-semibold">{{ $amendment->agendaItem->title }}</span>
+                                                @endif
+                                            </p>
+                                            <p class="mt-1 whitespace-pre-wrap text-sm text-stone-800">{{ $amendment->proposed_text }}</p>
+                                            <p class="mt-2 text-[11px] text-stone-500">
+                                                <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {{ $amendment->status->badgeClass() }}">
+                                                    {{ $amendment->status->label() }}
+                                                </span>
+                                                @if ($amendment->resolver)
+                                                    by {{ $amendment->resolver->name }}
+                                                @endif
+                                                @if ($amendment->resolved_at)
+                                                    · {{ $amendment->resolved_at->format('d M Y H:i') }}
+                                                @endif
+                                            </p>
+                                            @if ($amendment->resolution_notes)
+                                                <p class="mt-1 rounded bg-stone-50 px-2 py-1 text-xs italic text-stone-600">
+                                                    Chair: {{ $amendment->resolution_notes }}
+                                                </p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
+                @endif
+
+                {{-- Submission form --}}
+                @if ($meeting->isInReviewWindow())
+                    <form method="POST" action="{{ route('exco.meetings.amendments.store', $meeting) }}"
+                        class="mt-5 rounded-lg border border-stone-200 bg-white p-3 space-y-2">
+                        @csrf
+                        <p class="text-xs font-semibold uppercase text-stone-500">Propose an amendment</p>
+                        <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                            <div class="md:col-span-1">
+                                <label class="block text-[11px] font-semibold uppercase text-stone-500">Affects (optional)</label>
+                                <select name="agenda_item_id"
+                                    class="mt-1 block w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs">
+                                    <option value="">— general comment —</option>
+                                    @foreach ($meeting->agendaItems as $ai)
+                                        <option value="{{ $ai->id }}">{{ $ai->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-semibold uppercase text-stone-500">Proposed change</label>
+                                <textarea name="proposed_text" rows="3" required maxlength="5000"
+                                    placeholder='e.g. In item 4, second paragraph, change "the club rejected" to "the club abstained".'
+                                    class="mt-1 block w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs"></textarea>
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                Submit amendment
+                            </button>
+                        </div>
+                    </form>
+                @endif
             </div>
         @endif
 
@@ -311,7 +492,7 @@
                             </div>
                         </summary>
 
-                        <div class="border-t {{ $item->isConfidential() ? 'border-red-200' : 'border-stone-200' }} p-4">
+                        <div id="item-{{ $item->id }}" class="border-t {{ $item->isConfidential() ? 'border-red-200' : 'border-stone-200' }} p-4">
                             @if ($meeting->isClosed())
                                 <div class="space-y-4 text-sm">
                                     @if ($item->briefing)
@@ -320,13 +501,48 @@
                                             <p class="mt-1 whitespace-pre-wrap text-stone-700">{{ $item->briefing }}</p>
                                         </div>
                                     @endif
-                                    @if ($item->minutes)
-                                        <div>
-                                            <p class="text-xs font-semibold uppercase text-stone-400">Minutes</p>
-                                            <p class="mt-1 whitespace-pre-wrap text-stone-800">{{ $item->minutes }}</p>
-                                        </div>
+
+                                    {{-- Review window: chair can edit MINUTES only to apply
+                                         accepted amendments. Other fields stay locked. --}}
+                                    @if ($meeting->isInReviewWindow())
+                                        <form method="POST" action="{{ route('exco.meetings.agenda.update', [$meeting, $item]) }}" class="space-y-2">
+                                            @csrf
+                                            @method('PUT')
+                                            <label class="block text-xs font-semibold uppercase text-stone-500">Minutes (revisable — review window open)</label>
+                                            <textarea name="minutes" rows="6" maxlength="10000"
+                                                class="block w-full rounded-lg border border-amber-300 bg-amber-50/40 px-3 py-2 text-sm">{{ old('minutes', $item->minutes) }}</textarea>
+                                            <div>
+                                                <button type="submit"
+                                                    class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                                    Save revised minutes
+                                                </button>
+                                            </div>
+                                        </form>
                                     @else
-                                        <p class="text-xs italic text-stone-400">No minutes captured for this item.</p>
+                                        @if ($item->minutes)
+                                            <div>
+                                                <p class="text-xs font-semibold uppercase text-stone-400">Minutes</p>
+                                                <p class="mt-1 whitespace-pre-wrap text-stone-800">{{ $item->minutes }}</p>
+                                            </div>
+                                        @else
+                                            <p class="text-xs italic text-stone-400">No minutes captured for this item.</p>
+                                        @endif
+                                    @endif
+
+                                    {{-- Amendments filed against this specific item --}}
+                                    @if ($item->relationLoaded('amendments') && $item->amendments->isNotEmpty())
+                                        <div class="rounded-lg border border-stone-200 bg-stone-50/60 p-2">
+                                            <p class="text-[11px] font-semibold uppercase text-stone-500">Amendments on this item</p>
+                                            <ul class="mt-1 space-y-1 text-xs text-stone-700">
+                                                @foreach ($item->amendments as $a)
+                                                    <li>
+                                                        <span class="inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase {{ $a->status->badgeClass() }}">{{ $a->status->label() }}</span>
+                                                        <span class="italic">"{{ \Illuminate\Support\Str::limit($a->proposed_text, 120) }}"</span>
+                                                        <span class="text-stone-500">— {{ $a->proposer?->name ?? 'Unknown' }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
                                     @endif
                                 </div>
                             @else

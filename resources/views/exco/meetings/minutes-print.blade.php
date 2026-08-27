@@ -118,6 +118,41 @@
             <p class="empty">No agenda items recorded.</p>
         @endforelse
 
+        @if ($meeting->amendments->isNotEmpty())
+            <h2>Amendments proposed during circulation review</h2>
+            <table class="actions-table">
+                <thead>
+                    <tr>
+                        <th>Proposed by</th>
+                        <th>Affects</th>
+                        <th>Proposed change</th>
+                        <th>Outcome</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($meeting->amendments as $a)
+                        <tr>
+                            <td>
+                                {{ $a->proposer?->name ?? '—' }}
+                                <br><span style="color: var(--muted); font-size: 9.5pt;">{{ $a->created_at->format('d M Y') }}</span>
+                            </td>
+                            <td>{{ $a->agendaItem?->title ?? 'General' }}</td>
+                            <td>{{ $a->proposed_text }}</td>
+                            <td>
+                                {{ $a->status->label() }}
+                                @if ($a->resolver)
+                                    <br><span style="color: var(--muted); font-size: 9.5pt;">by {{ $a->resolver->name }}</span>
+                                @endif
+                                @if ($a->resolution_notes)
+                                    <br><span style="color: var(--muted); font-size: 9.5pt; font-style: italic;">"{{ $a->resolution_notes }}"</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         @if ($meeting->actions->isNotEmpty())
             <h2>Action items</h2>
             <table class="actions-table">

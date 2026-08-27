@@ -42,6 +42,13 @@ class ExcoAgendaItem extends Model
         return $this->hasMany(ExcoAction::class, 'agenda_item_id');
     }
 
+    public function amendments(): HasMany
+    {
+        return $this->hasMany(ExcoMinuteAmendment::class, 'agenda_item_id')
+            ->orderBy('status')
+            ->orderBy('created_at');
+    }
+
     public function isConfidential(): bool
     {
         return $this->visibility === ExcoAgendaItemVisibility::Confidential;

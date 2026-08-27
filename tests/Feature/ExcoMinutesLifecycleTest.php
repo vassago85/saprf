@@ -15,6 +15,8 @@ use App\Enums\ExcoMeetingStatus;
 use App\Enums\ExcoMeetingType;
 use App\Models\ExcoMeeting;
 use App\Models\User;
+use App\Notifications\MinutesCirculatedNotification;
+use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
     seedRoles();
@@ -62,20 +64,32 @@ it('blocks the printable minutes view for non-exco', function () {
         ->assertForbidden();
 });
 
-it('marks minutes as circulated on a closed meeting', function () {
-    $exco = lifecycleExco();
-    $meeting = makeClosedMeeting($exco);
+it('marks minutes as circulated on a closed meeting and emails ExCo', function () {
+    Notification::fake();
+
+    $circulator = lifecycleExco();
+    // Second ExCo member: has an email + verified account, should be
+    // in the recipient list.
+    $peer = User::factory()->create(['email_verified_at' => now()]);
+    $peer->assignRole(['exco', 'member']);
+    $peer = $peer->fresh();
+
+    $meeting = makeClosedMeeting($circulator);
 
     expect($meeting->minutesAreCirculated())->toBeFalse();
 
-    $this->actingAs($exco)
+    $this->actingAs($circulator)
         ->post(route('exco.meetings.mark-circulated', $meeting))
         ->assertRedirect();
 
     $meeting->refresh();
     expect($meeting->minutesAreCirculated())->toBeTrue()
-        ->and($meeting->minutes_circulated_by)->toBe($exco->id)
+        ->and($meeting->minutes_circulated_by)->toBe($circulator->id)
         ->and($meeting->minutes_circulated_at)->not->toBeNull();
+
+    // Peer gets the email; the circulator does not (they already know).
+    Notification::assertSentTo($peer, MinutesCirculatedNotification::class);
+    Notification::assertNotSentTo($circulator, MinutesCirculatedNotification::class);
 });
 
 it('refuses to circulate minutes of a meeting still in progress', function () {

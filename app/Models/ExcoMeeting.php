@@ -102,6 +102,19 @@ class ExcoMeeting extends Model
         return $this->hasMany(ExcoAction::class, 'meeting_id');
     }
 
+    /**
+     * Proposed amendments to the circulated minutes. Populated during
+     * the review window (circulated -> adopted). Preserved forever
+     * regardless of resolution — accepted and rejected amendments show
+     * in the printable minutes as part of the audit trail.
+     */
+    public function amendments(): HasMany
+    {
+        return $this->hasMany(ExcoMinuteAmendment::class, 'meeting_id')
+            ->orderBy('status')
+            ->orderBy('created_at');
+    }
+
     public function isDraft(): bool
     {
         return $this->status === ExcoMeetingStatus::Draft;
@@ -125,5 +138,25 @@ class ExcoMeeting extends Model
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
+    }
+
+    /**
+     * The "review window" is the period between minutes being sent out
+     * to ExCo and them being formally adopted at a subsequent sitting.
+     * During this window:
+     *   - Any ExCo member can submit a proposed amendment.
+     *   - Chair/secretary can edit the minutes text of agenda items to
+     *     apply accepted amendments (other fields stay locked).
+     *   - The record is not yet historical.
+     *
+     * Archived meetings never enter or stay in the window; adoption
+     * closes it permanently.
+     */
+    public function isInReviewWindow(): bool
+    {
+        return $this->isClosed()
+            && ! $this->isArchived()
+            && $this->minutesAreCirculated()
+            && ! $this->minutesAreAdopted();
     }
 }

@@ -10,12 +10,15 @@ use App\Http\Controllers\Controller;
 use App\Models\DisciplinaryCase;
 use App\Models\ExcoMeeting;
 use App\Models\User;
+use App\Notifications\MinutesCirculatedNotification;
 use App\Services\AuditLogService;
 use App\Support\ExcoAiPrompts;
 use App\Support\ExcoMeetingImporter;
 use App\Support\ExcoMinutesImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -118,10 +121,14 @@ class ExcoMeetingController extends Controller
             'minutesCirculator:id,name',
             'adoptedAtMeeting:id,title,scheduled_at',
             'agendaItems.disciplinaryCase:id,reference,title',
+            'agendaItems.amendments.proposer:id,name',
             'actions' => fn ($q) => $q->orderBy('status')->orderBy('due_on'),
             'actions.assignee:id,name',
             'actions.creator:id,name',
             'actions.agendaItem:id,title',
+            'amendments.proposer:id,name',
+            'amendments.resolver:id,name',
+            'amendments.agendaItem:id,title,sort_order',
         ]);
 
         // Sittings that can plausibly adopt these minutes: any other
@@ -517,6 +524,9 @@ class ExcoMeetingController extends Controller
             'actions' => fn ($q) => $q->orderBy('status')->orderBy('due_on'),
             'actions.assignee:id,name',
             'actions.agendaItem:id,title',
+            'amendments.proposer:id,name',
+            'amendments.resolver:id,name',
+            'amendments.agendaItem:id,title,sort_order',
         ]);
 
         return view('exco.meetings.minutes-print', ['meeting' => $meeting]);
@@ -551,7 +561,50 @@ class ExcoMeetingController extends Controller
             ['circulated_at' => $meeting->minutes_circulated_at->toIso8601String()],
         );
 
-        return back()->with('success', 'Minutes marked as circulated.');
+        // Fan out the draft minutes email to every ExCo/Chair user with
+        // a valid mailbox. Failures are caught + logged so the click
+        // still succeeds — the operator can retry from the email log if
+        // Mailgun is down. Notification is queued, so this is fast.
+        $recipients = $this->circulationRecipients($request->user());
+        $sentCount = 0;
+
+        if ($recipients->isNotEmpty()) {
+            try {
+                Notification::send(
+                    $recipients,
+                    new MinutesCirculatedNotification($meeting, $request->user()),
+                );
+                $sentCount = $recipients->count();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to dispatch minutes-circulated email', [
+                    'meeting_id' => $meeting->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $flash = $sentCount > 0
+            ? "Minutes marked as circulated. Draft emailed to {$sentCount} ExCo member".($sentCount === 1 ? '' : 's').'.'
+            : 'Minutes marked as circulated. No ExCo members with a mailbox were found — send the draft manually.';
+
+        return back()->with('success', $flash);
+    }
+
+    /**
+     * ExCo/Chair users who should receive the "please review the draft
+     * minutes" email. Excludes the circulator themselves (they already
+     * know), users without an email, and unverified accounts.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function circulationRecipients(User $circulator)
+    {
+        return User::query()
+            ->role(['exco', 'chair'])
+            ->whereNotNull('email')
+            ->whereNotNull('email_verified_at')
+            ->whereKeyNot($circulator->id)
+            ->get();
     }
 
     /**

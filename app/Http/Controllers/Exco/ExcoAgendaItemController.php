@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DisciplinaryCase;
 use App\Models\ExcoAgendaItem;
 use App\Models\ExcoMeeting;
+use App\Services\AuditLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -46,6 +47,36 @@ class ExcoAgendaItemController extends Controller
     public function update(Request $request, ExcoMeeting $meeting, ExcoAgendaItem $agendaItem): RedirectResponse
     {
         $this->ensureBelongsTo($meeting, $agendaItem);
+
+        // Review window carve-out: once a meeting is closed and the
+        // minutes have been circulated but not yet adopted, the chair
+        // can revise the MINUTES text to apply accepted amendments.
+        // Everything else (title, briefing, visibility, case link) is
+        // still locked.
+        if ($meeting->isInReviewWindow()) {
+            $data = $request->validate([
+                'minutes' => ['nullable', 'string', 'max:10000'],
+            ]);
+
+            $original = $agendaItem->minutes;
+            $agendaItem->update(['minutes' => $data['minutes'] ?? null]);
+
+            // Only audit-log the write if the text actually changed —
+            // otherwise every "save without changes" clutters the log.
+            if ($original !== $agendaItem->minutes) {
+                app(AuditLogService::class)->log(
+                    $request->user(),
+                    'exco_meeting.minutes_revised',
+                    'ExcoAgendaItem',
+                    $agendaItem->id,
+                    ['minutes' => $original],
+                    ['minutes' => $agendaItem->minutes],
+                );
+            }
+
+            return redirect()->route('exco.meetings.show', ['meeting' => $meeting, 'open' => $agendaItem->id])
+                ->with('success', 'Minutes revised.');
+        }
 
         if ($meeting->isClosed()) {
             return back()->with('error', 'Cannot edit agenda items on a closed meeting.');

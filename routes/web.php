@@ -22,6 +22,7 @@ use App\Http\Controllers\Exco\DisciplinaryCaseController;
 use App\Http\Controllers\Exco\ExcoActionController;
 use App\Http\Controllers\Exco\ExcoAgendaItemController;
 use App\Http\Controllers\Exco\ExcoMeetingController;
+use App\Http\Controllers\Exco\ExcoMinuteAmendmentController;
 use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FaqController;
@@ -413,6 +414,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/meetings/{meeting}/agenda/{agendaItem}/move', [ExcoAgendaItemController::class, 'move'])->name('meetings.agenda.move');
 
         Route::post('/meetings/{meeting}/actions', [ExcoActionController::class, 'storeForMeeting'])->name('meetings.actions.store');
+
+        // Proposed amendments to circulated minutes. Submittable during
+        // the review window (circulated -> adopted); resolved by chair.
+        Route::post('/meetings/{meeting}/amendments', [ExcoMinuteAmendmentController::class, 'store'])->name('meetings.amendments.store');
+        Route::post('/meetings/{meeting}/amendments/{amendment}/resolve', [ExcoMinuteAmendmentController::class, 'resolve'])->name('meetings.amendments.resolve');
+        Route::delete('/meetings/{meeting}/amendments/{amendment}', [ExcoMinuteAmendmentController::class, 'destroy'])->name('meetings.amendments.destroy');
 
         // Actions (standalone list + CRUD).
         Route::get('/actions', [ExcoActionController::class, 'index'])->name('actions.index');
