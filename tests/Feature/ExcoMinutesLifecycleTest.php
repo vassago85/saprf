@@ -68,11 +68,34 @@ it('marks minutes as circulated on a closed meeting and emails ExCo', function (
     Notification::fake();
 
     $circulator = lifecycleExco();
-    // Second ExCo member: has an email + verified account, should be
-    // in the recipient list.
-    $peer = User::factory()->create(['email_verified_at' => now()]);
-    $peer->assignRole(['exco', 'member']);
-    $peer = $peer->fresh();
+
+    // Verified peer — obviously eligible.
+    $verifiedPeer = User::factory()->create(['email_verified_at' => now()]);
+    $verifiedPeer->assignRole(['exco', 'member']);
+    $verifiedPeer = $verifiedPeer->fresh();
+
+    // Unverified peer — ExCo membership is admin-assigned so the address
+    // has already been vouched for; verification isn't required for
+    // internal committee mail. Must still receive the notification.
+    $unverifiedPeer = User::factory()->create(['email_verified_at' => null]);
+    $unverifiedPeer->assignRole(['exco', 'member']);
+    $unverifiedPeer = $unverifiedPeer->fresh();
+
+    // Bounced peer — Mailgun told us the mailbox is dead; skip.
+    $bouncedPeer = User::factory()->create([
+        'email_verified_at' => now(),
+        'email_bounced_at' => now()->subDay(),
+    ]);
+    $bouncedPeer->assignRole(['exco', 'member']);
+    $bouncedPeer = $bouncedPeer->fresh();
+
+    // Complained peer — hit "spam" on us; also skip.
+    $complainedPeer = User::factory()->create([
+        'email_verified_at' => now(),
+        'email_complained_at' => now()->subDay(),
+    ]);
+    $complainedPeer->assignRole(['exco', 'member']);
+    $complainedPeer = $complainedPeer->fresh();
 
     $meeting = makeClosedMeeting($circulator);
 
@@ -87,8 +110,10 @@ it('marks minutes as circulated on a closed meeting and emails ExCo', function (
         ->and($meeting->minutes_circulated_by)->toBe($circulator->id)
         ->and($meeting->minutes_circulated_at)->not->toBeNull();
 
-    // Peer gets the email; the circulator does not (they already know).
-    Notification::assertSentTo($peer, MinutesCirculatedNotification::class);
+    Notification::assertSentTo($verifiedPeer, MinutesCirculatedNotification::class);
+    Notification::assertSentTo($unverifiedPeer, MinutesCirculatedNotification::class);
+    Notification::assertNotSentTo($bouncedPeer, MinutesCirculatedNotification::class);
+    Notification::assertNotSentTo($complainedPeer, MinutesCirculatedNotification::class);
     Notification::assertNotSentTo($circulator, MinutesCirculatedNotification::class);
 });
 

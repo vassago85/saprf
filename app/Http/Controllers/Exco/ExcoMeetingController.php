@@ -592,8 +592,19 @@ class ExcoMeetingController extends Controller
 
     /**
      * ExCo/Chair users who should receive the "please review the draft
-     * minutes" email. Excludes the circulator themselves (they already
-     * know), users without an email, and unverified accounts.
+     * minutes" email.
+     *
+     * Deliberately does NOT require a verified email — ExCo membership
+     * is an admin-assigned role, not a self-claim, so the human who
+     * assigned it has already vouched for the address. Filtering out
+     * unverified users here was silently dropping members who had
+     * never clicked the verification link.
+     *
+     * Excluded:
+     *   - the circulator themselves (they already know),
+     *   - users with no email address on file,
+     *   - users Mailgun has flagged as hard-bounced,
+     *   - users who marked one of our previous mails as spam.
      *
      * @return \Illuminate\Support\Collection<int, User>
      */
@@ -602,7 +613,8 @@ class ExcoMeetingController extends Controller
         return User::query()
             ->role(['exco', 'chair'])
             ->whereNotNull('email')
-            ->whereNotNull('email_verified_at')
+            ->whereNull('email_bounced_at')
+            ->whereNull('email_complained_at')
             ->whereKeyNot($circulator->id)
             ->get();
     }
