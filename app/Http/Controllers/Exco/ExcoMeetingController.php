@@ -123,7 +123,9 @@ class ExcoMeetingController extends Controller
             'agendaItems.disciplinaryCase:id,reference,title',
             'agendaItems.amendments.proposer:id,name',
             'actions' => fn ($q) => $q->orderBy('status')->orderBy('due_on'),
-            'actions.assignee:id,name',
+            // exco_position on the assignee so the show page can render
+            // "Warren Britnell (Events Schedule)" without a second query.
+            'actions.assignee:id,name,exco_position',
             'actions.creator:id,name',
             'actions.agendaItem:id,title',
             'amendments.proposer:id,name',
@@ -522,14 +524,44 @@ class ExcoMeetingController extends Controller
             'adoptedAtMeeting:id,title,scheduled_at',
             'agendaItems.disciplinaryCase:id,reference,title',
             'actions' => fn ($q) => $q->orderBy('status')->orderBy('due_on'),
-            'actions.assignee:id,name',
+            // exco_position on the assignee so "Owner" prints as
+            // "Warren Britnell (Events Schedule)" without a second query.
+            'actions.assignee:id,name,exco_position',
             'actions.agendaItem:id,title',
             'amendments.proposer:id,name',
             'amendments.resolver:id,name',
             'amendments.agendaItem:id,title,sort_order',
         ]);
 
-        return view('exco.meetings.minutes-print', ['meeting' => $meeting]);
+        return view('exco.meetings.minutes-print', [
+            'meeting' => $meeting,
+            'committee' => $this->currentCommittee(),
+        ]);
+    }
+
+    /**
+     * Snapshot of everyone currently holding the exco or chair role,
+     * ordered so that titled positions surface first (Chair, then
+     * Secretary/Treasurer, then everyone else alphabetically). Used
+     * to render the MEMBERS block on the meeting show page and in the
+     * printable minutes.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function currentCommittee()
+    {
+        return User::query()
+            ->role(['exco', 'chair'])
+            ->orderByRaw("CASE
+                WHEN LOWER(exco_position) = 'chair' THEN 0
+                WHEN LOWER(exco_position) = 'vice chair' THEN 1
+                WHEN LOWER(exco_position) = 'secretary' THEN 2
+                WHEN LOWER(exco_position) = 'treasurer' THEN 3
+                WHEN exco_position IS NOT NULL AND exco_position <> '' THEN 4
+                ELSE 5
+            END")
+            ->orderBy('name')
+            ->get(['id', 'name', 'exco_position']);
     }
 
     /**

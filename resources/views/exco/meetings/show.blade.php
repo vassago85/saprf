@@ -725,7 +725,9 @@
                                 @endif
                             </div>
                             <p class="mt-0.5 text-xs text-stone-500">
-                                @if ($action->assignee) Owner: {{ $action->assignee->name }} · @endif
+                                @if ($action->assignee)
+                                    Owner: {{ $action->assignee->name }}@if ($action->assignee->exco_position) ({{ $action->assignee->exco_position }})@endif ·
+                                @endif
                                 @if ($action->due_on) Due {{ $action->due_on->format('d M Y') }} · @endif
                                 @if ($action->agendaItem) Item: {{ $action->agendaItem->title }} @endif
                             </p>

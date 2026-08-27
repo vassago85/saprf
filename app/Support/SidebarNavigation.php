@@ -367,6 +367,15 @@ final class SidebarNavigation
                         'current_route_is' => ['exco.disciplinary.*'],
                     ],
                     [
+                        'id' => 'exco-members',
+                        'label' => 'Members',
+                        'route' => 'exco.members.index',
+                        'icon' => 'users',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'chair'],
+                        'current_route_is' => ['exco.members.*'],
+                    ],
+                    [
                         'id' => 'exco-prompts',
                         'label' => 'AI Prompts',
                         'route' => 'exco.prompts',

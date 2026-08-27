@@ -82,8 +82,31 @@
             @endif
         </p>
 
+        {{-- Standing MEMBERS block. Independent of per-meeting
+             attendance — this is a snapshot of who is on ExCo right
+             now, matching the "MEMBERS" heading of a notice. --}}
+        @if ($committee->isNotEmpty())
+            <h2>Members</h2>
+            <table class="actions-table">
+                <thead>
+                    <tr>
+                        <th style="width: 45%;">Name</th>
+                        <th>Position</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($committee as $member)
+                        <tr>
+                            <td>{{ $member->name }}</td>
+                            <td>{{ $member->exco_position ?: '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         @if ($meeting->attendance_notes)
-            <h2>Attendance</h2>
+            <h2>Attendance for this meeting</h2>
             <p class="minutes">{{ $meeting->attendance_notes }}</p>
         @endif
 
@@ -173,7 +196,13 @@
                                     <br><span style="color: var(--muted); font-size: 9.5pt;">Item: {{ $action->agendaItem->title }}</span>
                                 @endif
                             </td>
-                            <td>{{ $action->assignee?->name ?? '—' }}</td>
+                            <td>
+                                @if ($action->assignee)
+                                    {{ $action->assignee->name }}@if ($action->assignee->exco_position) ({{ $action->assignee->exco_position }})@endif
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td>{{ $action->due_on?->format('d M Y') ?? '—' }}</td>
                             <td>{{ $action->status->label() }}</td>
                         </tr>

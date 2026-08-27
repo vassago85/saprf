@@ -51,6 +51,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_managed_account',
         'managed_relationship',
         'public_profile_visibility',
+        'exco_position',
     ];
 
     /**

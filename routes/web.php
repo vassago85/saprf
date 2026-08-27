@@ -22,6 +22,7 @@ use App\Http\Controllers\Exco\DisciplinaryCaseController;
 use App\Http\Controllers\Exco\ExcoActionController;
 use App\Http\Controllers\Exco\ExcoAgendaItemController;
 use App\Http\Controllers\Exco\ExcoMeetingController;
+use App\Http\Controllers\Exco\ExcoMemberController;
 use App\Http\Controllers\Exco\ExcoMinuteAmendmentController;
 use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\FamilyController;
@@ -378,6 +379,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::middleware(['role:developer|exco|chair'])->prefix('exco')->name('exco.')->group(function (): void {
         // AI prompt reference. Anyone with ExCo access can view.
         Route::get('/prompts', [ExcoMeetingController::class, 'prompts'])->name('prompts');
+
+        // Committee roster + per-member position editing. Positions
+        // render alongside owner names in minutes / agenda.
+        Route::get('/members', [ExcoMemberController::class, 'index'])->name('members.index');
+        Route::put('/members/{user}', [ExcoMemberController::class, 'update'])->name('members.update');
 
         // JSON import. Uses the notice→JSON AI prompt to shell up a
         // whole meeting + agenda in one paste. Defined BEFORE the
