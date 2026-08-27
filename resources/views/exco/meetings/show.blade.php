@@ -1,5 +1,34 @@
 <x-layouts.app :title="$meeting->title">
     <div class="max-w-5xl space-y-6">
+        {{-- Archived banner: sits above everything so it's the first thing
+             you see when opening an archived meeting. Restore is the only
+             active control on an archived record. --}}
+        @if ($meeting->isArchived())
+            <div class="rounded-xl border border-stone-300 bg-stone-100 p-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-stone-900">This meeting is archived.</p>
+                        <p class="mt-0.5 text-xs text-stone-600">
+                            Hidden from active lists on
+                            {{ $meeting->archived_at->format('d M Y H:i') }}
+                            @if ($meeting->archiver) by {{ $meeting->archiver->name }}@endif.
+                            @if ($meeting->archive_reason)
+                                Reason: <span class="italic">{{ $meeting->archive_reason }}</span>
+                            @endif
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ route('exco.meetings.unarchive', $meeting) }}"
+                        onsubmit="return confirm('Restore this meeting to the active list?');">
+                        @csrf
+                        <button type="submit"
+                            class="rounded-lg bg-stone-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-900">
+                            Restore from archive
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
+
         <div class="flex items-start justify-between gap-4">
             <div>
                 <a href="{{ route('exco.meetings.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← All meetings</a>
@@ -69,8 +98,10 @@
 
         {{-- Minutes circulation + adoption. Only surfaces once the sitting is
              closed — you can't circulate minutes of a meeting that is still
-             in progress. Two-step: circulated → adopted. --}}
-        @if ($meeting->isClosed())
+             in progress. Two-step: circulated → adopted. Hidden for archived
+             meetings so no destructive action is offered on a soft-hidden
+             record. --}}
+        @if ($meeting->isClosed() && ! $meeting->isArchived())
             <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div class="flex items-start justify-between gap-3">
                     <div>
@@ -556,31 +587,64 @@
             @endunless
         </div>
 
-        {{-- Danger zone. Draft + held meetings can be removed for cleanup;
-             closed meetings are historical and the destroy() controller
-             refuses them regardless of what this template offers. --}}
-        @unless ($meeting->isClosed())
-            <div class="rounded-xl border border-red-200 bg-red-50/40 p-5 shadow-sm">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 class="font-heading text-sm font-semibold text-red-900">Delete this meeting</h2>
-                        <p class="mt-0.5 text-xs text-red-800/80">
-                            Removes the meeting, all its agenda items and all its follow-up actions.
-                            Only available while the meeting is a draft or in progress — closed meetings
-                            are locked so the record can't be tampered with.
-                        </p>
+        {{-- Danger zone. Two distinct paths:
+             - Draft / held: hard delete (throwaway cleanup).
+             - Closed: archive (soft hide, reversible, audit-safe). --}}
+        @if (! $meeting->isArchived())
+            @if (! $meeting->isClosed())
+                <div class="rounded-xl border border-red-200 bg-red-50/40 p-5 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 class="font-heading text-sm font-semibold text-red-900">Delete this meeting</h2>
+                            <p class="mt-0.5 text-xs text-red-800/80">
+                                Removes the meeting, all its agenda items and all its follow-up actions.
+                                Only available while the meeting is a draft or in progress — once closed,
+                                use Archive instead so the audit trail is preserved.
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ route('exco.meetings.destroy', $meeting) }}"
+                            onsubmit="return confirm('Delete this meeting? Agenda items, minutes and actions on it will be removed. This cannot be undone.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
+                                Delete meeting
+                            </button>
+                        </form>
                     </div>
-                    <form method="POST" action="{{ route('exco.meetings.destroy', $meeting) }}"
-                        onsubmit="return confirm('Delete this meeting? Agenda items, minutes and actions on it will be removed. This cannot be undone.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit"
-                            class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
-                            Delete meeting
-                        </button>
-                    </form>
                 </div>
-            </div>
-        @endunless
+            @else
+                <div class="rounded-xl border border-stone-300 bg-stone-50 p-5 shadow-sm">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0 max-w-2xl">
+                            <h2 class="font-heading text-sm font-semibold text-stone-900">Archive this meeting</h2>
+                            <p class="mt-0.5 text-xs text-stone-600">
+                                Soft-hides a closed meeting that was created by mistake, is a duplicate,
+                                or otherwise shouldn't sit in the active list. Nothing is deleted — the
+                                record, agenda items and audit logs are preserved and can be restored
+                                any time from the Archived tab on the meetings index.
+                            </p>
+                            <form method="POST" action="{{ route('exco.meetings.archive', $meeting) }}"
+                                class="mt-3 space-y-2"
+                                onsubmit="return confirm('Archive this meeting? It will disappear from the active list.');">
+                                @csrf
+                                <label for="archive_reason" class="block text-xs font-semibold uppercase text-stone-500">
+                                    Reason (optional)
+                                </label>
+                                <input type="text" id="archive_reason" name="reason" maxlength="500"
+                                    placeholder="e.g. Duplicate of Meeting #4"
+                                    class="block w-full max-w-md rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                <div>
+                                    <button type="submit"
+                                        class="rounded-lg bg-stone-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-900">
+                                        Archive meeting
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endif
     </div>
 </x-layouts.app>

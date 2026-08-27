@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ExcoMeetingStatus;
 use App\Enums\ExcoMeetingType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,6 +23,9 @@ class ExcoMeeting extends Model
         'minutes_circulated_by',
         'minutes_adopted_at',
         'minutes_adopted_meeting_id',
+        'archived_at',
+        'archived_by',
+        'archive_reason',
     ];
 
     protected function casts(): array
@@ -32,12 +36,35 @@ class ExcoMeeting extends Model
             'status' => ExcoMeetingStatus::class,
             'minutes_circulated_at' => 'datetime',
             'minutes_adopted_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Query scope for the default meetings index. Archived rows are
+     * hidden by default; the archive tab passes `withArchived()`.
+     */
+    public function scopeNotArchived(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeOnlyArchived(Builder $query): Builder
+    {
+        return $query->whereNotNull('archived_at');
     }
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Whoever archived this meeting (if any). Null while active.
+     */
+    public function archiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
     }
 
     /**
@@ -93,5 +120,10 @@ class ExcoMeeting extends Model
     public function minutesAreAdopted(): bool
     {
         return $this->minutes_adopted_at !== null;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 }

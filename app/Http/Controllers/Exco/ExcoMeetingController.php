@@ -35,15 +35,34 @@ class ExcoMeetingController extends Controller
         private readonly AuditLogService $auditLogService,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        // Archived tab: dedicated view of soft-hidden meetings so
+        // developers/exco can inspect or restore them without them
+        // polluting the day-to-day upcoming/past tables.
+        if ($request->query('archived') === '1') {
+            $archived = ExcoMeeting::query()
+                ->onlyArchived()
+                ->with(['creator:id,name', 'archiver:id,name'])
+                ->orderByDesc('archived_at')
+                ->paginate(20)
+                ->withQueryString();
+
+            return view('exco.meetings.index', [
+                'archived' => $archived,
+                'view' => 'archived',
+            ]);
+        }
+
         $upcoming = ExcoMeeting::query()
+            ->notArchived()
             ->with('creator:id,name')
             ->where('status', '!=', ExcoMeetingStatus::Closed)
             ->orderBy('scheduled_at')
             ->get();
 
         $past = ExcoMeeting::query()
+            ->notArchived()
             ->with('creator:id,name')
             ->where('status', ExcoMeetingStatus::Closed)
             ->orderByDesc('scheduled_at')
@@ -52,6 +71,8 @@ class ExcoMeetingController extends Controller
         return view('exco.meetings.index', [
             'upcoming' => $upcoming,
             'past' => $past,
+            'archivedCount' => ExcoMeeting::onlyArchived()->count(),
+            'view' => 'active',
         ]);
     }
 
@@ -176,15 +197,15 @@ class ExcoMeetingController extends Controller
     }
 
     /**
-     * Delete a meeting. Draft and held meetings can be deleted (for
-     * cleanup of test sittings or sittings that were started but never
-     * finished). Closed meetings are historical and locked — reopen
-     * them via the database if you really need to remove one.
+     * Hard-delete a draft or held meeting (test sittings, abandoned
+     * sessions). Closed meetings cannot be hard-deleted — the archive()
+     * action is the escape hatch there, keeping audit logs and linked
+     * action items intact while hiding the row from active views.
      */
     public function destroy(Request $request, ExcoMeeting $meeting): RedirectResponse
     {
         if ($meeting->isClosed()) {
-            return back()->with('error', 'Closed meetings cannot be deleted — the record is historical.');
+            return back()->with('error', 'Closed meetings cannot be hard-deleted. Use "Archive" instead to hide this meeting without losing the audit trail.');
         }
 
         $snapshot = [
@@ -207,6 +228,90 @@ class ExcoMeetingController extends Controller
 
         return redirect()->route('exco.meetings.index')
             ->with('success', 'Meeting deleted.');
+    }
+
+    /**
+     * Soft-hide a closed meeting. Records who archived it and (optionally)
+     * why, so any later "where did that go?" question is answerable from
+     * the audit log. Reversible via unarchive() — nothing is deleted.
+     *
+     * Draft/held meetings should use hard delete instead; archive is
+     * specifically the escape hatch for a closed sitting that turned out
+     * to be a duplicate, a test run, or otherwise shouldn't be part of
+     * the active record.
+     */
+    public function archive(Request $request, ExcoMeeting $meeting): RedirectResponse
+    {
+        // Semantic guards live here (not in the policy) because
+        // Gate::before in AppServiceProvider auto-allows every ability
+        // for developer/exco, so the policy method is bypassed. Route
+        // middleware `role:developer|exco|chair` handles the who; these
+        // guards handle the when.
+        if (! $meeting->isClosed()) {
+            return back()->with('error', 'Only closed meetings can be archived. Use "Delete meeting" for drafts and in-progress sittings.');
+        }
+
+        if ($meeting->isArchived()) {
+            return back()->with('error', 'This meeting is already archived.');
+        }
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $meeting->update([
+            'archived_at' => now(),
+            'archived_by' => $request->user()->id,
+            'archive_reason' => $data['reason'] ?? null,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'exco_meeting.archived',
+            'ExcoMeeting',
+            $meeting->id,
+            null,
+            [
+                'archived_at' => $meeting->archived_at->toIso8601String(),
+                'reason' => $meeting->archive_reason,
+            ],
+        );
+
+        return redirect()->route('exco.meetings.index')
+            ->with('success', 'Meeting archived. It no longer appears in the active list — find it under Archived.');
+    }
+
+    /**
+     * Restore an archived meeting to its previous status.
+     */
+    public function unarchive(Request $request, ExcoMeeting $meeting): RedirectResponse
+    {
+        if (! $meeting->isArchived()) {
+            return back()->with('error', 'This meeting is not archived.');
+        }
+
+        $snapshot = [
+            'archived_at' => $meeting->archived_at?->toIso8601String(),
+            'reason' => $meeting->archive_reason,
+        ];
+
+        $meeting->update([
+            'archived_at' => null,
+            'archived_by' => null,
+            'archive_reason' => null,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'exco_meeting.unarchived',
+            'ExcoMeeting',
+            $meeting->id,
+            $snapshot,
+            null,
+        );
+
+        return redirect()->route('exco.meetings.show', $meeting)
+            ->with('success', 'Meeting restored.');
     }
 
     /**
@@ -424,6 +529,10 @@ class ExcoMeetingController extends Controller
      */
     public function markCirculated(Request $request, ExcoMeeting $meeting): RedirectResponse
     {
+        if ($meeting->isArchived()) {
+            return back()->with('error', 'This meeting is archived. Restore it before making changes.');
+        }
+
         if (! $meeting->isClosed()) {
             return back()->with('error', 'Close the meeting before circulating the minutes.');
         }
@@ -452,6 +561,10 @@ class ExcoMeetingController extends Controller
      */
     public function markAdopted(Request $request, ExcoMeeting $meeting): RedirectResponse
     {
+        if ($meeting->isArchived()) {
+            return back()->with('error', 'This meeting is archived. Restore it before making changes.');
+        }
+
         if (! $meeting->minutesAreCirculated()) {
             return back()->with('error', 'Circulate the minutes before recording adoption.');
         }

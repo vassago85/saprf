@@ -23,80 +23,144 @@
             <p><span class="font-semibold">Confidential.</span> Everything in this section is visible to ExCo, Chair and developers only. Owner, admin and members do not see these pages or any linked disciplinary case files.</p>
         </div>
 
-        <div>
-            <h2 class="font-heading text-lg font-semibold text-stone-800">Upcoming &amp; in progress</h2>
-            <div class="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-                <table class="min-w-full divide-y divide-stone-200 text-sm">
-                    <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Title</th>
-                            <th class="px-4 py-3 text-left font-semibold">When</th>
-                            <th class="px-4 py-3 text-left font-semibold">Type</th>
-                            <th class="px-4 py-3 text-left font-semibold">Status</th>
-                            <th class="px-4 py-3 text-left font-semibold">Created by</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-stone-100">
-                        @forelse ($upcoming as $meeting)
-                            <tr class="hover:bg-stone-50">
-                                <td class="px-4 py-3 font-medium text-stone-900">
-                                    <a href="{{ route('exco.meetings.show', $meeting) }}" class="hover:text-emerald-700">
-                                        {{ $meeting->title }}
-                                    </a>
-                                </td>
-                                <td class="px-4 py-3 text-stone-600">{{ $meeting->scheduled_at->format('D d M Y H:i') }}</td>
-                                <td class="px-4 py-3 text-stone-600">{{ $meeting->type->label() }}</td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $meeting->status->badgeClass() }}">
-                                        {{ $meeting->status->label() }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-stone-500">{{ $meeting->creator?->name ?? '—' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">
-                                    No open meetings. Create one for tonight's sitting.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+        {{-- View switcher. "Archived" is a soft-delete escape hatch — closed
+             meetings that were duplicates, tests, or otherwise shouldn't be
+             in the active record. --}}
+        <div class="flex items-center gap-1 border-b border-stone-200">
+            <a href="{{ route('exco.meetings.index') }}"
+                class="border-b-2 px-4 py-2 text-sm font-semibold transition
+                    {{ ($view ?? 'active') === 'active' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-stone-500 hover:text-stone-700' }}">
+                Active
+            </a>
+            <a href="{{ route('exco.meetings.index', ['archived' => 1]) }}"
+                class="border-b-2 px-4 py-2 text-sm font-semibold transition
+                    {{ ($view ?? 'active') === 'archived' ? 'border-stone-800 text-stone-900' : 'border-transparent text-stone-500 hover:text-stone-700' }}">
+                Archived
+                @if (($view ?? 'active') === 'active' && ($archivedCount ?? 0) > 0)
+                    <span class="ml-1 rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-semibold text-stone-700">{{ $archivedCount }}</span>
+                @endif
+            </a>
         </div>
 
-        <div>
-            <h2 class="font-heading text-lg font-semibold text-stone-800">Past (closed)</h2>
-            <div class="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-                <table class="min-w-full divide-y divide-stone-200 text-sm">
-                    <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Title</th>
-                            <th class="px-4 py-3 text-left font-semibold">When</th>
-                            <th class="px-4 py-3 text-left font-semibold">Type</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-stone-100">
-                        @forelse ($past as $meeting)
-                            <tr class="hover:bg-stone-50">
-                                <td class="px-4 py-3 font-medium text-stone-900">
-                                    <a href="{{ route('exco.meetings.show', $meeting) }}" class="hover:text-emerald-700">
-                                        {{ $meeting->title }}
-                                    </a>
-                                </td>
-                                <td class="px-4 py-3 text-stone-600">{{ $meeting->scheduled_at->format('d M Y H:i') }}</td>
-                                <td class="px-4 py-3 text-stone-600">{{ $meeting->type->label() }}</td>
-                            </tr>
-                        @empty
+        @if (($view ?? 'active') === 'archived')
+            {{-- Archived view: single table of soft-hidden meetings with the
+                 who / when / why context inline. Restore is done from the
+                 meeting's show page. --}}
+            <div>
+                <h2 class="font-heading text-lg font-semibold text-stone-800">Archived meetings</h2>
+                <p class="mt-0.5 text-xs text-stone-500">Soft-hidden closed meetings. Nothing is deleted — open any row and click "Restore from archive" to bring it back.</p>
+
+                <div class="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                    <table class="min-w-full divide-y divide-stone-200 text-sm">
+                        <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                             <tr>
-                                <td colspan="3" class="px-4 py-8 text-center text-sm text-stone-400">No closed meetings yet.</td>
+                                <th class="px-4 py-3 text-left font-semibold">Title</th>
+                                <th class="px-4 py-3 text-left font-semibold">Sitting date</th>
+                                <th class="px-4 py-3 text-left font-semibold">Archived</th>
+                                <th class="px-4 py-3 text-left font-semibold">Archived by</th>
+                                <th class="px-4 py-3 text-left font-semibold">Reason</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-stone-100">
+                            @forelse ($archived as $meeting)
+                                <tr class="hover:bg-stone-50">
+                                    <td class="px-4 py-3 font-medium text-stone-900">
+                                        <a href="{{ route('exco.meetings.show', $meeting) }}" class="hover:text-emerald-700">
+                                            {{ $meeting->title }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->scheduled_at->format('d M Y H:i') }}</td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->archived_at->format('d M Y H:i') }}</td>
+                                    <td class="px-4 py-3 text-stone-500">{{ $meeting->archiver?->name ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-stone-500 italic">{{ $meeting->archive_reason ?: '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">Nothing archived.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">{{ $archived->links() }}</div>
+            </div>
+        @else
+            <div>
+                <h2 class="font-heading text-lg font-semibold text-stone-800">Upcoming &amp; in progress</h2>
+                <div class="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                    <table class="min-w-full divide-y divide-stone-200 text-sm">
+                        <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold">Title</th>
+                                <th class="px-4 py-3 text-left font-semibold">When</th>
+                                <th class="px-4 py-3 text-left font-semibold">Type</th>
+                                <th class="px-4 py-3 text-left font-semibold">Status</th>
+                                <th class="px-4 py-3 text-left font-semibold">Created by</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-100">
+                            @forelse ($upcoming as $meeting)
+                                <tr class="hover:bg-stone-50">
+                                    <td class="px-4 py-3 font-medium text-stone-900">
+                                        <a href="{{ route('exco.meetings.show', $meeting) }}" class="hover:text-emerald-700">
+                                            {{ $meeting->title }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->scheduled_at->format('D d M Y H:i') }}</td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->type->label() }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $meeting->status->badgeClass() }}">
+                                            {{ $meeting->status->label() }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-500">{{ $meeting->creator?->name ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">
+                                        No open meetings. Create one for tonight's sitting.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="mt-3">{{ $past->links() }}</div>
-        </div>
+            <div>
+                <h2 class="font-heading text-lg font-semibold text-stone-800">Past (closed)</h2>
+                <div class="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                    <table class="min-w-full divide-y divide-stone-200 text-sm">
+                        <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold">Title</th>
+                                <th class="px-4 py-3 text-left font-semibold">When</th>
+                                <th class="px-4 py-3 text-left font-semibold">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-100">
+                            @forelse ($past as $meeting)
+                                <tr class="hover:bg-stone-50">
+                                    <td class="px-4 py-3 font-medium text-stone-900">
+                                        <a href="{{ route('exco.meetings.show', $meeting) }}" class="hover:text-emerald-700">
+                                            {{ $meeting->title }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->scheduled_at->format('d M Y H:i') }}</td>
+                                    <td class="px-4 py-3 text-stone-600">{{ $meeting->type->label() }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="px-4 py-8 text-center text-sm text-stone-400">No closed meetings yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">{{ $past->links() }}</div>
+            </div>
+        @endif
     </div>
 </x-layouts.app>

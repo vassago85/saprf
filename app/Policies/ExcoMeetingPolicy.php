@@ -38,22 +38,42 @@ class ExcoMeetingPolicy
      * Every ExCo member can edit meeting metadata (title, date, notes)
      * up until the sitting is closed. Once closed the record is
      * historical — re-opening requires a policy change / migration.
+     * Archived meetings are also read-only regardless of status.
      */
     public function update(User $user, ExcoMeeting $meeting): bool
+    {
+        return $user->isExco()
+            && $meeting->status !== ExcoMeetingStatus::Closed
+            && ! $meeting->isArchived();
+    }
+
+    /**
+     * Hard deletion is allowed for draft and held meetings so ExCo can
+     * clean up test sittings or abandoned sessions. Closed meetings
+     * cannot be hard-deleted — use archive() instead to keep the audit
+     * trail and any linked action items intact.
+     */
+    public function delete(User $user, ExcoMeeting $meeting): bool
     {
         return $user->isExco()
             && $meeting->status !== ExcoMeetingStatus::Closed;
     }
 
     /**
-     * Deletion is allowed for draft and held meetings so ExCo can
-     * clean up test sittings or abandoned sessions. Closed meetings
-     * are historical and locked — the destroy() controller enforces
-     * the same rule, this policy is the belt-and-braces check.
+     * Archive is the escape hatch for a closed meeting created by
+     * mistake or superseded. Soft-hide, fully reversible via
+     * unarchive(). Only closed meetings qualify — draft/held have
+     * hard delete for the same "get rid of it" use case.
      */
-    public function delete(User $user, ExcoMeeting $meeting): bool
+    public function archive(User $user, ExcoMeeting $meeting): bool
     {
         return $user->isExco()
-            && $meeting->status !== ExcoMeetingStatus::Closed;
+            && $meeting->status === ExcoMeetingStatus::Closed
+            && ! $meeting->isArchived();
+    }
+
+    public function unarchive(User $user, ExcoMeeting $meeting): bool
+    {
+        return $user->isExco() && $meeting->isArchived();
     }
 }

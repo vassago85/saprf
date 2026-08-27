@@ -395,6 +395,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::delete('/meetings/{meeting}', [ExcoMeetingController::class, 'destroy'])->name('meetings.destroy');
         Route::post('/meetings/{meeting}/transition', [ExcoMeetingController::class, 'transition'])->name('meetings.transition');
 
+        // Archive (closed meetings) + unarchive. Soft-hide alternative to
+        // hard delete so audit logs and linked actions survive intact.
+        Route::post('/meetings/{meeting}/archive', [ExcoMeetingController::class, 'archive'])->name('meetings.archive');
+        Route::post('/meetings/{meeting}/unarchive', [ExcoMeetingController::class, 'unarchive'])->name('meetings.unarchive');
+
         // Printable minutes + circulation/adoption lifecycle.
         Route::get('/meetings/{meeting}/minutes/print', [ExcoMeetingController::class, 'printMinutes'])->name('meetings.minutes.print');
         Route::post('/meetings/{meeting}/mark-circulated', [ExcoMeetingController::class, 'markCirculated'])->name('meetings.mark-circulated');
