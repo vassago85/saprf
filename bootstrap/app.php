@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureProfileComplete;
 use App\Http\Middleware\ForcePasswordChange;
+use App\Http\Middleware\RedirectToCanonicalHost;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SyncViewModeWithRoute;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', ForcePasswordChange::class);
         $middleware->appendToGroup('web', SyncViewModeWithRoute::class);
 
+        // Runs before every other middleware so www.<apex> visitors are
+        // 301'd to the canonical origin before session, CSRF, or CSP touch
+        // the request. See RedirectToCanonicalHost for the full rationale.
+        $middleware->prepend(RedirectToCanonicalHost::class);
         $middleware->append(SecurityHeaders::class);
 
         $middleware->validateCsrfTokens(except: [

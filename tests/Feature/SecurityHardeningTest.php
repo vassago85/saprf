@@ -187,6 +187,41 @@ it('allows form submissions anywhere inside Payfast infrastructure via wildcard'
         ->toContain('https://*.payfast.io');
 });
 
+// ── Canonical host redirect ───────────────────────────────────────────────
+
+it('301-redirects the www variant of the canonical host to the apex', function () {
+    config(['app.url' => 'https://saprf.co.za']);
+
+    $response = $this->get('https://www.saprf.co.za/events?series=PRS');
+
+    $response->assertStatus(301)
+        ->assertHeader('Location', 'https://saprf.co.za/events?series=PRS');
+});
+
+it('leaves apex requests alone', function () {
+    config(['app.url' => 'https://saprf.co.za']);
+
+    // The homepage is a plain view() render; asserting it doesn't redirect
+    // is enough to prove the middleware isn't accidentally short-circuiting.
+    $this->get('https://saprf.co.za/')->assertOk();
+});
+
+it('does not rewrite POSTs so misrouted webhooks still reach the controller', function () {
+    config(['app.url' => 'https://saprf.co.za']);
+
+    $response = $this->post('https://www.saprf.co.za/webhooks/mailgun');
+
+    // We don't care about the controller's own response here — only that
+    // the redirect middleware got out of the way and let the POST through.
+    expect($response->status())->not->toBe(301);
+});
+
+it('ignores hosts that are not the www twin of the canonical apex', function () {
+    config(['app.url' => 'https://saprf.co.za']);
+
+    $this->get('https://staging.saprf.co.za/')->assertOk();
+});
+
 // ── Mass assignment ───────────────────────────────────────────────────────
 
 it('refuses to mass-assign credential columns on a user', function () {
