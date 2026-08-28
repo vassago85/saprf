@@ -66,4 +66,25 @@ class ExcoAction extends Model
             && $this->due_on !== null
             && $this->due_on->isPast();
     }
+
+    /**
+     * Editable while it still belongs to a "live" meeting cycle:
+     *   - Ad-hoc (no meeting) — always editable.
+     *   - Attached to a meeting whose minutes have NOT yet been adopted.
+     *
+     * Once the parent meeting's minutes are adopted at a subsequent
+     * sitting, the action item is part of the historical record and
+     * its content (title / owner / due date / details) is frozen.
+     * Completion tracking (mark done / reopen) stays available so
+     * outstanding items can still be closed off.
+     */
+    public function isEditable(): bool
+    {
+        if ($this->meeting_id === null) {
+            return true;
+        }
+
+        return $this->meeting !== null
+            && ! $this->meeting->minutesAreAdopted();
+    }
 }

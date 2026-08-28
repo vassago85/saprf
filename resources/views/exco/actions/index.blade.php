@@ -28,8 +28,10 @@
                         <th class="px-4 py-3 text-right font-semibold">Toggle</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-stone-100">
-                    @forelse ($actions as $action)
+                {{-- One <tbody> per action so Alpine can scope the "editing"
+                     flag to a single row + its inline edit form beneath it. --}}
+                @forelse ($actions as $action)
+                    <tbody class="divide-y divide-stone-100" x-data="{ editing: false }">
                         <tr>
                             <td class="px-4 py-3 text-stone-900">
                                 <p class="font-medium">{{ $action->title }}</p>
@@ -44,6 +46,9 @@
                             <td class="px-4 py-3 text-xs text-stone-500">
                                 @if ($action->meeting)
                                     <a href="{{ route('exco.meetings.show', $action->meeting_id) }}" class="hover:text-emerald-700">{{ $action->meeting->title }}</a>
+                                    @if ($action->meeting->minutesAreAdopted())
+                                        <span class="ml-1 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-blue-800" title="Minutes adopted — content locked">Locked</span>
+                                    @endif
                                 @else
                                     Ad-hoc
                                 @endif
@@ -55,6 +60,13 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex items-center gap-1">
+                                    @if ($action->isEditable())
+                                        <button type="button" @click="editing = !editing"
+                                            class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
+                                            <span x-show="!editing">Edit</span>
+                                            <span x-show="editing" x-cloak>Close</span>
+                                        </button>
+                                    @endif
                                     @if ($action->isOpen())
                                         <form method="POST" action="{{ route('exco.actions.set-status', $action) }}">
                                             @csrf
@@ -82,14 +94,68 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
+                        @if ($action->isEditable())
+                            <tr x-show="editing" x-cloak>
+                                <td colspan="6" class="bg-stone-50/60 px-4 py-4">
+                                    <form method="POST" action="{{ route('exco.actions.update', $action) }}" class="space-y-3">
+                                        @csrf
+                                        @method('PUT')
+                                        <div>
+                                            <label class="block text-xs font-semibold uppercase text-stone-500">Title</label>
+                                            <input type="text" name="title" required maxlength="200"
+                                                value="{{ old('title', $action->title) }}"
+                                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                        </div>
+                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-stone-500">Owner</label>
+                                                <select name="assigned_to"
+                                                    class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                                    <option value="">— unassigned —</option>
+                                                    @foreach ($excoUsers as $u)
+                                                        <option value="{{ $u->id }}" @selected(old('assigned_to', $action->assigned_to) == $u->id)>{{ $u->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-stone-500">Due date</label>
+                                                <input type="date" name="due_on"
+                                                    value="{{ old('due_on', $action->due_on?->format('Y-m-d')) }}"
+                                                    class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold uppercase text-stone-500">Details (optional)</label>
+                                            <textarea name="details" rows="2" maxlength="5000"
+                                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">{{ old('details', $action->details) }}</textarea>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button type="submit"
+                                                class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                                Save changes
+                                            </button>
+                                            <button type="button" @click="editing = false"
+                                                class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50">
+                                                Cancel
+                                            </button>
+                                            @if ($action->meeting)
+                                                <p class="text-[11px] text-stone-500">Editable until the minutes of <span class="italic">{{ $action->meeting->title }}</span> are adopted.</p>
+                                            @endif
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        @endif
+                    </tbody>
+                @empty
+                    <tbody>
                         <tr>
                             <td colspan="6" class="px-4 py-10 text-center text-sm text-stone-400">
                                 No {{ $currentStatus === 'all' ? '' : $currentStatus }} action items.
                             </td>
                         </tr>
-                    @endforelse
-                </tbody>
+                    </tbody>
+                @endforelse
             </table>
         </div>
 

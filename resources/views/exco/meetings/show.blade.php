@@ -713,55 +713,113 @@
 
             <div class="mt-4 divide-y divide-stone-100">
                 @forelse ($meeting->actions as $action)
-                    <div class="flex items-start justify-between gap-3 py-3">
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                                <p class="font-medium text-stone-900">{{ $action->title }}</p>
-                                <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {{ $action->status->badgeClass() }}">
-                                    {{ $action->status->label() }}
-                                </span>
-                                @if ($action->isOverdue())
-                                    <span class="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">OVERDUE</span>
+                    <div class="py-3" x-data="{ editing: false }">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <p class="font-medium text-stone-900">{{ $action->title }}</p>
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {{ $action->status->badgeClass() }}">
+                                        {{ $action->status->label() }}
+                                    </span>
+                                    @if ($action->isOverdue())
+                                        <span class="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">OVERDUE</span>
+                                    @endif
+                                </div>
+                                <p class="mt-0.5 text-xs text-stone-500">
+                                    @if ($action->assignee)
+                                        Owner: {{ $action->assignee->name }}@if ($action->assignee->exco_position) ({{ $action->assignee->exco_position }})@endif ·
+                                    @endif
+                                    @if ($action->due_on) Due {{ $action->due_on->format('d M Y') }} · @endif
+                                    @if ($action->agendaItem) Item: {{ $action->agendaItem->title }} @endif
+                                </p>
+                                @if ($action->details)
+                                    <p class="mt-1 whitespace-pre-wrap text-xs text-stone-600">{{ $action->details }}</p>
                                 @endif
                             </div>
-                            <p class="mt-0.5 text-xs text-stone-500">
-                                @if ($action->assignee)
-                                    Owner: {{ $action->assignee->name }}@if ($action->assignee->exco_position) ({{ $action->assignee->exco_position }})@endif ·
+                            <div class="flex items-center gap-1">
+                                @if ($action->isEditable())
+                                    <button type="button" @click="editing = !editing"
+                                        class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
+                                        <span x-show="!editing">Edit</span>
+                                        <span x-show="editing" x-cloak>Close</span>
+                                    </button>
                                 @endif
-                                @if ($action->due_on) Due {{ $action->due_on->format('d M Y') }} · @endif
-                                @if ($action->agendaItem) Item: {{ $action->agendaItem->title }} @endif
-                            </p>
-                            @if ($action->details)
-                                <p class="mt-1 whitespace-pre-wrap text-xs text-stone-600">{{ $action->details }}</p>
-                            @endif
-                        </div>
-                        <div class="flex items-center gap-1">
-                            @if ($action->isOpen())
-                                <form method="POST" action="{{ route('exco.actions.set-status', $action) }}">
+                                @if ($action->isOpen())
+                                    <form method="POST" action="{{ route('exco.actions.set-status', $action) }}">
+                                        @csrf
+                                        <input type="hidden" name="status" value="done">
+                                        <button type="submit" class="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                                            Mark done
+                                        </button>
+                                    </form>
+                                @else
+                                    <form method="POST" action="{{ route('exco.actions.set-status', $action) }}">
+                                        @csrf
+                                        <input type="hidden" name="status" value="open">
+                                        <button type="submit" class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
+                                            Reopen
+                                        </button>
+                                    </form>
+                                @endif
+                                <form method="POST" action="{{ route('exco.actions.destroy', $action) }}"
+                                    onsubmit="return confirm('Delete this action?');">
                                     @csrf
-                                    <input type="hidden" name="status" value="done">
-                                    <button type="submit" class="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-                                        Mark done
+                                    @method('DELETE')
+                                    <button type="submit" class="rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100">
+                                        Delete
                                     </button>
                                 </form>
-                            @else
-                                <form method="POST" action="{{ route('exco.actions.set-status', $action) }}">
-                                    @csrf
-                                    <input type="hidden" name="status" value="open">
-                                    <button type="submit" class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
-                                        Reopen
-                                    </button>
-                                </form>
-                            @endif
-                            <form method="POST" action="{{ route('exco.actions.destroy', $action) }}"
-                                onsubmit="return confirm('Delete this action?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100">
-                                    Delete
-                                </button>
-                            </form>
+                            </div>
                         </div>
+
+                        @if ($action->isEditable())
+                            <div x-show="editing" x-cloak class="mt-3 rounded-lg border border-stone-200 bg-stone-50/60 p-3">
+                                <form method="POST" action="{{ route('exco.actions.update', $action) }}" class="space-y-3">
+                                    @csrf
+                                    @method('PUT')
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase text-stone-500">Title</label>
+                                        <input type="text" name="title" required maxlength="200"
+                                            value="{{ old('title', $action->title) }}"
+                                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label class="block text-xs font-semibold uppercase text-stone-500">Owner</label>
+                                            <select name="assigned_to"
+                                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                                <option value="">— unassigned —</option>
+                                                @foreach ($excoUsers as $u)
+                                                    <option value="{{ $u->id }}" @selected(old('assigned_to', $action->assigned_to) == $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold uppercase text-stone-500">Due date</label>
+                                            <input type="date" name="due_on"
+                                                value="{{ old('due_on', $action->due_on?->format('Y-m-d')) }}"
+                                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase text-stone-500">Details (optional)</label>
+                                        <textarea name="details" rows="2" maxlength="5000"
+                                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">{{ old('details', $action->details) }}</textarea>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button type="submit"
+                                            class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                            Save changes
+                                        </button>
+                                        <button type="button" @click="editing = false"
+                                            class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50">
+                                            Cancel
+                                        </button>
+                                        <p class="text-[11px] text-stone-500">Editable until these minutes are adopted.</p>
+                                    </div>
+                                </form>
+                            </div>
+                        @endif
                     </div>
                 @empty
                     <p class="py-3 text-sm text-stone-400">No actions on this meeting yet.</p>

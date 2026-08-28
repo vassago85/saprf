@@ -100,6 +100,11 @@ class ExcoActionController extends Controller
 
     public function update(Request $request, ExcoAction $action): RedirectResponse
     {
+        // Actions on a meeting whose minutes have already been adopted
+        // are historical record — content is locked. Status toggles and
+        // deletion are handled by separate endpoints and stay available.
+        abort_unless($action->isEditable(), 403, 'This action item is locked because its minutes have been adopted.');
+
         $data = $this->validatedForStandalone($request);
 
         $action->update([

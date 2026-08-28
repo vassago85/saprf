@@ -262,3 +262,87 @@ it('toggles action status open <-> done', function () {
     expect($action->status)->toBe(ExcoActionStatus::Open)
         ->and($action->completed_at)->toBeNull();
 });
+
+it('allows editing actions while parent minutes are not yet adopted', function () {
+    $exco = meetingExco();
+
+    $meeting = ExcoMeeting::create([
+        'title' => 'August ExCo',
+        'type' => ExcoMeetingType::Regular,
+        'scheduled_at' => now()->subDay(),
+        'status' => ExcoMeetingStatus::Closed,
+        'minutes_circulated_at' => now()->subHours(2),
+        'minutes_circulated_by' => $exco->id,
+        'created_by' => $exco->id,
+    ]);
+
+    $action = ExcoAction::create([
+        'title' => 'Original title',
+        'details' => 'Original details',
+        'status' => ExcoActionStatus::Open,
+        'meeting_id' => $meeting->id,
+        'created_by' => $exco->id,
+    ]);
+
+    expect($action->isEditable())->toBeTrue();
+
+    $this->actingAs($exco)->put(route('exco.actions.update', $action), [
+        'title' => 'Updated title',
+        'details' => 'Updated details',
+        'assigned_to' => $exco->id,
+        'due_on' => now()->addWeek()->format('Y-m-d'),
+    ])->assertRedirect();
+
+    $action->refresh();
+    expect($action->title)->toBe('Updated title')
+        ->and($action->details)->toBe('Updated details')
+        ->and($action->assigned_to)->toBe($exco->id);
+});
+
+it('locks action edits once parent minutes are adopted', function () {
+    $exco = meetingExco();
+
+    $meeting = ExcoMeeting::create([
+        'title' => 'July ExCo',
+        'type' => ExcoMeetingType::Regular,
+        'scheduled_at' => now()->subMonth(),
+        'status' => ExcoMeetingStatus::Closed,
+        'minutes_circulated_at' => now()->subWeeks(3),
+        'minutes_circulated_by' => $exco->id,
+        'minutes_adopted_at' => now()->subDay(),
+        'created_by' => $exco->id,
+    ]);
+
+    $action = ExcoAction::create([
+        'title' => 'Historical action',
+        'status' => ExcoActionStatus::Open,
+        'meeting_id' => $meeting->id,
+        'created_by' => $exco->id,
+    ]);
+
+    expect($action->isEditable())->toBeFalse();
+
+    $this->actingAs($exco)->put(route('exco.actions.update', $action), [
+        'title' => 'Sneaky rewrite',
+    ])->assertForbidden();
+
+    expect($action->fresh()->title)->toBe('Historical action');
+});
+
+it('always allows editing ad-hoc actions with no parent meeting', function () {
+    $exco = meetingExco();
+
+    $action = ExcoAction::create([
+        'title' => 'Ad-hoc thing',
+        'status' => ExcoActionStatus::Open,
+        'created_by' => $exco->id,
+    ]);
+
+    expect($action->isEditable())->toBeTrue();
+
+    $this->actingAs($exco)->put(route('exco.actions.update', $action), [
+        'title' => 'Renamed ad-hoc thing',
+    ])->assertRedirect();
+
+    expect($action->fresh()->title)->toBe('Renamed ad-hoc thing');
+});
