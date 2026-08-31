@@ -8,16 +8,24 @@ FROM composer:2 AS composer-builder
 
 WORKDIR /app
 
-# Force Composer's curl downloader onto HTTP/1.1. GitHub Codeload
-# (codeload.github.com) intermittently returns HTTP/2 400 on the
-# `/legacy.zip/<sha>` endpoints for the same package that a normal
-# browser download would fetch fine — reproducible enough on this VPS
-# that back-to-back --no-cache builds both fail on the exact same four
-# Symfony/Guzzle packages. HTTP/1.1 sidesteps the whole edge issue.
-# Reference: composer/composer#11072 and the many "codeload 400"
-# reports on the composer tracker.
-ENV COMPOSER_DISABLE_HTTP2=1
-
+# Force Composer to install every package via `git clone` against the
+# actual GitHub repos instead of downloading zips from codeload.github.com.
+#
+# GitHub's `codeload.github.com/*/legacy.zip/<sha>` endpoint is served
+# by a separate edge from `github.com/*.git`, and the southafricanorth
+# edge for codeload has been reproducibly returning HTTP 400 (16-byte
+# "invalid request" body) for a stable subset of SHA-pinned Composer
+# archives — symfony/mime, symfony/finder, symfony/event-dispatcher-
+# contracts, and guzzlehttp/promises being the current offenders.
+# curl reproduces the 400 outside the build too, so it's not a
+# Docker / HTTP2 / User-Agent problem — codeload's SA edge is the issue.
+#
+# `--prefer-source` sidesteps codeload entirely by cloning from
+# `github.com/vendor/pkg.git` (standard git-smart-HTTP, different
+# infrastructure). Adds ~30-60s to the build vs zip download but is
+# reliable. `composer:2` image ships with git, so no extra apk step
+# is needed. Once GitHub's SA edge is healthy again this can flip
+# back to `--prefer-dist`.
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -25,7 +33,7 @@ RUN composer install \
     --no-interaction \
     --no-scripts \
     --no-autoloader \
-    --prefer-dist \
+    --prefer-source \
     --ignore-platform-req=ext-gd
 
 COPY . .
