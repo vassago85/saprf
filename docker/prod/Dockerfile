@@ -8,6 +8,16 @@ FROM composer:2 AS composer-builder
 
 WORKDIR /app
 
+# Force Composer's curl downloader onto HTTP/1.1. GitHub Codeload
+# (codeload.github.com) intermittently returns HTTP/2 400 on the
+# `/legacy.zip/<sha>` endpoints for the same package that a normal
+# browser download would fetch fine — reproducible enough on this VPS
+# that back-to-back --no-cache builds both fail on the exact same four
+# Symfony/Guzzle packages. HTTP/1.1 sidesteps the whole edge issue.
+# Reference: composer/composer#11072 and the many "codeload 400"
+# reports on the composer tracker.
+ENV COMPOSER_DISABLE_HTTP2=1
+
 COPY composer.json composer.lock ./
 
 RUN composer install \
