@@ -605,8 +605,16 @@ class ScoreImportService
             // Full name aliases
             'name', 'shooter', 'competitor', 'competitor_name', 'full_name', 'first_and_last_name' => 'shooter_name',
 
-            // Score column — Impact scoring uses "Impacts" (hit count on target)
-            'impacts', 'hits', 'score', 'total_score', 'stage_points', 'total_points', 'points', 'match_score', 'total' => 'raw_score',
+            // Score column — Impact scoring uses "Impacts" (hit count on target).
+            // MP / stage-scored exports use per-day totals: `Day1Total`
+            // → day1total, `Day 1 Total` → day1_total, `DayTotal` → daytotal,
+            // etc. Treat all of them as the score column so a Day-1 upload
+            // finds a total to import; the day1/day2 destination on the
+            // Score row is chosen elsewhere based on match structure.
+            'impacts', 'hits', 'score', 'total_score', 'stage_points', 'total_points', 'points', 'match_score', 'total',
+            'day_total', 'daytotal',
+            'day1_total', 'day1total', 'day_1_total',
+            'day2_total', 'day2total', 'day_2_total' => 'raw_score',
 
             // Match percentage (Impact) — preserved in raw_meta but not primary metric
             'match_percent', 'match_percentage' => 'match_percentage',

@@ -215,6 +215,65 @@ it('keeps the Snr / no-suffix distinction when compact-matching father-and-son a
         ->and($score->user_id)->not->toBe($junior->id);
 });
 
+it('accepts an MP stage-scored CSV where the total column is called Day1Total', function () {
+    // Real Mpumalanga day-1 export: header is
+    // Rank,Competitor,Handle,MemberNo,Division,Stage 2..Stage 10,Day1Total
+    // Historically failed with "CSV is missing required column(s): raw_score
+    // (or impacts / total / points)" because `Day1Total` (→ day1total)
+    // wasn't in the raw_score alias list. Fix adds day1total / day2total /
+    // day_total / daytotal to the alias set.
+    $header = 'Rank,Competitor,Handle,MemberNo,Division,Stage 2,Stage 3,Stage 4,Stage 5,Stage 6,Stage 7,Stage 8,Stage 9,Stage 10,Day1Total' . "\n";
+    $body = '1,Russell Ferreira,Russmann,,Factory,12,10,9,10,11,11,8,8,8,87' . "\n"
+        . '2,Marjee Badenhorst,MarjeeBadenhorst,,Open,12,10,12,11,3,11,6,10,11,86' . "\n";
+
+    $file = UploadedFile::fake()->createWithContent('mp_day1.csv', $header . $body);
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => $file,
+        'replace_existing' => 0,
+    ]);
+
+    $scores = Score::where('match_id', $this->match->id)->orderBy('placement')->get();
+
+    expect($scores)->toHaveCount(2)
+        ->and((float) $scores[0]->raw_score)->toBe(87.0)
+        ->and($scores[0]->shooter_name)->toBe('Russell Ferreira')
+        ->and((float) $scores[1]->raw_score)->toBe(86.0);
+});
+
+it('also accepts Day 1 Total (space-separated) and DayTotal variants of the total column', function () {
+    // Same shape, different day-total spelling. Confirms the whole alias
+    // family (day_total / daytotal / day_1_total) is picked up, not just
+    // the specific Day1Total form.
+    $header1 = 'Rank,Competitor,Handle,MemberNo,Division,Stage 2,Stage 3,Day 1 Total' . "\n";
+    $body1 = '1,Foo Bar,foo,,Factory,10,10,20' . "\n";
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => UploadedFile::fake()->createWithContent('a.csv', $header1 . $body1),
+        'replace_existing' => 0,
+    ]);
+
+    expect((float) Score::where('match_id', $this->match->id)
+        ->where('shooter_name', 'Foo Bar')->value('raw_score'))->toBe(20.0);
+
+    $header2 = 'Rank,Competitor,Handle,MemberNo,Division,Stage 2,Stage 3,DayTotal' . "\n";
+    $body2 = '2,Baz Qux,baz,,Open,9,9,18' . "\n";
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => UploadedFile::fake()->createWithContent('b.csv', $header2 . $body2),
+        'replace_existing' => 0,
+    ]);
+
+    expect((float) Score::where('match_id', $this->match->id)
+        ->where('shooter_name', 'Baz Qux')->value('raw_score'))->toBe(18.0);
+});
+
 it('does not compact-match when it would produce more than one candidate after suffix strip', function () {
     // If BOTH platform accounts are named identically apart from the
     // suffix, and the CSV name compact-strips to the same key as both,
