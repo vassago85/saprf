@@ -69,7 +69,11 @@ it('creates a provincial Day 1 sibling and imports totals-only scores onto it', 
     expect($sibling)->not->toBeNull()
         ->and($sibling->name)->toBe('Clash of the Legends PR22 — Provincial (Day 1)')
         ->and($sibling->series_level)->toBe('provincial')
-        ->and($sibling->everyone_counts)->toBeTrue()
+        // Day-1 provincial siblings now run the normal membership check. The
+        // old-site migration window that motivated the blanket "everyone
+        // counts" default is closed; an MD who genuinely needs it back on
+        // for a specific import can flip it via the match edit screen.
+        ->and($sibling->everyone_counts)->toBeFalse()
         ->and($sibling->match_end_date)->toBeNull();
 
     $import = \App\Models\ScoreImport::latest('id')->first();

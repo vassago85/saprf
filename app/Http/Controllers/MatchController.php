@@ -14,8 +14,10 @@ use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
+use App\Models\Score;
 use App\Services\MembershipValidationService;
 use App\Services\RegistrationPricingService;
+use App\Services\ScoreValidationService;
 use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +35,7 @@ class MatchController extends Controller
         private readonly AuditLogService $auditLogService,
         private readonly SettingsService $settingsService,
         private readonly StandingsCalculationService $standings,
+        private readonly ScoreValidationService $scoreValidation,
     ) {}
 
     // ── Admin CRUD (authenticated) ──
@@ -223,9 +226,30 @@ class MatchController extends Controller
         // on the public calendar with registration closed.
         $validated['published'] = ($validated['status'] ?? $match->status) !== 'draft';
 
+        $everyoneCountsChanged = array_key_exists('everyone_counts', $validated)
+            && (bool) $old['everyone_counts'] !== (bool) $validated['everyone_counts'];
+
         $match->update($validated);
 
         $match->divisions()->sync($divisionIds);
+
+        // Flipping the "everyone counts" flag changes how every score on this
+        // match should be graded (bypass vs full membership check). Standings
+        // recalculation reads whatever is already persisted on each Score,
+        // so without re-evaluating first, the toggle would either keep
+        // demoting-eligible shooters "valid" (flag flipped OFF) or leave
+        // lapsed shooters out of the log (flag flipped ON) until the next
+        // sweep. Do the re-grade before the standings rebuild.
+        if ($everyoneCountsChanged) {
+            Score::query()
+                ->where('match_id', $match->id)
+                ->with(['user.membership', 'match'])
+                ->chunkById(200, function ($scores): void {
+                    foreach ($scores as $score) {
+                        $this->scoreValidation->evaluateScoreStatus($score);
+                    }
+                });
+        }
 
         // Season logs are derived from a published match's scores, and almost
         // any edit (level, type, province, date, dual-count flags…) can
@@ -248,8 +272,16 @@ class MatchController extends Controller
             $match->fresh()->toArray(),
         );
 
+        $flash = 'Match updated successfully.';
+        if ($everyoneCountsChanged) {
+            $flash .= ' Every score on this match was re-graded against the membership check.';
+        }
+        if ($recalculated) {
+            $flash .= ' Standings were recalculated.';
+        }
+
         return redirect()->route('matches.show', $match)
-            ->with('success', 'Match updated successfully.'.($recalculated ? ' Standings were recalculated.' : ''));
+            ->with('success', $flash);
     }
 
     /**

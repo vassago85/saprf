@@ -321,7 +321,17 @@ class MatchEvent extends Model
             'status' => 'completed',
             'created_by' => $this->created_by,
             'published' => true,
-            'everyone_counts' => true,
+            // Membership check applies as normal. Historically this defaulted
+            // to `true` while the old SAPRF site was still in the migration
+            // window — day-1 CSVs arrived with a mix of expired / never-
+            // registered members whose current-platform membership rows
+            // hadn't been backfilled yet, so we blanket-accepted every
+            // shooter to avoid demoting scores whose "lapsed" status was
+            // actually just a data-migration gap. That window is closed:
+            // the old site is retired and everyone with a real membership
+            // has a live record here. Flip an individual match back on via
+            // the match edit page if a specific import genuinely needs it.
+            'everyone_counts' => false,
             'also_counts_for_provincial' => false,
             'source_national_match_id' => $this->id,
             'description' => 'Day-1 provincial results from the linked 2-day national. Counts toward provincial standings and shooter logs.',
