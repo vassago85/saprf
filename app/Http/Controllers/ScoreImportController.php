@@ -128,6 +128,22 @@ class ScoreImportController extends Controller
             ->orderBy('placement')
             ->paginate(30);
 
+        // Zero-score rows are ambiguous — the shooter may have genuinely zeroed
+        // the match, or been on the CSV by mistake and never turned up. Surface
+        // them as a review queue so the MD can confirm (keep) or mark absent
+        // (delete). The banner disappears once every zero row is resolved.
+        // Only relevant after the import has finished processing.
+        $unconfirmedZeroScores = collect();
+        if ($scoreImport->import_status === 'completed') {
+            $unconfirmedZeroScores = Score::query()
+                ->where('score_import_id', $scoreImport->id)
+                ->where('raw_score', 0)
+                ->whereNull('participation_confirmed_at')
+                ->with(['user:id,name', 'division:id,name'])
+                ->orderBy('shooter_name')
+                ->get();
+        }
+
         // Feeds the "complete match & request payout" prompt on the show page.
         // The MD who owns this match can offer to close it out and file for
         // payment straight from the successful-import screen, but only when
@@ -150,8 +166,61 @@ class ScoreImportController extends Controller
             && ! $match->payouts()->where('payee_type', 'match_director')->exists();
 
         return view('score-imports.show', compact(
-            'scoreImport', 'scores', 'canRequestMdPayout',
+            'scoreImport', 'scores', 'canRequestMdPayout', 'unconfirmedZeroScores',
         ));
+    }
+
+    /**
+     * Mark a zero-score shooter as having genuinely participated. Keeps the
+     * row as-is (score 0, still ranked last on the match) and simply stamps
+     * who confirmed it so the review banner clears.
+     */
+    public function confirmParticipation(Request $request, ScoreImport $scoreImport, Score $score): RedirectResponse
+    {
+        abort_unless($score->score_import_id === $scoreImport->id, 404);
+        $this->authorize('confirmParticipation', $score);
+
+        $score->update([
+            'participation_confirmed_at' => now(),
+            'participation_confirmed_by' => $request->user()->id,
+        ]);
+
+        return redirect()->route('score-imports.show', $scoreImport)
+            ->with('success', "Confirmed {$score->shooter_name} participated in the match.");
+    }
+
+    /**
+     * Mark a zero-score shooter as never having actually shot the match. The
+     * score row (and any dependent shooter-log entry) is deleted, and match
+     * standings are recalculated so the podium and ranks stay consistent.
+     * The shooter re-appears as a "no-show" on the event's reconciliation
+     * chip if they were on the entry list.
+     */
+    public function markAbsent(Request $request, ScoreImport $scoreImport, Score $score): RedirectResponse
+    {
+        abort_unless($score->score_import_id === $scoreImport->id, 404);
+        $this->authorize('confirmParticipation', $score);
+
+        $shooterName = $score->shooter_name;
+        $match = $score->match;
+
+        DB::transaction(function () use ($score): void {
+            ShooterLog::where('score_id', $score->id)->delete();
+            $score->delete();
+        });
+
+        try {
+            app(\App\Services\StandingsCalculationService::class)
+                ->recalculateForMatch($match);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Standings recalculation after absent-mark failed', [
+                'score_import_id' => $scoreImport->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->route('score-imports.show', $scoreImport)
+            ->with('success', "Removed {$shooterName} — did not participate in the match.");
     }
 
     public function template(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse

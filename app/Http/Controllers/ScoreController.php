@@ -253,6 +253,42 @@ class ScoreController extends Controller
     }
 
     /**
+     * Remove a zero-score shooter from a match: when the MD (or an admin)
+     * spots a 0 in the results who never actually turned up, this deletes
+     * the score row and any dependent shooter-log entry, then recomputes
+     * standings so ranks stay consistent. Guarded so non-zero rows can
+     * never be deleted through this route — those must go through the
+     * regular MD score-adjustment flow.
+     */
+    public function removeZero(Request $request, Score $score): RedirectResponse
+    {
+        $this->authorize('confirmParticipation', $score);
+
+        abort_unless((float) $score->raw_score === 0.0, 422, 'Only zero-score rows can be removed via this action.');
+
+        $shooterName = $score->shooter_name;
+        $match = $score->match;
+
+        DB::transaction(function () use ($score): void {
+            \App\Models\ShooterLog::where('score_id', $score->id)->delete();
+            $score->delete();
+        });
+
+        try {
+            $this->standingsService->recalculateForMatch($match);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Standings recalculation after zero-score removal failed', [
+                'match_id' => $match?->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return redirect()
+            ->to($request->headers->get('referer', route('events.show', $match)))
+            ->with('success', "Removed {$shooterName} — did not participate in the match.");
+    }
+
+    /**
      * Divisions the MD may assign on the score-entry form: those offered by
      * the match, plus any already stored on a registration or score so a
      * stale value can be kept or corrected without failing validation.

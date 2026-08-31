@@ -6,6 +6,7 @@ use App\Http\Requests\StoreRegistrationRequest;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Notifications\MatchRegistrationConfirmedNotification;
+use App\Notifications\PaymentInquiryNotification;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
@@ -354,5 +355,166 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', $message);
+    }
+
+    /**
+     * MD/admin action: email the shooter about an outstanding entry fee.
+     * The mail lets them either self-confirm they paid via the previous
+     * SAPRF site (signed URL — see the two `confirm-old-site-payment`
+     * routes below) or click through to the normal payment flow.
+     *
+     * We refuse to nudge:
+     *   - Already-settled rows (paid / waived) — nothing to chase.
+     *   - Free entries — asking for R 0 looks broken.
+     *   - Rows we sent an inquiry to less than 24h ago — dedupes an
+     *     accidental double-click.
+     *
+     * Auth: {@see \App\Policies\RegistrationPolicy::update} — admins,
+     * owners, and the MD of the registration's match.
+     */
+    public function sendPaymentInquiry(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        if (! $registration->hasOutstandingPayment()) {
+            return back()->with('error', 'This entry has no outstanding fee — nothing to chase.');
+        }
+
+        if (! $registration->canSendPaymentInquiry()) {
+            $ago = $registration->payment_inquiry_sent_at?->diffForHumans() ?? 'recently';
+
+            return back()->with('error', 'A payment inquiry was already sent ' . $ago . ' — please wait 24h before re-sending.');
+        }
+
+        $shooter = $registration->user;
+        if (! $shooter || ! $shooter->email) {
+            return back()->with('error', 'Cannot email this shooter — no email address on file.');
+        }
+
+        try {
+            $shooter->notify(new PaymentInquiryNotification($registration, $request->user()));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to queue payment inquiry notification', [
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to send the email. Please try again shortly.');
+        }
+
+        $registration->update(['payment_inquiry_sent_at' => now()]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.payment_inquiry.sent',
+            'MatchRegistration',
+            $registration->id,
+            null,
+            [
+                'match_id' => $registration->match_id,
+                'shooter_email' => $shooter->email,
+                'fee_amount' => (float) $registration->fee_amount,
+            ],
+        );
+
+        return back()->with(
+            'success',
+            'Payment inquiry emailed to ' . $shooter->name . ' (' . $shooter->email . ').'
+        );
+    }
+
+    /**
+     * Landing page reached when the shooter clicks the signed "I paid on
+     * the old site" link in the inquiry email. Deliberately a two-step
+     * flow — a bare GET must not mutate anything so that link previews,
+     * inbox pre-fetchers, or a forwarded email can't self-confirm the
+     * payment without a human clicking through.
+     *
+     * The signed-URL middleware guards both the GET and the POST, so
+     * the identity check is the same in both places even though no
+     * session is required.
+     */
+    public function showOldSitePaymentConfirmation(MatchRegistration $registration): View|RedirectResponse
+    {
+        $registration->loadMissing('match', 'user');
+
+        // Idempotent: if a previous click already flipped the row to
+        // paid/waived, don't ask the shooter to confirm a second time.
+        if (! $registration->hasOutstandingPayment()) {
+            return redirect()->route('registrations.confirm-old-site-payment.done', [
+                'registration' => $registration->id,
+            ]);
+        }
+
+        return view('registrations.confirm-old-site-payment', compact('registration'));
+    }
+
+    /**
+     * The shooter clicked "Yes, confirm" on the landing page. Flip the
+     * row to `waived` (money didn't come through PayFast, so it's not
+     * `paid`; treating it as `waived` keeps the finance totals honest
+     * — the row is settled but excluded from platform-collected takings).
+     * Also flip the registration status to `confirmed` so downstream
+     * views stop showing "Pending" against the shooter's name.
+     */
+    public function confirmOldSitePayment(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $registration->loadMissing('match', 'user');
+
+        // Same idempotency guard as the GET — protects against a double
+        // POST from a nervous shooter clicking Confirm twice.
+        if (! $registration->hasOutstandingPayment()) {
+            return redirect()->route('registrations.confirm-old-site-payment.done', [
+                'registration' => $registration->id,
+            ]);
+        }
+
+        $old = $registration->only(['payment_status', 'registration_status']);
+
+        $registration->update([
+            'payment_status' => 'waived',
+            'registration_status' => $registration->registration_status === 'pending'
+                ? 'confirmed'
+                : $registration->registration_status,
+            'fee_override_reason' => trim(
+                ($registration->fee_override_reason ? $registration->fee_override_reason . ' | ' : '')
+                . 'Shooter self-confirmed payment via legacy SAPRF site (' . now()->toDateString() . ').'
+            ),
+        ]);
+
+        // Attribute the audit entry to the shooter — they're the one
+        // who clicked the signed link. No auth session, so pass null
+        // user and record the actor in the metadata payload instead.
+        $this->auditLogService->log(
+            null,
+            'registration.payment.old_site_confirmed',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            [
+                'payment_status' => 'waived',
+                'registration_status' => $registration->registration_status,
+                'confirmed_by_user_id' => $registration->user_id,
+                'confirmed_via' => 'signed_email_link',
+                'ip' => $request->ip(),
+            ],
+        );
+
+        return redirect()->route('registrations.confirm-old-site-payment.done', [
+            'registration' => $registration->id,
+        ]);
+    }
+
+    /**
+     * Thank-you page shown after {@see confirmOldSitePayment}. Also the
+     * "already confirmed" landing when the shooter revisits the signed
+     * URL after the fact. Rendered without the signed middleware so a
+     * refresh doesn't 403; the page is purely informational.
+     */
+    public function oldSitePaymentConfirmationDone(MatchRegistration $registration): View
+    {
+        $registration->loadMissing('match');
+
+        return view('registrations.confirm-old-site-payment-done', compact('registration'));
     }
 }

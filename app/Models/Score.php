@@ -29,6 +29,8 @@ class Score extends Model
         'is_member',
         'status',
         'validation_reason',
+        'participation_confirmed_at',
+        'participation_confirmed_by',
         'match_date',
         'raw_meta',
         'counts_for_log',
@@ -50,6 +52,7 @@ class Score extends Model
             'counts_for_log' => 'boolean',
             'counts_for_season' => 'boolean',
             'match_date' => 'date',
+            'participation_confirmed_at' => 'datetime',
             'raw_meta' => 'array',
         ];
     }
@@ -107,6 +110,23 @@ class Score extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    public function participationConfirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'participation_confirmed_by');
+    }
+
+    /**
+     * A raw_score of 0 is ambiguous: it might mean the shooter genuinely
+     * zeroed the match, or that they were on the score sheet by mistake
+     * and never turned up. Non-zero scores never need confirmation, and
+     * scores already confirmed by an MD are excluded from the prompt.
+     */
+    public function needsParticipationConfirmation(): bool
+    {
+        return (float) $this->raw_score === 0.0
+            && $this->participation_confirmed_at === null;
     }
 
     /**

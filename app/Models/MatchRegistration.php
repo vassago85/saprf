@@ -40,6 +40,7 @@ class MatchRegistration extends Model
         'walk_in_note',
         'walk_in_confirmed_by',
         'walk_in_confirmed_at',
+        'payment_inquiry_sent_at',
     ];
 
     protected function casts(): array
@@ -57,6 +58,7 @@ class MatchRegistration extends Model
             'cancelled_at' => 'datetime',
             'shot_count' => 'integer',
             'walk_in_confirmed_at' => 'datetime',
+            'payment_inquiry_sent_at' => 'datetime',
         ];
     }
 
@@ -75,6 +77,40 @@ class MatchRegistration extends Model
     public function walkInConfirmer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'walk_in_confirmed_by');
+    }
+
+    /**
+     * The entry-fee side of the row is still open — no PayFast success,
+     * no waiver, and a positive fee was actually charged. Free entries
+     * ({@see fee_amount} = 0) are not "outstanding".
+     */
+    public function hasOutstandingPayment(): bool
+    {
+        if (in_array($this->payment_status, ['paid', 'waived'], true)) {
+            return false;
+        }
+
+        return (float) $this->fee_amount > 0;
+    }
+
+    /**
+     * Rate-limits the MD "send payment inquiry" button so a heavy click
+     * (or a double-submit) doesn't hammer the same shooter twice in a
+     * row. 24 hours is deliberately generous — the shooter has probably
+     * not read the first email yet, and payment reconciliation is
+     * inherently a slow, human back-and-forth.
+     */
+    public function canSendPaymentInquiry(): bool
+    {
+        if (! $this->hasOutstandingPayment()) {
+            return false;
+        }
+
+        if ($this->payment_inquiry_sent_at === null) {
+            return true;
+        }
+
+        return $this->payment_inquiry_sent_at->lt(now()->subHours(24));
     }
 
     public function feeCategoryLabel(): string

@@ -500,7 +500,20 @@ class MatchController extends Controller
             'walk_ins' => $scoredUserIds->diff($entrantUserIds)->count(),
         ];
 
-        return view('events.show', compact('match', 'userRegistration', 'divisions', 'entries', 'reconciliation'));
+        // Admins and the MD who owns the match get an inline "remove zero-score
+        // shooter" affordance in the public results table — same effect as the
+        // score-imports review banner, but reachable from wherever they happen
+        // to be reviewing results. Non-privileged viewers never see the flag.
+        $viewer = Auth::user();
+        $viewerCanRemoveZeroScores = $viewer !== null && (
+            $viewer->hasRole(['owner', 'admin', 'exco', 'developer'])
+            || $match->created_by === $viewer->id
+        );
+
+        return view('events.show', compact(
+            'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
+            'viewerCanRemoveZeroScores',
+        ));
     }
 
     public function publicCalendarData(Request $request): JsonResponse

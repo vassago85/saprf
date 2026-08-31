@@ -6,6 +6,17 @@
         $colspan = $canViewFinancials ? 9 : 7;
     @endphp
 
+    @if(session('success'))
+        <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {{ session('error') }}
+        </div>
+    @endif
+
     @if($match)
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -97,9 +108,35 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $registration->created_at->format('d M Y') }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             @if($canViewFinancials || $registration->user_id === auth()->id())
-                                <a href="{{ route('registrations.show', $registration) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
-                                    <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                                </a>
+                                <div class="inline-flex items-center gap-1">
+                                    @if($canViewFinancials && $registration->hasOutstandingPayment())
+                                        @if($registration->canSendPaymentInquiry())
+                                            <form method="POST" action="{{ route('registrations.payment-inquiry', $registration) }}" class="inline">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="rounded-lg p-1.5 text-stone-400 hover:bg-amber-50 hover:text-amber-700 transition"
+                                                        title="Email {{ $registration->user->name ?? $registration->shooter_name }} about the outstanding entry fee"
+                                                        onclick="return confirm('Send a payment inquiry email to {{ $registration->user->name ?? $registration->shooter_name }}?\n\nThe email offers two options:\n  1. Confirm they paid via the old SAPRF site (one click, no login)\n  2. Sign in and complete the payment now');">
+                                                    <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                                                    </svg>
+                                                    <span class="sr-only">Send payment inquiry email</span>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="rounded-lg p-1.5 text-stone-300"
+                                                  title="Inquiry sent {{ $registration->payment_inquiry_sent_at?->diffForHumans() }} — wait 24h before re-sending">
+                                                <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                </svg>
+                                                <span class="sr-only">Payment inquiry already sent</span>
+                                            </span>
+                                        @endif
+                                    @endif
+                                    <a href="{{ route('registrations.show', $registration) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
+                                        <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    </a>
+                                </div>
                             @else
                                 <span class="text-stone-300">—</span>
                             @endif

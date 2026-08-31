@@ -235,10 +235,21 @@ class ScoreImportService
                 $line = array_slice($line, 0, $headerCount);
             }
 
-            $row = array_combine($headers, $line);
-            if ($row !== false) {
-                $rows[] = $row;
+            // First non-empty value wins when several source columns normalize
+            // to the same key. Impact-scoring exports routinely ship Class,
+            // Div and Category together — all three alias to `division`, but
+            // `Div` is the authoritative one. Plain array_combine would let
+            // an empty Category column blank out a populated Div, or let a
+            // "Factory,Senior" Category tag overwrite a clean "Senior" Div.
+            $row = [];
+            foreach ($headers as $idx => $key) {
+                $value = $line[$idx] ?? null;
+                $existing = $row[$key] ?? null;
+                if ($existing === null || $existing === '') {
+                    $row[$key] = $value;
+                }
             }
+            $rows[] = $row;
         }
 
         fclose($handle);
@@ -323,11 +334,21 @@ class ScoreImportService
         if (! empty($row['shooter_name'])) {
             $name = Str::lower(preg_replace('/\s+/', ' ', trim((string) $row['shooter_name'])));
             if ($name !== '') {
-                $exact = User::query()
-                    ->whereRaw("LOWER(REGEXP_REPLACE(name, '\\\\s+', ' ')) = ?", [$name])
-                    ->value('id');
+                $exact = $this->exactNameLookup($name);
                 if ($exact) {
-                    return (int) $exact;
+                    return $exact;
+                }
+
+                // Also try the exact lookup with generational suffixes stripped
+                // ("Snr", "Jnr", "Sr", "Jr", "II", "III"): CSVs frequently
+                // qualify a shooter as "Le Riche Coetzer Snr" while the user
+                // account is registered as just "Le Riche Coetzer".
+                $suffixStripped = $this->stripHonorificSuffixes($name);
+                if ($suffixStripped !== '' && $suffixStripped !== $name) {
+                    $exact = $this->exactNameLookup($suffixStripped);
+                    if ($exact) {
+                        return $exact;
+                    }
                 }
 
                 // Priority 4: order-insensitive token match. Handles exports that
@@ -345,12 +366,55 @@ class ScoreImportService
     }
 
     /**
+     * Exact case-insensitive name lookup, whitespace-normalised on both sides.
+     * MariaDB (production) has REGEXP_REPLACE for stripping runs of internal
+     * whitespace; sqlite (tests) doesn't, so fall back to a plain LOWER compare
+     * on those drivers — imported names are already whitespace-collapsed by
+     * the caller, so the difference only matters when a user account itself
+     * has irregular whitespace baked into it (rare).
+     */
+    private function exactNameLookup(string $normalizedName): ?int
+    {
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+
+        $query = User::query();
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $query->whereRaw("LOWER(REGEXP_REPLACE(name, '\\\\s+', ' ')) = ?", [$normalizedName]);
+        } else {
+            $query->whereRaw('LOWER(name) = ?', [$normalizedName]);
+        }
+
+        $id = $query->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    /**
+     * Strip trailing generational / honorific tokens ("Snr", "Jnr", "Sr", "Jr",
+     * "II", "III", "IV") from a whitespace-normalised, lower-cased name.
+     * Preserves everything else so genuinely different names never collapse.
+     */
+    private function stripHonorificSuffixes(string $normalizedName): string
+    {
+        $tokens = collect(explode(' ', $normalizedName))
+            ->reject(fn ($t) => in_array($t, ['snr', 'jnr', 'sr', 'jr', 'ii', 'iii', 'iv'], true))
+            ->filter();
+
+        return $tokens->implode(' ');
+    }
+
+    /**
      * Resolve a user by an order-insensitive comparison of name tokens. Returns
-     * the user id only when a single user matches; null otherwise.
+     * the user id only when a single user matches; null otherwise. Honorific
+     * suffixes are stripped on both sides so "Le Riche Coetzer Snr" (CSV)
+     * still lines up with a "Le Riche Coetzer" account.
      */
     private function resolveByNameTokens(string $normalizedName): ?int
     {
-        $tokens = collect(explode(' ', $normalizedName))->filter()->sort()->values();
+        $tokens = collect(explode(' ', $this->stripHonorificSuffixes($normalizedName)))
+            ->filter()
+            ->sort()
+            ->values();
         if ($tokens->count() < 2) {
             return null;
         }
@@ -359,7 +423,8 @@ class ScoreImportService
         $candidates = User::query()
             ->get(['id', 'name'])
             ->filter(function (User $user) use ($key): bool {
-                $userKey = collect(preg_split('/\s+/', Str::lower(trim((string) $user->name))))
+                $normalized = Str::lower(preg_replace('/\s+/', ' ', trim((string) $user->name)));
+                $userKey = collect(explode(' ', $this->stripHonorificSuffixes($normalized)))
                     ->filter()->sort()->values()->implode(' ');
 
                 return $userKey === $key;
@@ -386,8 +451,6 @@ class ScoreImportService
             return null;
         }
 
-        $lower = Str::lower($value);
-
         // Alias plural forms → canonical slugs.
         $aliases = [
             'seniors' => 'senior',
@@ -398,14 +461,35 @@ class ScoreImportService
             'male' => 'open',
             'overall' => 'open',
         ];
-        $lookup = $aliases[$lower] ?? $lower;
 
-        return \App\Models\Division::query()
-            ->where(function ($q) use ($lookup) {
-                $q->whereRaw('LOWER(slug) = ?', [$lookup])
-                    ->orWhereRaw('LOWER(name) = ?', [$lookup]);
-            })
-            ->value('id');
+        // Impact scoring's "Category" column sometimes carries a comma-separated
+        // tag list ("Factory,Senior") when a shooter fits multiple demographic
+        // categories. Under the flat-division model any single one of them can
+        // be a valid division on its own, so try each candidate in order and
+        // return the first that resolves to a real division row.
+        $candidates = str_contains($value, ',')
+            ? array_map('trim', explode(',', $value))
+            : [$value];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+            $lower = Str::lower($candidate);
+            $lookup = $aliases[$lower] ?? $lower;
+
+            $id = \App\Models\Division::query()
+                ->where(function ($q) use ($lookup) {
+                    $q->whereRaw('LOWER(slug) = ?', [$lookup])
+                        ->orWhereRaw('LOWER(name) = ?', [$lookup]);
+                })
+                ->value('id');
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        return null;
     }
 
     private function parseProvincialColumns(\App\Models\MatchEvent $match): array

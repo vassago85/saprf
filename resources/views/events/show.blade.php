@@ -135,7 +135,7 @@
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
                         @php
-                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) {
+                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores) {
                                 return [
                                     'id' => $score->id,
                                     'name' => $score->shooter_name,
@@ -147,6 +147,9 @@
                                     'div_id' => $score->division_id,
                                     'div_name' => $score->division?->name ?? '—',
                                     'status' => $score->status,
+                                    // Only zero-score rows are eligible for inline removal, and only when
+                                    // the current viewer is an admin or the MD who owns this match.
+                                    'can_remove' => $viewerCanRemoveZeroScores && (float) $score->raw_score === 0.0,
                                     'badge' => match ($score->status) {
                                         'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200'],
                                         'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
@@ -161,6 +164,15 @@
 
                         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
                              x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }})">
+                            @if($viewerCanRemoveZeroScores)
+                                {{-- Shared form for the inline "remove zero-score shooter" action. The
+                                     click handler sets the action URL and submits; only rows where the
+                                     viewer is authorised AND raw_score = 0 render the trigger button. --}}
+                                <form x-ref="removeZeroForm" method="POST" class="hidden">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+                            @endif
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex items-center justify-between mb-3">
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
@@ -225,6 +237,19 @@
                                                               :class="row.badge.class"
                                                               x-text="row.badge.label"></span>
                                                     </template>
+                                                    @if($viewerCanRemoveZeroScores)
+                                                        <template x-if="row.can_remove">
+                                                            <button type="button"
+                                                                    @click.stop.prevent="removeZeroScore(row)"
+                                                                    title="This shooter didn't participate — remove them from the results"
+                                                                    class="ml-2 align-middle text-stone-400 hover:text-red-600 transition">
+                                                                <svg class="size-4 inline" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                                </svg>
+                                                                <span class="sr-only">Remove zero-score shooter</span>
+                                                            </button>
+                                                        </template>
+                                                    @endif
                                                 </td>
                                                 <td class="px-5 py-3">
                                                     <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
@@ -256,6 +281,16 @@
                                     if (m === 'division' && this.divs.length) this.subFilter = this.divs[0].id;
                                     else this.subFilter = null;
                                 },
+                                @if($viewerCanRemoveZeroScores)
+
+                                removeZeroScore(row) {
+                                    if (! confirm(`Remove ${row.name} from the results? Their score row will be deleted and standings recalculated.`)) return;
+                                    const form = this.$refs.removeZeroForm;
+                                    if (! form) return;
+                                    form.action = `/scores/${row.id}/remove-zero`;
+                                    form.submit();
+                                },
+                                @endif
 
                                 get filteredRows() {
                                     let rows;

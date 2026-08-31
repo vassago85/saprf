@@ -44,4 +44,23 @@ class ScorePolicy
     {
         return false;
     }
+
+    /**
+     * Anyone who can plausibly answer "did this person actually turn up?"
+     * for a match: senior admins, the MD who owns the match, and the person
+     * who uploaded the score sheet (often but not always the same MD).
+     * Non-elevated match directors can only act on their own matches.
+     */
+    public function confirmParticipation(User $user, Score $score): bool
+    {
+        if ($user->hasRole(['owner', 'admin', 'exco', 'developer'])) {
+            return true;
+        }
+
+        if ($score->match?->created_by === $user->id) {
+            return true;
+        }
+
+        return $score->import?->uploaded_by === $user->id;
+    }
 }

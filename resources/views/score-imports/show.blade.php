@@ -128,6 +128,65 @@
         </div>
     @endif
 
+    @if ($unconfirmedZeroScores->isNotEmpty())
+        <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 mt-0.5">
+                    <svg class="h-6 w-6 text-amber-700" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.732 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base font-semibold text-amber-900">
+                        Please confirm the shooters below actually participated
+                    </h3>
+                    <p class="mt-1 text-sm text-amber-800">
+                        {{ $unconfirmedZeroScores->count() }} {{ Str::plural('shooter', $unconfirmedZeroScores->count()) }}
+                        on this import scored <span class="font-medium">0</span>.
+                        A zero can mean they genuinely zeroed the match, or that they were listed on the score sheet by mistake and never turned up. Confirm each row so results and season logs stay honest.
+                    </p>
+                    <div class="mt-4 space-y-2">
+                        @foreach ($unconfirmedZeroScores as $zeroScore)
+                            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-stone-900">
+                                        {{ $zeroScore->user->name ?? $zeroScore->shooter_name ?? '—' }}
+                                    </p>
+                                    <p class="text-xs text-stone-500">
+                                        {{ $zeroScore->division?->name ?? 'No division' }}
+                                        @if ($zeroScore->placement)
+                                            · Listed placement {{ $zeroScore->placement }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <form method="POST" action="{{ route('score-imports.scores.confirm-participation', ['scoreImport' => $scoreImport, 'score' => $zeroScore]) }}">
+                                        @csrf
+                                        <button type="submit"
+                                            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                            Yes, participated
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ route('score-imports.scores.mark-absent', ['scoreImport' => $scoreImport, 'score' => $zeroScore]) }}"
+                                          onsubmit="return confirm('Remove this shooter from the match results? Their score row will be deleted.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                                            No, remove
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($scores->count())
         <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div class="px-6 pt-6 pb-4">

@@ -228,6 +228,20 @@ Route::match(['GET', 'POST'], '/email/unsubscribe/{user}', [EmailUnsubscribeCont
 Route::get('/family/handover/{token}', [FamilyController::class, 'acceptHandover'])->name('family.handover.accept');
 Route::post('/family/handover/{token}', [FamilyController::class, 'completeHandover'])->name('family.handover.complete');
 
+// ── Signed "I paid on the old site" confirmation ──
+// Reached from the MD-triggered payment-inquiry email. Signed URL, no
+// session required. The GET renders a landing page; the POST is what
+// actually flips the row to `waived` (two-step so a link preview or
+// forwarded email cannot silently self-confirm).
+Route::get('/registrations/{registration}/confirm-old-site-payment', [RegistrationController::class, 'showOldSitePaymentConfirmation'])
+    ->middleware('signed')
+    ->name('registrations.confirm-old-site-payment.show');
+Route::post('/registrations/{registration}/confirm-old-site-payment', [RegistrationController::class, 'confirmOldSitePayment'])
+    ->middleware('signed')
+    ->name('registrations.confirm-old-site-payment.apply');
+Route::get('/registrations/{registration}/confirm-old-site-payment/done', [RegistrationController::class, 'oldSitePaymentConfirmationDone'])
+    ->name('registrations.confirm-old-site-payment.done');
+
 // ── Auth (guest only) ──
 
 Route::middleware('guest')->group(function (): void {
@@ -473,6 +487,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::put('/registrations/{registration}/division', [RegistrationController::class, 'updateDivision'])->name('registrations.update-division');
     Route::put('/registrations/{registration}/rifle', [RegistrationController::class, 'updateRifle'])->name('registrations.update-rifle');
     Route::put('/registrations/{registration}/shots', [RegistrationController::class, 'updateShotCount'])->name('registrations.update-shots');
+    Route::post('/registrations/{registration}/payment-inquiry', [RegistrationController::class, 'sendPaymentInquiry'])->name('registrations.payment-inquiry');
 
     // Rifle Configurations — any authenticated user
     Route::resource('rifle-configurations', RifleConfigurationController::class)
@@ -561,10 +576,24 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');
+        // Zero-score confirmation: MD (or uploader) resolves whether a shooter
+        // with a 0 raw_score actually participated (confirm) or was on the CSV
+        // by mistake (mark absent → deletes the score row).
+        Route::post('/score-imports/{scoreImport}/scores/{score}/confirm-participation',
+            [ScoreImportController::class, 'confirmParticipation'])
+            ->name('score-imports.scores.confirm-participation');
+        Route::delete('/score-imports/{scoreImport}/scores/{score}',
+            [ScoreImportController::class, 'markAbsent'])
+            ->name('score-imports.scores.mark-absent');
         Route::get('/scores', [ScoreController::class, 'index'])->name('scores.index');
         Route::get('/scores/{score}', [ScoreController::class, 'show'])->name('scores.show');
         Route::get('/matches/{match}/scores/entry', [ScoreController::class, 'entry'])->name('scores.entry');
         Route::post('/matches/{match}/scores/entry', [ScoreController::class, 'storeEntry'])->name('scores.entry.store');
+        // Inline "remove this zero-score shooter" action used from the public
+        // event results table by MDs/admins reviewing their own matches.
+        // Guarded server-side to only accept raw_score = 0 rows.
+        Route::delete('/scores/{score}/remove-zero', [ScoreController::class, 'removeZero'])
+            ->name('scores.remove-zero');
     });
 
     // Provincial admin + Admin + Owner + Developer (read-only member view)
