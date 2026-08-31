@@ -3,8 +3,10 @@
 use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\Province;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\RegistrationPricingService;
+use App\Services\SettingsService;
 use Carbon\Carbon;
 
 beforeEach(function () {
@@ -160,4 +162,84 @@ test('calculateBreakdown md_net equals total minus all deductions', function () 
         - $result['surcharge'] - $result['gateway_fee'];
 
     expect($result['md_net'])->toBe(round($expectedNet, 2));
+});
+
+// ── Billing grace period ─────────────────────────────────────────────
+
+function setBillingStartDate(?string $date): void
+{
+    Setting::updateOrCreate(['key' => 'billing_start_date'], ['value' => $date ?? '']);
+    app(SettingsService::class)->clearCache();
+}
+
+test('registrations before billing_start_date waive SAPRF + platform fees', function () {
+    setBillingStartDate('2026-09-01');
+    // Also switch the platform fee back on so we can prove it is waived too.
+    Setting::updateOrCreate(['key' => 'platform_fee_type'], ['value' => 'fixed']);
+    Setting::updateOrCreate(['key' => 'platform_fee_value'], ['value' => '25']);
+    app(SettingsService::class)->clearCache();
+
+    $user = User::factory()->create();
+    Carbon::setTestNow(Carbon::create(2026, 8, 15, 10, 0, 0));
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    Carbon::setTestNow();
+
+    expect($result['fee_waived'])->toBeTrue()
+        ->and($result['saprf_fee'])->toBe(0.0)
+        ->and($result['platform_fee'])->toBe(0.0)
+        // total is unchanged; the waived fees flow to md_net
+        ->and($result['total_fee'])->toBe(250.00)
+        ->and($result['md_net'])->toBe(round(250.00 - 10.75, 2));
+});
+
+test('registrations on or after billing_start_date charge the full SAPRF fee', function () {
+    setBillingStartDate('2026-09-01');
+
+    $user = User::factory()->create();
+    Carbon::setTestNow(Carbon::create(2026, 9, 1, 0, 0, 0));
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    Carbon::setTestNow();
+
+    expect($result['fee_waived'])->toBeFalse()
+        ->and($result['saprf_fee'])->toBe(50.00)
+        ->and($result['md_net'])->toBe(189.25);
+});
+
+test('explicit registeredAt overrides now() so applyCategory of an August entry stays waived in September', function () {
+    setBillingStartDate('2026-09-01');
+
+    $user = User::factory()->create();
+    Carbon::setTestNow(Carbon::create(2026, 9, 15, 12, 0, 0));
+
+    $result = $this->service->calculateBreakdown(
+        $this->match,
+        $user,
+        Carbon::today(),
+        null,
+        null,
+        Carbon::create(2026, 8, 20, 14, 0, 0),
+    );
+
+    Carbon::setTestNow();
+
+    expect($result['fee_waived'])->toBeTrue()
+        ->and($result['saprf_fee'])->toBe(0.0);
+});
+
+test('empty billing_start_date disables the waiver (fail-safe)', function () {
+    setBillingStartDate('');
+
+    $user = User::factory()->create();
+    Carbon::setTestNow(Carbon::create(1970, 1, 1));
+
+    $result = $this->service->calculateBreakdown($this->match, $user, Carbon::today());
+
+    Carbon::setTestNow();
+
+    expect($result['fee_waived'])->toBeFalse()
+        ->and($result['saprf_fee'])->toBe(50.00);
 });

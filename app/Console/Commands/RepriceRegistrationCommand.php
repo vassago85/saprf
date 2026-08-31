@@ -73,6 +73,7 @@ class RepriceRegistrationCommand extends Command
             $registration->match?->match_date ?: now(),
             $registration->division?->slug,
             $category,
+            $registration->registered_at,
         );
 
         $this->info('=== registrations:reprice ===');

@@ -44,6 +44,7 @@ class SiteSettingsController extends Controller
             'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'platform_fee_type' => ['nullable', 'in:percentage,fixed'],
             'platform_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'billing_start_date' => ['nullable', 'date_format:Y-m-d'],
             'platform_operator_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'membership_platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:50'],
             'estimated_gateway_fee_percentage' => ['required', 'numeric', 'min:0', 'max:20'],
@@ -81,6 +82,16 @@ class SiteSettingsController extends Controller
         if ($request->user()->hasRole('developer') && isset($validated['platform_fee_type'], $validated['platform_fee_value'])) {
             $this->settingsService->set('platform_fee_type', $validated['platform_fee_type'], 'Platform fee type: percentage of match fee or fixed rand amount per shooter');
             $this->settingsService->set('platform_fee_value', $validated['platform_fee_value'], 'Platform fee value (interpreted by platform_fee_type)');
+        }
+
+        // Billing start date — the cut-off before which SAPRF + platform fees
+        // are waived. Blank clears the grace period entirely (fees always charge).
+        if (array_key_exists('billing_start_date', $validated)) {
+            $this->settingsService->set(
+                'billing_start_date',
+                $validated['billing_start_date'] ?? '',
+                'ISO date. Registrations with registered_at before this date have SAPRF + platform fees waived.',
+            );
         }
 
         // Owner + developer can nominate who receives the platform-fee payout.

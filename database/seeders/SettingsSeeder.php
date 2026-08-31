@@ -50,6 +50,14 @@ class SettingsSeeder extends Seeder
             ['value' => '0', 'description' => 'Platform fee value (interpreted by platform_fee_type)'],
         );
 
+        // Grace-period cut-off. Registrations with registered_at BEFORE this
+        // date have saprf_fee + platform_fee waived at pricing time (and can
+        // be backfilled retroactively with `php artisan saprf:waive-fees-before-date`).
+        Setting::firstOrCreate(
+            ['key' => 'billing_start_date'],
+            ['value' => '2026-09-01', 'description' => 'ISO date. Registrations with registered_at before this date have SAPRF + platform fees waived.'],
+        );
+
         // Payee for the monthly platform-fee payout. Left null on install — the
         // owner picks the user in Site Settings once, then monthly platform
         // payouts get generated from Financials → Payouts.

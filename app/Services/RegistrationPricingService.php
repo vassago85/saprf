@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
 class RegistrationPricingService
@@ -82,8 +83,13 @@ class RegistrationPricingService
      * Gateway fee is the card-rate estimate (highest typical PayFast cost).
      * PayFast ITN later overwrites it with the actual deducted fee.
      * MD net = total - SAPRF fee - platform fee - surcharge - gateway fee.
+     *
+     * When $registeredAt (defaulting to now) is before the `billing_start_date`
+     * setting, SAPRF and platform fees are waived — both are zeroed and the
+     * amount is rolled into MD net so the shooter still pays the same total
+     * but 100% of the fee (less gateway + any surcharge) flows to the MD.
      */
-    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null, ?string $forcedCategory = null): array
+    public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null, ?string $forcedCategory = null, ?CarbonInterface $registeredAt = null): array
     {
         $pricing = $this->determineCategoryAndFee($match, $user, $matchDate, $divisionSlug, $forcedCategory);
 
@@ -117,6 +123,12 @@ class RegistrationPricingService
         $platformFee = $this->resolveFee($platformType, $platformValue, $baseFee);
         $gatewayFee = round($totalFee * ($gatewayPct / 100) + $gatewayFlat, 2);
 
+        $waived = $this->isFeeWaived($registeredAt);
+        if ($waived) {
+            $saprfFee = 0.0;
+            $platformFee = 0.0;
+        }
+
         $mdNet = round($totalFee - $saprfFee - $platformFee - $surcharge - $gatewayFee, 2);
 
         return [
@@ -128,6 +140,7 @@ class RegistrationPricingService
             'platform_fee' => $platformFee,
             'gateway_fee' => $gatewayFee,
             'md_net' => $mdNet,
+            'fee_waived' => $waived,
             'rates' => [
                 'saprf_type' => $saprfType,
                 'saprf_value' => $saprfValue,
@@ -137,6 +150,31 @@ class RegistrationPricingService
                 'gateway_flat' => $gatewayFlat,
             ],
         ];
+    }
+
+    /**
+     * True when registration falls inside the pre-billing grace period.
+     *
+     * The cut-off is the `billing_start_date` setting (ISO date). A blank or
+     * unparseable value disables the waiver so pricing never fails open into
+     * "everything is free forever" if the setting is accidentally cleared.
+     */
+    public function isFeeWaived(?CarbonInterface $registeredAt = null): bool
+    {
+        $raw = trim((string) $this->settingsService->get('billing_start_date', ''));
+        if ($raw === '') {
+            return false;
+        }
+
+        try {
+            $cutoff = Carbon::parse($raw)->startOfDay();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $at = $registeredAt ? Carbon::parse($registeredAt) : now();
+
+        return $at->lt($cutoff);
     }
 
     private function resolveFee(string $type, float $value, float $baseFee): float
@@ -195,6 +233,7 @@ class RegistrationPricingService
             $match->match_date ?: now(),
             $registration->division?->slug,
             $category,
+            $registration->registered_at,
         );
 
         $registration->update([
