@@ -351,6 +351,19 @@ class ScoreImportService
                     }
                 }
 
+                // Priority 3.5: compact-name match. Squash internal whitespace
+                // on both sides so surnames whose spelling varies by an
+                // internal space still line up — "Le Riche Coetzer Snr" (CSV)
+                // against "LeRiche Coetzer Snr" (account). We keep the
+                // generational suffix on this pass so father / son accounts
+                // stay distinct (`Snr` vs no-suffix on the platform side);
+                // we only fall back to a suffix-stripped compact match when
+                // the suffix-preserved pass didn't find a single winner.
+                $compact = $this->resolveByCompactName($name);
+                if ($compact !== null) {
+                    return $compact;
+                }
+
                 // Priority 4: order-insensitive token match. Handles exports that
                 // swap name order (e.g. "Mey Aliza" ↔ "Aliza Mey"). Only accept
                 // when exactly one user shares the same set of name tokens, so we
@@ -359,6 +372,61 @@ class ScoreImportService
                 if ($swapped !== null) {
                     return $swapped;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Compact-name match: compare candidate ↔ account with all internal
+     * whitespace removed, so common South African surname spelling variants
+     * ("Le Riche" ↔ "LeRiche", "Van der Merwe" ↔ "VanderMerwe", "De Wet" ↔
+     * "DeWet") line up as the same person.
+     *
+     * Two passes:
+     *   1. Suffix-preserved — protects father / son accounts. When the CSV
+     *      says "Le Riche Coetzer Snr" and the platform has both
+     *      "LeRiche Coetzer Snr" (id 699) and "LeRiche Coetzer" (id 918),
+     *      only 699 has a compact key that includes "snr", so it wins.
+     *   2. Suffix-stripped — last-chance for the case where the CSV
+     *      carries a suffix but the account doesn't. Only returns a match
+     *      when exactly one candidate remains after stripping — otherwise
+     *      we'd risk collapsing father onto son (or vice versa).
+     *
+     * Loads the users table once per call and filters in PHP; portable
+     * across MariaDB (prod) and sqlite (tests). Same load-and-filter
+     * shape as {@see resolveByNameTokens} — acceptable at import time
+     * because the fan-out is bounded by scores-per-CSV.
+     */
+    private function resolveByCompactName(string $normalizedName): ?int
+    {
+        $needle = str_replace(' ', '', $normalizedName);
+        if ($needle === '') {
+            return null;
+        }
+
+        $users = User::query()->get(['id', 'name'])->map(function (User $u): array {
+            $normalized = Str::lower(preg_replace('/\s+/', ' ', trim((string) $u->name)));
+            $stripped = $this->stripHonorificSuffixes($normalized);
+
+            return [
+                'id' => (int) $u->id,
+                'compact' => str_replace(' ', '', $normalized),
+                'compact_stripped' => str_replace(' ', '', $stripped),
+            ];
+        });
+
+        $matches = $users->where('compact', $needle);
+        if ($matches->count() === 1) {
+            return $matches->first()['id'];
+        }
+
+        $needleStripped = str_replace(' ', '', $this->stripHonorificSuffixes($normalizedName));
+        if ($needleStripped !== '' && $needleStripped !== $needle) {
+            $matches = $users->where('compact_stripped', $needleStripped);
+            if ($matches->count() === 1) {
+                return $matches->first()['id'];
             }
         }
 

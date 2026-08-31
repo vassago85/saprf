@@ -168,3 +168,72 @@ it('still resolves a shooter by SAPRF member number even without a name match', 
     $score = Score::where('match_id', $this->match->id)->first();
     expect($score->user_id)->toBe($leRiche->id);
 });
+
+it('matches a CSV surname written with a space against an account written without one', function () {
+    // Real event 109 case: CSV says "Le Riche Coetzer Snr" (two words for
+    // "Le Riche") but the platform account is registered as "LeRiche Coetzer
+    // Snr" (one word). Without compact-name matching this falls through
+    // every earlier priority (exact / suffix-stripped / token) and the
+    // score gets stranded as user_id=NULL → status=invalid.
+    $senior = User::factory()->create(['name' => 'LeRiche Coetzer Snr']);
+
+    $body = '13,Coetzer Snr,Le Riche,,Senior,Senior,,166.35,120,66.67%' . "\n";
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => impactCsv($body),
+        'replace_existing' => 0,
+    ]);
+
+    $score = Score::where('match_id', $this->match->id)->first();
+
+    expect($score)->not->toBeNull()
+        ->and($score->user_id)->toBe($senior->id);
+});
+
+it('keeps the Snr / no-suffix distinction when compact-matching father-and-son accounts', function () {
+    // Same platform-side spelling as event 109: BOTH accounts exist under
+    // the "LeRiche" compact form, one carries the Snr suffix and the other
+    // doesn't. The CSV comes in with Snr — compact match must land on the
+    // Snr account, never on the son's row.
+    $senior = User::factory()->create(['name' => 'LeRiche Coetzer Snr']);
+    $junior = User::factory()->create(['name' => 'LeRiche Coetzer']);
+
+    $body = '13,Coetzer Snr,Le Riche,,Senior,Senior,,166.35,120,66.67%' . "\n";
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => impactCsv($body),
+        'replace_existing' => 0,
+    ]);
+
+    $score = Score::where('match_id', $this->match->id)->first();
+
+    expect($score->user_id)->toBe($senior->id)
+        ->and($score->user_id)->not->toBe($junior->id);
+});
+
+it('does not compact-match when it would produce more than one candidate after suffix strip', function () {
+    // If BOTH platform accounts are named identically apart from the
+    // suffix, and the CSV name compact-strips to the same key as both,
+    // the resolver must decline rather than guess. Safety over recall.
+    User::factory()->create(['name' => 'LeRiche Coetzer Snr']);
+    User::factory()->create(['name' => 'LeRiche Coetzer Jnr']);
+
+    // CSV omits any suffix — deliberately ambiguous.
+    $body = '13,Coetzer,Le Riche,,Senior,Senior,,166.35,120,66.67%' . "\n";
+
+    $this->actingAs($this->admin)->post(route('score-imports.store'), [
+        'match_id' => $this->match->id,
+        'source_type' => 'csv',
+        'file' => impactCsv($body),
+        'replace_existing' => 0,
+    ]);
+
+    $score = Score::where('match_id', $this->match->id)->first();
+
+    // Ambiguous → stays unresolved. The MD reconciles by hand.
+    expect($score->user_id)->toBeNull();
+});
