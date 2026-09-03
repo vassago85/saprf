@@ -176,6 +176,38 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
+    /**
+     * The `sa_id_number` column carries a plain UNIQUE index, so a soft-deleted
+     * row still blocks anyone else from registering with the same SA ID (this
+     * bit us with legacy import stubs — see 2026-08-31 incident). On soft
+     * delete we null the personal-identifier columns so the row is preserved
+     * for audit but no longer occupies those unique slots. Force-deletes skip
+     * this (the row is going away entirely) and everything is wrapped in
+     * `withoutEvents` + a raw UPDATE so we don't recurse into `saving` /
+     * `updating` observers.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            if ($user->isForceDeleting()) {
+                return;
+            }
+
+            static::withoutEvents(function () use ($user): void {
+                $user->newQuery()
+                    ->whereKey($user->getKey())
+                    ->update([
+                        'sa_id_number' => null,
+                        'passport_number' => null,
+                    ]);
+            });
+
+            $user->sa_id_number = null;
+            $user->passport_number = null;
+            $user->syncOriginalAttributes(['sa_id_number', 'passport_number']);
+        });
+    }
+
     public function generateEmailOtp(): string
     {
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
