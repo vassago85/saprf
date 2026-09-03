@@ -25,6 +25,7 @@ class MembershipFeeTierSeeder extends Seeder
                 'price' => 425.00,
                 'display_order' => 2,
                 'is_default' => false,
+                'is_active' => false,
             ],
             [
                 'slug' => 'senior',
@@ -45,7 +46,7 @@ class MembershipFeeTierSeeder extends Seeder
                     'price' => $tier['price'],
                     'duration_months' => 12,
                     'display_order' => $tier['display_order'],
-                    'is_active' => true,
+                    'is_active' => $tier['is_active'] ?? true,
                     'is_default' => $tier['is_default'],
                 ],
             );

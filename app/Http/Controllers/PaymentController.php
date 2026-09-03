@@ -331,7 +331,7 @@ class PaymentController extends Controller
 
         $tier = isset($validated['fee_tier_id'])
             ? MembershipFeeTier::find($validated['fee_tier_id'])
-            : MembershipFeeTier::cheapestForUser($user);
+            : MembershipFeeTier::preferredForUser($user);
 
         // Nothing the user qualifies for — every active tier was age-gated
         // out. Kick back to the picker with a clear message rather than

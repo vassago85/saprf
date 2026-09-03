@@ -118,12 +118,36 @@ class MembershipFeeTier extends Model
 
     /**
      * Lowest-priced tier the subject qualifies for today, or null when the
-     * subject qualifies for nothing (e.g. missing DOB). Used to auto-pick
-     * the correct tier when the applicant didn't send one on submit.
+     * subject qualifies for nothing (e.g. missing DOB). Prefer
+     * preferredForUser() for join/renew UI and unpaid auto-pick.
      */
     public static function cheapestForUser(User $subject): ?self
     {
         return static::availableForUser($subject)
+            ->sortBy(fn (self $tier) => (float) $tier->price)
+            ->first();
+    }
+
+    /**
+     * Tier to pre-select / auto-charge when the applicant doesn't choose:
+     * the flagged default among age-eligible active tiers (Adult), otherwise
+     * the cheapest eligible tier (Junior-only applicants, etc.).
+     */
+    public static function preferredForUser(User $subject): ?self
+    {
+        $available = static::availableForUser($subject);
+
+        if ($available->isEmpty()) {
+            return null;
+        }
+
+        $default = $available->first(fn (self $tier) => $tier->is_default);
+
+        if ($default) {
+            return $default;
+        }
+
+        return $available
             ->sortBy(fn (self $tier) => (float) $tier->price)
             ->first();
     }

@@ -44,9 +44,9 @@ class MembershipController extends Controller
 
         // Age gate: joining/renewing requires a DOB on the applicant so we
         // can pick the correct tier (Junior under 18, Senior 65+, otherwise
-        // Adult/Mil-LEO). Skip the redirect when the applicant already has
-        // an active paid membership outside the renewal window — they're
-        // viewing history, not renewing.
+        // Adult). Skip the redirect when the applicant already has an active
+        // paid membership outside the renewal window — they're viewing
+        // history, not renewing.
         $requiresPurchase = $paymentsEnabled && (
             ! ($membership && $membership->status === 'active' && $membership->payment_status === 'paid')
             || $canRenewEarly
@@ -57,11 +57,14 @@ class MembershipController extends Controller
         }
 
         $feeTiers = MembershipFeeTier::availableForUser($user);
-        $selectedTier = ($membership?->feeTier && $membership->feeTier->isAvailableForAge(
-            $user->date_of_birth ? $user->getAgeOn(now()) : null
-        ))
+        $age = $user->date_of_birth ? $user->getAgeOn(now()) : null;
+        $storedTierSelectable = $membership?->feeTier
+            && $membership->feeTier->is_active
+            && $feeTiers->contains('id', $membership->feeTier->id)
+            && $membership->feeTier->isAvailableForAge($age);
+        $selectedTier = $storedTierSelectable
             ? $membership->feeTier
-            : MembershipFeeTier::cheapestForUser($user);
+            : MembershipFeeTier::preferredForUser($user);
 
         // Amount shown on the pay/renew card: the membership's own tier if one
         // is stored, otherwise the default tier, otherwise the legacy setting.

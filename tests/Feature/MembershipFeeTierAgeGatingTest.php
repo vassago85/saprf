@@ -35,11 +35,13 @@ beforeEach(function () {
     // The seed migration should already have created adult / mil-leo /
     // senior / junior tiers with their age gates in place — assert that
     // so a broken migration doesn't make every downstream assertion
-    // silently degenerate.
+    // silently degenerate. Mil/LEO remains in the table but is inactive.
     expect(MembershipFeeTier::where('slug', 'junior')->value('max_age'))->toBe(17)
         ->and(MembershipFeeTier::where('slug', 'senior')->value('min_age'))->toBe(65)
         ->and(MembershipFeeTier::where('slug', 'adult')->value('min_age'))->toBe(18)
-        ->and(MembershipFeeTier::where('slug', 'adult')->value('max_age'))->toBeNull();
+        ->and(MembershipFeeTier::where('slug', 'adult')->value('max_age'))->toBeNull()
+        ->and((bool) MembershipFeeTier::where('slug', 'military-law-enforcement')->value('is_active'))->toBeFalse()
+        ->and((bool) MembershipFeeTier::where('slug', 'adult')->value('is_default'))->toBeTrue();
 });
 
 function stubPayFast(): void
@@ -70,28 +72,46 @@ it('returns only the junior tier for a 14 year-old', function () {
     expect($available->pluck('slug')->all())->toBe(['junior']);
 });
 
-it('returns adult and mil-leo for a 30 year-old (junior + senior filtered out)', function () {
+it('returns only adult for a 30 year-old (junior, senior, and inactive mil-leo filtered out)', function () {
     $adult = User::factory()->create([
         'date_of_birth' => now()->subYears(30)->toDateString(),
     ]);
 
     $available = MembershipFeeTier::availableForUser($adult)->pluck('slug')->sort()->values();
 
-    expect($available->all())->toBe(['adult', 'military-law-enforcement']);
+    expect($available->all())->toBe(['adult']);
 });
 
-it('returns adult, mil-leo and senior for a 65 year-old', function () {
+it('returns adult and senior for a 65 year-old (mil-leo stays hidden)', function () {
     $senior = User::factory()->create([
         'date_of_birth' => now()->subYears(65)->toDateString(),
     ]);
 
     $available = MembershipFeeTier::availableForUser($senior)->pluck('slug')->sort()->values();
 
-    expect($available->all())->toBe(['adult', 'military-law-enforcement', 'senior']);
+    expect($available->all())->toBe(['adult', 'senior']);
+});
+
+it('prefers the Adult default over cheaper eligible tiers for a senior', function () {
+    $senior = User::factory()->create([
+        'date_of_birth' => now()->subYears(66)->toDateString(),
+    ]);
+
+    $preferred = MembershipFeeTier::preferredForUser($senior);
+
+    expect($preferred?->slug)->toBe('adult');
+});
+
+it('auto-picks Junior via preferredForUser when that is the only eligible tier', function () {
+    $junior = User::factory()->create([
+        'date_of_birth' => now()->subYears(14)->toDateString(),
+    ]);
+
+    expect(MembershipFeeTier::preferredForUser($junior)?->slug)->toBe('junior');
 });
 
 it('returns nothing for a user with no date of birth (DOB gate is the only path)', function () {
-    // Every seeded tier has an age floor (Junior 0–17, Adult/Mil-LEO 18+,
+    // Every seeded tier has an age floor (Junior 0–17, Adult 18+,
     // Senior 65+), so a null-DOB user matches none of them. The controller
     // is expected to intercept this case with the DOB-required redirect
     // before ever hitting the picker — this test guards that no free
