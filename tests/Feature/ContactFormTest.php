@@ -148,6 +148,61 @@ test('an admin can view the contact-messages index', function () {
         ->assertSee('Bob Byte');
 });
 
+test('empty All filters still list spam messages', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    ContactMessage::create([
+        'first_name' => 'Spam', 'surname' => 'Bot', 'email' => 'spam@example.com',
+        'subject' => 'Honeypot subject XYZ', 'message' => 'bot message content here',
+        'spam_status' => ContactMessage::SPAM_HONEYPOT,
+    ]);
+    ContactMessage::create([
+        'first_name' => 'Fast', 'surname' => 'Bot', 'email' => 'fast@example.com',
+        'subject' => 'Too fast subject XYZ', 'message' => 'bot message content here',
+        'spam_status' => ContactMessage::SPAM_TOO_FAST,
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/contact-messages?status=&handled=')
+        ->assertOk()
+        ->assertSee('Honeypot subject XYZ')
+        ->assertSee('Too fast subject XYZ');
+});
+
+test('honeypot filter lists honeypot spam even with All handled', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    ContactMessage::create([
+        'first_name' => 'Spam', 'surname' => 'Bot', 'email' => 'spam@example.com',
+        'subject' => 'Honeypot only ABC', 'message' => 'bot message content here',
+        'spam_status' => ContactMessage::SPAM_HONEYPOT,
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/contact-messages?status=honeypot&handled=')
+        ->assertOk()
+        ->assertSee('Honeypot only ABC');
+});
+
+test('default index hides spam under clean+unhandled', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    ContactMessage::create([
+        'first_name' => 'Spam', 'surname' => 'Bot', 'email' => 'spam@example.com',
+        'subject' => 'Hidden spam DEF', 'message' => 'bot message content here',
+        'spam_status' => ContactMessage::SPAM_HONEYPOT,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('contact-messages.index'))
+        ->assertOk()
+        ->assertDontSee('Hidden spam DEF')
+        ->assertSee('No enquiries match your filters.');
+});
+
 test('a member cannot view the contact-messages index', function () {
     $member = User::factory()->create();
     $member->assignRole('member');

@@ -26,7 +26,7 @@
             <div>
                 <label for="status" class="block text-xs font-medium text-stone-500 mb-1">Spam status</label>
                 <select name="status" id="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3">
-                    <option value="">All</option>
+                    <option value="" @selected($filters['status'] === '')>All</option>
                     <option value="clean" @selected($filters['status'] === 'clean')>Clean</option>
                     <option value="honeypot" @selected($filters['status'] === 'honeypot')>Honeypot hit</option>
                     <option value="too_fast" @selected($filters['status'] === 'too_fast')>Submitted too fast</option>
@@ -35,7 +35,7 @@
             <div>
                 <label for="handled" class="block text-xs font-medium text-stone-500 mb-1">Handled</label>
                 <select name="handled" id="handled" class="rounded-lg border border-stone-300 text-sm py-2 px-3">
-                    <option value="">All</option>
+                    <option value="" @selected($filters['handled'] === '')>All</option>
                     <option value="unhandled" @selected($filters['handled'] === 'unhandled')>Unhandled</option>
                     <option value="handled" @selected($filters['handled'] === 'handled')>Handled</option>
                 </select>

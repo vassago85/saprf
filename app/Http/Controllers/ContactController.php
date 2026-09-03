@@ -100,8 +100,15 @@ class ContactController extends Controller
     {
         Gate::authorize('viewAny', ContactMessage::class);
 
-        $status = $request->query('status', 'clean');
-        $handled = $request->query('handled', 'unhandled');
+        // query('key', $default) uses ?? internally, so ConvertEmptyStringsToNull
+        // turns the form's "All" (value="") into null and then into the default —
+        // making All impossible. Only apply defaults when the key is absent.
+        $status = $request->query->has('status')
+            ? ($request->query->get('status') ?? '')
+            : 'clean';
+        $handled = $request->query->has('handled')
+            ? ($request->query->get('handled') ?? '')
+            : 'unhandled';
 
         $messages = ContactMessage::query()
             ->when(in_array($status, ['clean', 'honeypot', 'too_fast'], true), fn ($q) => $q->where('spam_status', $status))
