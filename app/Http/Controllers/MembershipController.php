@@ -40,13 +40,17 @@ class MembershipController extends Controller
         $managingFamily = $user->id !== $actor->id;
         $membership = Membership::with('feeTier')->where('user_id', $user->id)->latest()->first();
         $paymentsEnabled = (bool) app(SettingsService::class)->get('payments_enabled', false);
+        $canRenewEarly = $membership?->isWithinRenewalWindow() ?? false;
 
         // Age gate: joining/renewing requires a DOB on the applicant so we
         // can pick the correct tier (Junior under 18, Senior 65+, otherwise
         // Adult/Mil-LEO). Skip the redirect when the applicant already has
-        // an active paid membership — they're viewing history, not renewing.
-        $requiresPurchase = $paymentsEnabled
-            && ! ($membership && $membership->status === 'active' && $membership->payment_status === 'paid');
+        // an active paid membership outside the renewal window — they're
+        // viewing history, not renewing.
+        $requiresPurchase = $paymentsEnabled && (
+            ! ($membership && $membership->status === 'active' && $membership->payment_status === 'paid')
+            || $canRenewEarly
+        );
 
         if ($requiresPurchase && ! $user->date_of_birth) {
             return $this->missingDobRedirect($user, $actor);
@@ -70,7 +74,17 @@ class MembershipController extends Controller
             $seasons = collect([(string) now()->year]);
         }
 
-        return view('memberships.my-membership', compact('membership', 'user', 'fee', 'feeTiers', 'selectedTier', 'paymentsEnabled', 'seasons', 'managingFamily'));
+        return view('memberships.my-membership', compact(
+            'membership',
+            'user',
+            'fee',
+            'feeTiers',
+            'selectedTier',
+            'paymentsEnabled',
+            'seasons',
+            'managingFamily',
+            'canRenewEarly',
+        ));
     }
 
     /**

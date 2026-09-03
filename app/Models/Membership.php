@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Membership extends Model
 {
+    /** How early an active member may renew (My Membership + PayFast). */
+    public const RENEWAL_WINDOW_DAYS = 60;
+
+    /** Shooter dashboard banner starts this many days before expiry. */
+    public const DASHBOARD_RENEWAL_NOTICE_DAYS = 30;
+
     protected $fillable = [
         'user_id',
         'saprf_number',
@@ -71,6 +77,71 @@ class Membership extends Model
     public function isRevoked(): bool
     {
         return $this->status === 'revoked' && $this->revoked_at !== null;
+    }
+
+    /**
+     * Signed day count until expiry (0 = expires today, negative = already past).
+     */
+    public function daysUntilExpiry(): ?int
+    {
+        if (! $this->expiry_date) {
+            return null;
+        }
+
+        $today = now()->startOfDay();
+        $expiry = $this->expiry_date->copy()->startOfDay();
+
+        if ($expiry->lt($today)) {
+            return -((int) $expiry->diffInDays($today));
+        }
+
+        return (int) $today->diffInDays($expiry);
+    }
+
+    /**
+     * Active paid members may renew once expiry is within RENEWAL_WINDOW_DAYS.
+     */
+    public function isWithinRenewalWindow(): bool
+    {
+        if (! $this->isActiveMember() || ! $this->expiry_date) {
+            return false;
+        }
+
+        $days = $this->daysUntilExpiry();
+
+        return $days !== null && $days >= 0 && $days <= self::RENEWAL_WINDOW_DAYS;
+    }
+
+    /**
+     * Dashboard call-to-action — tighter than the checkout window so the
+     * banner only appears when expiry is close (30 days).
+     */
+    public function shouldShowDashboardRenewalNotice(): bool
+    {
+        if (! $this->isActiveMember() || ! $this->expiry_date) {
+            return false;
+        }
+
+        $days = $this->daysUntilExpiry();
+
+        return $days !== null && $days >= 0 && $days <= self::DASHBOARD_RENEWAL_NOTICE_DAYS;
+    }
+
+    /**
+     * Next expiry after a successful renewal payment. Early renewals stack
+     * from the current expiry so unused days are not lost; otherwise the
+     * window starts from today.
+     */
+    public function computeRenewedExpiryDate(?int $durationMonths = null): \Carbon\CarbonInterface
+    {
+        $months = $durationMonths ?? $this->feeTier?->duration_months ?? 12;
+        $today = now()->startOfDay();
+
+        $base = ($this->expiry_date && $this->expiry_date->copy()->startOfDay()->gte($today))
+            ? $this->expiry_date->copy()->startOfDay()
+            : $today;
+
+        return $base->addMonths($months);
     }
 
     /**

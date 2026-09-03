@@ -30,7 +30,7 @@
             <p class="text-2xl font-bold text-stone-900 whitespace-nowrap">R {{ number_format((float) $only->price, 2) }}</p>
         </div>
 
-        <p class="text-xs text-stone-400">Tier is set automatically from date of birth. Valid for 12 months from date of payment.</p>
+        <p class="text-xs text-stone-400">Tier is set automatically from date of birth. {{ $validityNote ?? 'Valid for 12 months from date of payment.' }}</p>
 
         <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
             {{ $buttonLabel }}
@@ -65,7 +65,7 @@
             @endforeach
         </div>
 
-        <p class="text-xs text-stone-400">Available tiers are filtered by date of birth. Proof of eligibility may be required for discounted rates. Valid for 12 months from date of payment.</p>
+        <p class="text-xs text-stone-400">Available tiers are filtered by date of birth. Proof of eligibility may be required for discounted rates. {{ $validityNote ?? 'Valid for 12 months from date of payment.' }}</p>
 
         <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
             {{ $buttonLabel }}
@@ -77,7 +77,7 @@
         <div>
             <p class="text-sm font-medium text-stone-700">Annual Membership Fee</p>
             <p class="text-3xl font-bold text-stone-900 mt-1">R {{ number_format($fee, 2) }}</p>
-            <p class="text-xs text-stone-400 mt-1">Valid for 12 months from date of payment</p>
+            <p class="text-xs text-stone-400 mt-1">{{ $validityNote ?? 'Valid for 12 months from date of payment' }}</p>
         </div>
         <form method="POST" action="{{ $action }}">
             @csrf

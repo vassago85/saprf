@@ -45,6 +45,30 @@
             </div>
         </div>
 
+        {{-- Membership renewal notice (from 30 days before expiry) --}}
+        @if($membership?->shouldShowDashboardRenewalNotice())
+            @php $daysLeft = $membership->daysUntilExpiry(); @endphp
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-4 flex-wrap">
+                <div class="flex items-start gap-3">
+                    <svg class="size-5 text-amber-600 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-900">Membership renewal due</p>
+                        <p class="text-xs text-amber-800/90 mt-0.5">
+                            Your membership
+                            {{ $daysLeft === 0 ? 'expires today' : ($daysLeft === 1 ? 'expires tomorrow' : "expires in {$daysLeft} days") }}
+                            ({{ $membership->expiry_date->format('d M Y') }}). Renew now to keep standings and member rates uninterrupted.
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ route('my-membership') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 whitespace-nowrap">
+                    Renew membership
+                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+                </a>
+            </div>
+        @endif
+
         {{-- Membership Status Card --}}
         @if($membership?->isActiveMember())
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">

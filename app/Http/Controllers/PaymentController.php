@@ -290,8 +290,9 @@ class PaymentController extends Controller
         $user = $this->resolveManagedSubject($payer, $request->input('for_user'));
 
         $existing = Membership::where('user_id', $user->id)->latest()->first();
+        $isEarlyRenewal = $existing && $existing->isWithinRenewalWindow();
 
-        if ($existing && $existing->status === 'active' && $existing->payment_status === 'paid') {
+        if ($existing && $existing->isActiveMember() && ! $isEarlyRenewal) {
             return redirect()->route('my-membership', $this->membershipPageParams($user, $payer))
                 ->with('info', 'You already have an active membership.');
         }
@@ -341,9 +342,18 @@ class PaymentController extends Controller
         }
 
         $fee = $this->resolveFee($tier);
-        $expiry = now()->addMonths($tier?->duration_months ?? 12)->toDateString();
 
-        if ($existing) {
+        if ($isEarlyRenewal) {
+            // Keep the membership active on its current dates until PayFast
+            // confirms — only remember the chosen tier for the renewal.
+            $existing->update([
+                'membership_type' => 'paid',
+                'fee_tier_id' => $tier->id,
+            ]);
+            $membership = $existing;
+        } elseif ($existing) {
+            $expiry = now()->addMonths($tier->duration_months ?? 12)->toDateString();
+
             // Someone paying a fee tier is a paying member by definition — always
             // promote the type, even when the row started life as a `free` stub
             // (guest shooter created by a sponsor) or inherited the old `free`
@@ -353,17 +363,19 @@ class PaymentController extends Controller
                 'membership_type' => 'paid',
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
-                'fee_tier_id' => $tier?->id,
+                'fee_tier_id' => $tier->id,
                 'start_date' => now()->toDateString(),
                 'expiry_date' => $expiry,
             ]);
             $membership = $existing;
         } else {
+            $expiry = now()->addMonths($tier->duration_months ?? 12)->toDateString();
+
             $membership = Membership::create([
                 'user_id' => $user->id,
                 'saprf_number' => Membership::nextSaprfNumber(),
                 'membership_type' => 'paid',
-                'fee_tier_id' => $tier?->id,
+                'fee_tier_id' => $tier->id,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'start_date' => now()->toDateString(),
@@ -381,11 +393,18 @@ class PaymentController extends Controller
 
         $this->auditLogService->log(
             $payer,
-            'membership.self_service_join',
+            $isEarlyRenewal ? 'membership.self_service_renew' : 'membership.self_service_join',
             'Membership',
             $membership->id,
             null,
-            ['membership_id' => $membership->id, 'amount' => $fee, 'fee_tier_id' => $tier?->id, 'fee_tier' => $tier?->name, 'for_user_id' => $user->id],
+            [
+                'membership_id' => $membership->id,
+                'amount' => $fee,
+                'fee_tier_id' => $tier->id,
+                'fee_tier' => $tier->name,
+                'for_user_id' => $user->id,
+                'early_renewal' => $isEarlyRenewal,
+            ],
         );
 
         return redirect()->route('payments.redirect', $payment);
@@ -574,11 +593,26 @@ class PaymentController extends Controller
             // predates the join-time fix, or a legacy `free` stub) would
             // otherwise stay classified as non-members after a successful
             // R-something payment.
-            $payable->update([
+            $payable->loadMissing('feeTier');
+
+            // Early renewal: membership stayed active/paid while checkout ran.
+            // Stack the new year onto the current expiry so unused days are kept.
+            $isEarlyRenewal = $payable->payment_status === 'paid'
+                && $payable->status === 'active'
+                && $payable->expiry_date
+                && $payable->expiry_date->copy()->startOfDay()->gte(now()->startOfDay());
+
+            $updates = [
                 'membership_type' => 'paid',
                 'payment_status' => 'paid',
                 'status' => 'active',
-            ]);
+            ];
+
+            if ($isEarlyRenewal) {
+                $updates['expiry_date'] = $payable->computeRenewedExpiryDate()->toDateString();
+            }
+
+            $payable->update($updates);
 
             $membershipPayment = MembershipPayment::create([
                 'membership_id' => $payable->id,

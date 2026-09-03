@@ -60,6 +60,30 @@
                         </div>
                     </div>
                 </div>
+
+                @if($canRenewEarly && $paymentsEnabled)
+                    @php
+                        $daysLeft = $membership->daysUntilExpiry();
+                        $renewedUntil = $membership->computeRenewedExpiryDate();
+                    @endphp
+                    <div class="mt-5 pt-5 border-t border-emerald-200 space-y-3">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <p class="text-sm font-semibold text-amber-900">Renewal available</p>
+                            <p class="text-sm text-amber-800 mt-1">
+                                {{ $managingFamily ? $user->name."'s" : 'Your' }} membership
+                                {{ $daysLeft === 0 ? 'expires today' : ($daysLeft === 1 ? 'expires tomorrow' : "expires in {$daysLeft} days") }}
+                                ({{ $membership->expiry_date->format('d M Y') }}).
+                                Renewing now extends it to {{ $renewedUntil->format('d M Y') }}.
+                            </p>
+                        </div>
+                        @include('memberships._fee-tier-select', [
+                            'action' => route('membership.join'),
+                            'buttonLabel' => 'Renew Membership',
+                            'hidden' => $managingFamily ? ['for_user' => $user->id] : [],
+                            'validityNote' => 'Extends 12 months from your current expiry date.',
+                        ])
+                    </div>
+                @endif
             </div>
         @elseif($membership && $membership->status === 'pending' && $membership->payment_status !== 'paid')
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-6">
