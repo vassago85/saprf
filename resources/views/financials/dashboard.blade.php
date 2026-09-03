@@ -27,18 +27,26 @@
         </div>
 
         {{-- Date Filters --}}
+        @php
+            // Explicit from/to always overrides the Quick Filter on the
+            // server (see FinancialController::parseDateRange), so mirror
+            // that here — otherwise the dropdown displays "This Month"
+            // even though the server used the typed dates.
+            $hasExplicitDates = request()->filled('from') || request()->filled('to');
+            $activePeriod = $hasExplicitDates ? '' : request('period', '');
+        @endphp
         <form method="GET" action="{{ route('financials.dashboard') }}" class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <div class="flex flex-wrap items-end gap-4">
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Quick Filter</label>
-                    <select name="period" onchange="this.form.submit()"
+                    <select name="period" onchange="document.querySelector('[name=from]').value=''; document.querySelector('[name=to]').value=''; this.form.submit()"
                             class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">All Time</option>
-                        <option value="month" @selected(request('period') === 'month')>This Month</option>
-                        <option value="season" @selected(request('period') === 'season')>Season</option>
+                        <option value="" @selected($activePeriod === '')>All Time</option>
+                        <option value="month" @selected($activePeriod === 'month')>This Month</option>
+                        <option value="season" @selected($activePeriod === 'season')>Season</option>
                     </select>
                 </div>
-                @if(request('period') === 'season')
+                @if($activePeriod === 'season')
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">Season</label>
                     <select name="season_year" onchange="this.form.submit()"
@@ -52,11 +60,13 @@
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">From</label>
                     <input type="date" name="from" value="{{ $from?->toDateString() }}"
+                           onchange="document.querySelector('[name=period]').value=''"
                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-stone-500 mb-1">To</label>
                     <input type="date" name="to" value="{{ $to?->toDateString() }}"
+                           onchange="document.querySelector('[name=period]').value=''"
                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
                 <button type="submit"

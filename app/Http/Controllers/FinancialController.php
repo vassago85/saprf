@@ -674,18 +674,37 @@ class FinancialController extends Controller
 
     // ── Helpers ──
 
+    /**
+     * Resolve the effective date range for the finance screens.
+     *
+     * Explicit `from` / `to` always win over the Quick Filter dropdown.
+     * The dropdown defaults to "This Month" and its onchange auto-submits,
+     * so its value tends to stick in the query string — without this
+     * priority order a user who types August dates and clicks Apply
+     * silently gets the current month back because `period=month` was
+     * still submitted alongside the manual dates.
+     */
     private function parseDateRange(Request $request): array
     {
-        $from = $request->filled('from') ? \Carbon\Carbon::parse($request->input('from')) : null;
-        $to = $request->filled('to') ? \Carbon\Carbon::parse($request->input('to')) : null;
+        // Illuminate\Support\Carbon is imported at the top — FinancialService
+        // typehints against that specifically, and root \Carbon\Carbon isn't
+        // a subclass of it, so mixing the two here throws TypeError inside
+        // the service. Stick to the Laravel subclass throughout.
+        $from = $request->filled('from') ? Carbon::parse($request->input('from')) : null;
+        $to = $request->filled('to') ? Carbon::parse($request->input('to')) : null;
+
+        if ($from !== null || $to !== null) {
+            return [$from, $to];
+        }
 
         if ($request->input('period') === 'month') {
-            $from = now()->startOfMonth();
-            $to = now()->endOfMonth();
-        } elseif ($request->input('period') === 'season') {
+            return [now()->startOfMonth(), now()->endOfMonth()];
+        }
+
+        if ($request->input('period') === 'season') {
             $year = $request->input('season_year', now()->year);
-            $from = \Carbon\Carbon::create($year, 1, 1);
-            $to = \Carbon\Carbon::create($year, 12, 31);
+
+            return [Carbon::create($year, 1, 1), Carbon::create($year, 12, 31)];
         }
 
         return [$from, $to];
