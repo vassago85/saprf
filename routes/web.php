@@ -596,6 +596,17 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->name('scores.remove-zero');
     });
 
+    // EXCO-only match ownership override. Match directors and owner/admin
+    // cannot reassign a match — that has to route through EXCO. The picker
+    // autocomplete lives on the same gate so it's not a member enumeration
+    // surface.
+    Route::middleware(['role:developer|exco|chair'])->group(function (): void {
+        Route::get('/matches/directors/search', [MatchController::class, 'directorCandidateSearch'])
+            ->name('matches.directors.search');
+        Route::post('/matches/{match}/change-director', [MatchController::class, 'changeDirector'])
+            ->name('matches.change-director');
+    });
+
     // Provincial admin + Admin + Owner + Developer (read-only member view)
     Route::middleware(['role:developer|exco|provincial_admin|owner|admin'])->group(function (): void {
         Route::get('/provincial-members', [ProvincialMembersController::class, 'index'])

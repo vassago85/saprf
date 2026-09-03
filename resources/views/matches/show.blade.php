@@ -479,6 +479,145 @@
                 </div>
             </div>
 
+            @can('changeDirector', $match)
+                {{--
+                    EXCO-only ownership override. Sits beside the "Related"
+                    actions rather than inside the general Edit form so the
+                    intent is deliberate — this reassigns match ownership
+                    (created_by), not just the display label. The typeahead
+                    hits an EXCO-scoped endpoint so it isn't a member-
+                    enumeration surface for other roles.
+                --}}
+                <div class="rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm p-6"
+                     x-data="changeDirectorPanel({
+                        searchUrl: '{{ route('matches.directors.search') }}',
+                        currentDirectorId: {{ (int) $match->created_by }},
+                     })">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-semibold text-stone-900">Change Director</h2>
+                            <p class="mt-1 text-xs text-stone-600">
+                                Transfers ownership of this match. The new director gains
+                                management rights and receives future MD payouts.
+                            </p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-300">
+                            EXCO
+                        </span>
+                    </div>
+
+                    <div class="mt-4 rounded-lg border border-stone-200 bg-white p-3 text-sm">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Current</p>
+                        <p class="mt-1 font-medium text-stone-900">{{ $match->creator?->name ?? $match->director_name ?? '—' }}</p>
+                        @if($match->creator?->email)
+                            <p class="text-xs text-stone-500">{{ $match->creator->email }}</p>
+                        @endif
+                    </div>
+
+                    <form method="POST" action="{{ route('matches.change-director', $match) }}" class="mt-4 space-y-3" @submit="submitting = true">
+                        @csrf
+                        <input type="hidden" name="user_id" x-model="selectedId">
+
+                        <div class="relative" x-show="!selected" x-cloak>
+                            <input type="search"
+                                   x-model.debounce.300ms="query"
+                                   @input="search()"
+                                   placeholder="Search name or SAPRF number (min 2 chars)"
+                                   class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 pr-9 focus:ring-emerald-500 focus:border-emerald-500" />
+                            <div x-show="loading" x-cloak class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">…</div>
+                        </div>
+
+                        <div x-show="results.length > 0 && !selected" x-cloak class="space-y-2">
+                            <template x-for="r in results" :key="r.id">
+                                <button type="button"
+                                        @click="pick(r)"
+                                        :disabled="r.id === currentDirectorId"
+                                        class="w-full text-left flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-stone-900" x-text="r.name"></p>
+                                        <p class="text-[11px] text-stone-500">
+                                            <span x-text="r.saprf_number ? 'SAPRF ' + r.saprf_number : (r.email || 'No SAPRF number')"></span>
+                                        </p>
+                                    </div>
+                                    <span x-show="r.id === currentDirectorId" class="text-[10px] font-semibold text-stone-400 uppercase">Current</span>
+                                </button>
+                            </template>
+                        </div>
+
+                        <div x-show="query.length >= 2 && !loading && results.length === 0 && !selected" x-cloak
+                             class="text-xs text-stone-500">
+                            No matching users.
+                        </div>
+
+                        <div x-show="selected" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">New Director</p>
+                                    <p class="mt-1 text-sm font-medium text-stone-900" x-text="selected?.name"></p>
+                                    <p class="text-xs text-stone-500" x-text="selected?.saprf_number ? 'SAPRF ' + selected.saprf_number : (selected?.email || '')"></p>
+                                </div>
+                                <button type="button" @click="clearSelection()" class="text-xs font-medium text-stone-500 hover:text-stone-700">
+                                    Change
+                                </button>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
+                                <flux:button type="submit" variant="primary" size="sm" x-bind:disabled="submitting">
+                                    <span x-show="!submitting">Transfer ownership</span>
+                                    <span x-show="submitting" x-cloak>Saving…</span>
+                                </flux:button>
+                            </div>
+                        </div>
+
+                        @error('user_id')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </form>
+                </div>
+
+                <script>
+                    function changeDirectorPanel(config) {
+                        return {
+                            query: '',
+                            results: [],
+                            loading: false,
+                            selected: null,
+                            selectedId: '',
+                            submitting: false,
+                            currentDirectorId: config.currentDirectorId,
+                            async search() {
+                                if (this.query.trim().length < 2) {
+                                    this.results = [];
+                                    return;
+                                }
+                                this.loading = true;
+                                try {
+                                    const res = await fetch(config.searchUrl + '?q=' + encodeURIComponent(this.query), {
+                                        headers: { 'Accept': 'application/json' },
+                                    });
+                                    const data = await res.json();
+                                    this.results = data.results || [];
+                                } catch (e) {
+                                    this.results = [];
+                                } finally {
+                                    this.loading = false;
+                                }
+                            },
+                            pick(r) {
+                                if (r.id === this.currentDirectorId) return;
+                                this.selected = r;
+                                this.selectedId = r.id;
+                                this.results = [];
+                                this.query = '';
+                            },
+                            clearSelection() {
+                                this.selected = null;
+                                this.selectedId = '';
+                            },
+                        };
+                    }
+                </script>
+            @endcan
+
             @can('update', $match)
                 @php
                     $recentAnnouncements = $match->announcements()

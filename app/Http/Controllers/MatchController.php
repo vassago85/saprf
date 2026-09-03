@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ChangeMatchDirectorRequest;
 use App\Http\Requests\StoreMatchRequest;
 use App\Http\Requests\UpdateMatchRequest;
 use App\Models\Division;
@@ -340,6 +341,94 @@ class MatchController extends Controller
             'success',
             "Match marked completed and payout {$payout->reference} requested for R" . number_format($payout->net_amount, 2) . '. An admin will process the payment.',
         );
+    }
+
+    /**
+     * EXCO-only action to reassign match ownership. Transfers `created_by`
+     * to the selected user, syncs the display director name (and contact
+     * from the user's profile when available), and grants the target the
+     * `match_director` role if they don't already have it. The previous
+     * director keeps their role — they likely own other matches.
+     */
+    public function changeDirector(ChangeMatchDirectorRequest $request, MatchEvent $match): RedirectResponse
+    {
+        $newDirector = User::findOrFail($request->integer('user_id'));
+
+        $old = $match->only(['created_by', 'match_director', 'match_director_contact']);
+
+        if (! $newDirector->hasRole('match_director')) {
+            $newDirector->assignRole('match_director');
+        }
+
+        $match->created_by = $newDirector->id;
+        $match->match_director = $newDirector->name;
+        // Only overwrite contact when we actually have something better —
+        // don't blank out a manually-set contact string just because the
+        // new director's profile has no phone on file.
+        if (! empty($newDirector->phone)) {
+            $match->match_director_contact = $newDirector->phone;
+        }
+        $match->save();
+
+        $this->auditLogService->log(
+            $request->user(),
+            'match_director_changed',
+            'match',
+            $match->id,
+            $old,
+            [
+                'created_by' => $match->created_by,
+                'match_director' => $match->match_director,
+                'match_director_contact' => $match->match_director_contact,
+            ],
+        );
+
+        return redirect()->route('matches.show', $match)
+            ->with('success', "Match director changed to {$newDirector->name}.");
+    }
+
+    /**
+     * Autocomplete for the EXCO "change director" picker. Scoped to the
+     * same role gate as the action itself (see routes). Returns any active
+     * platform user by name or SAPRF number — including the caller, so
+     * EXCO members can assign themselves as director when taking a match
+     * over.
+     */
+    public function directorCandidateSearch(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->input('q', ''));
+
+        if (mb_strlen($term) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $like = '%' . $term . '%';
+
+        $users = User::query()
+            ->select('users.id', 'users.name', 'users.email')
+            ->leftJoin('memberships', 'memberships.user_id', '=', 'users.id')
+            ->addSelect('memberships.saprf_number as saprf_number')
+            ->where('users.is_active', true)
+            ->where(function ($q): void {
+                $q->whereNull('users.is_managed_account')
+                    ->orWhere('users.is_managed_account', false);
+            })
+            ->where(function ($q) use ($like, $term): void {
+                $q->where('users.name', 'like', $like)
+                    ->orWhere('memberships.saprf_number', 'like', $term . '%');
+            })
+            ->orderBy('users.name')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'results' => $users->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'saprf_number' => $u->saprf_number,
+            ])->values(),
+        ]);
     }
 
     public function exportImpactScoringCsv(MatchEvent $match): StreamedResponse

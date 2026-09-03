@@ -40,6 +40,14 @@ class MatchPolicy
         return false;
     }
 
+    // Reassigning ownership is an EXCO-level operational override. Owner /
+    // admin / the match director themselves must not be able to hand a
+    // match off — that has to route through EXCO (or developer/chair).
+    public function changeDirector(User $user, MatchEvent $match): bool
+    {
+        return $user->hasAnyRole(['developer', 'exco', 'chair']);
+    }
+
     public function restore(User $user, MatchEvent $match): bool
     {
         return false;
