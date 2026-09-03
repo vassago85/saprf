@@ -1,13 +1,17 @@
 <?php
 
 /**
- * saprf:waive-fees-before-date — retroactively zero SAPRF + platform fees on
- * registrations that fall inside the pre-billing grace period.
+ * saprf:waive-fees-before-date — retroactively zero the platform fee on
+ * registrations that fall inside the pre-billing grace period. SAPRF's R50
+ * levy is intentionally preserved (only the platform fee was the
+ * poorly-communicated change).
  *
  * These tests lock in the arithmetic invariant that matters for reporting:
  * after the command runs, `fee_amount` on each affected row is unchanged, but
- * the amount that used to sit in `saprf_fee` + `platform_fee` has moved into
- * `md_net_amount`. Post-cut-off rows are never touched.
+ * the amount that used to sit in `platform_fee` has moved into
+ * `md_net_amount`, and `saprf_fee` is untouched. Post-cut-off rows are never
+ * touched. Rows already at `platform_fee = 0` are skipped even when they sit
+ * before the cut-off.
  */
 
 use App\Models\MatchEvent;
@@ -66,7 +70,7 @@ function makeWaiverRegistration(MatchEvent $match, Carbon $registeredAt, array $
     ], $overrides));
 }
 
-it('zeros SAPRF and platform fees on registrations before the cut-off', function () {
+it('zeros only the platform fee on registrations before the cut-off — SAPRF R50 stays', function () {
     $august = makeWaiverRegistration($this->match, Carbon::create(2026, 8, 20, 12, 0));
 
     $this->artisan('saprf:waive-fees-before-date')
@@ -76,13 +80,13 @@ it('zeros SAPRF and platform fees on registrations before the cut-off', function
 
     $august->refresh();
 
-    expect($august->saprf_fee)->toEqual(0)
-        ->and($august->platform_fee)->toEqual(0)
-        // R50 + R25 flows into md_net; gateway_fee is untouched
-        ->and($august->md_net_amount)->toEqual(480)
+    expect((int) $august->saprf_fee)->toBe(50)
+        ->and((int) $august->platform_fee)->toBe(0)
+        // R25 platform fee flows into md_net; gateway_fee is untouched
+        ->and((int) $august->md_net_amount)->toBe(430)
         // total row still balances
         ->and((float) $august->fee_amount)
-        ->toEqual((float) ($august->saprf_fee + $august->platform_fee + $august->surcharge_amount + $august->gateway_fee + $august->md_net_amount));
+        ->toBe((float) ($august->saprf_fee + $august->platform_fee + $august->surcharge_amount + $august->gateway_fee + $august->md_net_amount));
 });
 
 it('leaves registrations on or after the cut-off untouched', function () {
@@ -92,9 +96,9 @@ it('leaves registrations on or after the cut-off untouched', function () {
 
     $september->refresh();
 
-    expect($september->saprf_fee)->toEqual(50)
-        ->and($september->platform_fee)->toEqual(25)
-        ->and($september->md_net_amount)->toEqual(405);
+    expect((int) $september->saprf_fee)->toBe(50)
+        ->and((int) $september->platform_fee)->toBe(25)
+        ->and((int) $september->md_net_amount)->toBe(405);
 });
 
 it('is idempotent — a second run does not double-add to md_net', function () {
@@ -119,9 +123,9 @@ it('supports --dry-run to preview without persisting', function () {
 
     $august->refresh();
 
-    expect($august->saprf_fee)->toEqual(50)
-        ->and($august->platform_fee)->toEqual(25)
-        ->and($august->md_net_amount)->toEqual(405);
+    expect((int) $august->saprf_fee)->toBe(50)
+        ->and((int) $august->platform_fee)->toBe(25)
+        ->and((int) $august->md_net_amount)->toBe(405);
 });
 
 it('accepts an explicit --date override', function () {
@@ -133,7 +137,7 @@ it('accepts an explicit --date override', function () {
         ->expectsOutputToContain('Nothing to do')
         ->assertExitCode(0);
 
-    expect($august->fresh()->saprf_fee)->toEqual(50);
+    expect((int) $august->fresh()->platform_fee)->toBe(25);
 });
 
 it('fails when no cut-off is available', function () {
@@ -145,20 +149,40 @@ it('fails when no cut-off is available', function () {
         ->assertExitCode(1);
 });
 
+it('skips pre-cut-off rows that already have platform_fee = 0 (e.g. imported matches booked at zero)', function () {
+    // Row before the cut-off but already at zero platform fee — the command
+    // must not touch it (would otherwise re-add zero to md_net and dirty
+    // the updated_at for nothing).
+    $zero = makeWaiverRegistration($this->match, Carbon::create(2026, 8, 10), [
+        'platform_fee' => 0,
+        'md_net_amount' => 430,
+    ]);
+
+    $this->artisan('saprf:waive-fees-before-date')
+        ->expectsOutputToContain('Nothing to do')
+        ->assertExitCode(0);
+
+    expect((int) $zero->fresh()->saprf_fee)->toBe(50)
+        ->and((int) $zero->fresh()->platform_fee)->toBe(0)
+        ->and((int) $zero->fresh()->md_net_amount)->toBe(430);
+});
+
 it('handles a mix of pre- and post-cut-off rows correctly', function () {
     $pre1 = makeWaiverRegistration($this->match, Carbon::create(2026, 8, 5));
-    $pre2 = makeWaiverRegistration($this->match, Carbon::create(2026, 8, 25), ['saprf_fee' => 50, 'platform_fee' => 0, 'md_net_amount' => 430]);
+    $pre2 = makeWaiverRegistration($this->match, Carbon::create(2026, 8, 25));
     $post = makeWaiverRegistration($this->match, Carbon::create(2026, 9, 2));
 
     $this->artisan('saprf:waive-fees-before-date')
         ->expectsOutputToContain('2 registration')
         ->assertExitCode(0);
 
-    expect($pre1->fresh()->saprf_fee)->toEqual(0)
-        ->and($pre1->fresh()->platform_fee)->toEqual(0)
-        ->and($pre2->fresh()->saprf_fee)->toEqual(0)
-        ->and($pre2->fresh()->platform_fee)->toEqual(0)
-        ->and($pre2->fresh()->md_net_amount)->toEqual(480)
-        ->and($post->fresh()->saprf_fee)->toEqual(50)
-        ->and($post->fresh()->platform_fee)->toEqual(25);
+    expect((int) $pre1->fresh()->saprf_fee)->toBe(50)
+        ->and((int) $pre1->fresh()->platform_fee)->toBe(0)
+        ->and((int) $pre1->fresh()->md_net_amount)->toBe(430)
+        ->and((int) $pre2->fresh()->saprf_fee)->toBe(50)
+        ->and((int) $pre2->fresh()->platform_fee)->toBe(0)
+        ->and((int) $pre2->fresh()->md_net_amount)->toBe(430)
+        ->and((int) $post->fresh()->saprf_fee)->toBe(50)
+        ->and((int) $post->fresh()->platform_fee)->toBe(25)
+        ->and((int) $post->fresh()->md_net_amount)->toBe(405);
 });

@@ -85,9 +85,10 @@ class RegistrationPricingService
      * MD net = total - SAPRF fee - platform fee - surcharge - gateway fee.
      *
      * When $registeredAt (defaulting to now) is before the `billing_start_date`
-     * setting, SAPRF and platform fees are waived — both are zeroed and the
-     * amount is rolled into MD net so the shooter still pays the same total
-     * but 100% of the fee (less gateway + any surcharge) flows to the MD.
+     * setting, the platform fee is waived — SAPRF still takes its R50 per
+     * shooter because the fee schedule change was only the platform-fee
+     * introduction, not the SAPRF levy. The waived platform amount is rolled
+     * into MD net so the shooter's total is unchanged.
      */
     public function calculateBreakdown(MatchEvent $match, ?User $user, CarbonInterface $matchDate, ?string $divisionSlug = null, ?string $forcedCategory = null, ?CarbonInterface $registeredAt = null): array
     {
@@ -125,7 +126,6 @@ class RegistrationPricingService
 
         $waived = $this->isFeeWaived($registeredAt);
         if ($waived) {
-            $saprfFee = 0.0;
             $platformFee = 0.0;
         }
 
@@ -153,7 +153,8 @@ class RegistrationPricingService
     }
 
     /**
-     * True when registration falls inside the pre-billing grace period.
+     * True when registration falls inside the pre-billing grace period, in
+     * which case the platform fee (but NOT the SAPRF fee) is waived.
      *
      * The cut-off is the `billing_start_date` setting (ISO date). A blank or
      * unparseable value disables the waiver so pricing never fails open into

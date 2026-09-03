@@ -51,11 +51,12 @@ class SettingsSeeder extends Seeder
         );
 
         // Grace-period cut-off. Registrations with registered_at BEFORE this
-        // date have saprf_fee + platform_fee waived at pricing time (and can
-        // be backfilled retroactively with `php artisan saprf:waive-fees-before-date`).
+        // date have platform_fee waived at pricing time (SAPRF's R50 is still
+        // charged). Existing rows can be backfilled retroactively with
+        // `php artisan saprf:waive-fees-before-date`.
         Setting::firstOrCreate(
             ['key' => 'billing_start_date'],
-            ['value' => '2026-09-01', 'description' => 'ISO date. Registrations with registered_at before this date have SAPRF + platform fees waived.'],
+            ['value' => '2026-09-01', 'description' => 'ISO date. Registrations with registered_at before this date have the platform fee waived (SAPRF R50 is still charged).'],
         );
 
         // Payee for the monthly platform-fee payout. Left null on install — the

@@ -212,13 +212,13 @@
                     <input type="date" name="billing_start_date" id="billing_start_date"
                            value="{{ old('billing_start_date', $settings['billing_start_date'] ?? '') }}"
                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <p class="mt-1 text-xs text-stone-400">Registrations with <code>registered_at</code> before this date have SAPRF and platform fees waived (grace period). Leave blank to always charge fees. Existing rows can be backfilled with <code>php artisan saprf:waive-fees-before-date</code>.</p>
+                    <p class="mt-1 text-xs text-stone-400">Registrations with <code>registered_at</code> before this date have the platform fee waived (SAPRF still takes its R50 per shooter). Leave blank to always charge the platform fee. Existing rows can be backfilled with <code>php artisan saprf:waive-fees-before-date</code>.</p>
                 </div>
 
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">How it works:</strong></p>
                     <p>SAPRF fee and platform fee are calculated on the <strong>base match fee</strong> (active member rate). Non-member and lapsed-member surcharges go 100% to SAPRF. The gateway estimate is used until PayFast reports the real fee, then MD net is recalculated.</p>
-                    <p>When Billing Start Date is set, any registration made before that date pays only the surcharge (if any) and gateway fee to SAPRF — the rest goes to the match director.</p>
+                    <p>When Billing Start Date is set, any registration made before that date has the platform fee waived — SAPRF still takes its R50 per shooter, and everything else (minus surcharge and gateway) flows to the match director.</p>
                 </div>
             </div>
 

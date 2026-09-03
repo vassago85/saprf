@@ -172,9 +172,8 @@ function setBillingStartDate(?string $date): void
     app(SettingsService::class)->clearCache();
 }
 
-test('registrations before billing_start_date waive SAPRF + platform fees', function () {
+test('registrations before billing_start_date waive the platform fee but keep the R50 SAPRF fee', function () {
     setBillingStartDate('2026-09-01');
-    // Also switch the platform fee back on so we can prove it is waived too.
     Setting::updateOrCreate(['key' => 'platform_fee_type'], ['value' => 'fixed']);
     Setting::updateOrCreate(['key' => 'platform_fee_value'], ['value' => '25']);
     app(SettingsService::class)->clearCache();
@@ -187,11 +186,13 @@ test('registrations before billing_start_date waive SAPRF + platform fees', func
     Carbon::setTestNow();
 
     expect($result['fee_waived'])->toBeTrue()
-        ->and($result['saprf_fee'])->toBe(0.0)
+        // SAPRF still takes R50 during the grace period.
+        ->and($result['saprf_fee'])->toBe(50.00)
+        // Only the platform fee is waived.
         ->and($result['platform_fee'])->toBe(0.0)
-        // total is unchanged; the waived fees flow to md_net
         ->and($result['total_fee'])->toBe(250.00)
-        ->and($result['md_net'])->toBe(round(250.00 - 10.75, 2));
+        // md_net = total - saprf (50) - platform (0) - surcharge (0) - gateway (10.75)
+        ->and($result['md_net'])->toBe(round(250.00 - 50.00 - 10.75, 2));
 });
 
 test('registrations on or after billing_start_date charge the full SAPRF fee', function () {
@@ -211,6 +212,9 @@ test('registrations on or after billing_start_date charge the full SAPRF fee', f
 
 test('explicit registeredAt overrides now() so applyCategory of an August entry stays waived in September', function () {
     setBillingStartDate('2026-09-01');
+    Setting::updateOrCreate(['key' => 'platform_fee_type'], ['value' => 'fixed']);
+    Setting::updateOrCreate(['key' => 'platform_fee_value'], ['value' => '25']);
+    app(SettingsService::class)->clearCache();
 
     $user = User::factory()->create();
     Carbon::setTestNow(Carbon::create(2026, 9, 15, 12, 0, 0));
@@ -227,7 +231,8 @@ test('explicit registeredAt overrides now() so applyCategory of an August entry 
     Carbon::setTestNow();
 
     expect($result['fee_waived'])->toBeTrue()
-        ->and($result['saprf_fee'])->toBe(0.0);
+        ->and($result['saprf_fee'])->toBe(50.00)
+        ->and($result['platform_fee'])->toBe(0.0);
 });
 
 test('empty billing_start_date disables the waiver (fail-safe)', function () {

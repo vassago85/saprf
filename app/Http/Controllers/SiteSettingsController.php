@@ -84,13 +84,13 @@ class SiteSettingsController extends Controller
             $this->settingsService->set('platform_fee_value', $validated['platform_fee_value'], 'Platform fee value (interpreted by platform_fee_type)');
         }
 
-        // Billing start date — the cut-off before which SAPRF + platform fees
-        // are waived. Blank clears the grace period entirely (fees always charge).
+        // Billing start date — the cut-off before which the platform fee is
+        // waived (SAPRF R50 is still charged). Blank clears the grace period.
         if (array_key_exists('billing_start_date', $validated)) {
             $this->settingsService->set(
                 'billing_start_date',
                 $validated['billing_start_date'] ?? '',
-                'ISO date. Registrations with registered_at before this date have SAPRF + platform fees waived.',
+                'ISO date. Registrations with registered_at before this date have the platform fee waived (SAPRF R50 is still charged).',
             );
         }
 
