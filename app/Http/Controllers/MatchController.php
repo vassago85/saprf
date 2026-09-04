@@ -170,9 +170,11 @@ class MatchController extends Controller
 
         $expenses = $match->expenses->sortByDesc('created_at');
         $estimatedShooters = $match->estimated_shooters ?: ($match->max_competitors ?: 0);
+        $actualShooters = $financeBreakdown['registration_count'] ?? 0;
         $totalExpenses = $expenses->sum(fn ($e) => $e->effectiveAmount($estimatedShooters));
+        $totalExpensesActual = $expenses->sum(fn ($e) => $e->effectiveAmount($actualShooters));
 
-        return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses', 'estimatedShooters'));
+        return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses', 'totalExpensesActual', 'estimatedShooters', 'actualShooters'));
     }
 
     public function edit(MatchEvent $match): View

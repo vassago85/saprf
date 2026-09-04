@@ -242,10 +242,10 @@
                         <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ $expenses->count() }} {{ Str::plural('item', $expenses->count()) }}</span>
                     </div>
 
-                    @if($estimatedShooters > 0)
+                    @if($estimatedShooters > 0 || $actualShooters > 0)
                         <div class="rounded-lg bg-blue-50 border border-blue-200 p-3 mb-4 flex items-center gap-2">
                             <svg class="size-4 text-blue-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
-                            <span class="text-xs text-blue-800">Per-shooter costs calculated for <strong>{{ $estimatedShooters }}</strong> estimated shooters</span>
+                            <span class="text-xs text-blue-800">Per-shooter costs shown for <strong>{{ $estimatedShooters }}</strong> estimated and <strong>{{ $actualShooters }}</strong> actually registered {{ Str::plural('shooter', $actualShooters) }}. Fixed costs are the same in both columns.</span>
                         </div>
                     @endif
 
@@ -258,7 +258,14 @@
                                         <th class="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Category</th>
                                         <th class="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Type</th>
                                         <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Unit Cost</th>
-                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Total</th>
+                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                                            Est. Total
+                                            <span class="block text-[10px] font-normal normal-case tracking-normal text-stone-400">{{ $estimatedShooters }} {{ Str::plural('shooter', $estimatedShooters) }}</span>
+                                        </th>
+                                        <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                                            Actual
+                                            <span class="block text-[10px] font-normal normal-case tracking-normal text-stone-400">{{ $actualShooters }} {{ Str::plural('shooter', $actualShooters) }}</span>
+                                        </th>
                                         <th class="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400 w-20">Actions</th>
                                     </tr>
                                 </thead>
@@ -287,11 +294,9 @@
                                             </td>
                                             <td class="py-2.5 text-right text-sm font-mono text-stone-500">
                                                 R {{ number_format($expense->amount, 2) }}
-                                                @if($expense->cost_type === 'per_shooter')
-                                                    <span class="text-[10px] text-stone-400">x{{ $estimatedShooters }}</span>
-                                                @endif
                                             </td>
                                             <td class="py-2.5 text-right text-sm font-mono text-stone-700 font-semibold">R {{ number_format($expense->effectiveAmount($estimatedShooters), 2) }}</td>
+                                            <td class="py-2.5 text-right text-sm font-mono {{ $expense->cost_type === 'per_shooter' ? 'text-emerald-700' : 'text-stone-700' }} font-semibold">R {{ number_format($expense->effectiveAmount($actualShooters), 2) }}</td>
                                             <td class="py-2.5 text-right">
                                                 <div class="flex items-center justify-end gap-1">
                                                     <button @click="editing = {{ $expense->id }}" class="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition" title="Edit">
@@ -308,7 +313,7 @@
                                         </tr>
                                         {{-- Inline edit row --}}
                                         <tr x-show="editing === {{ $expense->id }}" x-cloak>
-                                            <td colspan="6" class="py-3">
+                                            <td colspan="7" class="py-3">
                                                 <form method="POST" action="{{ route('match-expenses.update', [$match, $expense]) }}" class="space-y-3">
                                                     @csrf @method('PUT')
                                                     <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
@@ -350,6 +355,7 @@
                                     <tr class="border-t border-stone-300">
                                         <td colspan="4" class="py-2.5 text-sm font-semibold text-stone-700">Total Expenses</td>
                                         <td class="py-2.5 text-right text-sm font-mono font-semibold text-stone-900">R {{ number_format($totalExpenses, 2) }}</td>
+                                        <td class="py-2.5 text-right text-sm font-mono font-semibold text-stone-900">R {{ number_format($totalExpensesActual, 2) }}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -407,7 +413,8 @@
                     @php
                         $hasActual = $financeBreakdown && $financeBreakdown['registration_count'] > 0;
                         $mdPayout = $hasActual ? $financeBreakdown['total_md_net'] : $planningEstimate['md_net'];
-                        $profitLoss = $mdPayout - $totalExpenses;
+                        $pnlExpenses = $hasActual ? $totalExpensesActual : $totalExpenses;
+                        $profitLoss = $mdPayout - $pnlExpenses;
                         $pnlLabel = $hasActual ? 'Actual' : 'Projected';
                     @endphp
                     <div class="rounded-xl border {{ $profitLoss >= 0 ? 'border-emerald-200 bg-emerald-50/30' : 'border-red-200 bg-red-50/30' }} shadow-sm p-6">
@@ -431,8 +438,11 @@
                                 <span class="font-semibold text-stone-900">R {{ number_format($mdPayout, 2) }}</span>
                             </div>
                             <div class="flex items-center justify-between text-sm">
-                                <span class="text-stone-500">Total Expenses ({{ $expenses->count() }} {{ Str::plural('item', $expenses->count()) }})</span>
-                                <span class="text-red-600">− R {{ number_format($totalExpenses, 2) }}</span>
+                                <span class="text-stone-500">
+                                    Total Expenses ({{ $expenses->count() }} {{ Str::plural('item', $expenses->count()) }})
+                                    <span class="text-stone-400 text-xs">@ {{ $hasActual ? $actualShooters . ' actual' : $estimatedShooters . ' est.' }}</span>
+                                </span>
+                                <span class="text-red-600">− R {{ number_format($pnlExpenses, 2) }}</span>
                             </div>
                             <div class="border-t {{ $profitLoss >= 0 ? 'border-emerald-200' : 'border-red-200' }}"></div>
                             <div class="flex items-center justify-between text-sm">
