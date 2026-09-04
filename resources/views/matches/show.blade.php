@@ -149,9 +149,14 @@
                             <span class="text-red-600">− R {{ number_format($financeBreakdown['total_platform_fee'], 2) }}</span>
                         </div>
                         @if($financeBreakdown['total_surcharges'] > 0)
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-stone-500">Non-Member / Lapsed Surcharges → SAPRF</span>
-                                <span class="text-red-600">− R {{ number_format($financeBreakdown['total_surcharges'], 2) }}</span>
+                            <div>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-stone-500">Non-Member / Lapsed Surcharges → SAPRF</span>
+                                    <span class="text-red-600">− R {{ number_format($financeBreakdown['total_surcharges'], 2) }}</span>
+                                </div>
+                                <p class="mt-1 text-[11px] text-stone-400 leading-snug">
+                                    Charged <em>on top of</em> the base fee to non-member and lapsed-member shooters and routed to SAPRF — your per-shooter earnings are unchanged.
+                                </p>
                             </div>
                         @endif
                         <div class="flex items-center justify-between text-sm">
@@ -168,17 +173,24 @@
             @endif
 
             @if($planningEstimate)
+                @php
+                    $perShooterNet = $planningEstimate['capacity'] > 0
+                        ? $planningEstimate['md_net'] / $planningEstimate['capacity']
+                        : 0;
+                    $actualCount = $financeBreakdown['registration_count'] ?? 0;
+                    $actualMdPayout = $perShooterNet * $actualCount;
+                @endphp
                 <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-stone-900">Revenue Projection</h2>
                         <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">Estimate</span>
                     </div>
 
-                    <p class="text-xs text-stone-400 mb-4">At full capacity ({{ $planningEstimate['capacity'] }} shooters) paying R {{ number_format($planningEstimate['base_fee'], 2) }} each.</p>
+                    <p class="text-xs text-stone-400 mb-4">Per-shooter deductions at the base fee of R {{ number_format($planningEstimate['base_fee'], 2) }}. Totals below show two scenarios: <strong>actual registrations so far</strong> vs. <strong>full capacity</strong>.</p>
 
                     <div class="space-y-3">
                         <div class="flex items-center justify-between text-sm">
-                            <span class="text-stone-600">Gross Revenue</span>
+                            <span class="text-stone-600">Gross Revenue @ capacity</span>
                             <span class="font-semibold text-stone-900">R {{ number_format($planningEstimate['gross_revenue'], 2) }}</span>
                         </div>
                         <div class="border-t border-stone-100"></div>
@@ -196,12 +208,22 @@
                         </div>
                         <div class="border-t border-stone-200"></div>
                         <div class="flex items-center justify-between text-sm">
-                            <span class="font-semibold text-stone-900">Projected MD Payout</span>
+                            <span class="font-semibold text-stone-900">
+                                MD Payout @ actual
+                                <span class="ml-1 text-xs font-normal text-stone-400">({{ $actualCount }} {{ Str::plural('shooter', $actualCount) }})</span>
+                            </span>
+                            <span class="font-bold text-emerald-700">R {{ number_format($actualMdPayout, 2) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="font-semibold text-stone-900">
+                                MD Payout @ estimate
+                                <span class="ml-1 text-xs font-normal text-stone-400">({{ $planningEstimate['capacity'] }} {{ Str::plural('shooter', $planningEstimate['capacity']) }})</span>
+                            </span>
                             <span class="font-bold text-emerald-700">R {{ number_format($planningEstimate['md_net'], 2) }}</span>
                         </div>
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-stone-400">Per shooter net</span>
-                            <span class="text-stone-500">R {{ $planningEstimate['capacity'] > 0 ? number_format($planningEstimate['md_net'] / $planningEstimate['capacity'], 2) : '0.00' }}</span>
+                            <span class="text-stone-500">R {{ number_format($perShooterNet, 2) }}</span>
                         </div>
                     </div>
                 </div>
