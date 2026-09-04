@@ -736,11 +736,14 @@ class MembershipController extends Controller
             'generatedDate' => $generatedAt->format('d M Y'),
             'generatedTime' => $generatedAt->format('H:i'),
             'certBuild' => '20260723i',
-            'recordRows' => [
+            'recordRows' => array_values(array_filter([
                 ['label' => 'SAPRF NO', 'value' => $membership->saprf_number ?: '—'],
                 ['label' => 'MEMBERSHIP', 'value' => ucfirst((string) ($membership->membership_type ?? 'Standard'))],
+                $membership->start_date
+                    ? ['label' => 'MEMBER SINCE', 'value' => $membership->start_date->format('d M Y')]
+                    : null,
                 ['label' => 'VALID UNTIL', 'value' => $membership->expiry_date?->format('d M Y') ?? '—'],
-            ],
+            ])),
         ];
 
         $filename = "SAPRF-Certificate-{$membership->saprf_number}.pdf";
