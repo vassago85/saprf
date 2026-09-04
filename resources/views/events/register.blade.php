@@ -147,8 +147,8 @@
 
                         <div class="mt-3 relative" x-show="!showNewShooter" x-cloak>
                             <input type="search"
-                                   x-model.debounce.300ms="query"
-                                   @input="search()"
+                                   x-model="query"
+                                   @input.debounce.300ms="search()"
                                    placeholder="Name or SAPRF number (min 2 characters)"
                                    class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 pr-9 focus:ring-sky-500 focus:border-sky-500" />
                             <div x-show="loading" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">…</div>
