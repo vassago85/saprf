@@ -143,9 +143,10 @@
                     },
 
                     openSidebar() {
-                        // Same event the mobile header's hamburger uses;
-                        // the body-level Alpine listener toggles sidebarOpen.
-                        window.dispatchEvent(new CustomEvent('flux-sidebar-toggle'));
+                        // SET open (do not toggle). iOS often synthesises a second
+                        // click at the same coordinates after the first tap; a
+                        // toggle would immediately close the drawer again.
+                        window.dispatchEvent(new CustomEvent('flux-sidebar-open'));
                     },
                 };
             }

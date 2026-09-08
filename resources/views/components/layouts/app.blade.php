@@ -20,10 +20,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="force-light min-h-screen bg-stone-50" style="color-scheme: light;"
-    x-data="{ sidebarOpen: false }"
+    x-data="{ sidebarOpen: false, ignoreBackdropUntil: 0 }"
     x-init="$el.querySelectorAll('[data-flux-sidebar-cloak]').forEach((n) => n.removeAttribute('data-flux-sidebar-cloak'))"
     x-effect="sidebarOpen ? $el.setAttribute('data-sidebar-open', '') : $el.removeAttribute('data-sidebar-open')"
     @flux-sidebar-toggle.window="sidebarOpen = !sidebarOpen"
+    @flux-sidebar-open.window="sidebarOpen = true; ignoreBackdropUntil = Date.now() + 400"
     @keydown.escape.window="sidebarOpen = false"
     @click="if ($event.target.closest('[data-flux-sidebar] a')) sidebarOpen = false">
     <x-skip-link />
@@ -61,7 +62,7 @@
         x-show="sidebarOpen"
         x-transition.opacity.duration.150ms
         x-cloak
-        @click="sidebarOpen = false"
+        @click="if (Date.now() < ignoreBackdropUntil) return; sidebarOpen = false"
         class="fixed inset-0 z-10 bg-black/40 lg:hidden"
         aria-hidden="true"
     ></div>

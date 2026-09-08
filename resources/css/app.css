@@ -44,7 +44,7 @@ html {
         visibility: visible !important;
         position: fixed !important;
         inset: 0 auto 0 0;
-        z-index: 20; /* match Flux's z-20!; Alpine backdrop is z-10 so links stay tappable */
+        z-index: 50; /* above iOS PWA nav (z-40) and Alpine backdrop (z-10) so Sign Out stays tappable */
         width: 17rem;
         max-width: 85vw;
         transform: translateX(-100%);
@@ -207,13 +207,9 @@ body[data-ios-pwa="true"] [data-flux-sidebar] {
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* While the sidebar is open on mobile, hide the fixed iOS PWA nav bar.
-   The sidebar is the navigation surface at that point, so leaving Back /
-   Home / Inbox / Menu tappable underneath it is confusing and — as above
-   — it eats the tap zone for Sign Out. Coupled with the padding rule
-   above, this makes the bottom of the sidebar reachable even on the
-   rare iPhone SE-sized viewport where padding alone might leave the
-   button hairline-close to the fold. */
-body[data-sidebar-open] #ios-pwa-nav {
-    display: none !important;
-}
+/* Intentionally NOT hiding #ios-pwa-nav with display:none / visibility:hidden
+   while the sidebar is open. On iOS, removing the Menu button's hit target
+   mid-tap retargets the synthetic click onto the dim backdrop and closes the
+   drawer immediately. The sidebar sits at z-50 (above the nav's z-40) and
+   gets bottom padding below, so Sign Out remains reachable without hiding
+   the bar. */
