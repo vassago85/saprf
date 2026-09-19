@@ -83,12 +83,72 @@
                                 <svg class="size-5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-semibold text-emerald-900">You're already entered for this match.</p>
-                                    <p class="text-xs text-emerald-800 mt-0.5">Use the panel below to enter or pay for another member.
+                                    <p class="text-xs text-emerald-800 mt-0.5">Use the family panel or the sponsor search below to enter or pay for another member.
                                         @if($actorExistingRegistration)
                                             <a href="{{ route('registrations.show', $actorExistingRegistration) }}" class="underline hover:text-emerald-900">View my entry →</a>
                                         @endif
                                     </p>
                                 </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Family Members panel: managed juniors + other family accounts the
+                         actor owns. Only surfaced in the sponsor-only layout because the
+                         normal path keeps its own "Registering for" dropdown below.
+                         Without this panel a father who was already registered had no way
+                         to reach his managed sub-members — the sponsor search explicitly
+                         excludes managed accounts (they belong to the family flow), and
+                         the register-as dropdown is hidden when the actor is already
+                         entered. Result: his own son was invisible. --}}
+                    @if($actorAlreadyRegistered && isset($juniors) && $juniors->isNotEmpty())
+                        <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                            <div class="mb-3">
+                                <h3 class="text-sm font-semibold text-stone-900">Family members</h3>
+                                <p class="text-xs text-stone-500 mt-0.5">Enter or pay for one of your family accounts.</p>
+                            </div>
+                            <div class="space-y-2">
+                                @foreach($juniors as $j)
+                                    @php
+                                        $jEntry = ($juniorEntries ?? collect())->get($j->id);
+                                        $jState = match (true) {
+                                            ! $jEntry => 'none',
+                                            $jEntry->registration_status === 'cancelled' => 'cancelled',
+                                            $jEntry->payment_status === 'paid' => 'paid',
+                                            default => 'unpaid',
+                                        };
+                                    @endphp
+                                    <div class="flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5">
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-medium text-stone-900">{{ $j->name }}</p>
+                                            <p class="text-[11px] text-stone-500">
+                                                @if($j->managed_relationship){{ $j->managedRelationshipLabel() }}@else Family member @endif
+                                            </p>
+                                        </div>
+                                        <div class="shrink-0">
+                                            @if(in_array($jState, ['none', 'cancelled'], true))
+                                                <a href="{{ $registerUrl }}?for_user={{ $j->id }}"
+                                                   class="inline-block px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition">
+                                                    Enter &amp; Pay
+                                                </a>
+                                            @elseif($jState === 'unpaid')
+                                                {{-- formaction overrides the outer registration form's
+                                                     action for this button only, so we can POST to the
+                                                     payment route without nesting a <form> inside the
+                                                     outer <form> (which HTML5 parsers strip). The outer
+                                                     form's @csrf still travels along. --}}
+                                                <button type="submit"
+                                                        formmethod="POST"
+                                                        formaction="{{ url('/payments/registration/' . $jEntry->id) }}"
+                                                        class="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition">
+                                                    Pay Entry
+                                                </button>
+                                            @else
+                                                <span class="text-[11px] text-emerald-700 font-semibold">Already paid</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
                     @endif

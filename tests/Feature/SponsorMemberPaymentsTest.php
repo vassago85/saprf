@@ -479,3 +479,82 @@ it('still renders the normal register form when ?sponsor=1 is set but the actor 
         ->assertSee('Your Registration')
         ->assertSee('Enter or pay for someone else');
 });
+
+// ── Family Members panel: reachable when the actor is already entered ──
+//
+// Regression: managed juniors are deliberately excluded from the sponsor
+// search (they belong to the family flow), and the "Registering for"
+// dropdown at the top of the register page is hidden when the actor is
+// already entered. Without a dedicated family panel in the sponsor-only
+// layout, the father literally could not find his own son on the page.
+
+it('surfaces managed juniors in the sponsor-only layout so an already-entered parent can enter them', function () {
+    $pierre = User::factory()->create([
+        'name' => 'Pierre Junior',
+        'parent_id' => $this->sponsor->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+        'date_of_birth' => now()->subYears(14)->toDateString(),
+    ]);
+
+    makeShooterEntry($this->sponsor, $this->match);
+
+    $response = $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'sponsor' => 1]))
+        ->assertOk()
+        ->assertSee('Family members')
+        ->assertSee('Pierre Junior')
+        // The "Enter & Pay" affordance for the junior must be present so the
+        // parent can start the junior's registration.
+        ->assertSee('for_user=' . $pierre->id, escape: false);
+});
+
+it('surfaces a Pay Entry action on the family panel when the managed junior has an unpaid entry', function () {
+    $pierre = User::factory()->create([
+        'name' => 'Pierre Junior',
+        'parent_id' => $this->sponsor->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+        'date_of_birth' => now()->subYears(14)->toDateString(),
+    ]);
+
+    makeShooterEntry($this->sponsor, $this->match);
+    $juniorEntry = makeShooterEntry($pierre, $this->match, ['payment_status' => 'unpaid']);
+
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'sponsor' => 1]))
+        ->assertOk()
+        ->assertSee('Pierre Junior')
+        // The Pay Entry submit uses HTML5 formaction to override the outer
+        // form's action — no nested <form> (which HTML5 parsers strip).
+        ->assertSee('formaction="' . url('/payments/registration/' . $juniorEntry->id) . '"', escape: false)
+        ->assertSee('Pay Entry');
+});
+
+it('marks a family junior as Already paid on the family panel when their entry is paid', function () {
+    $pierre = User::factory()->create([
+        'name' => 'Pierre Junior',
+        'parent_id' => $this->sponsor->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+        'date_of_birth' => now()->subYears(14)->toDateString(),
+    ]);
+
+    makeShooterEntry($this->sponsor, $this->match);
+    $juniorEntry = makeShooterEntry($pierre, $this->match, ['payment_status' => 'paid']);
+
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'sponsor' => 1]))
+        ->assertOk()
+        ->assertSee('Pierre Junior')
+        ->assertSee('Already paid')
+        // No Enter link and no Pay button for the junior when fully paid.
+        // (We match on Pierre's specific registration/user IDs because the
+        // literal "Pay Entry" string also lives in the sponsor panel's
+        // Alpine <template x-if> block, which is always in the raw HTML.)
+        ->assertDontSee('for_user=' . $pierre->id, escape: false)
+        ->assertDontSee('formaction="' . url('/payments/registration/' . $juniorEntry->id) . '"', escape: false);
+});

@@ -794,6 +794,17 @@ class MatchController extends Controller
 
         $juniors = $actor->managedAccounts()->orderBy('name')->get();
 
+        // Preload each managed junior's registration on this match so the view
+        // can render the right per-junior action (Enter / Pay / Already
+        // entered) without an N+1 lookup. Keyed by user_id for O(1) access.
+        $juniorEntries = $juniors->isNotEmpty()
+            ? \App\Models\MatchRegistration::query()
+                ->where('match_id', $match->id)
+                ->whereIn('user_id', $juniors->pluck('id'))
+                ->get()
+                ->keyBy('user_id')
+            : collect();
+
         $divisions = $match->availableDivisions();
 
         // Junior-division entries may carry a discounted fee — surface both the
@@ -803,7 +814,7 @@ class MatchController extends Controller
             : null;
         $juniorDivisionId = $divisions->firstWhere('slug', 'junior')?->id;
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'defaultRifleId', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter', 'openSponsorPanel', 'actorAlreadyRegistered'));
+        return view('events.register', compact('match', 'pricing', 'rifles', 'defaultRifleId', 'shooter', 'juniors', 'juniorEntries', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter', 'openSponsorPanel', 'actorAlreadyRegistered'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
