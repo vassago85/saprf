@@ -46,6 +46,13 @@
                     @php
                         $registerUrl = url('/events/' . $match->id . '/register');
                         $isNewShooter = $isNewShooter ?? false;
+                        // Passed from the controller when the actor came in via the "Enter or
+                        // pay for another member" affordance while already having their own
+                        // entry on this match. Drives the "sponsor-only" layout below.
+                        $actorAlreadyRegistered = $actorAlreadyRegistered ?? false;
+                        // Open the sponsor panel by default when the controller signals
+                        // sponsor intent, even if the shooter still resolves to the actor.
+                        $openSponsorPanel = $openSponsorPanel ?? false;
                         // Distinguish "family member" (managed junior owned by the actor)
                         // from a sponsored member (any other independent member).
                         // A brand-new shooter (not on the platform yet) counts as
@@ -61,10 +68,36 @@
                             $isFamilyEntry => 'Family Member Registration',
                             default => 'Your Registration',
                         };
+                        // Existing entry lookup for the "you're already in" notice.
+                        $actorExistingRegistration = $actorAlreadyRegistered
+                            ? $match->userRegistration(auth()->user())
+                            : null;
                     @endphp
 
-                    {{-- Register-as Selector (only shown when the user manages family members) --}}
-                    @if(isset($juniors) && $juniors->isNotEmpty())
+                    {{-- Already-entered notice: the actor came in via "Enter or pay for
+                         another member" but is already registered themselves. We hide the
+                         self-registration form below and only surface the sponsor panel. --}}
+                    @if($actorAlreadyRegistered)
+                        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                            <div class="flex items-start gap-3">
+                                <svg class="size-5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-emerald-900">You're already entered for this match.</p>
+                                    <p class="text-xs text-emerald-800 mt-0.5">Use the panel below to enter or pay for another member.
+                                        @if($actorExistingRegistration)
+                                            <a href="{{ route('registrations.show', $actorExistingRegistration) }}" class="underline hover:text-emerald-900">View my entry →</a>
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Register-as Selector (only shown when the user manages family members
+                         and isn't already entered themselves — a re-entry for the actor is
+                         not possible, so we hide the "Myself / juniors" picker in that case
+                         and route family-member entries through the sponsor panel instead). --}}
+                    @if(! $actorAlreadyRegistered && isset($juniors) && $juniors->isNotEmpty())
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
                             <label for="for_user" class="block text-sm font-semibold text-stone-900 mb-2">Registering for</label>
                             <select id="for_user"
@@ -81,14 +114,19 @@
                             <p class="mt-1.5 text-xs text-stone-500">Choose whether this entry is for yourself or a family member you manage — you'll pay for it from your account.</p>
                         </div>
                     @endif
-                    {{-- Carry the resolved shooter (family or sponsored member) through to POST. --}}
-                    @if($isNewShooter)
-                        {{-- No for_user; the backend provisions the stub from the
-                             name/email fields on POST via GuestShooterService. --}}
-                        <input type="hidden" name="new_shooter_name" value="{{ $shooter->name }}">
-                        <input type="hidden" name="new_shooter_email" value="{{ $shooter->email }}">
-                    @else
-                        <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
+                    {{-- Carry the resolved shooter (family or sponsored member) through to POST.
+                         Suppressed when the actor is already registered — no self-POST is valid,
+                         and rendering a for_user='' hidden input would let a stray submit hit
+                         storeRegistration for the actor's own already-existing entry. --}}
+                    @if(! $actorAlreadyRegistered)
+                        @if($isNewShooter)
+                            {{-- No for_user; the backend provisions the stub from the
+                                 name/email fields on POST via GuestShooterService. --}}
+                            <input type="hidden" name="new_shooter_name" value="{{ $shooter->name }}">
+                            <input type="hidden" name="new_shooter_email" value="{{ $shooter->email }}">
+                        @else
+                            <input type="hidden" name="for_user" value="{{ $shooter->id === auth()->id() ? '' : $shooter->id }}">
+                        @endif
                     @endif
 
                     {{-- Sponsor entry (search any other member by name or SAPRF number).
@@ -97,7 +135,7 @@
                          when the URL already put them in sponsor mode (?for_user=... or
                          ?new_shooter_name=...) so the "Cancel sponsor" affordance stays
                          visible without the user having to open the panel again. --}}
-                    <div x-data="{ sponsorPanelOpen: {{ $isSponsoredEntry ? 'true' : 'false' }} }">
+                    <div x-data="{ sponsorPanelOpen: {{ ($isSponsoredEntry || $openSponsorPanel) ? 'true' : 'false' }} }">
                         <button type="button"
                                 x-show="!sponsorPanelOpen"
                                 @click="sponsorPanelOpen = true"
@@ -291,6 +329,11 @@
                         });
                     </script>
 
+                    {{-- Self-registration form fields — hidden when the actor is already
+                         entered and only here to sponsor someone else. The sponsor panel
+                         above navigates via window.location, so it doesn't need this form
+                         to submit anything for the sponsor flow to work. --}}
+                    @if(! $actorAlreadyRegistered)
                     {{-- Pricing Display --}}
                     <div class="rounded-xl border border-stone-200 p-4 space-y-3">
                         <h3 class="text-sm font-semibold text-stone-700">{{ $sectionHeading }}</h3>
@@ -413,6 +456,12 @@
                             Register &amp; Pay — @if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif
                         </button>
                     </div>
+                    @else
+                        {{-- Sponsor-only footer when actor is already entered. --}}
+                        <div class="flex items-center justify-start pt-2">
+                            <a href="{{ url('/events/' . $match->id) }}" class="text-sm text-stone-500 hover:text-stone-700 transition">← Back to event</a>
+                        </div>
+                    @endif
                 </form>
             </div>
         </div>

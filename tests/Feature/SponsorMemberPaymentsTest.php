@@ -436,3 +436,46 @@ it('rejects the sponsor new-shooter POST when the email is malformed', function 
 
     expect(User::where('name', 'Valid Name')->count())->toBe(0);
 });
+
+// ── Sponsor-intent guard: an actor who already has their own entry ──
+//
+// Regression: father registers for a match, then clicks "Enter or pay for
+// another member" to sponsor his son. Without the ?sponsor=1 signal the
+// controller resolves the shooter to the actor, finds his existing entry,
+// and bounces him straight back to his own registration — he never sees
+// the sponsor panel and can't enter the son at all.
+
+it('bounces the actor to their own entry when they hit /register with no sponsor intent', function () {
+    $existing = makeShooterEntry($this->sponsor, $this->match);
+
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', $this->match))
+        ->assertRedirect(route('registrations.show', $existing));
+});
+
+it('renders the sponsor panel instead of bouncing when ?sponsor=1 is set and the actor is already entered', function () {
+    makeShooterEntry($this->sponsor, $this->match);
+
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'sponsor' => 1]))
+        ->assertOk()
+        // The "you're already entered" notice tells the sponsor why the
+        // self-registration form is hidden.
+        ->assertSee("You're already entered for this match.", escape: false)
+        // Sponsor panel search widget must be reachable.
+        ->assertSee('Enter or pay for someone else')
+        // The self-registration submit button (only appears when the actor
+        // can still register themselves) must NOT render — otherwise the
+        // form would let them re-POST their own entry.
+        ->assertDontSee('Register &amp; Pay', escape: false);
+});
+
+it('still renders the normal register form when ?sponsor=1 is set but the actor is not yet entered', function () {
+    // No existing entry for the sponsor → self-registration form must remain
+    // available; the ?sponsor=1 flag only opens the sponsor panel by default.
+    $this->actingAs($this->sponsor)
+        ->get(route('events.register', ['match' => $this->match, 'sponsor' => 1]))
+        ->assertOk()
+        ->assertSee('Your Registration')
+        ->assertSee('Enter or pay for someone else');
+});

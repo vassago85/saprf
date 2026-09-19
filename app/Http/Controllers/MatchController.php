@@ -719,6 +719,20 @@ class MatchController extends Controller
         $newShooterEmail = trim((string) $request->input('new_shooter_email', ''));
         $isNewShooter = $newShooterName !== '' && ! $request->filled('for_user');
 
+        // "?sponsor=1" is the intent signal from the "Enter or pay for another
+        // member" affordance on the event page. It matters when the actor is
+        // already registered themselves: without it, we'd bounce them straight
+        // back to their own entry and they'd never reach the sponsor panel.
+        $sponsorIntent = $request->boolean('sponsor')
+            && ! $isNewShooter
+            && ! $request->filled('for_user');
+
+        // Tracks whether the actor already has an entry on this match — used
+        // by the register view (in sponsor-intent mode) to suppress the
+        // "register myself" form and only show the sponsor search.
+        $actorAlreadyRegistered = false;
+        $openSponsorPanel = $sponsorIntent;
+
         if ($isNewShooter) {
             $shooter = new User([
                 'name' => $newShooterName,
@@ -733,10 +747,18 @@ class MatchController extends Controller
             if ($existing) {
                 $isSelf = $shooter->id === $actor->id;
 
-                return redirect()->route('registrations.show', $existing)
-                    ->with('info', $isSelf
-                        ? 'You are already registered for this match.'
-                        : $shooter->name . ' is already registered for this match.');
+                // Sponsor intent overrides the "already registered" bounce for
+                // the actor themselves — they're not trying to re-register, they
+                // want to enter someone else. Render the page with the sponsor
+                // panel open and a notice; the "register myself" form is hidden.
+                if ($isSelf && $sponsorIntent) {
+                    $actorAlreadyRegistered = true;
+                } else {
+                    return redirect()->route('registrations.show', $existing)
+                        ->with('info', $isSelf
+                            ? 'You are already registered for this match.'
+                            : $shooter->name . ' is already registered for this match.');
+                }
             }
         }
 
@@ -781,7 +803,7 @@ class MatchController extends Controller
             : null;
         $juniorDivisionId = $divisions->firstWhere('slug', 'junior')?->id;
 
-        return view('events.register', compact('match', 'pricing', 'rifles', 'defaultRifleId', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter'));
+        return view('events.register', compact('match', 'pricing', 'rifles', 'defaultRifleId', 'shooter', 'juniors', 'divisions', 'juniorPricing', 'juniorDivisionId', 'isNewShooter', 'openSponsorPanel', 'actorAlreadyRegistered'));
     }
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
