@@ -8,15 +8,18 @@ use App\Http\Requests\UpdateMatchRequest;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Payment;
 use App\Models\Province;
+use App\Models\Score;
 use App\Models\User;
 use App\Models\Venue;
 use App\Notifications\MatchRegistrationConfirmedNotification;
+use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
-use App\Models\Score;
 use App\Services\MembershipValidationService;
+use App\Services\PayFastService;
 use App\Services\RegistrationPricingService;
 use App\Services\ScoreValidationService;
 use App\Services\SettingsService;
@@ -34,6 +37,7 @@ class MatchController extends Controller
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly AccountCreditService $accountCredits,
         private readonly SettingsService $settingsService,
         private readonly StandingsCalculationService $standings,
         private readonly ScoreValidationService $scoreValidation,
@@ -276,6 +280,12 @@ class MatchController extends Controller
         );
 
         $flash = 'Match updated successfully.';
+        if ($match->status === 'cancelled') {
+            $issued = $this->accountCredits->issueForCancelledMatch($match, $request->user());
+            if ($issued->isNotEmpty()) {
+                $flash .= ' Paid entry fees (R '.number_format((float) $issued->sum('amount'), 2).') were credited to the accounts that paid them.';
+            }
+        }
         if ($everyoneCountsChanged) {
             $flash .= ' Every score on this match was re-graded against the membership check.';
         }
@@ -341,7 +351,7 @@ class MatchController extends Controller
 
         return redirect($back)->with(
             'success',
-            "Match marked completed and payout {$payout->reference} requested for R" . number_format($payout->net_amount, 2) . '. An admin will process the payment.',
+            "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.',
         );
     }
 
@@ -404,7 +414,7 @@ class MatchController extends Controller
             return response()->json(['results' => []]);
         }
 
-        $like = '%' . $term . '%';
+        $like = '%'.$term.'%';
 
         $users = User::query()
             ->select('users.id', 'users.name', 'users.email')
@@ -417,7 +427,7 @@ class MatchController extends Controller
             })
             ->where(function ($q) use ($like, $term): void {
                 $q->where('users.name', 'like', $like)
-                    ->orWhere('memberships.saprf_number', 'like', $term . '%');
+                    ->orWhere('memberships.saprf_number', 'like', $term.'%');
             })
             ->orderBy('users.name')
             ->limit(10)
@@ -443,9 +453,9 @@ class MatchController extends Controller
             ->orderBy('registered_at')
             ->get();
 
-        $filename = str($match->name)->slug() . '-impact-scoring.csv';
+        $filename = str($match->name)->slug().'-impact-scoring.csv';
 
-        return response()->streamDownload(function () use ($registrations, $match) {
+        return response()->streamDownload(function () use ($registrations) {
             $out = fopen('php://output', 'w');
 
             fputcsv($out, [
@@ -530,7 +540,7 @@ class MatchController extends Controller
         } else {
             $query = (clone $baseQuery)
                 ->past()
-                ->with(['scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->orderBy('overall_rank')->limit(3)])
+                ->with(['scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->orderBy('overall_rank')->limit(3)])
                 ->when($season, fn ($q) => $q->where('season', $season));
         }
 
@@ -580,7 +590,7 @@ class MatchController extends Controller
             abort(404);
         }
 
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
         // "Registered" must exclude withdrawn/cancelled entries so the stat matches
         // the public entrant list (which already hides cancelled registrations).
         $match->loadCount([
@@ -707,7 +717,7 @@ class MatchController extends Controller
 
     public function showRegistration(Request $request, MatchEvent $match): View|RedirectResponse
     {
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = $request->user();
 
         // Sponsor path for a shooter not yet on the platform: display the
@@ -757,7 +767,7 @@ class MatchController extends Controller
                     return redirect()->route('registrations.show', $existing)
                         ->with('info', $isSelf
                             ? 'You are already registered for this match.'
-                            : $shooter->name . ' is already registered for this match.');
+                            : $shooter->name.' is already registered for this match.');
                 }
             }
         }
@@ -798,7 +808,7 @@ class MatchController extends Controller
         // can render the right per-junior action (Enter / Pay / Already
         // entered) without an N+1 lookup. Keyed by user_id for O(1) access.
         $juniorEntries = $juniors->isNotEmpty()
-            ? \App\Models\MatchRegistration::query()
+            ? MatchRegistration::query()
                 ->where('match_id', $match->id)
                 ->whereIn('user_id', $juniors->pluck('id'))
                 ->get()
@@ -819,7 +829,7 @@ class MatchController extends Controller
 
     public function storeRegistration(Request $request, MatchEvent $match): RedirectResponse
     {
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = $request->user();
 
         // Two shooter-resolution paths on POST:
@@ -856,7 +866,7 @@ class MatchController extends Controller
             return redirect()->route('registrations.show', $existing)
                 ->with('info', $isSelf
                     ? 'You are already registered for this match.'
-                    : $shooter->name . ' is already registered for this match.');
+                    : $shooter->name.' is already registered for this match.');
         }
 
         if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
@@ -867,14 +877,14 @@ class MatchController extends Controller
 
         $validated = $request->validate([
             'rifle_configuration_id' => ['nullable', 'exists:rifle_configurations,id'],
-            'division_id' => ['required', \Illuminate\Validation\Rule::in($allowedDivisionIds)],
+            'division_id' => ['required', Rule::in($allowedDivisionIds)],
             'notes' => ['nullable', 'string', 'max:500'],
         ], [
             'division_id.required' => 'Please choose a division to enter.',
             'division_id.in' => 'The selected division is not available for this match.',
         ]);
 
-        $divisionSlug = \App\Models\Division::whereKey($validated['division_id'])->value('slug');
+        $divisionSlug = Division::whereKey($validated['division_id'])->value('slug');
 
         $breakdown = app(RegistrationPricingService::class)
             ->calculateBreakdown($match, $shooter, $match->match_date, $divisionSlug);
@@ -898,7 +908,7 @@ class MatchController extends Controller
         // surface "Entered by …" for sponsors and parents.
         $registeredById = $isSelf ? null : $actor->id;
 
-        $registration = \App\Models\MatchRegistration::query()->create([
+        $registration = MatchRegistration::query()->create([
             'match_id' => $match->id,
             'user_id' => $shooter->id,
             'registered_by_user_id' => $registeredById,
@@ -947,7 +957,7 @@ class MatchController extends Controller
             Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
         }
 
-        $payFastService = app(\App\Services\PayFastService::class);
+        $payFastService = app(PayFastService::class);
 
         if ($payFastService->isEnabled() && $breakdown['total_fee'] > 0) {
             // Payment is made by whoever initiated the entry: the parent for a
@@ -955,12 +965,12 @@ class MatchController extends Controller
             // themselves. Never a stranger.
             $payer = $isSelf ? $shooter : $actor;
 
-            $payment = \App\Models\Payment::create([
-                'payable_type' => \App\Models\MatchRegistration::class,
+            $payment = Payment::create([
+                'payable_type' => MatchRegistration::class,
                 'payable_id' => $registration->id,
                 'user_id' => $payer->id,
                 'amount' => $breakdown['total_fee'],
-                'm_payment_id' => \App\Models\Payment::generateReference('REG'),
+                'm_payment_id' => Payment::generateReference('REG'),
             ]);
 
             return redirect()->route('payments.redirect', $payment);
@@ -1068,7 +1078,7 @@ class MatchController extends Controller
         if ($existing = $match->userRegistration($shooter)) {
             return redirect()
                 ->route('matches.edit', $match)
-                ->with('info', $shooter->name . ' is already registered for this match (entry #' . $existing->id . ').');
+                ->with('info', $shooter->name.' is already registered for this match (entry #'.$existing->id.').');
         }
 
         // Only "force" the pricing bracket to active_member when the
@@ -1135,7 +1145,7 @@ class MatchController extends Controller
 
         return redirect()
             ->route('matches.edit', $match)
-            ->with('success', $shooter->name . ' added to the entry list (confirmed, paid).');
+            ->with('success', $shooter->name.' added to the entry list (confirmed, paid).');
     }
 
     // ── API ──
@@ -1184,13 +1194,13 @@ class MatchController extends Controller
      * Managed accounts owned by a different parent are never allowed —
      * they belong to that other family, not to the actor.
      */
-    private function resolveShooter(\App\Models\User $actor, ?string $forUserId): \App\Models\User
+    private function resolveShooter(User $actor, ?string $forUserId): User
     {
         if (! $forUserId || (string) $forUserId === (string) $actor->id) {
             return $actor;
         }
 
-        $target = \App\Models\User::query()
+        $target = User::query()
             ->where('id', $forUserId)
             ->first();
 
@@ -1218,7 +1228,7 @@ class MatchController extends Controller
         return $target;
     }
 
-    private function isManagedShooter(\App\Models\User $shooter, \App\Models\User $parent): bool
+    private function isManagedShooter(User $shooter, User $parent): bool
     {
         return $shooter->id !== $parent->id
             && $shooter->is_managed_account

@@ -225,17 +225,31 @@
 
         {{-- Pay Now button for unpaid registrations --}}
         @if($registration->user_id === auth()->id() && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
-            @php $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled(); @endphp
-            @if($pfEnabled)
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm flex items-center justify-between">
+            @php
+                $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled();
+                $creditPreview = app(\App\Services\AccountCreditService::class)->preview(auth()->user(), $registration);
+                $payLabel = match (true) {
+                    $creditPreview['credit'] >= $creditPreview['fee'] && $creditPreview['fee'] > 0 => 'Use entry credit — R '.number_format($creditPreview['fee'], 2),
+                    $creditPreview['credit'] > 0 => 'Pay R '.number_format($creditPreview['card'], 2).' (R '.number_format($creditPreview['credit'], 2).' credit)',
+                    default => 'Pay Now — R '.number_format((float) $registration->fee_amount, 2),
+                };
+            @endphp
+            @if($pfEnabled || $creditPreview['card'] <= 0)
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm flex items-center justify-between gap-4 flex-wrap">
                     <div>
                         <h2 class="font-heading text-lg font-semibold text-emerald-800">Payment Required</h2>
-                        <p class="text-sm text-emerald-700 mt-1">Complete your payment of <strong>R {{ number_format($registration->fee_amount, 2) }}</strong> to confirm your entry.</p>
+                        @if($creditPreview['credit'] >= $creditPreview['fee'] && $creditPreview['fee'] > 0)
+                            <p class="text-sm text-emerald-700 mt-1">Your account credit covers this entry of <strong>R {{ number_format($creditPreview['fee'], 2) }}</strong>.</p>
+                        @elseif($creditPreview['credit'] > 0)
+                            <p class="text-sm text-emerald-700 mt-1">Entry fee <strong>R {{ number_format($creditPreview['fee'], 2) }}</strong>. <strong>R {{ number_format($creditPreview['credit'], 2) }}</strong> comes off your credit; the card charge is <strong>R {{ number_format($creditPreview['card'], 2) }}</strong>.</p>
+                        @else
+                            <p class="text-sm text-emerald-700 mt-1">Complete your payment of <strong>R {{ number_format($registration->fee_amount, 2) }}</strong> to confirm your entry.</p>
+                        @endif
                     </div>
                     <form method="POST" action="{{ route('payments.registration', $registration) }}">
                         @csrf
                         <button type="submit" class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
-                            Pay Now — R {{ number_format($registration->fee_amount, 2) }}
+                            {{ $payLabel }}
                         </button>
                     </form>
                 </div>

@@ -211,6 +211,7 @@ class MatchRegistration extends Model
     public function isWithdrawable(): bool
     {
         return in_array($this->registration_status, ['pending', 'confirmed', 'waitlisted'])
+            && $this->match?->status !== 'cancelled'
             && $this->match?->match_date?->isFuture();
     }
 

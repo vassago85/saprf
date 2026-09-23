@@ -45,6 +45,19 @@
             </div>
         </div>
 
+        @php $credit = $user->accountCreditSummary(); @endphp
+        @if($credit['posted'] > 0)
+            <div class="rounded-xl border border-emerald-200 bg-white shadow-sm p-6">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="font-heading text-xl font-bold text-stone-900">Entry credit</h2>
+                        <p class="text-sm text-stone-600 mt-1">From a cancelled match. Applied automatically when you pay for another event.</p>
+                    </div>
+                    <p class="text-2xl font-bold text-emerald-700 tabular-nums">R {{ number_format($credit['posted'], 2) }}</p>
+                </div>
+            </div>
+        @endif
+
         {{-- Membership renewal notice (from 30 days before expiry) --}}
         @if($membership?->shouldShowDashboardRenewalNotice())
             @php $daysLeft = $membership->daysUntilExpiry(); @endphp

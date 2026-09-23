@@ -44,14 +44,16 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
 
         $message = (new MailMessage)
             ->subject($subject)
-            ->greeting('Hi ' . $notifiable->name . ',')
-            ->line('Thank you. We\'ve received your payment.')
-            ->line('**Amount:** R' . number_format((float) $this->payment->amount, 2))
-            ->line('**Reference:** ' . $this->payment->m_payment_id)
-            ->line('**Date:** ' . $this->payment->paid_at?->format('d F Y, H:i'));
+            ->greeting('Hi '.$notifiable->name.',')
+            ->line($this->payment->gateway === 'account_credit'
+                ? 'Thank you. This entry was paid from the credit on your account.'
+                : 'Thank you. We\'ve received your payment.')
+            ->line('**Amount:** R'.number_format((float) $this->payment->amount, 2))
+            ->line('**Reference:** '.$this->payment->m_payment_id)
+            ->line('**Date:** '.$this->payment->paid_at?->format('d F Y, H:i'));
 
         if ($this->payment->gateway_payment_id) {
-            $message->line('**Gateway ID:** ' . $this->payment->gateway_payment_id);
+            $message->line('**Gateway ID:** '.$this->payment->gateway_payment_id);
         }
 
         if (! $isMembership) {

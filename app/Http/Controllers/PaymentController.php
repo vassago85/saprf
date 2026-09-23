@@ -11,12 +11,16 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\MembershipConfirmedNotification;
 use App\Notifications\PaymentReceivedNotification;
+use App\Notifications\SponsoredEntryPaidNotification;
+use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\PayFastService;
 use App\Services\SettingsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -26,6 +30,7 @@ class PaymentController extends Controller
     public function __construct(
         private readonly PayFastService $payFastService,
         private readonly AuditLogService $auditLogService,
+        private readonly AccountCreditService $accountCredits,
     ) {}
 
     /**
@@ -67,7 +72,7 @@ class PaymentController extends Controller
         return view('payments.success', compact('payment', 'whatsappInviteUrl'));
     }
 
-    public function status(Request $request, Payment $payment): \Illuminate\Http\JsonResponse
+    public function status(Request $request, Payment $payment): JsonResponse
     {
         $this->authorizePayment($request, $payment);
 
@@ -87,6 +92,7 @@ class PaymentController extends Controller
 
         if ($payment && $payment->isPending()) {
             $payment->update(['status' => 'cancelled']);
+            $this->accountCredits->releaseReservationForPayment($payment);
         }
 
         return view('payments.cancelled', compact('payment'));
@@ -194,7 +200,7 @@ class PaymentController extends Controller
         return $subject->id === $actor->id ? [] : ['for_user' => $subject->id];
     }
 
-    public function notify(Request $request): \Illuminate\Http\Response
+    public function notify(Request $request): Response
     {
         // Prefer raw POST body fields only (query string would corrupt the signature).
         $data = $request->post();
@@ -233,7 +239,13 @@ class PaymentController extends Controller
             return response('NOT FOUND', 404)->header('Content-Type', 'text/plain');
         }
 
-        if ($payment->isCompleted()) {
+        if ($payment->isCompleted() || $payment->status === 'cancelled') {
+            if ($payment->status === 'cancelled') {
+                Log::info('PayFast ITN ignored for cancelled payment', [
+                    'm_payment_id' => $payment->m_payment_id,
+                ]);
+            }
+
             return response('OK', 200)->header('Content-Type', 'text/plain');
         }
 
@@ -251,6 +263,8 @@ class PaymentController extends Controller
 
         if ($pfPaymentStatus === 'COMPLETE') {
             $this->handleSuccessfulPayment($payment);
+        } else {
+            $this->accountCredits->releaseReservationForPayment($payment);
         }
 
         Log::info('PayFast ITN processed', [
@@ -471,6 +485,26 @@ class PaymentController extends Controller
                 ->with('info', 'This registration has no fee to pay.');
         }
 
+        $preview = $this->accountCredits->preview($user, $registration);
+
+        if ($preview['credit'] > 0) {
+            if ($preview['card'] > 0 && ! $this->payFastService->isEnabled()) {
+                return redirect()->back()
+                    ->with('error', 'Online payments are not currently available. Your entry credit does not cover the full fee.');
+            }
+
+            $payment = $this->accountCredits->applyToRegistrationPayment($user, $registration);
+
+            if ($payment->isCompleted()) {
+                $this->handleSuccessfulPayment($payment);
+
+                return redirect()->route('registrations.show', $registration)
+                    ->with('success', 'Entry paid with your account credit (R '.number_format($preview['credit'], 2).').');
+            }
+
+            return redirect()->route('payments.redirect', $payment);
+        }
+
         if (! $this->payFastService->isEnabled()) {
             return redirect()->back()
                 ->with('error', 'Online payments are not currently available.');
@@ -520,6 +554,7 @@ class PaymentController extends Controller
 
     private function handleSuccessfulPayment(Payment $payment): void
     {
+        $creditUsed = $this->accountCredits->captureReservationForPayment($payment);
         $payable = $payment->payable;
 
         if ($payable instanceof MatchRegistration) {
@@ -541,6 +576,8 @@ class PaymentController extends Controller
                 [
                     'payment_status' => 'paid',
                     'payment_id' => $payment->id,
+                    'gateway' => $payment->gateway,
+                    'account_credit' => $creditUsed,
                     'gateway_fee' => $payment->amount_fee,
                     'amount_net' => $payment->amount_net,
                 ],
@@ -552,7 +589,9 @@ class PaymentController extends Controller
                 'source_id' => $payable->id,
                 'user_id' => $payment->user_id,
                 'amount' => $payment->amount,
-                'description' => 'Match registration payment via PayFast',
+                'description' => $payment->gateway === 'account_credit'
+                    ? 'Match registration paid from account credit'
+                    : 'Match registration payment via PayFast',
                 'meta' => [
                     'payment_id' => $payment->id,
                     'm_payment_id' => $payment->m_payment_id,
@@ -577,7 +616,7 @@ class PaymentController extends Controller
                 if ($payable->user && $payment->user_id !== $payable->user_id) {
                     try {
                         $payable->user->notify(
-                            new \App\Notifications\SponsoredEntryPaidNotification($payable, $payment, $payment->user)
+                            new SponsoredEntryPaidNotification($payable, $payment, $payment->user)
                         );
                     } catch (\Throwable $e) {
                         Log::warning('Failed to send sponsored entry paid notification', ['error' => $e->getMessage()]);
@@ -622,7 +661,7 @@ class PaymentController extends Controller
                 'payment_reference' => $payment->m_payment_id,
                 'payment_method' => 'payfast',
                 'status' => 'confirmed',
-                'notes' => 'Online payment via PayFast (PF ID: ' . $payment->gateway_payment_id . ')',
+                'notes' => 'Online payment via PayFast (PF ID: '.$payment->gateway_payment_id.')',
             ]);
 
             $this->auditLogService->log(

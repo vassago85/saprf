@@ -178,6 +178,7 @@
     <flux:main id="main" class="bg-stone-50">
         <x-outstanding-acknowledgements />
         <x-push-nudge />
+        <x-account-credit-banner />
 
         @if (session('success'))
             <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
