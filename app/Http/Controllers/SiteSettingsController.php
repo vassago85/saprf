@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MatchEvent;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -69,6 +71,14 @@ class SiteSettingsController extends Controller
 
         $this->settingsService->set('non_member_surcharge', $validated['non_member_surcharge'], 'Extra fee for non-members per match (ZAR)');
         $this->settingsService->set('lapsed_member_surcharge', $validated['lapsed_member_surcharge'], 'Extra fee for lapsed members per match (ZAR)');
+
+        // Matches cache base + surcharge for display; resync open ones so event
+        // cards match what checkout charges. Finished matches keep historical fees.
+        MatchEvent::whereNotIn('status', ['completed', 'cancelled'])->update([
+            'non_member_fee' => DB::raw('COALESCE(active_member_fee, 0) + '.(float) $validated['non_member_surcharge']),
+            'lapsed_member_fee' => DB::raw('COALESCE(active_member_fee, 0) + '.(float) $validated['lapsed_member_surcharge']),
+        ]);
+
         $this->settingsService->set('withdrawal_admin_fee', $validated['withdrawal_admin_fee'], 'Admin fee charged on match withdrawal (ZAR)');
         $this->settingsService->set('withdrawal_deadline_hours', $validated['withdrawal_deadline_hours'], 'Hours before match date that withdrawal refunds are cut off');
 
