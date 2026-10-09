@@ -398,6 +398,10 @@
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Update Status</h2>
 
+                @if(! auth()->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin']) && $registration->hasCompletedPlatformPayment())
+                    <p class="-mt-3 mb-4 text-sm text-stone-500">This entry was paid online, so cancelling it needs a SAPRF admin (refund or match credit).</p>
+                @endif
+
                 <form method="POST" action="{{ route('registrations.update-status', $registration) }}" class="space-y-4">
                     @csrf
                     @method('PUT')

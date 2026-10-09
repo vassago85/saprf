@@ -557,6 +557,9 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // confirmed + paid entry without touching PayFast; used when the
         // fee was collected off-platform (cash, EFT, comp'd).
         Route::post('/matches/{match}/entries', [MatchController::class, 'storeAdminEntry'])->name('matches.entries.store');
+        // Status changes (incl. removing a comp'd shooter) re-authorize via
+        // RegistrationPolicy::update, which limits MDs to their own matches.
+        Route::put('/registrations/{registration}/status', [RegistrationController::class, 'updateStatus'])->name('registrations.update-status');
         // MD broadcast to entrants on the match's entry list. Both actions
         // re-authorize via MatchPolicy::update so a match_director without
         // ownership of the match hits 403 even if the middleware lets them in.
@@ -641,7 +644,6 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/memberships/{membership}/reinstate', [MembershipController::class, 'reinstate'])->name('memberships.reinstate');
         Route::post('/memberships/{membership}/invite', [MembershipController::class, 'invite'])->name('memberships.invite');
         Route::post('/memberships/{membership}/reset-password', [MembershipController::class, 'resetPassword'])->name('memberships.reset-password');
-        Route::put('/registrations/{registration}/status', [RegistrationController::class, 'updateStatus'])->name('registrations.update-status');
         Route::put('/registrations/{registration}/category', [RegistrationController::class, 'updateCategory'])->name('registrations.update-category');
         Route::resource('audit-logs', AuditLogController::class)
             ->only(['index', 'show'])

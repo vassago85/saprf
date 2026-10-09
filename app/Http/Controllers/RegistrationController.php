@@ -242,8 +242,25 @@ class RegistrationController extends Controller
             'registration_status' => ['required', 'in:confirmed,cancelled,pending,waitlisted'],
         ]);
 
-        $old = $registration->only(['registration_status']);
-        $registration->update($validated);
+        $isCancelling = $validated['registration_status'] === 'cancelled'
+            && $registration->registration_status !== 'cancelled';
+
+        if ($isCancelling
+            && ! $request->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
+            && $registration->hasCompletedPlatformPayment()) {
+            return back()->with('error', 'This entry was paid online — ask a SAPRF admin to cancel it so the refund or match credit is handled.');
+        }
+
+        $old = $registration->only(['registration_status', 'cancelled_at']);
+
+        $registration->update([
+            'registration_status' => $validated['registration_status'],
+            'cancelled_at' => match (true) {
+                $isCancelling => now(),
+                $validated['registration_status'] !== 'cancelled' => null,
+                default => $registration->cancelled_at,
+            },
+        ]);
 
         $this->auditLogService->log(
             $request->user(),
@@ -251,7 +268,7 @@ class RegistrationController extends Controller
             'MatchRegistration',
             $registration->id,
             $old,
-            $registration->only(['registration_status']),
+            $registration->only(['registration_status', 'cancelled_at']),
         );
 
         return redirect()->route('registrations.show', $registration)

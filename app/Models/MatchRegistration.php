@@ -94,6 +94,15 @@ class MatchRegistration extends Model
     }
 
     /**
+     * Money for this entry came in through PayFast. Cancelling such a row
+     * needs a refund/credit decision, so match directors may not do it.
+     */
+    public function hasCompletedPlatformPayment(): bool
+    {
+        return $this->payments()->where('status', 'completed')->exists();
+    }
+
+    /**
      * Rate-limits the MD "send payment inquiry" button so a heavy click
      * (or a double-submit) doesn't hammer the same shooter twice in a
      * row. 24 hours is deliberately generous — the shooter has probably
