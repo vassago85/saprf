@@ -94,12 +94,17 @@ class MatchRegistration extends Model
     }
 
     /**
-     * Money for this entry came in through PayFast. Cancelling such a row
-     * needs a refund/credit decision, so match directors may not do it.
+     * Money for this entry came in through the platform (PayFast or account
+     * credit). Cancelling such a row credits the payer's account.
      */
     public function hasCompletedPlatformPayment(): bool
     {
         return $this->payments()->where('status', 'completed')->exists();
+    }
+
+    public function hasIssuedCredit(): bool
+    {
+        return AccountCredit::query()->where('issued_for_registration_id', $this->id)->exists();
     }
 
     /**

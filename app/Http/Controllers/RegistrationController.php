@@ -7,10 +7,12 @@ use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
+use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -20,6 +22,7 @@ class RegistrationController extends Controller
     public function __construct(
         private readonly RegistrationPricingService $pricingService,
         private readonly AuditLogService $auditLogService,
+        private readonly AccountCreditService $accountCreditService,
     ) {}
 
     public function index(Request $request): View
@@ -244,35 +247,55 @@ class RegistrationController extends Controller
 
         $isCancelling = $validated['registration_status'] === 'cancelled'
             && $registration->registration_status !== 'cancelled';
+        $creditsPayer = $isCancelling && $registration->hasCompletedPlatformPayment();
 
-        if ($isCancelling
-            && ! $request->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
-            && $registration->hasCompletedPlatformPayment()) {
-            return back()->with('error', 'This entry was paid online — ask a SAPRF admin to cancel it so the refund or match credit is handled.');
+        if ($registration->registration_status === 'cancelled'
+            && $validated['registration_status'] !== 'cancelled'
+            && $registration->hasIssuedCredit()) {
+            return back()->with('error', 'This entry was already credited back to the payer\'s account, so it cannot be reinstated. Enter the shooter again instead.');
         }
 
-        $old = $registration->only(['registration_status', 'cancelled_at']);
+        $reason = trim((string) $request->validate([
+            'cancellation_reason' => [Rule::requiredIf($creditsPayer), 'nullable', 'string', 'min:5', 'max:500'],
+        ], [
+            'cancellation_reason.required' => 'A reason is required when removing a paid shooter — it is included in the credit email.',
+        ])['cancellation_reason'] ?? '');
 
-        $registration->update([
-            'registration_status' => $validated['registration_status'],
-            'cancelled_at' => match (true) {
-                $isCancelling => now(),
-                $validated['registration_status'] !== 'cancelled' => null,
-                default => $registration->cancelled_at,
-            },
-        ]);
+        $old = $registration->only(['registration_status', 'cancelled_at', 'cancellation_reason']);
 
-        $this->auditLogService->log(
-            $request->user(),
-            'registration.status.updated',
-            'MatchRegistration',
-            $registration->id,
-            $old,
-            $registration->only(['registration_status', 'cancelled_at']),
-        );
+        $credit = DB::transaction(function () use ($registration, $validated, $isCancelling, $creditsPayer, $reason, $request) {
+            $registration->update([
+                'registration_status' => $validated['registration_status'],
+                'cancelled_at' => match (true) {
+                    $isCancelling => now(),
+                    $validated['registration_status'] !== 'cancelled' => null,
+                    default => $registration->cancelled_at,
+                },
+                'cancellation_reason' => $isCancelling && $reason !== ''
+                    ? $reason
+                    : $registration->cancellation_reason,
+            ]);
+
+            $this->auditLogService->log(
+                $request->user(),
+                'registration.status.updated',
+                'MatchRegistration',
+                $registration->id,
+                $old,
+                $registration->only(['registration_status', 'cancelled_at', 'cancellation_reason']),
+            );
+
+            return $creditsPayer
+                ? $this->accountCreditService->issueForRemovedRegistration($registration, $reason, $request->user())
+                : null;
+        });
+
+        $message = $credit
+            ? 'Shooter removed. R '.number_format((float) $credit->amount, 2).' credited to '.($credit->user?->name ?? 'the payer').'\'s account.'
+            : 'Registration status updated.';
 
         return redirect()->route('registrations.show', $registration)
-            ->with('success', 'Registration status updated.');
+            ->with('success', $message);
     }
 
     /**

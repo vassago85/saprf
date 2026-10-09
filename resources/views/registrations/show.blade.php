@@ -266,6 +266,7 @@
                 $noFinancialImpact = ((float) ($registration->refund_amount ?? 0)) === 0.0
                     && ((float) ($registration->admin_fee_charged ?? 0)) === 0.0;
                 $wasFreeEntry = $noFinancialImpact && ((float) $registration->fee_amount) <= 0;
+                $creditedToAccount = ! $noFinancialImpact && $registration->hasIssuedCredit();
             @endphp
             <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Withdrawal Details</h2>
@@ -278,6 +279,11 @@
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Financial Impact</dt>
                             <dd class="mt-1 text-sm text-red-800">{{ $wasFreeEntry ? 'Free entry — none.' : 'No payment was collected — none.' }}</dd>
+                        </div>
+                    @elseif($creditedToAccount)
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Credited to Account</dt>
+                            <dd class="mt-1 text-sm font-semibold text-emerald-700">R {{ number_format($registration->refund_amount ?? 0, 2) }}</dd>
                         </div>
                     @else
                         <div>
@@ -398,23 +404,35 @@
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-5">Update Status</h2>
 
-                @if(! auth()->user()->hasAnyRole(['developer', 'exco', 'owner', 'admin']) && $registration->hasCompletedPlatformPayment())
-                    <p class="-mt-3 mb-4 text-sm text-stone-500">This entry was paid online, so cancelling it needs a SAPRF admin (refund or match credit).</p>
-                @endif
+                @php
+                    $creditsOnCancel = $registration->registration_status !== 'cancelled' && $registration->hasCompletedPlatformPayment();
+                @endphp
 
-                <form method="POST" action="{{ route('registrations.update-status', $registration) }}" class="space-y-4">
+                <form method="POST" action="{{ route('registrations.update-status', $registration) }}" class="space-y-4"
+                      x-data="{ status: @js(old('registration_status', $registration->registration_status)) }">
                     @csrf
                     @method('PUT')
 
                     <div>
                         <label for="registration_status" class="block text-sm font-medium text-stone-700">Registration Status</label>
-                        <select name="registration_status" id="registration_status" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <select name="registration_status" id="registration_status" required x-model="status" class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                             <option value="pending" @selected($registration->registration_status === 'pending')>Pending</option>
                             <option value="confirmed" @selected($registration->registration_status === 'confirmed')>Confirmed</option>
                             <option value="waitlisted" @selected($registration->registration_status === 'waitlisted')>Waitlisted</option>
                             <option value="cancelled" @selected($registration->registration_status === 'cancelled')>Cancelled</option>
                         </select>
                     </div>
+
+                    @if($creditsOnCancel)
+                        <div x-show="status === 'cancelled'" x-cloak class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <p class="text-sm text-amber-800">This entry was paid online. Cancelling it credits the full amount paid to the payer's SAPRF account and emails them the reason.</p>
+                            <label for="staff_cancellation_reason" class="mt-3 block text-sm font-medium text-amber-900">Reason for removal</label>
+                            <textarea name="cancellation_reason" id="staff_cancellation_reason" rows="2" minlength="5" maxlength="500"
+                                      x-bind:required="status === 'cancelled'"
+                                      placeholder="e.g. Shooter can no longer attend."
+                                      class="mt-1 block w-full rounded-lg border border-amber-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">{{ old('cancellation_reason') }}</textarea>
+                        </div>
+                    @endif
 
                     @if ($errors->any())
                         <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

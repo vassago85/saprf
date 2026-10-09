@@ -8,6 +8,7 @@ use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payment;
 use App\Models\User;
+use App\Notifications\EntryRemovedCreditNotification;
 use App\Notifications\MatchCancellationCreditNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -171,6 +172,103 @@ class AccountCreditService
     }
 
     /**
+     * Credit the payer when staff remove a single paid entry from a match
+     * that is still going ahead. The full amount paid (card + any credit
+     * already redeemed against it) goes back on the paying account.
+     * Returns null when nothing was paid on the platform or the entry
+     * was already credited.
+     */
+    public function issueForRemovedRegistration(MatchRegistration $registration, string $reason, ?User $actor = null): ?AccountCredit
+    {
+        $registration->loadMissing('match');
+
+        $credit = DB::transaction(function () use ($registration, $reason, $actor) {
+            MatchRegistration::query()->whereKey($registration->id)->lockForUpdate()->first();
+
+            if (AccountCredit::query()->where('issued_for_registration_id', $registration->id)->exists()) {
+                return null;
+            }
+
+            $completed = $registration->payments()
+                ->where('status', 'completed')
+                ->orderByDesc('id')
+                ->get();
+
+            $cardPaid = (float) $completed->where('gateway', '!=', 'account_credit')->sum('amount');
+            $creditRedeemed = abs((float) AccountCredit::query()
+                ->where('applied_to_registration_id', $registration->id)
+                ->where('type', AccountCredit::TYPE_REDEMPTION)
+                ->where('status', AccountCredit::STATUS_POSTED)
+                ->sum('amount'));
+            $amount = round($cardPaid + $creditRedeemed, 2);
+
+            $holderId = $completed->first()?->user_id
+                ?? $registration->registered_by_user_id
+                ?? $registration->user_id;
+
+            if (! $holderId || $amount <= 0) {
+                return null;
+            }
+
+            $matchName = $registration->match?->name ?? 'event';
+
+            $credit = AccountCredit::query()->create([
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'status' => AccountCredit::STATUS_POSTED,
+                'type' => AccountCredit::TYPE_CANCELLATION,
+                'match_id' => $registration->match_id,
+                'issued_for_registration_id' => $registration->id,
+                'description' => 'Entry credit: removed from '.$matchName.' ('.$registration->shooter_name.')',
+                'created_by' => $actor?->id,
+            ]);
+
+            $registration->update([
+                'refund_amount' => $amount,
+                'admin_fee_charged' => 0,
+            ]);
+
+            FinancialTransaction::query()->create([
+                'type' => 'refund',
+                'source_type' => 'match_registration',
+                'source_id' => $registration->id,
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'description' => 'Entry credit issued — removed from '.$matchName,
+                'meta' => [
+                    'account_credit_id' => $credit->id,
+                    'shooter_name' => $registration->shooter_name,
+                    'match_id' => $registration->match_id,
+                    'reason' => $reason,
+                ],
+            ]);
+
+            $this->auditLogService->log(
+                $actor,
+                'registration.removal_credit.issued',
+                'MatchRegistration',
+                $registration->id,
+                null,
+                [
+                    'account_credit_id' => $credit->id,
+                    'credited_user_id' => $holderId,
+                    'amount' => $amount,
+                    'match_id' => $registration->match_id,
+                ],
+                $reason,
+            );
+
+            return $credit;
+        });
+
+        if ($credit) {
+            $this->notifyRemovalCredit($registration, $credit, $reason);
+        }
+
+        return $credit;
+    }
+
+    /**
      * Hold credit against this entry and open the payment that settles it.
      * A full cover completes immediately (gateway account_credit). A partial
      * cover leaves a PayFast payment for the remainder and a reserved hold.
@@ -302,6 +400,30 @@ class AccountCreditService
                 ]);
             }
         });
+    }
+
+    private function notifyRemovalCredit(MatchRegistration $registration, AccountCredit $credit, string $reason): void
+    {
+        $user = User::query()->find($credit->user_id);
+        if (! $user) {
+            return;
+        }
+
+        try {
+            $user->notify(new EntryRemovedCreditNotification(
+                $registration->match?->name ?? 'event',
+                (string) $registration->shooter_name,
+                (float) $credit->amount,
+                $this->summary($user)['posted'],
+                $reason,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send entry removal credit notification', [
+                'user_id' => $user->id,
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function heldForRegistration(User $payer, MatchRegistration $registration): float
