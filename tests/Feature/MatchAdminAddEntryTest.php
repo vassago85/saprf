@@ -437,3 +437,29 @@ it('rejects a new-shooter POST with a name shorter than 2 characters', function 
         ->assertRedirect(route('matches.edit', $this->match))
         ->assertSessionHasErrors('new_shooter_name');
 });
+
+it('lets the MD add themselves with one click from the edit page', function () {
+    $this->actingAs($this->md)
+        ->get(route('matches.edit', $this->match))
+        ->assertOk()
+        ->assertSee('Shooting this match yourself?')
+        ->assertSee('Add me');
+
+    $this->actingAs($this->md)
+        ->post(route('matches.entries.store', $this->match), [
+            'user_id' => $this->md->id,
+            'division_id' => $this->open->id,
+        ])
+        ->assertRedirect(route('matches.edit', $this->match));
+
+    $entry = MatchRegistration::where('user_id', $this->md->id)->firstOrFail();
+    expect($entry->registration_status)->toBe('confirmed')
+        ->and($entry->payment_status)->toBe('paid')
+        ->and($entry->division_id)->toBe($this->open->id);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.edit', $this->match))
+        ->assertOk()
+        ->assertSee("You're entered in this match", false)
+        ->assertDontSee('Shooting this match yourself?');
+});

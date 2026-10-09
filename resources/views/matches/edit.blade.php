@@ -348,6 +348,30 @@
             </span>
         </div>
 
+        @if($selfEntry)
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-white px-3 py-2.5">
+                <p class="text-sm text-stone-700">You're entered in this match{{ $selfEntry->division ? ' ('.$selfEntry->division->name.')' : '' }}.</p>
+                <a href="{{ route('registrations.show', $selfEntry) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">View my entry →</a>
+            </div>
+        @elseif($availableDivisionsForAdd->isNotEmpty())
+            <form method="POST" action="{{ route('matches.entries.store', $match) }}"
+                  class="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-white px-3 py-2.5">
+                @csrf
+                <input type="hidden" name="user_id" value="{{ auth()->id() }}">
+                <p class="text-sm font-medium text-stone-800">Shooting this match yourself?</p>
+                <select name="division_id" aria-label="Your division" required
+                        class="rounded-lg border border-stone-300 text-sm py-1.5 focus:ring-emerald-500 focus:border-emerald-500">
+                    @foreach($availableDivisionsForAdd as $division)
+                        <option value="{{ $division->id }}" @selected($division->id === $selfDefaultDivisionId)>{{ $division->name }}</option>
+                    @endforeach
+                </select>
+                <button type="submit"
+                        class="ml-auto px-4 py-1.5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition shadow-sm">
+                    Add me
+                </button>
+            </form>
+        @endif
+
         {{-- Search box: reuses the sponsor-flow endpoint so results include
              each shooter's current entry state on this match. --}}
         <div class="mt-4 relative">

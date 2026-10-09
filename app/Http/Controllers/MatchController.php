@@ -181,7 +181,7 @@ class MatchController extends Controller
         return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses', 'totalExpensesActual', 'estimatedShooters', 'actualShooters'));
     }
 
-    public function edit(MatchEvent $match): View
+    public function edit(Request $request, MatchEvent $match): View
     {
         $this->authorize('update', $match);
 
@@ -189,7 +189,14 @@ class MatchController extends Controller
         $venues = Venue::active()->with('province')->orderBy('name')->get();
         $settings = $this->settingsService->all();
 
-        return view('matches.edit', compact('match', 'provinces', 'venues', 'settings'));
+        $selfEntry = $match->userRegistration($request->user());
+        $availableDivisionIds = $match->availableDivisions()->pluck('id');
+        $selfDefaultDivisionId = $request->user()->matchRegistrations()
+            ->whereIn('division_id', $availableDivisionIds)
+            ->latest('registered_at')
+            ->value('division_id') ?? $availableDivisionIds->first();
+
+        return view('matches.edit', compact('match', 'provinces', 'venues', 'settings', 'selfEntry', 'selfDefaultDivisionId'));
     }
 
     public function update(UpdateMatchRequest $request, MatchEvent $match): RedirectResponse
