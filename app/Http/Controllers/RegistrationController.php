@@ -264,7 +264,7 @@ class RegistrationController extends Controller
 
         $old = $registration->only(['registration_status', 'cancelled_at', 'cancellation_reason']);
 
-        $credit = DB::transaction(function () use ($registration, $validated, $isCancelling, $creditsPayer, $reason, $request) {
+        $credit = DB::transaction(function () use ($registration, $validated, $isCancelling, $creditsPayer, $reason, $request, $old) {
             $registration->update([
                 'registration_status' => $validated['registration_status'],
                 'cancelled_at' => match (true) {

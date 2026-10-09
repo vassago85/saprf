@@ -150,6 +150,7 @@ it('credits both the card and redeemed-credit parts of a split payment', functio
         'match_id' => $this->match->id,
         'applied_to_registration_id' => $registration->id,
         'payment_id' => $payment->id,
+        'description' => 'Entry credit applied',
     ]);
 
     $this->actingAs($this->md)
@@ -224,6 +225,7 @@ it('sends a removed shooter to pay as normal once their credit is used up', func
         'amount' => -500.00,
         'status' => AccountCredit::STATUS_POSTED,
         'type' => AccountCredit::TYPE_REDEMPTION,
+        'description' => 'Entry credit applied elsewhere',
     ]);
 
     app()->instance(PayFastService::class, new class extends PayFastService
