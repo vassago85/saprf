@@ -39,7 +39,7 @@ class EntryRemovedCreditNotification extends Notification implements ShouldQueue
             ->line('**Reason:** '.$this->reason)
             ->line('**Credited now:** R'.number_format($this->amount, 2))
             ->line('**Credit on your account:** R'.number_format($this->balance, 2))
-            ->line('This credit is applied automatically the next time you pay for an event.')
+            ->line('This credit is applied automatically the next time you pay for an event — including if you enter '.$this->matchName.' again.')
             ->action('View my dashboard', route('dashboard'));
     }
 }

@@ -255,11 +255,12 @@ class RegistrationController extends Controller
             return back()->with('error', 'This entry was already credited back to the payer\'s account, so it cannot be reinstated. Enter the shooter again instead.');
         }
 
-        $reason = trim((string) $request->validate([
+        $request->validate([
             'cancellation_reason' => [Rule::requiredIf($creditsPayer), 'nullable', 'string', 'min:5', 'max:500'],
         ], [
             'cancellation_reason.required' => 'A reason is required when removing a paid shooter — it is included in the credit email.',
-        ])['cancellation_reason'] ?? '');
+        ]);
+        $reason = trim((string) $request->input('cancellation_reason', ''));
 
         $old = $registration->only(['registration_status', 'cancelled_at', 'cancellation_reason']);
 

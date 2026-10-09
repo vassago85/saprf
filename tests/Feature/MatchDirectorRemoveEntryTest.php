@@ -1,12 +1,16 @@
 <?php
 
 use App\Models\AccountCredit;
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payment;
 use App\Models\Province;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\EntryRemovedCreditNotification;
+use App\Services\PayFastService;
+use App\Services\SettingsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
 
@@ -29,6 +33,7 @@ beforeEach(function () {
         'match_date' => Carbon::today()->addMonth(),
         'status' => 'open',
         'published' => true,
+        'match_director' => 'Test Director',
         'active_member_fee' => 500.00,
         'non_member_fee' => 750.00,
         'created_by' => $this->md->id,
@@ -36,6 +41,13 @@ beforeEach(function () {
 
     $this->shooter = User::factory()->create(['email_verified_at' => now()]);
     $this->shooter->assignRole('member');
+
+    $this->division = Division::create(['slug' => 'open', 'name' => 'Open', 'is_active' => true, 'display_order' => 1]);
+
+    foreach (['non_member_surcharge' => '0', 'lapsed_member_surcharge' => '0'] as $key => $value) {
+        Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+    }
+    app(SettingsService::class)->clearCache();
 });
 
 function compedEntry(MatchEvent $match, User $shooter, User $addedBy): MatchRegistration
@@ -167,6 +179,81 @@ it('will not reinstate an entry that was already credited', function () {
 
     expect($registration->fresh()->registration_status)->toBe('cancelled')
         ->and(AccountCredit::query()->where('issued_for_registration_id', $registration->id)->count())->toBe(1);
+});
+
+it('lets a removed shooter re-enter the match using their credit', function () {
+    $registration = compedEntry($this->match, $this->shooter, $this->shooter);
+    onlinePayment($registration, $this->shooter, 500.00);
+
+    $this->actingAs($this->md)->put(route('registrations.update-status', $registration), [
+        'registration_status' => 'cancelled',
+        'cancellation_reason' => 'Wrong division booked.',
+    ]);
+
+    $this->actingAs($this->shooter)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertSee('Enter this match again')
+        ->assertSee('R 500.00 entry credit is applied first');
+
+    $this->actingAs($this->shooter)
+        ->post(route('events.register.store', $this->match), ['division_id' => $this->division->id])
+        ->assertRedirect();
+
+    $reentry = MatchRegistration::query()
+        ->where('user_id', $this->shooter->id)
+        ->where('registration_status', '!=', 'cancelled')
+        ->firstOrFail();
+
+    expect($reentry->id)->not->toBe($registration->id)
+        ->and($reentry->payment_status)->toBe('paid')
+        ->and($this->shooter->fresh()->accountCreditSummary()['available'])->toBe(0.0);
+});
+
+it('sends a removed shooter to pay as normal once their credit is used up', function () {
+    $registration = compedEntry($this->match, $this->shooter, $this->shooter);
+    onlinePayment($registration, $this->shooter, 500.00);
+
+    $this->actingAs($this->md)->put(route('registrations.update-status', $registration), [
+        'registration_status' => 'cancelled',
+        'cancellation_reason' => 'Wrong division booked.',
+    ]);
+
+    AccountCredit::create([
+        'user_id' => $this->shooter->id,
+        'amount' => -500.00,
+        'status' => AccountCredit::STATUS_POSTED,
+        'type' => AccountCredit::TYPE_REDEMPTION,
+    ]);
+
+    app()->instance(PayFastService::class, new class extends PayFastService
+    {
+        public function __construct()
+        {
+            parent::__construct(app(SettingsService::class));
+        }
+
+        public function isEnabled(): bool
+        {
+            return true;
+        }
+    });
+
+    $this->actingAs($this->shooter)
+        ->get(route('registrations.show', $registration))
+        ->assertSee('Your entry credit has been used');
+
+    $this->actingAs($this->shooter)
+        ->post(route('events.register.store', $this->match), ['division_id' => $this->division->id])
+        ->assertRedirectContains('/payments/');
+
+    $reentry = MatchRegistration::query()
+        ->where('user_id', $this->shooter->id)
+        ->where('registration_status', '!=', 'cancelled')
+        ->firstOrFail();
+
+    expect($reentry->payment_status)->not->toBe('paid')
+        ->and((float) Payment::query()->where('payable_id', $reentry->id)->where('status', 'pending')->value('amount'))->toBe(500.0);
 });
 
 function onlinePayment(MatchRegistration $registration, User $payer, float $amount): Payment

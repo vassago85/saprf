@@ -957,6 +957,12 @@ class MatchController extends Controller
             Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
         }
 
+        // Entry credit (cancelled match, or an MD removing a paid entry) is
+        // spent first; the pay flow tops up the remainder through PayFast.
+        if ($breakdown['total_fee'] > 0 && $this->accountCredits->summary($actor)['available'] > 0) {
+            return app(PaymentController::class)->payRegistration($request, $registration);
+        }
+
         $payFastService = app(PayFastService::class);
 
         if ($payFastService->isEnabled() && $breakdown['total_fee'] > 0) {

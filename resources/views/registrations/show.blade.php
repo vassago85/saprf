@@ -267,6 +267,12 @@
                     && ((float) ($registration->admin_fee_charged ?? 0)) === 0.0;
                 $wasFreeEntry = $noFinancialImpact && ((float) $registration->fee_amount) <= 0;
                 $creditedToAccount = ! $noFinancialImpact && $registration->hasIssuedCredit();
+                $reentryMatch = $registration->match;
+                $canReenter = $reentryMatch
+                    && in_array(auth()->id(), [$registration->user_id, $registration->registered_by_user_id], true)
+                    && ($reentryMatch->isRegistrationOpen() || $reentryMatch->isWaitlistOpen())
+                    && ! $reentryMatch->userRegistration($registration->user);
+                $reentryCredit = $canReenter ? auth()->user()->accountCreditSummary()['available'] : 0;
             @endphp
             <div class="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-red-800 mb-4">Withdrawal Details</h2>
@@ -304,6 +310,22 @@
                     </div>
                     @endif
                 </dl>
+
+                @if($canReenter)
+                    <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-red-200 pt-4">
+                        <a href="{{ route('events.register', $registration->user_id === auth()->id() ? $reentryMatch : [$reentryMatch, 'for_user' => $registration->user_id]) }}"
+                           class="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800">
+                            Enter this match again
+                        </a>
+                        <p class="text-sm text-red-800">
+                            @if($reentryCredit > 0)
+                                Your R {{ number_format($reentryCredit, 2) }} entry credit is applied first.
+                            @elseif($creditedToAccount)
+                                Your entry credit has been used, so the entry fee is paid as normal.
+                            @endif
+                        </p>
+                    </div>
+                @endif
             </div>
         @endif
 
