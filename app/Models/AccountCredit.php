@@ -17,6 +17,8 @@ class AccountCredit extends Model
 
     public const TYPE_REDEMPTION = 'redemption';
 
+    public const TYPE_REFUND = 'refund';
+
     protected $fillable = [
         'user_id',
         'amount',

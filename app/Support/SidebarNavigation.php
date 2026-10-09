@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Http\Controllers\ApprovalController;
 use App\Models\AnnouncementRecipient;
 use App\Models\ContactMessage;
+use App\Models\CreditRefundRequest;
 use App\Models\Payout;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -482,6 +483,17 @@ final class SidebarNavigation
                         'current_route_is' => ['financials.expenses*'],
                     ],
                     [
+                        'id' => 'financials-credit-refunds',
+                        'label' => 'Credit refunds',
+                        'route' => 'financials.credit-refunds.index',
+                        'icon' => 'banknotes',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'owner', 'admin'],
+                        'current_route_is' => ['financials.credit-refunds.*'],
+                        'badge' => 'pending_credit_refunds',
+                        'badge_color' => 'amber',
+                    ],
+                    [
                         'id' => 'financials-payouts',
                         'label' => 'Payouts',
                         'route' => 'financials.payouts',
@@ -845,6 +857,9 @@ final class SidebarNavigation
             'pending_md_payouts' => Payout::query()
                 ->where('payee_type', 'match_director')
                 ->where('status', 'pending')
+                ->count(),
+            'pending_credit_refunds' => CreditRefundRequest::query()
+                ->where('status', CreditRefundRequest::STATUS_PENDING)
                 ->count(),
             default => 0,
         };

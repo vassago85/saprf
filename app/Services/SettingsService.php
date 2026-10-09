@@ -8,11 +8,13 @@ use Illuminate\Support\Facades\Cache;
 class SettingsService
 {
     private const CACHE_KEY = 'saprf_settings';
+
     private const CACHE_TTL = 3600;
 
     public function get(string $key, mixed $default = null): mixed
     {
         $settings = $this->all();
+
         return $settings[$key] ?? $default;
     }
 
@@ -60,6 +62,14 @@ class SettingsService
     public function secretaryEmail(): ?string
     {
         return $this->normalizedEmail('secretary_email');
+    }
+
+    /**
+     * Cash refunds of cancellation credit. Off until finance is ready to pay them.
+     */
+    public function cancellationRefundsEnabled(): bool
+    {
+        return (string) $this->get('cancellation_refunds_enabled', '0') === '1';
     }
 
     /**

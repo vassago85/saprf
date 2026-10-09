@@ -376,6 +376,57 @@ class AnnouncementController extends Controller
     }
 
     /**
+     * Typeahead for the "Named individuals" audience rule. Matches on
+     * name, email or SAPRF number; `ids` hydrates chips for rules that
+     * already carry user ids (e.g. editing a saved list).
+     */
+    public function searchRecipients(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'ids' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $query = User::query()
+            ->select('users.id', 'users.name', 'users.email')
+            ->leftJoin('memberships', 'memberships.user_id', '=', 'users.id')
+            ->addSelect('memberships.saprf_number as saprf_number');
+
+        if (! empty($data['ids'])) {
+            $ids = collect(preg_split('/[\s,;]+/', $data['ids'], -1, PREG_SPLIT_NO_EMPTY))
+                ->filter(fn ($id) => ctype_digit($id))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->take(200);
+
+            $query->whereIn('users.id', $ids->all());
+        } else {
+            $term = trim((string) ($data['q'] ?? ''));
+
+            if (mb_strlen($term) < 2) {
+                return response()->json(['results' => []]);
+            }
+
+            $like = '%' . $term . '%';
+
+            $query->where(function ($q) use ($like, $term): void {
+                $q->where('users.name', 'like', $like)
+                    ->orWhere('users.email', 'like', $like)
+                    ->orWhere('memberships.saprf_number', 'like', $term . '%');
+            })->limit(15);
+        }
+
+        $results = $query->orderBy('users.name')->get()->map(fn (User $u) => [
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'saprf_number' => $u->saprf_number,
+        ])->unique('id')->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
      * Live markdown preview for the composer. Runs the exact same renderer
      * used at send time (AnnouncementBodyRenderer) so what the operator sees
      * is bit-for-bit what recipients get in-app and via email.

@@ -88,6 +88,21 @@
                     <p>Withdraw <strong>before</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-emerald-700">R{{ number_format(500 - $adminFee, 0) }}</span> (R500 − R{{ number_format($adminFee, 0) }} admin fee)</p>
                     <p>Withdraw <strong>after</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-red-600">R0</span> (full fee forfeited)</p>
                 </div>
+
+                <div class="rounded-lg border border-stone-200 p-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="hidden" name="cancellation_refunds_enabled" value="0">
+                        <input type="checkbox" name="cancellation_refunds_enabled" value="1"
+                               @checked(old('cancellation_refunds_enabled', ($settings['cancellation_refunds_enabled'] ?? '0')) == '1')
+                               class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="flex-1">
+                            <span class="block text-sm font-medium text-stone-800">Let members request a cash refund of cancellation credit</span>
+                            <span class="mt-1 block text-xs text-stone-500 leading-relaxed">
+                                Off by default. When a match is cancelled the entry fee stays as credit. Turn this on when finance is ready to pay refunds — there is no admin fee, because the cancellation was not the shooter's fault. Requests show under Finance → Credit refunds.
+                            </span>
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">

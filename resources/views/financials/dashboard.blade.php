@@ -26,6 +26,14 @@
             </div>
         </div>
 
+        @php $pendingCreditRefunds = \App\Models\CreditRefundRequest::query()->where('status', 'pending')->count(); @endphp
+        @if($pendingCreditRefunds > 0)
+            <a href="{{ route('financials.credit-refunds.index') }}" class="block rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 hover:bg-amber-100">
+                <span class="font-semibold">{{ $pendingCreditRefunds }} {{ Str::plural('refund request', $pendingCreditRefunds) }}</span>
+                waiting to be paid.
+            </a>
+        @endif
+
         {{-- Date Filters --}}
         @php
             // Explicit from/to always overrides the Quick Filter on the

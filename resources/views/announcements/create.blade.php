@@ -16,7 +16,7 @@
             'role' => [['name' => 'role', 'label' => 'Role', 'options' => collect($roles)->mapWithKeys(fn ($r) => [$r => ucwords(str_replace('_', ' ', $r))])->all()]],
             'club' => [['name' => 'club_id', 'label' => 'Club', 'options' => $clubs->pluck('name', 'id')->all()]],
             'province' => [['name' => 'province_id', 'label' => 'Province', 'options' => $provinces->pluck('name', 'id')->all()]],
-            'individual' => [['name' => 'user_ids', 'label' => 'User IDs (comma-separated)', 'text' => true]],
+            'individual' => [['name' => 'user_ids', 'label' => 'Members', 'search' => true]],
             'saved_list' => [['name' => 'list_id', 'label' => 'Saved list', 'options' => $savedLists->pluck('name', 'id')->all()]],
         ];
     @endphp
@@ -32,6 +32,7 @@
             ->all();
     @endphp
     <div class="max-w-4xl space-y-6"
+        @audience-changed="refreshPreview()"
         x-data="announcementComposer(@js([
             'previewUrl' => route('announcements.preview'),
             'bodyPreviewUrl' => route('announcements.body-preview'),
@@ -261,11 +262,14 @@
                         <template x-for="(field, fi) in inputsFor(rule.type)" :key="fi">
                             <div>
                                 <label class="block text-xs font-semibold uppercase text-stone-400" x-text="field.label"></label>
+                                <template x-if="field.search">
+                                    @include('announcements._recipient-picker', ['namePrefix' => 'audiences'])
+                                </template>
                                 <template x-if="field.text">
                                     <input type="text" :name="`audiences[${idx}][value][${field.name}]`" x-model="rule.value[field.name]"
                                         class="mt-1 block w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs" />
                                 </template>
-                                <template x-if="!field.text">
+                                <template x-if="!field.text && !field.search">
                                     <select :name="`audiences[${idx}][value][${field.name}]`" x-model="rule.value[field.name]"
                                         class="mt-1 block w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs">
                                         <option value="">— pick —</option>

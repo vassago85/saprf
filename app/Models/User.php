@@ -330,7 +330,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Entry-fee credit sitting on this account (cancelled matches, etc.).
      *
-     * @return array{posted: float, reserved: float, available: float, entries: Collection<int, AccountCredit>}
+     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, entries: Collection<int, AccountCredit>}
      */
     public function accountCreditSummary(): array
     {

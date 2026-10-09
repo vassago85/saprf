@@ -21,7 +21,7 @@ class AccountCreditService
     ) {}
 
     /**
-     * @return array{posted: float, reserved: float, available: float, entries: Collection<int, AccountCredit>}
+     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, entries: Collection<int, AccountCredit>}
      */
     public function summary(User $user): array
     {
@@ -32,13 +32,17 @@ class AccountCreditService
             ->get();
 
         $posted = round((float) $rows->where('status', AccountCredit::STATUS_POSTED)->sum('amount'), 2);
-        $reserved = round((float) $rows
-            ->where('status', AccountCredit::STATUS_RESERVED)
+        $reservedRows = $rows->where('status', AccountCredit::STATUS_RESERVED);
+        $reserved = round((float) $reservedRows->sum(fn (AccountCredit $row) => abs((float) $row->amount)), 2);
+        $refundReserved = round((float) $reservedRows
+            ->where('type', AccountCredit::TYPE_REFUND)
             ->sum(fn (AccountCredit $row) => abs((float) $row->amount)), 2);
 
         return [
             'posted' => $posted,
             'reserved' => $reserved,
+            'refund_reserved' => $refundReserved,
+            'checkout_reserved' => round($reserved - $refundReserved, 2),
             'available' => round($posted - $reserved, 2),
             'entries' => $rows
                 ->where('type', AccountCredit::TYPE_CANCELLATION)

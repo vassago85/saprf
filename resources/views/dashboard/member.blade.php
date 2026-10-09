@@ -45,13 +45,21 @@
             </div>
         </div>
 
-        @php $credit = $user->accountCreditSummary(); @endphp
+        @php
+            $credit = $user->accountCreditSummary();
+            $refundsOpen = app(\App\Services\SettingsService::class)->cancellationRefundsEnabled();
+        @endphp
         @if($credit['posted'] > 0)
             <div class="rounded-xl border border-emerald-200 bg-white shadow-sm p-6">
                 <div class="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                         <h2 class="font-heading text-xl font-bold text-stone-900">Entry credit</h2>
                         <p class="text-sm text-stone-600 mt-1">From a cancelled match. Applied automatically when you pay for another event.</p>
+                        @if($refundsOpen && $credit['available'] > 0)
+                            <a href="{{ route('account.refund') }}" class="mt-2 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-800">Request a cash refund</a>
+                        @elseif(($credit['refund_reserved'] ?? 0) > 0)
+                            <a href="{{ route('account.refund') }}" class="mt-2 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-800">Refund request in progress</a>
+                        @endif
                     </div>
                     <p class="text-2xl font-bold text-emerald-700 tabular-nums">R {{ number_format($credit['posted'], 2) }}</p>
                 </div>

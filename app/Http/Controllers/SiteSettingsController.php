@@ -82,6 +82,14 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('withdrawal_admin_fee', $validated['withdrawal_admin_fee'], 'Admin fee charged on match withdrawal (ZAR)');
         $this->settingsService->set('withdrawal_deadline_hours', $validated['withdrawal_deadline_hours'], 'Hours before match date that withdrawal refunds are cut off');
 
+        if ($request->has('cancellation_refunds_enabled')) {
+            $this->settingsService->set(
+                'cancellation_refunds_enabled',
+                $request->boolean('cancellation_refunds_enabled') ? '1' : '0',
+                'Allow members to request a cash refund of cancellation credit (1=yes, 0=no). Off until finance is ready to pay them.',
+            );
+        }
+
         $this->settingsService->set('division_single_select', $validated['division_single_select'], 'Restrict shooter to one division per match (1=yes, 0=no)');
 
         $this->settingsService->set('saprf_fee_type', $validated['saprf_fee_type'], 'SAPRF fee type: percentage of match fee or fixed rand amount per shooter');

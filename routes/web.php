@@ -12,19 +12,20 @@ use App\Http\Controllers\BarrelShotEntryController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\CommunicationsController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CreditRefundController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Developer\BackupController;
 use App\Http\Controllers\Developer\MailSettingsController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\EmailLogController;
+use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\Exco\DisciplinaryCaseController;
 use App\Http\Controllers\Exco\ExcoActionController;
 use App\Http\Controllers\Exco\ExcoAgendaItemController;
 use App\Http\Controllers\Exco\ExcoMeetingController;
 use App\Http\Controllers\Exco\ExcoMemberController;
 use App\Http\Controllers\Exco\ExcoMinuteAmendmentController;
-use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\FinancialController;
@@ -366,6 +367,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
         Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
         Route::post('/announcements/preview', [AnnouncementController::class, 'preview'])->name('announcements.preview');
+        Route::get('/announcements/recipients/search', [AnnouncementController::class, 'searchRecipients'])->name('announcements.recipients.search');
         Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/announcements/{announcement}/attachments/{attachment}', [AnnouncementController::class, 'attachment'])->name('announcements.attachment');
         Route::delete('/announcements/{announcement}/attachments/{attachment}', [AnnouncementController::class, 'destroyAttachment'])->name('announcements.attachment.destroy');
@@ -478,6 +480,9 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/my-membership', [MembershipController::class, 'myMembership'])->name('my-membership');
     Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])->name('membership.certificate');
     Route::get('/my-membership/activity-report', [MembershipController::class, 'activityReport'])->name('membership.activity-report');
+
+    Route::get('/account/refund', [CreditRefundController::class, 'create'])->name('account.refund');
+    Route::post('/account/refund', [CreditRefundController::class, 'store'])->name('account.refund.store');
 
     // Registrations — any authenticated user can view own / register
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');
@@ -706,6 +711,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/reset', [FinancialController::class, 'confirmReset'])->name('reset');
             Route::post('/reset', [FinancialController::class, 'reset'])->name('reset.perform');
         });
+        Route::get('/credit-refunds', [CreditRefundController::class, 'index'])->name('credit-refunds.index');
+        Route::post('/credit-refunds/{creditRefundRequest}/pay', [CreditRefundController::class, 'pay'])->name('credit-refunds.pay');
+        Route::post('/credit-refunds/{creditRefundRequest}/decline', [CreditRefundController::class, 'decline'])->name('credit-refunds.decline');
+
         Route::get('/payouts', [FinancialController::class, 'payouts'])->name('payouts');
         Route::get('/payouts/create', [FinancialController::class, 'createPayout'])->name('payouts.create');
         Route::post('/payouts', [FinancialController::class, 'storePayout'])->name('payouts.store');
