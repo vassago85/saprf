@@ -82,6 +82,18 @@ return [
             'report' => false,
         ],
 
+        // Second physical HDD on the prod host, bind-mounted at /backups via
+        // BACKUP_HDD_PATH in docker-compose.prod.yml. config/backup.php only
+        // uses it when the .saprf-backup-hdd marker (created on the drive
+        // itself) is present, so an unmounted drive is skipped rather than
+        // silently filling the main disk.
+        'backup_hdd' => [
+            'driver' => 'local',
+            'root' => '/backups',
+            'throw' => false,
+            'report' => false,
+        ],
+
         // Cloudflare R2 (S3-compatible). Credentials live in .env on prod:
         //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_ENDPOINT
         // Endpoint is of the form https://<accountid>.r2.cloudflarestorage.com

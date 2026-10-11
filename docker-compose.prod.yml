@@ -27,10 +27,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?Database password required}
     ports:
       - "8090:80"
+    # BACKUP_HDD_PATH (server .env) points at a directory on the second HDD,
+    # e.g. /mnt/backup/saprf. Unset falls back to ./backup-hdd, which has no
+    # marker file, so config/backup.php leaves the backup_hdd disk off.
     volumes:
       - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
+      - ${BACKUP_HDD_PATH:-./backup-hdd}:/backups
     depends_on:
       db:
         condition: service_healthy
@@ -97,6 +101,7 @@ services:
       - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
+      - ${BACKUP_HDD_PATH:-./backup-hdd}:/backups
     depends_on:
       db:
         condition: service_healthy
@@ -136,6 +141,7 @@ services:
       - ./.env:/var/www/html/.env:ro
       - saprf-storage:/var/www/html/storage/app
       - saprf-logs:/var/www/html/storage/logs
+      - ${BACKUP_HDD_PATH:-./backup-hdd}:/backups
     depends_on:
       db:
         condition: service_healthy

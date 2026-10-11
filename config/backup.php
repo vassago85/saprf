@@ -171,10 +171,13 @@ return [
              * The disk names on which the backups will be stored.
              *
              * The R2 disk is auto-included only when R2 credentials are
-             * present in the environment. Local fallback is always on.
+             * present in the environment. The backup HDD is included only
+             * when its marker file is visible, i.e. the drive is mounted.
+             * Local fallback is always on.
              */
             'disks' => array_values(array_filter([
                 'local',
+                is_file('/backups/.saprf-backup-hdd') ? 'backup_hdd' : null,
                 env('R2_ACCESS_KEY_ID') && env('R2_BUCKET') ? 'r2' : null,
             ])),
 
@@ -310,6 +313,7 @@ return [
             'name' => env('APP_NAME', 'laravel-backup'),
             'disks' => array_values(array_filter([
                 'local',
+                is_file('/backups/.saprf-backup-hdd') ? 'backup_hdd' : null,
                 env('R2_ACCESS_KEY_ID') && env('R2_BUCKET') ? 'r2' : null,
             ])),
             'health_checks' => [
