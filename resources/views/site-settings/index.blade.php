@@ -61,15 +61,15 @@
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
                 <h2 class="font-heading text-lg font-semibold text-stone-900">Withdrawal / Cancellation Policy</h2>
                 <p class="text-sm text-stone-500">
-                    Configure the admin fee charged when a shooter withdraws from a match, and the deadline before which they can receive a refund (minus the admin fee).
+                    Before the deadline a shooter who withdraws chooses: keep the entry fee as <strong class="text-stone-700">account credit</strong> with no fee, or take a <strong class="text-stone-700">cash refund</strong> minus the withdrawal fee.
                     After the deadline passes, <strong class="text-stone-700">no refund</strong> is issued.
                 </p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                        <label for="withdrawal_admin_fee" class="block text-sm font-medium text-stone-700">Withdrawal Admin Fee (ZAR)</label>
+                        <label for="withdrawal_admin_fee" class="block text-sm font-medium text-stone-700">Withdrawal Fee on Cash Refunds (ZAR)</label>
                         <input type="number" name="withdrawal_admin_fee" id="withdrawal_admin_fee" step="0.01" min="0" value="{{ old('withdrawal_admin_fee', $settings['withdrawal_admin_fee'] ?? '100.00') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Deducted from refund when a shooter withdraws before the deadline.</p>
+                        <p class="mt-1 text-xs text-stone-400">Deducted when a shooter withdraws before the deadline and wants the money back. Not charged when they keep it as credit.</p>
                     </div>
 
                     <div>
@@ -77,15 +77,36 @@
                         <input type="number" name="withdrawal_deadline_hours" id="withdrawal_deadline_hours" step="1" min="0" value="{{ old('withdrawal_deadline_hours', $settings['withdrawal_deadline_hours'] ?? '72') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <p class="mt-1 text-xs text-stone-400">Withdrawals after this deadline forfeit the full entry fee.</p>
                     </div>
+
+                    @php $developerShare = $settings['withdrawal_developer_fee'] ?? '50'; @endphp
+                    @role('developer')
+                    <div>
+                        <label for="withdrawal_developer_fee" class="block text-sm font-medium text-stone-700">Developer Share of Withdrawal Fee (ZAR)
+                            <span class="ml-1 inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">Developer</span>
+                        </label>
+                        <input type="number" name="withdrawal_developer_fee" id="withdrawal_developer_fee" step="0.01" min="0" value="{{ old('withdrawal_developer_fee', $developerShare) }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Paid to the platform operator first; the PayFast fee comes next and SAPRF keeps the rest.</p>
+                    </div>
+                    @else
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">Developer Share of Withdrawal Fee
+                            <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-400/20">Read only</span>
+                        </label>
+                        <div class="mt-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 font-mono">R {{ number_format((float) $developerShare, 2) }}</div>
+                        <p class="mt-1 text-xs text-stone-400">Managed by the developer role.</p>
+                    </div>
+                    @endrole
                 </div>
 
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     @php
                         $adminFee = (float)($settings['withdrawal_admin_fee'] ?? 100);
                         $hours = (int)($settings['withdrawal_deadline_hours'] ?? 72);
+                        $devShare = min((float) $developerShare, $adminFee);
                     @endphp
-                    <p><strong class="text-stone-900">Example:</strong> Match fee R500, admin fee R{{ number_format($adminFee, 0) }}, deadline {{ $hours }}h:</p>
-                    <p>Withdraw <strong>before</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-emerald-700">R{{ number_format(500 - $adminFee, 0) }}</span> (R500 − R{{ number_format($adminFee, 0) }} admin fee)</p>
+                    <p><strong class="text-stone-900">Example:</strong> Match fee R500, withdrawal fee R{{ number_format($adminFee, 0) }}, deadline {{ $hours }}h:</p>
+                    <p>Withdraw <strong>before</strong> {{ $hours }}h, keep as credit: <span class="font-semibold text-emerald-700">R500 credit</span>. The original PayFast fee is charged to the match the credit is spent on.</p>
+                    <p>Withdraw <strong>before</strong> {{ $hours }}h, cash refund: <span class="font-semibold text-emerald-700">R{{ number_format(max(0, 500 - $adminFee), 0) }}</span>. Of the R{{ number_format($adminFee, 0) }} fee: R{{ number_format($devShare, 0) }} developer, then the PayFast fee, then the rest to SAPRF.</p>
                     <p>Withdraw <strong>after</strong> {{ $hours }}h cutoff: Refund = <span class="font-semibold text-red-600">R0</span> (full fee forfeited)</p>
                 </div>
 

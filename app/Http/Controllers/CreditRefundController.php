@@ -6,7 +6,6 @@ use App\Models\CreditRefundRequest;
 use App\Services\CreditRefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CreditRefundController extends Controller
@@ -37,35 +36,14 @@ class CreditRefundController extends Controller
     {
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
-            'account_holder' => ['required', 'string', 'max:255'],
-            'bank_name' => ['required', 'string', 'max:100'],
-            'account_number' => ['required', 'string', 'max:30'],
-            'branch_code' => ['required', 'string', 'max:12'],
-            'member_note' => ['nullable', 'string', 'max:500'],
+            ...CreditRefundService::bankDetailRules(),
         ]);
 
-        $accountNumber = preg_replace('/\s+/', '', $validated['account_number']) ?? '';
-        $branchCode = preg_replace('/\s+/', '', $validated['branch_code']) ?? '';
-
-        if (! preg_match('/^\d{6,16}$/', $accountNumber)) {
-            throw ValidationException::withMessages([
-                'account_number' => 'Enter the account number as digits only.',
-            ]);
-        }
-
-        if (! preg_match('/^\d{4,10}$/', $branchCode)) {
-            throw ValidationException::withMessages([
-                'branch_code' => 'Enter the branch code as digits.',
-            ]);
-        }
-
-        $this->refunds->request($request->user(), (float) $validated['amount'], [
-            'account_holder' => $validated['account_holder'],
-            'bank_name' => $validated['bank_name'],
-            'account_number' => $accountNumber,
-            'branch_code' => $branchCode,
-            'member_note' => $validated['member_note'] ?? null,
-        ]);
+        $this->refunds->request(
+            $request->user(),
+            (float) $validated['amount'],
+            CreditRefundService::normaliseBankDetails($validated),
+        );
 
         return redirect()->route('account.refund')
             ->with('success', 'Refund request sent. That amount is held until it is paid.');
@@ -79,7 +57,7 @@ class CreditRefundController extends Controller
         }
 
         $refunds = CreditRefundRequest::query()
-            ->with('user')
+            ->with(['user', 'registration.match'])
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
             ->latest('id')
             ->paginate(30)

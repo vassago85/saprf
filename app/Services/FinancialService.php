@@ -87,12 +87,28 @@ class FinancialService
             SUM(CASE WHEN membership_fee_category = "non_member" THEN 1 ELSE 0 END) as non_member_entries
         ')->first();
 
+        // Withdrawal fees kept on cash refunds: the entry is cancelled, but
+        // the developer, PayFast and SAPRF shares still count as income.
+        $withdrawals = MatchRegistration::query()
+            ->where('registration_status', 'cancelled')
+            ->where('withdrawal_option', 'refund')
+            ->when($from, fn ($q) => $q->where('cancelled_at', '>=', $from->copy()->startOfDay()))
+            ->when($to, fn ($q) => $q->where('cancelled_at', '<=', $to->copy()->endOfDay()))
+            ->selectRaw('
+                COALESCE(SUM(penalty_platform_fee), 0) as platform_fees,
+                COALESCE(SUM(penalty_gateway_fee), 0) as gateway_fees,
+                COALESCE(SUM(penalty_saprf_fee), 0) as saprf_fees
+            ')->first();
+
+        $withdrawalFees = (float) $withdrawals->platform_fees + (float) $withdrawals->gateway_fees + (float) $withdrawals->saprf_fees;
+
         return [
             'total_entries' => (int) $agg->total_entries,
-            'gross' => (float) $agg->gross,
-            'saprf_fees' => (float) $agg->saprf_fees,
-            'platform_fees' => (float) $agg->platform_fees,
-            'gateway_fees' => (float) $agg->gateway_fees,
+            'gross' => (float) $agg->gross + $withdrawalFees,
+            'saprf_fees' => (float) $agg->saprf_fees + (float) $withdrawals->saprf_fees,
+            'platform_fees' => (float) $agg->platform_fees + (float) $withdrawals->platform_fees,
+            'gateway_fees' => (float) $agg->gateway_fees + (float) $withdrawals->gateway_fees,
+            'withdrawal_fees' => $withdrawalFees,
             'surcharges' => (float) $agg->surcharges,
             'md_net' => (float) $agg->md_net,
             'member_entries' => (int) $agg->member_entries,

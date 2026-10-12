@@ -27,10 +27,17 @@ class CreditRefundRequestedNotification extends Notification implements ShouldQu
 
     public function toMail(object $notifiable): MailMessage
     {
+        $registration = $this->refund->registration;
+
+        $reason = $registration
+            ? 'We have your refund request for withdrawing from '.($registration->match?->name ?? 'the match').'. The R'
+                .number_format((float) $registration->admin_fee_charged, 2).' withdrawal fee has been deducted.'
+            : 'We have your request to refund the entry credit from a cancelled match. The match was cancelled, so there is no admin fee.';
+
         return (new MailMessage)
             ->subject('Refund request received')
             ->greeting('Hi '.$notifiable->name.',')
-            ->line('We have your request to refund the entry credit from a cancelled match. The match was cancelled, so there is no admin fee.')
+            ->line($reason)
             ->line('**Amount:** R'.number_format((float) $this->refund->amount, 2))
             ->line('**Account:** '.$this->refund->account_holder.' — '.$this->refund->bank_name)
             ->line('That amount is held on your account until SAPRF pays it, so it will not also be used for another event. Anything you left as credit is still available.')

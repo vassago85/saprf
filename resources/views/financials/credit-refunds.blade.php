@@ -60,6 +60,16 @@
                                 </div>
                             </dl>
 
+                            @if($refund->registration)
+                                <p class="text-sm text-stone-600">
+                                    Withdrew from {{ $refund->registration->match?->name ?? 'a match' }} ({{ $refund->registration->shooter_name }}).
+                                    R {{ number_format((float) $refund->registration->admin_fee_charged, 2) }} withdrawal fee kept:
+                                    R {{ number_format((float) $refund->registration->penalty_platform_fee, 2) }} developer,
+                                    R {{ number_format((float) $refund->registration->penalty_gateway_fee, 2) }} PayFast,
+                                    R {{ number_format((float) $refund->registration->penalty_saprf_fee, 2) }} SAPRF.
+                                </p>
+                            @endif
+
                             @if($refund->member_note)
                                 <p class="text-sm text-stone-600">Note: {{ $refund->member_note }}</p>
                             @endif

@@ -277,12 +277,31 @@ it('still applies the admin-fee split when the entry was actually paid', functio
     $registration = makeRegistration($this->member, $this->match, [
         'payment_status' => 'paid',
     ]);
+    Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => $registration->id,
+        'user_id' => $this->member->id,
+        'amount' => 1100.00,
+        'gateway' => 'payfast',
+        'm_payment_id' => Payment::generateReference('REG'),
+        'status' => 'completed',
+        'paid_at' => now(),
+    ]);
 
     $calc = $registration->calculateRefund();
 
     expect($calc['reason'])->toBe('before_deadline')
         ->and((float) $calc['refund'])->toBe(1000.0)
-        ->and((float) $calc['admin_fee'])->toBe(100.0);
+        ->and((float) $calc['admin_fee'])->toBe(100.0)
+        ->and((float) $calc['credit'])->toBe(1100.0);
+});
+
+it('quotes nothing back for an entry marked paid that never went through the platform', function () {
+    $registration = makeRegistration($this->member, $this->match, [
+        'payment_status' => 'paid',
+    ]);
+
+    expect($registration->calculateRefund()['reason'])->toBe('paid_offline');
 });
 
 it('keeps the free-entry short-circuit ahead of the unpaid check', function () {

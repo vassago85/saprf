@@ -16,6 +16,7 @@ class CreditRefundRequest extends Model
     protected $fillable = [
         'user_id',
         'account_credit_id',
+        'match_registration_id',
         'amount',
         'status',
         'account_holder',
@@ -48,6 +49,12 @@ class CreditRefundRequest extends Model
     public function hold(): BelongsTo
     {
         return $this->belongsTo(AccountCredit::class, 'account_credit_id');
+    }
+
+    /** Set when the refund comes from a member withdrawing a paid entry. */
+    public function registration(): BelongsTo
+    {
+        return $this->belongsTo(MatchRegistration::class, 'match_registration_id');
     }
 
     public function payer(): BelongsTo

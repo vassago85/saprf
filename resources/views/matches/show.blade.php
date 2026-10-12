@@ -119,8 +119,9 @@
                     <div class="sm:col-span-2">
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Withdrawal Policy</dt>
                         <dd class="mt-1.5 text-sm text-stone-700">
-                            Admin fee: <strong class="text-stone-900">R {{ number_format($withdrawalFee, 2) }}</strong>
-                            &middot; Deadline: <strong class="text-stone-900">{{ $withdrawalHours }}h</strong> before match
+                            Before <strong class="text-stone-900">{{ $withdrawalHours }}h</strong>: full credit, or cash refund less
+                            <strong class="text-stone-900">R {{ number_format($withdrawalFee, 2) }}</strong>
+                            &middot; After: no refund
                         </dd>
                     </div>
                 </dl>

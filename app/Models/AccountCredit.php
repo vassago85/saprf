@@ -19,9 +19,17 @@ class AccountCredit extends Model
 
     public const TYPE_REFUND = 'refund';
 
+    /** Member withdrew 72h+ out and kept the entry fee as credit. Not cash-refundable. */
+    public const TYPE_WITHDRAWAL = 'withdrawal';
+
+    /** Member withdrew and chose a cash refund; posted and held in one go. */
+    public const TYPE_WITHDRAWAL_REFUND = 'withdrawal_refund';
+
     protected $fillable = [
         'user_id',
         'amount',
+        'gateway_fee',
+        'withdrawal_credit_amount',
         'status',
         'type',
         'match_id',
@@ -36,6 +44,8 @@ class AccountCredit extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'gateway_fee' => 'decimal:2',
+            'withdrawal_credit_amount' => 'decimal:2',
         ];
     }
 

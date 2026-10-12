@@ -21,7 +21,11 @@ class AccountCreditService
     ) {}
 
     /**
-     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, entries: Collection<int, AccountCredit>}
+     * `refundable` is what may be cashed out through a refund request:
+     * credit a member chose to keep when withdrawing skipped the withdrawal
+     * fee, so it can only be spent on entries.
+     *
+     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, withdrawal_credit: float, refundable: float, entries: Collection<int, AccountCredit>}
      */
     public function summary(User $user): array
     {
@@ -38,12 +42,17 @@ class AccountCreditService
             ->where('type', AccountCredit::TYPE_REFUND)
             ->sum(fn (AccountCredit $row) => abs((float) $row->amount)), 2);
 
+        $available = round($posted - $reserved, 2);
+        $withdrawalCredit = $this->withdrawalCreditBalance($user)['amount'];
+
         return [
             'posted' => $posted,
             'reserved' => $reserved,
             'refund_reserved' => $refundReserved,
             'checkout_reserved' => round($reserved - $refundReserved, 2),
-            'available' => round($posted - $reserved, 2),
+            'available' => $available,
+            'withdrawal_credit' => $withdrawalCredit,
+            'refundable' => round(max(0, $available - $withdrawalCredit), 2),
             'entries' => $rows
                 ->where('type', AccountCredit::TYPE_CANCELLATION)
                 ->where('status', AccountCredit::STATUS_POSTED)
@@ -193,22 +202,8 @@ class AccountCreditService
                 return null;
             }
 
-            $completed = $registration->payments()
-                ->where('status', 'completed')
-                ->orderByDesc('id')
-                ->get();
-
-            $cardPaid = (float) $completed->where('gateway', '!=', 'account_credit')->sum('amount');
-            $creditRedeemed = abs((float) AccountCredit::query()
-                ->where('applied_to_registration_id', $registration->id)
-                ->where('type', AccountCredit::TYPE_REDEMPTION)
-                ->where('status', AccountCredit::STATUS_POSTED)
-                ->sum('amount'));
-            $amount = round($cardPaid + $creditRedeemed, 2);
-
-            $holderId = $completed->first()?->user_id
-                ?? $registration->registered_by_user_id
-                ?? $registration->user_id;
+            $amount = $registration->amountPaidOnPlatform();
+            $holderId = $registration->platformPayerId();
 
             if (! $holderId || $amount <= 0) {
                 return null;
@@ -273,6 +268,120 @@ class AccountCreditService
     }
 
     /**
+     * Member withdrew before the deadline and kept the money as credit: the
+     * full amount paid goes back on the paying account with no fee. The
+     * PayFast fee already paid on this entry rides along with the credit and
+     * is charged to whichever entries the credit is later spent on.
+     */
+    public function issueForWithdrawal(MatchRegistration $registration, ?User $actor = null): ?AccountCredit
+    {
+        $registration->loadMissing('match');
+
+        return DB::transaction(function () use ($registration, $actor) {
+            MatchRegistration::query()->whereKey($registration->id)->lockForUpdate()->first();
+
+            if (AccountCredit::query()->where('issued_for_registration_id', $registration->id)->exists()) {
+                return null;
+            }
+
+            $amount = $registration->amountPaidOnPlatform();
+            $holderId = $registration->platformPayerId();
+
+            if (! $holderId || $amount <= 0) {
+                return null;
+            }
+
+            $matchName = $registration->match?->name ?? 'event';
+
+            $credit = AccountCredit::query()->create([
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'gateway_fee' => round(min((float) $registration->gateway_fee, $amount), 2),
+                'status' => AccountCredit::STATUS_POSTED,
+                'type' => AccountCredit::TYPE_WITHDRAWAL,
+                'match_id' => $registration->match_id,
+                'issued_for_registration_id' => $registration->id,
+                'description' => 'Entry credit: withdrew from '.$matchName.' ('.$registration->shooter_name.')',
+                'created_by' => $actor?->id,
+            ]);
+
+            FinancialTransaction::query()->create([
+                'type' => 'refund',
+                'source_type' => 'match_registration',
+                'source_id' => $registration->id,
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'description' => 'Entry credit issued — member withdrew from '.$matchName,
+                'meta' => [
+                    'account_credit_id' => $credit->id,
+                    'shooter_name' => $registration->shooter_name,
+                    'match_id' => $registration->match_id,
+                    'gateway_fee_carried' => (float) $credit->gateway_fee,
+                ],
+            ]);
+
+            $this->auditLogService->log(
+                $actor,
+                'registration.withdrawal_credit.issued',
+                'MatchRegistration',
+                $registration->id,
+                null,
+                [
+                    'account_credit_id' => $credit->id,
+                    'credited_user_id' => $holderId,
+                    'amount' => $amount,
+                    'gateway_fee_carried' => (float) $credit->gateway_fee,
+                    'match_id' => $registration->match_id,
+                ],
+                'Member withdrew and kept the entry fee as credit',
+            );
+
+            return $credit;
+        });
+    }
+
+    /**
+     * Unspent credit from withdrawals, and the PayFast fee still riding on it.
+     * Redemptions draw on withdrawal credit first.
+     *
+     * @return array{amount: float, gateway_fee: float}
+     */
+    public function withdrawalCreditBalance(User $user): array
+    {
+        $issued = AccountCredit::query()
+            ->where('user_id', $user->id)
+            ->where('type', AccountCredit::TYPE_WITHDRAWAL)
+            ->where('status', AccountCredit::STATUS_POSTED)
+            ->selectRaw('COALESCE(SUM(amount), 0) as amount, COALESCE(SUM(gateway_fee), 0) as gateway_fee')
+            ->first();
+
+        $drawn = AccountCredit::query()
+            ->where('user_id', $user->id)
+            ->where('type', AccountCredit::TYPE_REDEMPTION)
+            ->whereIn('status', [AccountCredit::STATUS_POSTED, AccountCredit::STATUS_RESERVED])
+            ->selectRaw('COALESCE(SUM(withdrawal_credit_amount), 0) as amount, COALESCE(SUM(gateway_fee), 0) as gateway_fee')
+            ->first();
+
+        return [
+            'amount' => round(max(0, (float) $issued->amount - (float) $drawn->amount), 2),
+            'gateway_fee' => round(max(0, (float) $issued->gateway_fee - (float) $drawn->gateway_fee), 2),
+        ];
+    }
+
+    /**
+     * PayFast fee from withdrawal credit that this payment's redemption
+     * carried onto the entry.
+     */
+    public function carriedGatewayFeeForPayment(Payment $payment): float
+    {
+        return round((float) AccountCredit::query()
+            ->where('payment_id', $payment->id)
+            ->where('type', AccountCredit::TYPE_REDEMPTION)
+            ->where('status', AccountCredit::STATUS_POSTED)
+            ->sum('gateway_fee'), 2);
+    }
+
+    /**
      * Hold credit against this entry and open the payment that settles it.
      * A full cover completes immediately (gateway account_credit). A partial
      * cover leaves a PayFast payment for the remainder and a reserved hold.
@@ -294,10 +403,20 @@ class AccountCreditService
 
             $reservation = null;
             if ($credit > 0) {
+                $withdrawal = $this->withdrawalCreditBalance($payer);
+                $fromWithdrawal = round(min($credit, $withdrawal['amount']), 2);
+                $carriedGatewayFee = match (true) {
+                    $fromWithdrawal <= 0 => 0.0,
+                    $fromWithdrawal >= $withdrawal['amount'] => $withdrawal['gateway_fee'],
+                    default => round($withdrawal['gateway_fee'] * $fromWithdrawal / $withdrawal['amount'], 2),
+                };
+
                 $matchName = $registration->match?->name ?? 'event';
                 $reservation = AccountCredit::query()->create([
                     'user_id' => $payer->id,
                     'amount' => -$credit,
+                    'gateway_fee' => $carriedGatewayFee,
+                    'withdrawal_credit_amount' => $fromWithdrawal,
                     'status' => AccountCredit::STATUS_RESERVED,
                     'type' => AccountCredit::TYPE_REDEMPTION,
                     'match_id' => $registration->match_id,

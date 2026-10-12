@@ -52,11 +52,15 @@ class PlatformPayoutService
             ->selectRaw('COUNT(*) as entries, COALESCE(SUM(platform_fee), 0) as fees')
             ->first();
 
+        $withdrawals = $this->withdrawalFeeQuery($start, $end)
+            ->selectRaw('COUNT(*) as entries, COALESCE(SUM(penalty_platform_fee), 0) as fees')
+            ->first();
+
         return [
             'period_start' => $start,
             'period_end' => $end,
-            'platform_fees' => (float) $agg->fees,
-            'entry_count' => (int) $agg->entries,
+            'platform_fees' => round((float) $agg->fees + (float) $withdrawals->fees, 2),
+            'entry_count' => (int) $agg->entries + (int) $withdrawals->entries,
             'existing_payout' => $this->existingPayoutForMonth($start, $end),
             'operator_user_id' => $this->operatorUserId(),
         ];
@@ -88,13 +92,18 @@ class PlatformPayoutService
             ->orderBy('registered_at')
             ->get();
 
-        $total = (float) $registrations->sum('platform_fee');
+        $withdrawals = $this->withdrawalFeeQuery($start, $end)
+            ->with(['user:id,name', 'match:id,name,match_date'])
+            ->orderBy('cancelled_at')
+            ->get();
 
-        if ($total <= 0 || $registrations->isEmpty()) {
+        $total = round((float) $registrations->sum('platform_fee') + (float) $withdrawals->sum('penalty_platform_fee'), 2);
+
+        if ($total <= 0) {
             throw new RuntimeException("No platform fees to settle for {$start->format('F Y')}.");
         }
 
-        return DB::transaction(function () use ($start, $end, $operatorId, $creator, $notes, $registrations, $total) {
+        return DB::transaction(function () use ($start, $end, $operatorId, $creator, $notes, $registrations, $withdrawals, $total) {
             $payout = Payout::create([
                 'reference' => Payout::generateReference(),
                 'payee_type' => 'platform_operator',
@@ -128,6 +137,27 @@ class PlatformPayoutService
                 'created_at' => now(),
                 'updated_at' => now(),
             ])->all();
+
+            foreach ($withdrawals as $reg) {
+                $items[] = [
+                    'payout_id' => $payout->id,
+                    'source_type' => 'match_registration',
+                    'source_id' => $reg->id,
+                    'description' => sprintf(
+                        'Withdrawal fee: %s — %s (%s)',
+                        $reg->match?->name ?? 'Match #' . $reg->match_id,
+                        $reg->user?->name ?? 'Shooter #' . $reg->user_id,
+                        $reg->cancelled_at?->format('d M Y') ?? '—',
+                    ),
+                    'gross_amount' => (float) $reg->penalty_platform_fee,
+                    'platform_fee' => (float) $reg->penalty_platform_fee,
+                    'gateway_fee' => 0,
+                    'saprf_fee' => 0,
+                    'net_amount' => (float) $reg->penalty_platform_fee,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
 
             PayoutItem::insert($items);
 
@@ -173,6 +203,19 @@ class PlatformPayoutService
             ->where('payment_status', 'paid')
             ->whereBetween('registered_at', [$start->startOfDay(), $end->endOfDay()])
             ->where('platform_fee', '>', 0);
+    }
+
+    /**
+     * Paid entries the member withdrew from for a cash refund: the developer
+     * keeps a share of the withdrawal fee, billed in the month they withdrew.
+     */
+    private function withdrawalFeeQuery(Carbon $start, Carbon $end)
+    {
+        return MatchRegistration::query()
+            ->where('registration_status', 'cancelled')
+            ->where('withdrawal_option', 'refund')
+            ->whereBetween('cancelled_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
+            ->where('penalty_platform_fee', '>', 0);
     }
 
     private function existingPayoutForMonth(Carbon $start, Carbon $end): ?Payout

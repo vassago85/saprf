@@ -31,7 +31,9 @@ class CreditRefundRequestedStaffNotification extends Notification implements Sho
 
         return (new MailMessage)
             ->subject('Refund request: R'.number_format((float) $this->refund->amount, 2).' — '.($member?->name ?? 'member'))
-            ->line(($member?->name ?? 'A member').' asked for a cash refund of cancellation credit.')
+            ->line($this->refund->match_registration_id
+                ? ($member?->name ?? 'A member').' withdrew from '.($this->refund->registration?->match?->name ?? 'a match').' and asked for a cash refund (withdrawal fee already deducted).'
+                : ($member?->name ?? 'A member').' asked for a cash refund of cancellation credit.')
             ->line('**Amount:** R'.number_format((float) $this->refund->amount, 2))
             ->line('Bank details are on the finance page, not in this email.')
             ->action('Review refund requests', route('financials.credit-refunds.index'));

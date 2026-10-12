@@ -41,6 +41,7 @@ class SiteSettingsController extends Controller
             'lapsed_member_surcharge' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'withdrawal_admin_fee' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'withdrawal_deadline_hours' => ['required', 'integer', 'min:0', 'max:720'],
+            'withdrawal_developer_fee' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'division_single_select' => ['required', 'boolean'],
             'saprf_fee_type' => ['required', 'in:percentage,fixed'],
             'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
@@ -81,6 +82,10 @@ class SiteSettingsController extends Controller
 
         $this->settingsService->set('withdrawal_admin_fee', $validated['withdrawal_admin_fee'], 'Admin fee charged on match withdrawal (ZAR)');
         $this->settingsService->set('withdrawal_deadline_hours', $validated['withdrawal_deadline_hours'], 'Hours before match date that withdrawal refunds are cut off');
+
+        if ($request->user()->hasRole('developer') && isset($validated['withdrawal_developer_fee'])) {
+            $this->settingsService->set('withdrawal_developer_fee', $validated['withdrawal_developer_fee'], 'Developer share of the withdrawal fee on cash refunds (ZAR); PayFast fee next, SAPRF keeps the rest');
+        }
 
         if ($request->has('cancellation_refunds_enabled')) {
             $this->settingsService->set(

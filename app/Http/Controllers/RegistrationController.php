@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRegistrationRequest;
+use App\Models\AccountCredit;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
+use App\Services\CreditRefundService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,7 @@ class RegistrationController extends Controller
         private readonly RegistrationPricingService $pricingService,
         private readonly AuditLogService $auditLogService,
         private readonly AccountCreditService $accountCreditService,
+        private readonly CreditRefundService $creditRefundService,
     ) {}
 
     public function index(Request $request): View
@@ -355,43 +358,78 @@ class RegistrationController extends Controller
             return back()->with('error', 'This registration cannot be withdrawn.');
         }
 
-        $request->validate([
+        $refundCalc = $registration->calculateRefund();
+        $hasChoice = $refundCalc['reason'] === 'before_deadline';
+        $canTakeCash = $hasChoice
+            && $refundCalc['refund'] > 0
+            && $registration->platformPayerId() === $user->id;
+
+        $validated = $request->validate([
             'cancellation_reason' => ['nullable', 'string', 'max:500'],
+            'withdrawal_option' => [
+                Rule::requiredIf($hasChoice),
+                'nullable',
+                Rule::in($canTakeCash ? ['credit', 'refund'] : ['credit']),
+            ],
+        ], [
+            'withdrawal_option.required' => 'Choose whether to keep the money as credit or have it refunded.',
+            'withdrawal_option.in' => 'A cash refund is not available for this entry — keep it as credit instead.',
         ]);
 
-        $refundCalc = $registration->calculateRefund();
+        $option = $hasChoice ? $validated['withdrawal_option'] : null;
+        $bank = $option === 'refund'
+            ? CreditRefundService::normaliseBankDetails($request->validate(CreditRefundService::bankDetailRules()))
+            : null;
+
+        $split = $option === 'refund' ? $refundCalc['split'] : ['platform' => 0, 'gateway' => 0, 'saprf' => 0];
         $old = $registration->only(['registration_status', 'payment_status']);
 
-        $registration->update([
-            'registration_status' => 'cancelled',
-            'cancelled_at' => now(),
-            'cancellation_reason' => $request->input('cancellation_reason'),
-            'refund_amount' => $refundCalc['refund'],
-            'admin_fee_charged' => $refundCalc['admin_fee'],
-        ]);
-
-        $this->auditLogService->log(
-            $user,
-            'registration.withdrawn',
-            'MatchRegistration',
-            $registration->id,
-            $old,
-            [
+        $credit = DB::transaction(function () use ($registration, $user, $validated, $refundCalc, $option, $split, $bank, $old) {
+            $registration->update([
                 'registration_status' => 'cancelled',
-                'refund_amount' => $refundCalc['refund'],
-                'admin_fee_charged' => $refundCalc['admin_fee'],
-                'reason' => $refundCalc['reason'],
-            ],
-        );
+                'cancelled_at' => now(),
+                'cancellation_reason' => $validated['cancellation_reason'] ?? null,
+                'withdrawal_option' => $option,
+                'refund_amount' => $option === 'credit' ? $refundCalc['credit'] : $refundCalc['refund'],
+                'admin_fee_charged' => $option === 'credit' ? 0 : $refundCalc['admin_fee'],
+                'penalty_platform_fee' => $split['platform'],
+                'penalty_gateway_fee' => $split['gateway'],
+                'penalty_saprf_fee' => $split['saprf'],
+            ]);
 
-        $message = match ($refundCalc['reason']) {
-            'free_entry'      => 'Registration withdrawn. This was a free entry — no financial impact.',
-            'unpaid'          => 'Registration withdrawn. No payment was collected, so no refund is due.',
-            'past_deadline'   => 'Registration withdrawn. No refund — withdrawal was after the deadline.',
-            'before_deadline' => $refundCalc['refund'] > 0
-                ? 'Registration withdrawn. Refund of R ' . number_format($refundCalc['refund'], 2) . ' (minus R ' . number_format($refundCalc['admin_fee'], 2) . ' admin fee).'
-                : 'Registration withdrawn. The admin fee equalled or exceeded the entry fee, so no refund is due.',
-            default           => 'Registration withdrawn.',
+            $this->auditLogService->log(
+                $user,
+                'registration.withdrawn',
+                'MatchRegistration',
+                $registration->id,
+                $old,
+                [
+                    'registration_status' => 'cancelled',
+                    'withdrawal_option' => $option,
+                    'refund_amount' => (float) $registration->refund_amount,
+                    'admin_fee_charged' => (float) $registration->admin_fee_charged,
+                    'penalty_split' => $split,
+                    'reason' => $refundCalc['reason'],
+                ],
+            );
+
+            return match ($option) {
+                'credit' => $this->accountCreditService->issueForWithdrawal($registration, $user),
+                'refund' => $this->creditRefundService->requestForWithdrawal($registration, $user, $refundCalc['refund'], $bank),
+                default => null,
+            };
+        });
+
+        $message = match (true) {
+            $refundCalc['reason'] === 'free_entry' => 'Registration withdrawn. This was a free entry — no financial impact.',
+            $refundCalc['reason'] === 'unpaid' => 'Registration withdrawn. No payment was collected, so no refund is due.',
+            $refundCalc['reason'] === 'past_deadline' => 'Registration withdrawn. No refund — withdrawal was after the deadline.',
+            $refundCalc['reason'] === 'paid_offline' => 'Registration withdrawn. This entry was not paid through the website, so speak to the match director about any refund.',
+            $option === 'credit' && $credit instanceof AccountCredit => 'Registration withdrawn. R '.number_format((float) $credit->amount, 2).' is on '
+                .($credit->user_id === $user->id ? 'your' : ($credit->user?->name ?? 'the payer').'\'s').' account as entry credit.',
+            $option === 'refund' => 'Registration withdrawn. R '.number_format($refundCalc['refund'], 2).' will be refunded to your bank account (R '
+                .number_format($refundCalc['admin_fee'], 2).' withdrawal fee deducted).',
+            default => 'Registration withdrawn.',
         };
 
         return redirect()->route('registrations.show', $registration)

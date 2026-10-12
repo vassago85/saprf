@@ -488,7 +488,7 @@
                         <ul class="text-xs text-amber-700 space-y-1 list-disc list-inside">
                             @if(((float) $pricing['fee']) > 0)
                                 <li>Full payment of <strong>@if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif</strong> is required to confirm your entry.</li>
-                                <li>Withdrawals made <strong>{{ $withdrawalHours }}+ hours</strong> before the match: refund minus <strong>R {{ number_format($withdrawalFee, 2) }}</strong> admin fee.</li>
+                                <li>Withdrawals made <strong>{{ $withdrawalHours }}+ hours</strong> before the match: keep the full fee as <strong>entry credit</strong> with no fee, or take a cash refund minus a <strong>R {{ number_format($withdrawalFee, 2) }}</strong> withdrawal fee.</li>
                                 <li>Withdrawals made <strong>less than {{ $withdrawalHours }} hours</strong> before the match: <strong>no refund</strong>.</li>
                             @else
                                 <li>This is a <strong>free entry</strong> — no payment required to confirm.</li>

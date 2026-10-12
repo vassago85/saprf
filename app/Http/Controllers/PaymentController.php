@@ -563,8 +563,9 @@ class PaymentController extends Controller
                 'registration_status' => $payable->registration_status === 'pending' ? 'confirmed' : $payable->registration_status,
             ]);
 
-            if ($payment->amount_fee !== null) {
-                $payable->applyActualGatewayFee((float) $payment->amount_fee);
+            $carriedGatewayFee = $this->accountCredits->carriedGatewayFeeForPayment($payment);
+            if ($payment->amount_fee !== null || $carriedGatewayFee > 0) {
+                $payable->applyActualGatewayFee((float) $payment->amount_fee + $carriedGatewayFee);
             }
 
             $this->auditLogService->log(
@@ -579,6 +580,7 @@ class PaymentController extends Controller
                     'gateway' => $payment->gateway,
                     'account_credit' => $creditUsed,
                     'gateway_fee' => $payment->amount_fee,
+                    'gateway_fee_carried' => $carriedGatewayFee,
                     'amount_net' => $payment->amount_net,
                 ],
             );

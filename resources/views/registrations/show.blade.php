@@ -266,7 +266,8 @@
                 $noFinancialImpact = ((float) ($registration->refund_amount ?? 0)) === 0.0
                     && ((float) ($registration->admin_fee_charged ?? 0)) === 0.0;
                 $wasFreeEntry = $noFinancialImpact && ((float) $registration->fee_amount) <= 0;
-                $creditedToAccount = ! $noFinancialImpact && $registration->hasIssuedCredit();
+                $refundedToBank = $registration->withdrawal_option === 'refund';
+                $creditedToAccount = ! $noFinancialImpact && ! $refundedToBank && $registration->hasIssuedCredit();
                 $reentryMatch = $registration->match;
                 $canReenter = $reentryMatch
                     && in_array(auth()->id(), [$registration->user_id, $registration->registered_by_user_id], true)
@@ -289,6 +290,15 @@
                     @elseif($creditedToAccount)
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Credited to Account</dt>
+                            <dd class="mt-1 text-sm font-semibold text-emerald-700">R {{ number_format($registration->refund_amount ?? 0, 2) }}</dd>
+                        </div>
+                    @elseif($refundedToBank)
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Withdrawal Fee</dt>
+                            <dd class="mt-1 text-sm text-red-800">R {{ number_format($registration->admin_fee_charged ?? 0, 2) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-red-400">Refund to Bank</dt>
                             <dd class="mt-1 text-sm font-semibold text-emerald-700">R {{ number_format($registration->refund_amount ?? 0, 2) }}</dd>
                         </div>
                     @else
@@ -331,11 +341,18 @@
 
         {{-- Withdraw button for the registrant --}}
         @if($registration->user_id === auth()->id() && $registration->isWithdrawable())
-            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm" x-data="{ showForm: false }">
+            @php
+                $calc = $registration->calculateRefund();
+                $hasChoice = $calc['reason'] === 'before_deadline';
+                $payerId = $hasChoice ? $registration->platformPayerId() : null;
+                $canTakeCash = $hasChoice && $calc['refund'] > 0 && $payerId === auth()->id();
+                $creditHolder = $hasChoice && $payerId !== auth()->id() ? \App\Models\User::find($payerId) : null;
+            @endphp
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm"
+                 x-data="{ showForm: {{ $errors->hasAny(['withdrawal_option', 'account_holder', 'bank_name', 'account_number', 'branch_code']) ? 'true' : 'false' }}, option: '{{ old('withdrawal_option', $hasChoice ? 'credit' : '') }}' }">
                 <div class="flex items-start justify-between">
                     <div>
                         <h2 class="font-heading text-lg font-semibold text-amber-800">Withdraw from Match</h2>
-                        @php $calc = $registration->calculateRefund(); @endphp
                         @switch($calc['reason'])
                             @case('free_entry')
                                 <p class="text-sm text-amber-700 mt-1">
@@ -347,10 +364,19 @@
                                     No payment has been collected yet, so withdrawing carries <strong>no financial impact</strong>.
                                 </p>
                                 @break
+                            @case('paid_offline')
+                                <p class="text-sm text-amber-700 mt-1">
+                                    This entry was not paid through the website. Speak to the match director about any refund.
+                                </p>
+                                @break
                             @case('before_deadline')
                                 <p class="text-sm text-amber-700 mt-1">
-                                    You will receive a refund of <strong>R {{ number_format($calc['refund'], 2) }}</strong>
-                                    (entry fee minus R {{ number_format($calc['admin_fee'], 2) }} admin fee).
+                                    Keep the full <strong>R {{ number_format($calc['credit'], 2) }}</strong> as entry credit with no fee,
+                                    @if($canTakeCash)
+                                        or have <strong>R {{ number_format($calc['refund'], 2) }}</strong> refunded to your bank (R {{ number_format($calc['admin_fee'], 2) }} withdrawal fee).
+                                    @else
+                                        to use on another match.
+                                    @endif
                                 </p>
                                 <p class="text-xs text-amber-600 mt-1">
                                     Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
@@ -373,6 +399,65 @@
                       class="mt-4 space-y-4 border-t border-amber-200 pt-4"
                       onsubmit="return confirm('Are you sure you want to withdraw? This cannot be undone.')">
                     @csrf
+                    @if($hasChoice)
+                        <fieldset class="space-y-2">
+                            <legend class="block text-sm font-medium text-amber-800 mb-1">What should happen to your entry fee?</legend>
+                            <label class="flex items-start gap-3 rounded-lg border border-amber-200 bg-white p-3 cursor-pointer">
+                                <input type="radio" name="withdrawal_option" value="credit" x-model="option" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                                <span class="text-sm text-stone-700">
+                                    <strong class="text-stone-900">Keep R {{ number_format($calc['credit'], 2) }} as entry credit</strong> — no fee.
+                                    @if($creditHolder)
+                                        The credit goes to {{ $creditHolder->name }}, who paid for this entry.
+                                    @else
+                                        It is applied automatically next time you enter a match.
+                                    @endif
+                                </span>
+                            </label>
+                            @if($canTakeCash)
+                                <label class="flex items-start gap-3 rounded-lg border border-amber-200 bg-white p-3 cursor-pointer">
+                                    <input type="radio" name="withdrawal_option" value="refund" x-model="option" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                                    <span class="text-sm text-stone-700">
+                                        <strong class="text-stone-900">Refund R {{ number_format($calc['refund'], 2) }} to my bank account</strong>
+                                        — R {{ number_format($calc['admin_fee'], 2) }} withdrawal fee deducted. SAPRF pays it by EFT.
+                                    </span>
+                                </label>
+                            @endif
+                            @error('withdrawal_option')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                        </fieldset>
+
+                        @if($canTakeCash)
+                            <div x-show="option === 'refund'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="sm:col-span-2">
+                                    <label for="account_holder" class="block text-sm font-medium text-amber-800 mb-1">Account holder</label>
+                                    <input type="text" name="account_holder" id="account_holder" maxlength="255" value="{{ old('account_holder', auth()->user()->name) }}"
+                                           :required="option === 'refund'" :disabled="option !== 'refund'"
+                                           class="w-full rounded-lg border-amber-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">
+                                    @error('account_holder')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="bank_name" class="block text-sm font-medium text-amber-800 mb-1">Bank</label>
+                                    <input type="text" name="bank_name" id="bank_name" maxlength="100" value="{{ old('bank_name') }}"
+                                           :required="option === 'refund'" :disabled="option !== 'refund'"
+                                           class="w-full rounded-lg border-amber-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">
+                                    @error('bank_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label for="account_number" class="block text-sm font-medium text-amber-800 mb-1">Account number</label>
+                                    <input type="text" name="account_number" id="account_number" inputmode="numeric" value="{{ old('account_number') }}"
+                                           :required="option === 'refund'" :disabled="option !== 'refund'"
+                                           class="w-full rounded-lg border-amber-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">
+                                    @error('account_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label for="branch_code" class="block text-sm font-medium text-amber-800 mb-1">Branch code</label>
+                                    <input type="text" name="branch_code" id="branch_code" inputmode="numeric" value="{{ old('branch_code') }}"
+                                           :required="option === 'refund'" :disabled="option !== 'refund'"
+                                           class="w-full rounded-lg border-amber-300 text-sm py-2 focus:ring-red-500 focus:border-red-500">
+                                    @error('branch_code')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            </div>
+                        @endif
+                    @endif
                     <div>
                         <label for="cancellation_reason" class="block text-sm font-medium text-amber-800 mb-1">Reason (optional)</label>
                         <textarea name="cancellation_reason" id="cancellation_reason" rows="2" maxlength="500"

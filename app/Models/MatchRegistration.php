@@ -31,6 +31,10 @@ class MatchRegistration extends Model
         'refund_amount',
         'admin_fee_charged',
         'cancellation_reason',
+        'withdrawal_option',
+        'penalty_platform_fee',
+        'penalty_gateway_fee',
+        'penalty_saprf_fee',
         'payment_status',
         'registration_status',
         'registered_at',
@@ -54,6 +58,9 @@ class MatchRegistration extends Model
             'md_net_amount' => 'decimal:2',
             'refund_amount' => 'decimal:2',
             'admin_fee_charged' => 'decimal:2',
+            'penalty_platform_fee' => 'decimal:2',
+            'penalty_gateway_fee' => 'decimal:2',
+            'penalty_saprf_fee' => 'decimal:2',
             'registered_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'shot_count' => 'integer',
@@ -105,6 +112,40 @@ class MatchRegistration extends Model
     public function hasIssuedCredit(): bool
     {
         return AccountCredit::query()->where('issued_for_registration_id', $this->id)->exists();
+    }
+
+    /**
+     * Card payments plus any account credit redeemed against this entry —
+     * i.e. what SAPRF actually holds for it.
+     */
+    public function amountPaidOnPlatform(): float
+    {
+        $cardPaid = (float) $this->payments()
+            ->where('status', 'completed')
+            ->where('gateway', '!=', 'account_credit')
+            ->sum('amount');
+
+        $creditRedeemed = abs((float) AccountCredit::query()
+            ->where('applied_to_registration_id', $this->id)
+            ->where('type', AccountCredit::TYPE_REDEMPTION)
+            ->where('status', AccountCredit::STATUS_POSTED)
+            ->sum('amount'));
+
+        return round($cardPaid + $creditRedeemed, 2);
+    }
+
+    /**
+     * Account the money goes back to: whoever completed the payment, then
+     * the parent/sponsor who entered the shooter, then the shooter.
+     */
+    public function platformPayerId(): ?int
+    {
+        return $this->payments()
+            ->where('status', 'completed')
+            ->orderByDesc('id')
+            ->value('user_id')
+            ?? $this->registered_by_user_id
+            ?? $this->user_id;
     }
 
     /**
@@ -273,6 +314,15 @@ class MatchRegistration extends Model
         ]);
     }
 
+    /**
+     * What a member gets back when withdrawing, for both choices:
+     *  - `credit`: the full amount paid, kept as account credit (no fee).
+     *  - `refund`: cash back after the withdrawal fee (`admin_fee`), which is
+     *    split developer first, then the original PayFast fee, then SAPRF.
+     * Both are only offered before the withdrawal deadline.
+     *
+     * @return array{refund: int|float, admin_fee: int|float, reason: string, credit?: float, split?: array{platform: float, gateway: float, saprf: float}}
+     */
     public function calculateRefund(): array
     {
         $settings = app(SettingsService::class);
@@ -310,12 +360,43 @@ class MatchRegistration extends Model
             ];
         }
 
-        $refund = max(0, $fee - $adminFee);
+        // Marked paid but the money never came through the platform (MD
+        // collected it at the range, or an imported entry). SAPRF has
+        // nothing to hand back — that is between the shooter and the MD.
+        $paid = $this->amountPaidOnPlatform();
+        if ($paid <= 0) {
+            return [
+                'refund' => 0,
+                'admin_fee' => 0,
+                'reason' => 'paid_offline',
+            ];
+        }
+
+        $penalty = round(min($adminFee, $paid), 2);
 
         return [
-            'refund' => $refund,
-            'admin_fee' => $adminFee,
+            'refund' => round($paid - $penalty, 2),
+            'admin_fee' => $penalty,
+            'credit' => $paid,
+            'split' => $this->penaltySplit($penalty),
             'reason' => 'before_deadline',
+        ];
+    }
+
+    /**
+     * @return array{platform: float, gateway: float, saprf: float}
+     */
+    public function penaltySplit(float $penalty): array
+    {
+        $developerShare = (float) app(SettingsService::class)->get('withdrawal_developer_fee', 50);
+
+        $platform = round(min(max($developerShare, 0), $penalty), 2);
+        $gateway = round(min((float) $this->gateway_fee, $penalty - $platform), 2);
+
+        return [
+            'platform' => $platform,
+            'gateway' => $gateway,
+            'saprf' => round($penalty - $platform - $gateway, 2),
         ];
     }
 

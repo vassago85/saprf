@@ -43,7 +43,7 @@
                     </div>
                 </dl>
             </div>
-        @elseif($enabled && $summary['available'] > 0)
+        @elseif($enabled && $summary['refundable'] > 0)
             @if($latest && $latest->status === 'declined')
                 <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                     The last request was declined. Your credit is available again.
@@ -69,10 +69,13 @@
 
                 <div>
                     <label for="amount" class="block text-sm font-medium text-stone-700">Amount to refund</label>
-                    <input type="number" name="amount" id="amount" step="0.01" min="0.01" max="{{ $summary['available'] }}"
-                           value="{{ old('amount', number_format($summary['available'], 2, '.', '')) }}" required
+                    <input type="number" name="amount" id="amount" step="0.01" min="0.01" max="{{ $summary['refundable'] }}"
+                           value="{{ old('amount', number_format($summary['refundable'], 2, '.', '')) }}" required
                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <p class="mt-1 text-xs text-stone-400">Up to R {{ number_format($summary['available'], 2) }}. Anything you leave stays as credit for another event.</p>
+                    <p class="mt-1 text-xs text-stone-400">Up to R {{ number_format($summary['refundable'], 2) }}. Anything you leave stays as credit for another event.</p>
+                    @if($summary['withdrawal_credit'] > 0)
+                        <p class="mt-1 text-xs text-stone-400">R {{ number_format($summary['withdrawal_credit'], 2) }} of your credit is from withdrawing and keeping the fee as credit, so it can only be used for entries.</p>
+                    @endif
                     @error('amount')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
 
@@ -118,6 +121,9 @@
         @elseif($enabled)
             <div class="rounded-xl border border-stone-200 bg-white p-6 text-sm text-stone-600">
                 You do not have entry credit available to refund.
+                @if($summary['withdrawal_credit'] > 0)
+                    Credit you kept after withdrawing from a match can only be used for entries.
+                @endif
             </div>
         @endif
     </div>
