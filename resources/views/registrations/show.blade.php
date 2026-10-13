@@ -343,9 +343,9 @@
         @if($registration->user_id === auth()->id() && $registration->isWithdrawable())
             @php
                 $calc = $registration->calculateRefund();
-                $hasChoice = $calc['reason'] === 'before_deadline';
-                $payerId = $hasChoice ? $registration->platformPayerId() : null;
-                $canTakeCash = $hasChoice && $calc['refund'] > 0 && $payerId === auth()->id();
+                $hasChoice = in_array($calc['reason'], ['before_deadline', 'paid_offline'], true);
+                $payerId = $hasChoice ? $registration->withdrawalCreditHolderId() : null;
+                $canTakeCash = $calc['reason'] === 'before_deadline' && $calc['refund'] > 0 && $payerId === auth()->id();
                 $creditHolder = $hasChoice && $payerId !== auth()->id() ? \App\Models\User::find($payerId) : null;
             @endphp
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm"
@@ -366,7 +366,11 @@
                                 @break
                             @case('paid_offline')
                                 <p class="text-sm text-amber-700 mt-1">
-                                    This entry was not paid through the website. Speak to the match director about any refund.
+                                    This entry was paid outside this website (for example on the previous SAPRF site).
+                                    You can withdraw and keep <strong>R {{ number_format($calc['credit'], 2) }}</strong> as entry credit for another match.
+                                </p>
+                                <p class="text-xs text-amber-600 mt-1">
+                                    Deadline: {{ $registration->withdrawalDeadline()->format('D, d M Y H:i') }}
                                 </p>
                                 @break
                             @case('before_deadline')

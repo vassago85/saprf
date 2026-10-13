@@ -303,6 +303,93 @@ it('forfeits the fee inside the deadline with no credit or refund', function () 
         ->and(CreditRefundRequest::query()->count())->toBe(0);
 });
 
+/** Imported from the previous site: marked paid, no payment on this platform. */
+function importedWithdrawalEntry(MatchEvent $match, User $shooter, array $overrides = []): MatchRegistration
+{
+    return MatchRegistration::create(array_merge([
+        'match_id' => $match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => $shooter->name,
+        'email' => $shooter->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500.00,
+        'saprf_fee' => 50.00,
+        'platform_fee' => 0,
+        'gateway_fee' => 19.50,
+        'md_net_amount' => 430.50,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ], $overrides));
+}
+
+it('credits an imported entry at the entry fee without carrying a gateway fee', function () {
+    $registration = importedWithdrawalEntry($this->match, $this->shooter);
+
+    $this->actingAs($this->shooter)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertSee('Keep R 500.00 as entry credit')
+        ->assertDontSee('to my bank account');
+
+    $this->actingAs($this->shooter)
+        ->post(route('registrations.withdraw', $registration), ['withdrawal_option' => 'credit'])
+        ->assertSessionHas('success');
+
+    $registration->refresh();
+    $credit = AccountCredit::query()->where('issued_for_registration_id', $registration->id)->firstOrFail();
+
+    expect($registration->registration_status)->toBe('cancelled')
+        ->and((float) $registration->refund_amount)->toBe(500.0)
+        ->and($credit->user_id)->toBe($this->shooter->id)
+        ->and((float) $credit->amount)->toBe(500.0)
+        ->and((float) $credit->gateway_fee)->toBe(0.0);
+
+    $nextMatch = withdrawalTestMatch($this->province, $this->md, 'After Import');
+    $this->actingAs($this->shooter)
+        ->post(route('events.register.store', $nextMatch), ['division_id' => $this->division->id]);
+
+    $entry = MatchRegistration::query()->where('match_id', $nextMatch->id)->firstOrFail();
+    expect($entry->payment_status)->toBe('paid')
+        ->and((float) $entry->gateway_fee)->toBe(0.0);
+});
+
+it('does not offer a cash refund for an entry paid off the platform', function () {
+    $registration = importedWithdrawalEntry($this->match, $this->shooter);
+
+    $this->actingAs($this->shooter)
+        ->from(route('registrations.show', $registration))
+        ->post(route('registrations.withdraw', $registration), withdrawalBankDetails())
+        ->assertSessionHasErrors('withdrawal_option');
+
+    expect($registration->fresh()->registration_status)->toBe('confirmed')
+        ->and(CreditRefundRequest::query()->count())->toBe(0);
+});
+
+it('credits an entry the shooter confirmed paying on the previous site', function () {
+    $registration = importedWithdrawalEntry($this->match, $this->shooter, ['payment_status' => 'waived']);
+
+    $this->actingAs($this->shooter)
+        ->post(route('registrations.withdraw', $registration), ['withdrawal_option' => 'credit'])
+        ->assertSessionHas('success');
+
+    expect($this->shooter->accountCreditSummary()['available'])->toBe(500.0);
+});
+
+it('credits the shooter, not the match director, for an entry the MD keyed in', function () {
+    $registration = importedWithdrawalEntry($this->match, $this->shooter, [
+        'registered_by_user_id' => $this->md->id,
+        'gateway_fee' => 0,
+    ]);
+
+    $this->actingAs($this->shooter)
+        ->post(route('registrations.withdraw', $registration), ['withdrawal_option' => 'credit'])
+        ->assertSessionHas('success');
+
+    expect($this->shooter->accountCreditSummary()['available'])->toBe(500.0)
+        ->and($this->md->accountCreditSummary()['available'])->toBe(0.0);
+});
+
 it('shows both options on the entry page before the deadline', function () {
     $registration = withdrawalTestEntry($this->match, $this->shooter);
 

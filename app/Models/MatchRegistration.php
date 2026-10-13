@@ -135,6 +135,16 @@ class MatchRegistration extends Model
     }
 
     /**
+     * Who receives withdrawal credit. Money that came in off the platform
+     * (imported from the previous site, or confirmed as paid there) goes
+     * back to the shooter, not whoever keyed the entry in.
+     */
+    public function withdrawalCreditHolderId(): ?int
+    {
+        return $this->amountPaidOnPlatform() > 0 ? $this->platformPayerId() : $this->user_id;
+    }
+
+    /**
      * Account the money goes back to: whoever completed the payment, then
      * the parent/sponsor who entered the shooter, then the shooter.
      */
@@ -319,7 +329,8 @@ class MatchRegistration extends Model
      *  - `credit`: the full amount paid, kept as account credit (no fee).
      *  - `refund`: cash back after the withdrawal fee (`admin_fee`), which is
      *    split developer first, then the original PayFast fee, then SAPRF.
-     * Both are only offered before the withdrawal deadline.
+     * Both are only offered before the withdrawal deadline. Entries paid off
+     * the platform (`paid_offline`) can only take the entry fee as credit.
      *
      * @return array{refund: int|float, admin_fee: int|float, reason: string, credit?: float, split?: array{platform: float, gateway: float, saprf: float}}
      */
@@ -344,7 +355,8 @@ class MatchRegistration extends Model
         // Nothing was ever collected (card failed, gateway cancelled, or the
         // member simply never completed checkout). Withdrawing must not quote
         // a refund or an admin fee against money that never arrived.
-        if ($this->payment_status !== 'paid') {
+        // `waived` covers shooters who confirmed paying on the previous site.
+        if (! in_array($this->payment_status, ['paid', 'waived'], true)) {
             return [
                 'refund' => 0,
                 'admin_fee' => 0,
@@ -360,14 +372,15 @@ class MatchRegistration extends Model
             ];
         }
 
-        // Marked paid but the money never came through the platform (MD
-        // collected it at the range, or an imported entry). SAPRF has
-        // nothing to hand back — that is between the shooter and the MD.
+        // Paid, but not through this platform (imported from the previous
+        // site, or collected by the MD). No cash refund — the entry fee can
+        // only be kept as credit, and no PayFast fee travels with it.
         $paid = $this->amountPaidOnPlatform();
         if ($paid <= 0) {
             return [
                 'refund' => 0,
                 'admin_fee' => 0,
+                'credit' => round($fee, 2),
                 'reason' => 'paid_offline',
             ];
         }

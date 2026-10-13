@@ -296,12 +296,16 @@ it('still applies the admin-fee split when the entry was actually paid', functio
         ->and((float) $calc['credit'])->toBe(1100.0);
 });
 
-it('quotes nothing back for an entry marked paid that never went through the platform', function () {
+it('quotes the entry fee as credit only for an entry paid off the platform', function () {
     $registration = makeRegistration($this->member, $this->match, [
         'payment_status' => 'paid',
     ]);
 
-    expect($registration->calculateRefund()['reason'])->toBe('paid_offline');
+    $calc = $registration->calculateRefund();
+
+    expect($calc['reason'])->toBe('paid_offline')
+        ->and((float) $calc['credit'])->toBe(1100.0)
+        ->and((float) $calc['refund'])->toBe(0.0);
 });
 
 it('keeps the free-entry short-circuit ahead of the unpaid check', function () {

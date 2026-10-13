@@ -359,8 +359,8 @@ class RegistrationController extends Controller
         }
 
         $refundCalc = $registration->calculateRefund();
-        $hasChoice = $refundCalc['reason'] === 'before_deadline';
-        $canTakeCash = $hasChoice
+        $hasChoice = in_array($refundCalc['reason'], ['before_deadline', 'paid_offline'], true);
+        $canTakeCash = $refundCalc['reason'] === 'before_deadline'
             && $refundCalc['refund'] > 0
             && $registration->platformPayerId() === $user->id;
 
@@ -424,7 +424,6 @@ class RegistrationController extends Controller
             $refundCalc['reason'] === 'free_entry' => 'Registration withdrawn. This was a free entry — no financial impact.',
             $refundCalc['reason'] === 'unpaid' => 'Registration withdrawn. No payment was collected, so no refund is due.',
             $refundCalc['reason'] === 'past_deadline' => 'Registration withdrawn. No refund — withdrawal was after the deadline.',
-            $refundCalc['reason'] === 'paid_offline' => 'Registration withdrawn. This entry was not paid through the website, so speak to the match director about any refund.',
             $option === 'credit' && $credit instanceof AccountCredit => 'Registration withdrawn. R '.number_format((float) $credit->amount, 2).' is on '
                 .($credit->user_id === $user->id ? 'your' : ($credit->user?->name ?? 'the payer').'\'s').' account as entry credit.',
             $option === 'refund' => 'Registration withdrawn. R '.number_format($refundCalc['refund'], 2).' will be refunded to your bank account (R '

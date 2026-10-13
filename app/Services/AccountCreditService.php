@@ -272,6 +272,9 @@ class AccountCreditService
      * full amount paid goes back on the paying account with no fee. The
      * PayFast fee already paid on this entry rides along with the credit and
      * is charged to whichever entries the credit is later spent on.
+     *
+     * Entries paid off the platform (imported from the previous site) are
+     * credited at the entry fee to the shooter, with no PayFast fee carried.
      */
     public function issueForWithdrawal(MatchRegistration $registration, ?User $actor = null): ?AccountCredit
     {
@@ -284,8 +287,16 @@ class AccountCreditService
                 return null;
             }
 
-            $amount = $registration->amountPaidOnPlatform();
-            $holderId = $registration->platformPayerId();
+            $paidOnPlatform = $registration->amountPaidOnPlatform();
+            $offPlatform = $paidOnPlatform <= 0;
+
+            if ($offPlatform && ! in_array($registration->payment_status, ['paid', 'waived'], true)) {
+                return null;
+            }
+
+            $amount = $offPlatform ? round((float) $registration->fee_amount, 2) : $paidOnPlatform;
+            $holderId = $registration->withdrawalCreditHolderId();
+            $gatewayFee = $offPlatform ? 0.0 : round(min((float) $registration->gateway_fee, $amount), 2);
 
             if (! $holderId || $amount <= 0) {
                 return null;
@@ -296,7 +307,7 @@ class AccountCreditService
             $credit = AccountCredit::query()->create([
                 'user_id' => $holderId,
                 'amount' => $amount,
-                'gateway_fee' => round(min((float) $registration->gateway_fee, $amount), 2),
+                'gateway_fee' => $gatewayFee,
                 'status' => AccountCredit::STATUS_POSTED,
                 'type' => AccountCredit::TYPE_WITHDRAWAL,
                 'match_id' => $registration->match_id,
@@ -317,6 +328,7 @@ class AccountCreditService
                     'shooter_name' => $registration->shooter_name,
                     'match_id' => $registration->match_id,
                     'gateway_fee_carried' => (float) $credit->gateway_fee,
+                    'paid_off_platform' => $offPlatform,
                 ],
             ]);
 
@@ -331,6 +343,7 @@ class AccountCreditService
                     'credited_user_id' => $holderId,
                     'amount' => $amount,
                     'gateway_fee_carried' => (float) $credit->gateway_fee,
+                    'paid_off_platform' => $offPlatform,
                     'match_id' => $registration->match_id,
                 ],
                 'Member withdrew and kept the entry fee as credit',
