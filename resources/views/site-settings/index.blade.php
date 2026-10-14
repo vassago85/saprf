@@ -414,7 +414,7 @@
                     <textarea name="invoice_footer_notes" id="invoice_footer_notes" rows="2"
                               placeholder="Optional disclaimer / banking details line"
                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">{{ old('invoice_footer_notes', $settings['invoice_footer_notes'] ?? '') }}</textarea>
-                    <p class="mt-1 text-xs text-stone-400">Overrides the default <em>"This is not a VAT invoice…"</em> line at the bottom of the PDF.</p>
+                    <p class="mt-1 text-xs text-stone-400">Optional line printed under the totals (e.g. banking details or a note). Blank = no footer line.</p>
                 </div>
             </div>
 

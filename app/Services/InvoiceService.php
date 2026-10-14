@@ -281,6 +281,14 @@ class InvoiceService
         };
     }
 
+    /**
+     * Footer text under the totals block. Returns the custom admin-set
+     * line verbatim when present, otherwise a short VAT-inclusive note
+     * on tax invoices, otherwise nothing. We deliberately do NOT render
+     * a "this is not a VAT invoice" disclaimer by default — the absence
+     * of a VAT line is self-evident and SAPRF prefers an uncluttered
+     * footer.
+     */
     private function footerNotes(bool $isTaxInvoice): ?string
     {
         $custom = $this->settingValue('invoice_footer_notes');
@@ -291,7 +299,7 @@ class InvoiceService
 
         return $isTaxInvoice
             ? 'VAT @ 15% is inclusive of the amount shown.'
-            : 'This is not a VAT invoice. SAPRF is not registered for VAT.';
+            : null;
     }
 
     /**
