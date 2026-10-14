@@ -48,6 +48,7 @@ class InvoiceService
      *     issued_at: Carbon,
      *     is_tax_invoice: bool,
      *     business: array{name: string, address: ?string, registration_number: ?string, vat_number: ?string, contact_email: ?string},
+     *     logo_data_uri: ?string,
      *     bill_to: array{name: string, email: ?string, saprf_number: ?string},
      *     line_item: array{description: string, detail: ?string},
      *     totals: array{subtotal: float, vat: float, total: float},
@@ -76,6 +77,7 @@ class InvoiceService
             'issued_at' => Carbon::parse($issuedAt),
             'is_tax_invoice' => $isTaxInvoice,
             'business' => $business,
+            'logo_data_uri' => $this->logoDataUri(),
             'bill_to' => $billTo,
             'line_item' => $lineItem,
             'totals' => $totals,
@@ -208,11 +210,25 @@ class InvoiceService
             $tierName = $payable->feeTier?->name ?? 'Annual';
             $description = "SAPRF Membership — {$tierName}";
 
+            // Period this specific payment covered. `start_date` on the
+            // Membership is the *lifetime* start of the record and
+            // doesn't change across renewals, so it would show "from
+            // 2024" on every renewal invoice forever. The correct period
+            // is `expiry_date - fee_tier.duration_months → expiry_date`
+            // — i.e. the twelve months (or whatever the tier length is)
+            // that this payment just bought.
+            $durationMonths = $payable->feeTier?->duration_months ?? 12;
+            $periodEnd = $payable->expiry_date;
+            $periodStart = $periodEnd?->copy()->subMonths($durationMonths);
+            // Plain " to " rather than a Unicode arrow — DomPDF's
+            // default WinAnsi font set renders U+2192 as `?`.
+            $periodLabel = $periodStart && $periodEnd
+                ? $periodStart->format('d M Y').' to '.$periodEnd->format('d M Y')
+                : null;
+
             $parts = array_filter([
                 $payable->saprf_number ? 'SAPRF #'.$payable->saprf_number : null,
-                $payable->start_date && $payable->expiry_date
-                    ? $payable->start_date->format('d M Y').' → '.$payable->expiry_date->format('d M Y')
-                    : null,
+                $periodLabel,
                 $payable->user && $payable->user_id !== $payment->user_id
                     ? 'Member: '.$payable->user->name
                     : null,
@@ -292,5 +308,31 @@ class InvoiceService
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * Base64-encoded SAPRF logo for inline embedding in the PDF. We cannot
+     * reference `/saprf-logo-black-text.png` by URL because DomPDF runs
+     * with `isRemoteEnabled = false` — so the image is read off disk here
+     * and inlined as a data URI, mirroring the pattern already used for
+     * the membership certificate's logo. Returns null when the file is
+     * missing so a broken public dir degrades gracefully (invoice renders
+     * without a logo rather than 500ing).
+     */
+    private function logoDataUri(): ?string
+    {
+        $path = public_path('saprf-logo-black-text.png');
+
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $binary = @file_get_contents($path);
+
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($binary);
     }
 }

@@ -5,6 +5,11 @@
     <title>{{ $is_tax_invoice ? 'Tax Invoice' : 'Invoice' }} {{ $invoice_number }}</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 12px; color: #1c1917; margin: 32px 36px; }
+        .header { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .header td { vertical-align: middle; padding: 0; }
+        .header td.logo-cell { width: 55%; }
+        .header td.title-cell { width: 45%; text-align: right; }
+        .logo { max-width: 180px; max-height: 56px; }
         .doc-title { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #1c1917; margin: 0 0 2px; }
         .doc-subtitle { font-size: 11px; color: #78716c; margin: 0 0 24px; }
         .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
@@ -36,11 +41,22 @@
     </style>
 </head>
 <body>
-    <h1 class="doc-title">{{ $is_tax_invoice ? 'Tax Invoice' : 'Invoice' }}</h1>
-    <p class="doc-subtitle">
-        <span class="pill">Paid</span>
-        &nbsp;Issued {{ $issued_at->format('d F Y') }}
-    </p>
+    <table class="header">
+        <tr>
+            <td class="logo-cell">
+                @if($logo_data_uri)
+                    <img src="{{ $logo_data_uri }}" alt="SAPRF" class="logo">
+                @endif
+            </td>
+            <td class="title-cell">
+                <h1 class="doc-title">{{ $is_tax_invoice ? 'Tax Invoice' : 'Invoice' }}</h1>
+                <p class="doc-subtitle">
+                    <span class="pill">Paid</span>
+                    &nbsp;Issued {{ $issued_at->format('d F Y') }}
+                </p>
+            </td>
+        </tr>
+    </table>
 
     <table class="meta-table">
         <tr>
