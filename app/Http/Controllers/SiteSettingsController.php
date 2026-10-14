@@ -66,6 +66,16 @@ class SiteSettingsController extends Controller
             'owner_email' => ['nullable', 'email', 'max:255'],
             'secretary_email' => ['nullable', 'email', 'max:255'],
             'notifications_enabled' => ['required', 'boolean'],
+            // Invoice document customisation. All optional — defaults in
+            // InvoiceService kick in when fields are blank. The VAT number
+            // field is the switch between "Invoice" (empty) and
+            // "Tax Invoice" (populated) on the PDF header.
+            'invoice_business_name' => ['nullable', 'string', 'max:255'],
+            'invoice_business_address' => ['nullable', 'string', 'max:1000'],
+            'invoice_contact_email' => ['nullable', 'email', 'max:255'],
+            'invoice_registration_number' => ['nullable', 'string', 'max:100'],
+            'invoice_vat_number' => ['nullable', 'string', 'max:50'],
+            'invoice_footer_notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -156,6 +166,16 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('owner_email', $validated['owner_email'] ?? '', 'Owner inbox for owner-only correspondence');
         $this->settingsService->set('secretary_email', $validated['secretary_email'] ?? '', 'Secretary inbox for contact-form enquiries and member Reply-To');
         $this->settingsService->set('notifications_enabled', $validated['notifications_enabled'], 'Send outgoing email notifications (1=yes, 0=paused). Auth OTP + password reset always send regardless.');
+
+        // Invoice document customisation. Blank values are persisted as
+        // empty strings so InvoiceService's `null-when-blank` normaliser
+        // falls back to the hardcoded defaults.
+        $this->settingsService->set('invoice_business_name', $validated['invoice_business_name'] ?? '', 'Business name printed at the top of member invoices');
+        $this->settingsService->set('invoice_business_address', $validated['invoice_business_address'] ?? '', 'Business address block for member invoices (multi-line)');
+        $this->settingsService->set('invoice_contact_email', $validated['invoice_contact_email'] ?? '', 'Contact email printed on member invoices (defaults to secretary/owner)');
+        $this->settingsService->set('invoice_registration_number', $validated['invoice_registration_number'] ?? '', 'Company / NPO registration number on invoices');
+        $this->settingsService->set('invoice_vat_number', $validated['invoice_vat_number'] ?? '', 'SA VAT number. When set, invoices become VAT-compliant tax invoices.');
+        $this->settingsService->set('invoice_footer_notes', $validated['invoice_footer_notes'] ?? '', 'Optional footer text on invoices (overrides the default "not a VAT invoice" line)');
 
         $this->auditLogService->log(
             $request->user(),

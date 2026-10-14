@@ -124,6 +124,15 @@ final class SidebarNavigation
                         'badge' => 'family_count',
                         'badge_color' => 'emerald',
                     ],
+                    [
+                        'id' => 'invoices',
+                        'label' => 'My Invoices',
+                        'route' => 'invoices.index',
+                        'icon' => 'document-text',
+                        'contexts' => [self::CONTEXT_SHOOTER],
+                        'roles' => null,
+                        'current_route_is' => ['invoices.*'],
+                    ],
                 ],
             ],
             [

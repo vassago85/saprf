@@ -64,11 +64,16 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
             }
         }
 
+        // Direct link to the PDF invoice. The route re-runs the ownership
+        // check so a forwarded email can't be used by a third party.
+        $message->action(
+            'Download Invoice (PDF)',
+            route('payments.invoice', $this->payment),
+        );
+
         return $message
-            ->action(
-                $isMembership ? 'View My Membership' : 'View My Registrations',
-                $isMembership ? route('my-membership') : route('registrations.index'),
-            )
+            ->line('You can also view this payment any time under '
+                .'[My Invoices]('.route('invoices.index').').')
             ->line('Keep this email as your proof of payment.');
     }
 

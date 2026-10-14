@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\MembershipFeeTier;
+use App\Models\Payment;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\Standing;
@@ -77,6 +78,22 @@ class MembershipController extends Controller
             $seasons = collect([(string) now()->year]);
         }
 
+        // Most recent completed Payment on this membership (if any), so the
+        // view can offer a "Download invoice" button next to the member's
+        // card. Legacy MembershipPayment rows without a matching Payment
+        // row are not yet invoiceable — the invoice generator keys off the
+        // polymorphic payments table.
+        $latestInvoicePayment = $membership
+            ? Payment::query()
+                ->where('payable_type', Membership::class)
+                ->where('payable_id', $membership->id)
+                ->where('status', 'completed')
+                ->where('amount', '>', 0)
+                ->orderByDesc('paid_at')
+                ->orderByDesc('id')
+                ->first()
+            : null;
+
         return view('memberships.my-membership', compact(
             'membership',
             'user',
@@ -87,6 +104,7 @@ class MembershipController extends Controller
             'seasons',
             'managingFamily',
             'canRenewEarly',
+            'latestInvoicePayment',
         ));
     }
 

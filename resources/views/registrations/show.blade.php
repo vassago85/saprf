@@ -128,6 +128,32 @@
             </div>
         @endif
 
+        {{-- Invoice download. Only renders when a completed, non-zero
+             payment exists on this registration AND the signed-in user
+             paid it (or manages the paying account / is support staff).
+             The route reruns the same policy itself. --}}
+        @if(!empty($invoicePayment) && (
+            $invoicePayment->user_id === auth()->id()
+            || auth()->user()?->findManagedAccount($invoicePayment->user_id)
+            || auth()->user()?->hasAnyRole(['developer', 'exco', 'owner', 'admin'])
+        ))
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">Invoice</h2>
+                    <p class="text-sm text-stone-500 mt-1">
+                        R {{ number_format((float) $invoicePayment->amount, 2) }}
+                        &middot; Paid {{ $invoicePayment->paid_at?->format('d M Y') }}
+                        &middot; Ref <span class="font-mono text-xs">{{ $invoicePayment->m_payment_id }}</span>
+                    </p>
+                </div>
+                <a href="{{ route('payments.invoice', $invoicePayment) }}"
+                   class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Download invoice
+                </a>
+            </div>
+        @endif
+
         {{-- Division change — allowed until registration closes (staff any time) --}}
         @php
             $isStaffViewer = auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director']);

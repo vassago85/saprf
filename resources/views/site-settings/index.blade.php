@@ -343,6 +343,81 @@
                 </div>
             </div>
 
+            {{-- Invoice document customisation. All optional — defaults in
+                 App\Services\InvoiceService kick in when a field is blank.
+                 Setting the VAT number flips the PDF header from "Invoice"
+                 to "Tax Invoice" and adds a 15% VAT breakdown. --}}
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-stone-900">Invoice details</h2>
+                        <p class="text-sm text-stone-500">Business block printed on member invoice PDFs. Leave blank to use the SAPRF defaults.</p>
+                    </div>
+                    @php
+                        $vatConfigured = ! empty($settings['invoice_vat_number'] ?? '');
+                    @endphp
+                    @if($vatConfigured)
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Tax invoice mode</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700 ring-1 ring-inset ring-stone-500/20">Invoice mode (no VAT)</span>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="invoice_business_name" class="block text-sm font-medium text-stone-700">Business Name</label>
+                        <input type="text" name="invoice_business_name" id="invoice_business_name"
+                               value="{{ old('invoice_business_name', $settings['invoice_business_name'] ?? '') }}"
+                               placeholder="South African Precision Rifle Federation"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Appears at the top of every invoice. Default: <em>South African Precision Rifle Federation</em>.</p>
+                    </div>
+                    <div>
+                        <label for="invoice_contact_email" class="block text-sm font-medium text-stone-700">Invoice Contact Email</label>
+                        <input type="email" name="invoice_contact_email" id="invoice_contact_email"
+                               value="{{ old('invoice_contact_email', $settings['invoice_contact_email'] ?? '') }}"
+                               placeholder="accounts@precisionrifle.co.za"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Where members should write for invoice queries. Falls back to Secretary / Owner email.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="invoice_business_address" class="block text-sm font-medium text-stone-700">Business Address</label>
+                    <textarea name="invoice_business_address" id="invoice_business_address" rows="3"
+                              placeholder="Postal / street address"
+                              class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">{{ old('invoice_business_address', $settings['invoice_business_address'] ?? '') }}</textarea>
+                    <p class="mt-1 text-xs text-stone-400">Multi-line is fine. Printed verbatim under the business name.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="invoice_registration_number" class="block text-sm font-medium text-stone-700">Registration Number</label>
+                        <input type="text" name="invoice_registration_number" id="invoice_registration_number"
+                               value="{{ old('invoice_registration_number', $settings['invoice_registration_number'] ?? '') }}"
+                               placeholder="NPO / Section 21 / company number"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Optional. Printed as <em>Reg No:</em> under the business block.</p>
+                    </div>
+                    <div>
+                        <label for="invoice_vat_number" class="block text-sm font-medium text-stone-700">VAT Number</label>
+                        <input type="text" name="invoice_vat_number" id="invoice_vat_number"
+                               value="{{ old('invoice_vat_number', $settings['invoice_vat_number'] ?? '') }}"
+                               placeholder="4xxxxxxxxx"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400"><strong>Leave blank unless SAPRF is actually VAT-registered.</strong> Setting this flips every invoice to a VAT-compliant tax invoice (15% inclusive).</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="invoice_footer_notes" class="block text-sm font-medium text-stone-700">Footer Notes</label>
+                    <textarea name="invoice_footer_notes" id="invoice_footer_notes" rows="2"
+                              placeholder="Optional disclaimer / banking details line"
+                              class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">{{ old('invoice_footer_notes', $settings['invoice_footer_notes'] ?? '') }}</textarea>
+                    <p class="mt-1 text-xs text-stone-400">Overrides the default <em>"This is not a VAT invoice…"</em> line at the bottom of the PDF.</p>
+                </div>
+            </div>
+
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
                 <div class="flex items-center justify-between">
                     <div>

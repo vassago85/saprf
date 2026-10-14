@@ -477,6 +477,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/payments/membership/{membership}', [PaymentController::class, 'payMembership'])->name('payments.membership');
     Route::post('/payments/registration/{registration}', [PaymentController::class, 'payRegistration'])->name('payments.registration');
     Route::post('/membership/join', [PaymentController::class, 'joinMembership'])->name('membership.join');
+
+    // Member-facing invoice archive. The index lists every completed
+    // payment made by the signed-in user (or their managed family),
+    // and the per-payment download streams the PDF. Both are gated by
+    // the standard payment authorization rules in PaymentController.
+    Route::get('/invoices', [PaymentController::class, 'invoicesIndex'])->name('invoices.index');
+    Route::get('/payments/{payment}/invoice', [PaymentController::class, 'downloadInvoice'])->name('payments.invoice');
     Route::get('/my-membership', [MembershipController::class, 'myMembership'])->name('my-membership');
     Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])->name('membership.certificate');
     Route::get('/my-membership/activity-report', [MembershipController::class, 'activityReport'])->name('membership.activity-report');

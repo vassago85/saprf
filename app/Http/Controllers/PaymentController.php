@@ -15,8 +15,10 @@ use App\Notifications\SponsoredEntryPaidNotification;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
+use App\Services\InvoiceService;
 use App\Services\PayFastService;
 use App\Services\SettingsService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PaymentController extends Controller
 {
@@ -31,7 +34,74 @@ class PaymentController extends Controller
         private readonly PayFastService $payFastService,
         private readonly AuditLogService $auditLogService,
         private readonly AccountCreditService $accountCredits,
+        private readonly InvoiceService $invoices,
     ) {}
+
+    /**
+     * Member-facing invoice archive. Lists every completed payment the
+     * signed-in user is on (as payer) or any of their managed-family
+     * accounts, with a per-row download link to the PDF. Staff users
+     * only see their own personal invoices here — the finance team has
+     * a separate transactions screen (financials.transactions) for
+     * cross-member reconciliation.
+     */
+    public function invoicesIndex(Request $request): View
+    {
+        $user = $request->user();
+
+        // Managed-family account ids plus the user's own id so a parent
+        // sees invoices they paid for a junior whose login they manage.
+        // Only accounts still flagged as managed are included — once a
+        // junior graduates to their own login their invoices move with
+        // them to their own listing.
+        $accountIds = $user->managedAccounts()
+            ->where('is_managed_account', true)
+            ->pluck('id')
+            ->push($user->id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $payments = Payment::query()
+            ->whereIn('user_id', $accountIds)
+            ->where('status', 'completed')
+            ->where('amount', '>', 0)
+            ->with(['payable', 'user'])
+            ->orderByDesc('paid_at')
+            ->orderByDesc('id')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('invoices.index', compact('payments'));
+    }
+
+    /**
+     * Streams the invoice PDF for a single completed payment. Reuses the
+     * same ownership rules as every other payment-touching action
+     * (payer, managed family, finance/support staff) via
+     * {@see authorizePayment()}.
+     */
+    public function downloadInvoice(Request $request, Payment $payment): HttpResponse
+    {
+        $this->authorizePayment($request, $payment);
+
+        if (! $this->invoices->isInvoiceable($payment)) {
+            // Pending/failed/zero-amount: silently 404 rather than
+            // leaking "this payment exists but has no invoice" details.
+            abort(404);
+        }
+
+        $viewModel = $this->invoices->buildViewModel($payment);
+
+        $pdf = Pdf::loadView('payments.pdf.invoice', $viewModel)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isRemoteEnabled', false)
+            ->setOption('isHtml5ParserEnabled', true);
+
+        $filename = 'SAPRF-Invoice-'.$viewModel['invoice_number'].'.pdf';
+
+        return $pdf->download($filename);
+    }
 
     /**
      * Roles allowed to act on a payment that isn't theirs (support / reconciliation).

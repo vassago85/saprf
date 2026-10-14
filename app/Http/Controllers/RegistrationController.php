@@ -123,12 +123,19 @@ class RegistrationController extends Controller
 
         // Payer for the confirmed entry (if any). Ordered so the completed payment wins
         // over stale pending rows created when checkout was abandoned then retried.
-        $payer = $registration->payments()
+        $payerPayment = $registration->payments()
             ->with('user')
             ->orderByRaw("CASE WHEN status = 'completed' THEN 0 ELSE 1 END")
             ->latest('id')
-            ->first()
-            ?->user;
+            ->first();
+        $payer = $payerPayment?->user;
+
+        // Expose the invoiceable payment (completed, non-zero) to the view
+        // so it can render a "Download invoice" button. Pending / failed
+        // payments are intentionally hidden — there's nothing to invoice.
+        $invoicePayment = $payerPayment && $payerPayment->status === 'completed' && (float) $payerPayment->amount > 0
+            ? $payerPayment
+            : null;
 
         $rifles = $request->user()->rifleConfigurations()
             ->active()
@@ -138,7 +145,7 @@ class RegistrationController extends Controller
 
         $divisions = $registration->match?->availableDivisions() ?? collect();
 
-        return view('registrations.show', compact('registration', 'rifles', 'divisions', 'payer'));
+        return view('registrations.show', compact('registration', 'rifles', 'divisions', 'payer', 'invoicePayment'));
     }
 
     public function updateRifle(Request $request, MatchRegistration $registration): RedirectResponse
