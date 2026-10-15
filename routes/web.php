@@ -696,14 +696,14 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // selection-cycle modal) because the initial backfill will be
         // historical / pre-cycle.
         Route::resource('national-team', NationalTeamAppearanceController::class)
-            ->only(['index', 'create', 'store', 'destroy'])
+            ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
             ->parameters(['national-team' => 'nationalTeam']);
 
         // Team-year records — venue, dates, cover photo for each
         // championship the SA team has sent a roster to. The appearances
         // table hangs off these via national_team_id.
         Route::resource('national-teams', \App\Http\Controllers\NationalTeamController::class)
-            ->only(['index', 'edit', 'update'])
+            ->only(['index', 'create', 'store', 'edit', 'update'])
             ->parameters(['national-teams' => 'nationalTeam']);
 
         // Media library: albums + photos, with homepage-feature toggle.

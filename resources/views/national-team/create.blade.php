@@ -30,7 +30,7 @@
                 <div>
                     <label for="year" class="block text-sm font-medium text-stone-700 mb-1">Year</label>
                     <input type="number" id="year" name="year" min="1990" max="{{ now()->year + 1 }}"
-                           value="{{ old('year', now()->year) }}" required
+                           value="{{ old('year', request('year', now()->year)) }}" required
                            class="w-full rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500 @error('year') border-red-300 @enderror">
                     @error('year')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
@@ -48,7 +48,7 @@
             <div>
                 <label for="championship_name" class="block text-sm font-medium text-stone-700 mb-1">Championship / event name</label>
                 <input type="text" id="championship_name" name="championship_name"
-                       value="{{ old('championship_name') }}" required maxlength="255"
+                       value="{{ old('championship_name', request('championship_name')) }}" required maxlength="255"
                        placeholder="e.g. IPRF PR22 World Championship"
                        class="w-full rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500 @error('championship_name') border-red-300 @enderror">
                 @error('championship_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -61,7 +61,7 @@
                             class="w-full rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500 @error('host_country') border-red-300 @enderror">
                         <option value="">— Not specified —</option>
                         @foreach($countries as $code => $name)
-                            <option value="{{ $code }}" @selected(old('host_country') === $code)>{{ $name }}</option>
+                            <option value="{{ $code }}" @selected(old('host_country', request('host_country')) === $code)>{{ $name }}</option>
                         @endforeach
                     </select>
                     @error('host_country')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror

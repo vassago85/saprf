@@ -1,15 +1,25 @@
 <x-layouts.app :title="'Team Years — SAPRF'">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Team years</h1>
-        <p class="text-sm text-stone-500 mt-1">
-            One row per SA team sent to an IPRF World Championship. Edit venue, dates and cover photo here.
-            Add or remove individual shooters via <a href="{{ route('national-team.index') }}" class="text-emerald-700 hover:underline">National Team & Colours</a>.
-        </p>
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h1 class="font-heading text-3xl font-bold text-stone-900">Team years</h1>
+                <p class="text-sm text-stone-500 mt-1">
+                    One row per SA team sent to an IPRF World Championship. Edit venue, dates, cover photo and roster here.
+                    Full appearance list is at <a href="{{ route('national-team.index') }}" class="text-emerald-700 hover:underline">National Team & Colours</a>.
+                </p>
+            </div>
+            <a href="{{ route('national-teams.create') }}"
+               class="shrink-0 inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
+                + New team year
+            </a>
+        </div>
 
         @if($teams->isEmpty())
             <div class="mt-8 bg-white border border-stone-200 rounded-2xl p-10 text-center">
                 <p class="text-stone-500">
-                    No team years yet. Add appearances via
+                    No team years yet. Click
+                    <a href="{{ route('national-teams.create') }}" class="text-emerald-700 hover:underline">+ New team year</a>
+                    above, or add an appearance via
                     <a href="{{ route('national-team.create') }}" class="text-emerald-700 hover:underline">National Team &amp; Colours</a>
                     and the team record is created automatically.
                 </p>

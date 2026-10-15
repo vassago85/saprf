@@ -123,5 +123,89 @@
                 </a>
             </div>
         </form>
+
+        {{-- ─────────────────────────────────────────────────────────────
+             Roster: appearances attached to this team year, with inline
+             role/division/colours visible and per-row Edit links that
+             return the admin back to this page after save.
+             ─────────────────────────────────────────────────────────── --}}
+        <section class="mt-10 bg-white border border-stone-200 rounded-2xl overflow-hidden">
+            <header class="flex items-center justify-between gap-3 px-6 py-4 border-b border-stone-100">
+                <div>
+                    <h2 class="font-heading text-xl font-bold text-stone-900">Roster</h2>
+                    <p class="text-xs text-stone-500 mt-0.5">
+                        {{ $appearances->count() }} {{ Str::plural('appearance', $appearances->count()) }} on this team year.
+                        Edit a row to change its role, division or Protea Colours flag.
+                    </p>
+                </div>
+                <a href="{{ route('national-team.create') }}?championship_name={{ urlencode($team->championship_name) }}&year={{ $team->year }}&host_country={{ $team->host_country }}"
+                   class="inline-flex items-center min-h-[40px] px-4 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
+                    + Add shooter
+                </a>
+            </header>
+
+            @if($appearances->isEmpty())
+                <div class="px-6 py-10 text-center text-sm text-stone-500">
+                    No appearances recorded for this team year yet.
+                    Use "+ Add shooter" above to start the roster.
+                </div>
+            @else
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs uppercase tracking-wider text-stone-500 bg-stone-50 border-b border-stone-100">
+                        <tr>
+                            <th class="px-6 py-3 font-semibold">Shooter</th>
+                            <th class="px-3 py-3 font-semibold">Role</th>
+                            <th class="px-3 py-3 font-semibold">Division</th>
+                            <th class="px-3 py-3 font-semibold">Colours</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stone-100">
+                        @foreach($appearances as $a)
+                            <tr class="hover:bg-stone-50">
+                                <td class="px-6 py-3">
+                                    <div class="font-semibold text-stone-900">{{ $a->user?->name ?? 'Unknown' }}</div>
+                                    @if($a->user?->membership?->saprf_number)
+                                        <div class="text-xs text-stone-500 font-mono">{{ $a->user->membership->saprf_number }}</div>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3">
+                                    @php
+                                        $roleLabel = \App\Models\NationalTeamAppearance::ROLES[$a->role ?? 'shooter'] ?? 'Shooter';
+                                        $roleClass = match ($a->role) {
+                                            'manager' => 'bg-amber-100 text-amber-800',
+                                            'captain' => 'bg-emerald-100 text-emerald-800',
+                                            'official' => 'bg-stone-200 text-stone-700',
+                                            default => 'bg-stone-100 text-stone-700',
+                                        };
+                                    @endphp
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide {{ $roleClass }}">
+                                        {{ $roleLabel }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-3 text-stone-700">
+                                    {{ $a->division?->name ?? $a->division_label ?? '—' }}
+                                </td>
+                                <td class="px-3 py-3">
+                                    @if($a->awarded_colours)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wide">
+                                            Colours
+                                        </span>
+                                    @else
+                                        <span class="text-stone-300 text-xs">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3 text-right">
+                                    <a href="{{ route('national-team.edit', ['nationalTeam' => $a->id]) }}?back_to=team_year"
+                                       class="text-emerald-700 font-semibold hover:underline text-sm">
+                                        Edit
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </section>
     </div>
 </x-layouts.app>

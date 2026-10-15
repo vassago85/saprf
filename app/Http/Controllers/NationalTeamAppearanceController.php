@@ -189,6 +189,119 @@ class NationalTeamAppearanceController extends Controller
             ->with('success', $flash);
     }
 
+    public function edit(NationalTeamAppearance $nationalTeam): View
+    {
+        $nationalTeam->load(['user.membership', 'division', 'selectionCycle', 'nationalTeam']);
+
+        return view('national-team.edit', [
+            'appearance' => $nationalTeam,
+            'divisions' => Division::orderBy('display_order')->orderBy('name')->get(),
+            'countries' => NationalTeamAppearance::HOST_COUNTRIES,
+            'cycles' => SelectionCycle::query()->orderByDesc('season')->get(),
+        ]);
+    }
+
+    public function update(Request $request, NationalTeamAppearance $nationalTeam): RedirectResponse
+    {
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'between:1990,'.(now()->year + 1)],
+            'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
+            'division_label' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', Rule::in(array_keys(NationalTeamAppearance::ROLES))],
+            'championship_name' => ['required', 'string', 'max:255'],
+            'host_country' => ['nullable', 'string', 'size:2', Rule::in(array_keys(NationalTeamAppearance::HOST_COUNTRIES))],
+            'placing' => ['nullable', 'integer', 'between:1,999'],
+            'selection_cycle_id' => ['nullable', 'integer', 'exists:selection_cycles,id'],
+            'awarded_colours' => ['nullable', 'boolean'],
+            'appeared_at' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $awardsColours = (bool) ($validated['awarded_colours'] ?? false);
+
+        // If the admin is ticking the colours flag ON for this row and
+        // the shooter already has colours attached to a DIFFERENT row,
+        // reject. (Toggling the flag off, or saving the same row with
+        // colours already set, is fine.)
+        if ($awardsColours && ! $nationalTeam->awarded_colours) {
+            $existing = $nationalTeam->user?->proteaColoursAppearance()->first();
+            if ($existing !== null && $existing->id !== $nationalTeam->id) {
+                return redirect()->back()->withInput()->withErrors([
+                    'awarded_colours' => "This shooter was already awarded Protea Colours in {$existing->year} ({$existing->championship_name}). Uncheck the box on that other appearance first.",
+                ]);
+            }
+        }
+
+        $role = $validated['role'] ?? NationalTeamAppearance::ROLE_SHOOTER;
+
+        // Managers don't shoot — keep the invariant consistent even if
+        // the admin left the box ticked after switching the role.
+        if ($role === NationalTeamAppearance::ROLE_MANAGER) {
+            $awardsColours = false;
+        }
+
+        // Re-resolve (or create) the parent NationalTeam header, so that
+        // if the admin corrected the year or the championship name the
+        // appearance is now attached to the right team-year record.
+        $discipline = str_contains(strtolower((string) $validated['championship_name']), 'rimfire')
+            ? 'rimfire' : 'centrefire';
+        $team = NationalTeam::firstOrCreate(
+            [
+                'year' => $validated['year'],
+                'championship_name' => $validated['championship_name'],
+            ],
+            [
+                'discipline' => $discipline,
+                'host_country' => $validated['host_country'] ?? null,
+            ],
+        );
+
+        $previous = $nationalTeam->only([
+            'year', 'division_id', 'division_label', 'role', 'championship_name',
+            'host_country', 'placing', 'awarded_colours', 'notes', 'appeared_at',
+        ]);
+
+        $nationalTeam->update([
+            'year' => $validated['year'],
+            'division_id' => $validated['division_id'] ?? null,
+            'division_label' => $validated['division_label'] ?? null,
+            'role' => $role,
+            'national_team_id' => $team->id,
+            'championship_name' => $validated['championship_name'],
+            'host_country' => $validated['host_country'] ?? null,
+            'placing' => $validated['placing'] ?? null,
+            'selection_cycle_id' => $validated['selection_cycle_id'] ?? null,
+            'awarded_colours' => $awardsColours,
+            'appeared_at' => $validated['appeared_at'],
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'national_team_appearance_updated',
+            'NationalTeamAppearance',
+            $nationalTeam->id,
+            $previous,
+            $nationalTeam->only([
+                'year', 'division_id', 'division_label', 'role', 'championship_name',
+                'host_country', 'placing', 'awarded_colours', 'notes', 'appeared_at',
+            ]),
+            "National-team appearance updated ({$nationalTeam->user?->name} · {$nationalTeam->year})",
+        );
+
+        // If the admin came from the team year page (back_to=team_year)
+        // send them back there; otherwise return to the appearance list.
+        if ($request->input('back_to') === 'team_year') {
+            return redirect()
+                ->route('national-teams.edit', ['nationalTeam' => $team->id])
+                ->with('status', "Appearance updated for {$nationalTeam->user?->name}.");
+        }
+
+        return redirect()
+            ->route('national-team.index', ['year' => $nationalTeam->year])
+            ->with('success', 'Appearance updated.');
+    }
+
     public function destroy(Request $request, NationalTeamAppearance $nationalTeam): RedirectResponse
     {
         $snapshot = [
@@ -197,6 +310,7 @@ class NationalTeamAppearanceController extends Controller
             'year' => $nationalTeam->year,
             'championship_name' => $nationalTeam->championship_name,
             'awarded_colours' => $nationalTeam->awarded_colours,
+            'national_team_id' => $nationalTeam->national_team_id,
         ];
 
         // Wrap in a transaction so the auto-promote step below can't leave
@@ -235,6 +349,12 @@ class NationalTeamAppearanceController extends Controller
             null,
             "National-team appearance removed ({$snapshot['user_name']} · {$snapshot['year']})",
         );
+
+        if ($request->input('back_to') === 'team_year' && $snapshot['national_team_id'] ?? null) {
+            return redirect()
+                ->route('national-teams.edit', ['nationalTeam' => $snapshot['national_team_id']])
+                ->with('status', 'Appearance removed.');
+        }
 
         return redirect()
             ->route('national-team.index')
