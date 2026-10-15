@@ -130,6 +130,10 @@ class SeedNationalTeam2026Command extends Command
         // member (#1083) and a managed shell account auto-created from
         // a match entry. Pin the real one.
         'Tinus Cronje' => '1083',
+
+        // Magazine spells it "Le Riche Coetzer Snr" (two words); the SAPRF
+        // membership is "LeRiche Coetzer Snr" (one word), #16, Western Cape.
+        'Le Riche Coetzer Snr' => '16',
     ];
 
     public function handle(): int
