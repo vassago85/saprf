@@ -8,6 +8,7 @@ use App\Models\SelectionAthlete;
 use App\Models\SelectionCycle;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\Selection\DeclarationAttestations;
 use App\Services\Selection\EligibilityEvaluator;
 use App\Services\Selection\ParticipationEvaluator;
 use App\Services\Selection\SelectionAthleteStateService;
@@ -129,7 +130,13 @@ class SelectionAthleteController extends Controller
         $formRuleId = $policyElg['id'] ?? ($cycle->series === 'PR22' ? 'ELG-05' : 'ELG-06');
 
         $formData = $athlete->declaration?->form_data ?? [];
-        $attestations = $formData['attestations'] ?? null;
+        $attestations = null;
+        if (! empty($formData['attestations']) && is_array($formData['attestations'])) {
+            $attestations = [];
+            foreach ($formData['attestations'] as $key => $agreed) {
+                $attestations[] = ['label' => DeclarationAttestations::label($formData, (string) $key), 'agreed' => (bool) $agreed];
+            }
+        }
         $receivedChannel = $formData['received_channel'] ?? null;
 
         return view('selection.athletes.show', compact(

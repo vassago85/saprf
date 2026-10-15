@@ -67,6 +67,22 @@
                     <span class="block text-xs text-stone-500 mt-0.5">Three pools (Provincial / National / SA Champs) each contribute a % of the season total (out of 100).</span>
                 </span>
             </label>
+            <label class="flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition"
+                   :class="mode === 'best_n_plus_champs' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500' : 'border-stone-200 hover:border-stone-300'">
+                <input type="radio" name="scoring_mode" value="best_n_plus_champs" x-model="mode" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                <span class="text-sm">
+                    <span class="block font-semibold text-stone-900">Annual Log + Champs (PRS 2026)</span>
+                    <span class="block text-xs text-stone-500 mt-0.5">Best N national match %s plus a fixed, non-droppable SA Champs % (max N × 100 + 100).</span>
+                </span>
+            </label>
+            <label class="flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition"
+                   :class="mode === '{{ \App\Models\QualificationRule::MODE_NATIONAL_SERIES_2027 }}' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500' : 'border-stone-200 hover:border-stone-300'">
+                <input type="radio" name="scoring_mode" value="{{ \App\Models\QualificationRule::MODE_NATIONAL_SERIES_2027 }}" x-model="mode" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                <span class="text-sm">
+                    <span class="block font-semibold text-stone-900">2027 National Series</span>
+                    <span class="block text-xs text-stone-500 mt-0.5">Best N nationals (max {{ \App\Models\QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP }} from the home province) plus 2-day championships, each day weighted separately (max N × 100 + 200). Ties: championship score, then tiebreak stage.</span>
+                </span>
+            </label>
         </div>
     </div>
 
@@ -87,7 +103,7 @@
     </div>
 
     {{-- Best-of-N config (classic mode) --}}
-    <div x-show="mode === 'best_of_n'" x-cloak class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <div x-show="mode !== 'weighted_pools'" x-cloak class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
         <h2 class="text-sm font-semibold text-stone-700 mb-4">Best-Of Configuration</h2>
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
@@ -97,7 +113,7 @@
             </div>
         </div>
 
-        <div class="mt-6 border-t border-stone-100 pt-6" x-data="{ weighted: {{ old('weighted_final_enabled', $rule?->weighted_final_enabled) ? 'true' : 'false' }} }">
+        <div x-show="mode === 'best_of_n'" class="mt-6 border-t border-stone-100 pt-6" x-data="{ weighted: {{ old('weighted_final_enabled', $rule?->weighted_final_enabled) ? 'true' : 'false' }} }">
             <label class="flex items-start gap-2">
                 <input type="hidden" name="weighted_final_enabled" value="0">
                 <input type="checkbox" name="weighted_final_enabled" value="1" x-model="weighted" @checked(old('weighted_final_enabled', $rule?->weighted_final_enabled)) class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">

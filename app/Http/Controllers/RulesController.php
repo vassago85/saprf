@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SettingsService;
 use App\Support\MarkdownDocument;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Serves the SAPRF sport rulebooks (Rules & Regulations, Divisions, PR22
@@ -74,6 +77,17 @@ class RulesController extends Controller
             'pdf' => 'publications/pr22-rimfire-series-rules.pdf',
             'view' => 'rules.pr22-rimfire-series',
         ],
+        'national-series-2027' => [
+            'title' => 'SAPRF 2027 National Series, Championships and Selection',
+            'kicker' => 'SAPRF · Sport Rules',
+            'subtitle' => 'Centerfire and PR22 Rimfire · divisions, nationals, championships, the 500-point final ranking and 2028 team selection.',
+            'version' => null,
+            'effective_date' => '14 October 2026',
+            'blurb' => 'The rules governing the 2027 SAPRF national series and national championships for Centerfire and PR22 Rimfire, and how the final ranking feeds 2028 national team selection and SAPRF colours.',
+            'md' => 'docs/rules/national-series-2027.md',
+            'pdf' => 'publications/saprf-national-series-2027.pdf',
+            'view' => 'rules.national-series-2027',
+        ],
     ];
 
     public function rulesAndRegulations(): View
@@ -89,6 +103,25 @@ class RulesController extends Controller
     public function pr22RimfireSeries(): View
     {
         return $this->render('pr22-rimfire-series');
+    }
+
+    /**
+     * Parked until SAPRF announces the 2027 rules: the public gets a 404,
+     * owners/admins get a preview marked Draft.
+     */
+    public function nationalSeries2027(Request $request, SettingsService $settings): View
+    {
+        $published = $settings->nationalSeries2027Published();
+
+        if (! $published && ! $request->user()?->hasAnyRole(['owner', 'admin'])) {
+            throw new NotFoundHttpException();
+        }
+
+        return view(self::RULEBOOKS['national-series-2027']['view'], $this->props('national-series-2027') + [
+            'status' => $published
+                ? ['label' => 'Current', 'tone' => 'emerald']
+                : ['label' => 'Draft · not yet published', 'tone' => 'amber'],
+        ]);
     }
 
     /**
@@ -127,7 +160,7 @@ class RulesController extends Controller
                 ? Carbon::createFromTimestamp(filemtime($abs))
                 : null,
             'source_path' => $spec['md'],
-            'pdf_url' => $spec['pdf'] ? asset($spec['pdf']) : null,
+            'pdf_url' => $spec['pdf'] && is_file(public_path($spec['pdf'])) ? asset($spec['pdf']) : null,
         ];
     }
 

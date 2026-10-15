@@ -98,6 +98,67 @@ province).
 
 ---
 
+## 3a. 2027 National Series (both disciplines, parked until announced)
+
+The 2027 rules ([`docs/rules/national-series-2027.md`](../rules/national-series-2027.md))
+replace both models above with one final ranking out of **500**, for
+Centerfire and PR22 alike. Scoring mode `national_series_2027`.
+
+| Component | What counts | Max |
+|---|---|---|
+| Nationals | Best 3 national %s — **no more than 2 from your home province** | 300 |
+| Championships | Day 1 % + day 2 %, each against the highest raw score **of that day** | 200 |
+
+- A shooter with fewer than 3 counting nationals (e.g. all nationals at home)
+  stays on the log but is flagged **not selection eligible**.
+- Ties: higher championship score, then the championship tiebreak stage (more
+  impacts, then faster time — `scores.tiebreak_impacts` /
+  `scores.tiebreak_time_seconds`, importable as `Tiebreak` / `Tiebreak Time`
+  CSV columns).
+- The Open table includes the Factory results of anyone who has shot Open
+  that season (Factory → Open keeps scores); Factory only ever counts Factory.
+- Entering the championships needs 1 national + 1 provincial match in the
+  same discipline and season; self-registration is blocked until then.
+- If a championship was uploaded as a single total (no day 2 scores), the
+  match % stands in for both days and the breakdown is flagged
+  `days_split: false`.
+
+Switching it on:
+
+```bash
+php artisan saprf:national-series-2027 status
+php artisan saprf:national-series-2027 publish     # rules page + /documents + search
+php artisan saprf:national-series-2027 activate    # PRS + PR22 2027 rules -> national_series_2027, rebuild standings
+```
+
+### National team declaration form
+
+Being on the log is not enough: a shooter must also sign the national team
+declaration on `/iprf` for the selection cycle (2028 team). The tick-boxes
+come from the cycle's policy JSON; cycles without a list keep the original
+four. When the 2028 cycle's policy is written, include:
+
+```json
+"declaration": {
+    "attestations": [
+        {"key": "attend_if_selected", "text": "I will attend the :championship if selected."},
+        {"key": "report_unavailability", "text": "I will inform SAPRF immediately of ill health or any other circumstance that may prevent me from attending."},
+        {"key": "available_for_training", "text": "I will make myself available for any training, team building and competitions held before the championships."},
+        {"key": "sportsmanship", "text": "I will participate in a manner that reflects true sportsmanship and helps build team spirit."},
+        {"key": "financial_commitment", "text": "I accept the financial implications of attending, and will purchase any required team attire."},
+        {"key": "national_colours", "text": "I will wear the national colours proudly and put the needs of the country and the team ahead of my own."},
+        {"key": "abide_by_team_captain", "text": "I will follow the instructions of, and abide by the decisions made by, the team captain."},
+        {"key": "selectors_final", "text": "I accept that the decision of the selection committee is final."}
+    ]
+}
+```
+
+Every box is required, and the signature must match the account name.
+The texts the shooter ticked are stored with the declaration
+(`form_data.attestation_texts`), so ExCo sees exactly what was signed.
+
+---
+
 ## 4. Out-of-province nationals (both disciplines)
 
 Selection for a National Team requires you to have travelled — you can't just

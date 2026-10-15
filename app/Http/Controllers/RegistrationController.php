@@ -11,6 +11,7 @@ use App\Notifications\PaymentInquiryNotification;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\CreditRefundService;
+use App\Services\QualificationService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,6 +68,16 @@ class RegistrationController extends Controller
     {
         $user = $request->user();
         $match = MatchEvent::query()->findOrFail($request->validated('match_id'));
+
+        $champsEntry = app(QualificationService::class)->championshipEntryStatus($user, $match);
+        if (! $champsEntry['eligible']) {
+            return back()->with('error', sprintf(
+                'You can’t enter the championships yet. The SAPRF rules require 1 national and 1 provincial %s match first (nationals shot: %d, provincials shot: %d).',
+                $match->series,
+                $champsEntry['national'],
+                $champsEntry['provincial'],
+            ));
+        }
 
         $breakdown = $this->pricingService->calculateBreakdown($match, $user, $match->match_date);
 

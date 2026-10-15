@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SettingsService;
 use App\Support\DocumentSearch;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -40,6 +41,10 @@ use Illuminate\View\View;
  */
 class DocumentsController extends Controller
 {
+    public function __construct(private readonly SettingsService $settings)
+    {
+    }
+
     public function index(DocumentSearch $search): View
     {
         return view('documents.index', [
@@ -131,6 +136,14 @@ class DocumentsController extends Controller
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/rules/pr22-rimfire-series.md'),
                     ],
+                    ...($this->settings->nationalSeries2027Published() ? [[
+                        'title' => 'SAPRF 2027 National Series, Championships and Selection',
+                        'subtitle' => 'Centerfire + PR22 Rimfire · October 2026',
+                        'description' => 'Divisions, 1-day nationals, the 2-day championships, the 500-point final ranking (best 3 nationals + championships, max 2 from your home province), tie-breaks, and how the ranking feeds 2028 team selection and SAPRF colours.',
+                        'url' => route('rules.national-series-2027'),
+                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
+                        'last_updated' => $this->docMtime('docs/rules/national-series-2027.md'),
+                    ]] : []),
                 ],
             ],
             [

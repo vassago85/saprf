@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\QualificationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +20,7 @@ class UpdateQualificationRuleRequest extends FormRequest
         return [
             'series' => ['required', Rule::in(['PRS', 'PR22'])],
             'season' => ['required', 'string', 'max:10'],
-            'scoring_mode' => ['nullable', Rule::in(['best_of_n', 'weighted_pools'])],
+            'scoring_mode' => ['nullable', Rule::in(['best_of_n', 'weighted_pools', 'best_n_plus_champs', QualificationRule::MODE_NATIONAL_SERIES_2027])],
             'min_out_of_province_matches' => ['required', 'integer', 'min:0', 'max:20'],
             'best_of_count' => ['nullable', 'integer', 'min:1', 'max:20'],
             'total_qualifying_matches' => ['nullable', 'integer', 'min:1', 'max:30'],

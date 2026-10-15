@@ -61,7 +61,7 @@
                 @if($entry && ($entry['scoring_mode'] ?? null) === 'weighted_pools')
                     <span class="text-xs text-stone-400">Weighted pool total (out of 100)</span>
                 @elseif($entry && ($entry['pool_breakdown']['mode'] ?? null) === 'annual_log')
-                    <span class="text-xs text-stone-400">Best 3 nationals + SA Champs (out of 400)</span>
+                    <span class="text-xs text-stone-400">Best {{ $entry['pool_breakdown']['regular_best_of'] ?? 3 }} nationals + {{ ($entry['pool_breakdown']['champs_max'] ?? 100) > 100 ? '2-day championships' : 'SA Champs' }} (out of {{ $entry['pool_breakdown']['max'] ?? 400 }})</span>
                 @elseif($entry && $bestOf)
                     <span class="text-xs text-stone-400">Best {{ $bestOf }} scores count</span>
                 @elseif(! $entry)
@@ -79,6 +79,9 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
                             <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Best {{ $pb['regular_best_of'] ?? 3 }} Regular</span>
+                            @isset($pb['home_province_cap'])
+                                <span class="block text-[10px] text-stone-400 mt-0.5">Max {{ $pb['home_province_cap'] }} from your home province</span>
+                            @endisset
                             <div class="mt-2 flex items-baseline gap-1">
                                 <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format($pb['regular_total'] ?? 0, 2) }}</span>
                                 <span class="text-xs text-stone-400">/ {{ ($pb['regular_best_of'] ?? 3) * 100 }}</span>
@@ -103,7 +106,7 @@
                             <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">SA Champs</span>
                             <div class="mt-2 flex items-baseline gap-1">
                                 <span class="text-2xl font-bold text-amber-800 tabular-nums">{{ number_format($pb['champs_pct'] ?? 0, 2) }}</span>
-                                <span class="text-xs text-stone-400">/ 100</span>
+                                <span class="text-xs text-stone-400">/ {{ $pb['champs_max'] ?? 100 }}</span>
                             </div>
                             <div class="mt-2 text-[11px] text-stone-500">
                                 @if(!empty($pb['champs']))
@@ -113,6 +116,12 @@
                                             <span class="text-stone-400">&middot; {{ $matchDates[$pb['champs']['match_id']]->format('d M Y') }}</span>
                                         @endif
                                     </span>
+                                    @isset($pb['champs']['day1_pct'])
+                                        <div class="mt-1 flex items-center justify-between gap-2 font-mono">
+                                            <span>Day 1 {{ number_format($pb['champs']['day1_pct'], 2) }}%</span>
+                                            <span>Day 2 {{ number_format($pb['champs']['day2_pct'], 2) }}%</span>
+                                        </div>
+                                    @endisset
                                 @else
                                     <span class="text-stone-400">Champs not shot — fixed at 0 (cannot be replaced by a regular match).</span>
                                 @endif
@@ -123,6 +132,11 @@
                         <span class="text-xs font-semibold uppercase tracking-wider">Annual Total</span>
                         <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 2) }} / {{ $pb['max'] ?? 400 }}</span>
                     </div>
+                    @if(($pb['selection_eligible'] ?? true) === false)
+                        <p class="mt-2 text-[11px] text-amber-700">
+                            Not yet eligible for selection: {{ $pb['selection_note'] ?? 'fewer than 3 counting national results.' }}
+                        </p>
+                    @endif
                 </div>
             {{-- Best-of-N breakdown card. Used for any series whose
                  QualificationRule is missing or set to a plain best-of-N

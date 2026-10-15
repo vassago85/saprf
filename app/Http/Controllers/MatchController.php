@@ -20,6 +20,7 @@ use App\Services\FinancialService;
 use App\Services\GuestShooterService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
+use App\Services\QualificationService;
 use App\Services\RegistrationPricingService;
 use App\Services\ScoreValidationService;
 use App\Services\SettingsService;
@@ -878,6 +879,17 @@ class MatchController extends Controller
 
         if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
             return back()->with('error', 'Registration is not available for this match.');
+        }
+
+        $champsEntry = app(QualificationService::class)->championshipEntryStatus($shooter, $match);
+        if (! $champsEntry['eligible']) {
+            return back()->with('error', sprintf(
+                '%s can’t enter the championships yet. The SAPRF rules require 1 national and 1 provincial %s match first (nationals shot: %d, provincials shot: %d).',
+                $shooter->id === $actor->id ? 'You' : $shooter->name,
+                $match->series,
+                $champsEntry['national'],
+                $champsEntry['provincial'],
+            ));
         }
 
         $allowedDivisionIds = $match->availableDivisions()->pluck('id')->all();

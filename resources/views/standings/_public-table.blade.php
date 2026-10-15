@@ -187,6 +187,9 @@
                                         <span class="rounded bg-emerald-50 text-emerald-700 px-1 py-0.5" title="Best {{ $standing->pool_breakdown['regular_best_of'] ?? 3 }} regular (national) matches: {{ $standing->pool_breakdown['regular_counted'] ?? 0 }} counted">R {{ number_format($standing->pool_breakdown['regular_total'] ?? 0, 1) }}</span>
                                         <span class="rounded bg-amber-50 text-amber-700 px-1 py-0.5" title="SA Champs (fixed, not droppable)">C {{ number_format($standing->pool_breakdown['champs_pct'] ?? 0, 1) }}</span>
                                     </div>
+                                    @if(($standing->pool_breakdown['selection_eligible'] ?? true) === false)
+                                        <span class="block mt-1 text-[10px] text-amber-700" title="{{ $standing->pool_breakdown['selection_note'] ?? '' }}">Not selection eligible</span>
+                                    @endif
                                 @elseif(($standing->pool_breakdown['mode'] ?? null) === 'best_of_n')
                                     {{-- Provincial standings (PR22 provincial + legacy best-of-N): sum of best-N normalized scores. --}}
                                     @php $bo = (int) ($standing->pool_breakdown['best_of'] ?? 0); @endphp

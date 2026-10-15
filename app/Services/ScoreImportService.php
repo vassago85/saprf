@@ -112,6 +112,12 @@ class ScoreImportService
                         }
                     }
 
+                    foreach (['tiebreak_impacts', 'tiebreak_time_seconds'] as $tiebreakColumn) {
+                        if (isset($row[$tiebreakColumn]) && is_numeric($row[$tiebreakColumn])) {
+                            $attributes[$tiebreakColumn] = $row[$tiebreakColumn];
+                        }
+                    }
+
                     $score->fill($attributes);
                     $score->save();
 
@@ -621,6 +627,10 @@ class ScoreImportService
 
             // Placement / rank
             'place', 'rank', 'position' => 'placement',
+
+            // Championship timed tiebreak stage
+            'tiebreak', 'tie_break', 'tiebreak_impacts', 'tie_break_impacts', 'tb_impacts' => 'tiebreak_impacts',
+            'tiebreak_time', 'tie_break_time', 'tiebreak_time_seconds', 'tb_time' => 'tiebreak_time_seconds',
 
             // Division (Impact uses "Div"; also accept "Class"/"Category" since
             // under the flat-division model demographic classes are divisions too).

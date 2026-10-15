@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\QualificationRule;
 use App\Models\Score;
@@ -29,7 +30,7 @@ class StandingsCalculationService
         // provincial, every province's table has to be rebuilt (attribution
         // follows the shooter's home province, so any province can be
         // affected regardless of the host).
-        if ($rule && $rule->isAnnualLogWithChamps()) {
+        if ($rule && $rule->usesNationalLog()) {
             $this->recalculateSeasonStandings($match->series, $season);
             if ($match->series_level === 'provincial') {
                 $this->recalculateProvincialStandings($match->series, $season);
@@ -166,7 +167,7 @@ class StandingsCalculationService
         // scores" — using the same best_of_count as the annual log. This
         // parallels PR22 (provincial standing = sum of best-N provincial
         // scores) so both series share one provincial rule.
-        if ($rule && $rule->isAnnualLogWithChamps()) {
+        if ($rule && $rule->usesNationalLog()) {
             if (! $isProvincial) {
                 $this->recalculateAnnualLogStandings($series, $season, $rule);
 
@@ -289,7 +290,7 @@ class StandingsCalculationService
     public function recalculateAnnualLogStandings(string $series, string $season, QualificationRule $rule): void
     {
         $scores = Score::query()
-            ->with(['match'])
+            ->with(['match', 'user:id,province_id'])
             ->where('status', 'valid')
             ->where('counts_for_season', true)
             ->whereNotNull('user_id')
@@ -314,6 +315,12 @@ class StandingsCalculationService
             ->where('season', $season)
             ->whereNull('province_id')
             ->delete();
+
+        if ($rule->isNationalSeries2027()) {
+            $this->persistNationalSeries2027($scores, $series, $season, $regularBestOf);
+
+            return;
+        }
 
         $overall = $this->aggregatePrsAnnualLog($scores, 'overall', $regularBestOf);
         $this->persistCompetitionRankedStandings($overall, $series, $season, null, null);
@@ -390,6 +397,259 @@ class StandingsCalculationService
             })
             ->sortByDesc('points')
             ->values();
+    }
+
+    /**
+     * 2027 national series final ranking: overall table plus one table per
+     * division. The Open table also carries the Factory results of anyone
+     * who has shot Open this season — a Factory rifle meets the Open rules,
+     * so a shooter moving Factory → Open keeps their scores. The reverse
+     * does not apply: the Factory table only ever holds Factory results.
+     */
+    private function persistNationalSeries2027(Collection $scores, string $series, string $season, int $bestOf): void
+    {
+        $dayMaxima = $this->championshipDayMaxima($scores);
+
+        $overall = $this->aggregateNationalSeries2027($scores, $bestOf, $dayMaxima);
+        $this->persistTieBrokenStandings($overall, $series, $season, null);
+
+        $slugs = Division::query()
+            ->whereIn('id', $scores->pluck('division_id')->filter()->unique())
+            ->pluck('slug', 'id');
+        $factoryId = $slugs->search('factory');
+
+        foreach ($slugs as $divisionId => $slug) {
+            $divScores = $scores->where('division_id', $divisionId);
+
+            if ($slug === 'open' && $factoryId !== false) {
+                $openShooters = $divScores->pluck('user_id')->unique()->all();
+                $divScores = $divScores->concat(
+                    $scores->where('division_id', $factoryId)->whereIn('user_id', $openShooters)
+                );
+            }
+
+            $divTotals = $this->aggregateNationalSeries2027($divScores, $bestOf, $dayMaxima);
+            $this->persistTieBrokenStandings($divTotals, $series, $season, (int) $divisionId);
+        }
+    }
+
+    /**
+     * Highest day-1 and day-2 raw score at each championship (final) match,
+     * across every visible score regardless of division or membership — the
+     * same baseline calculateMatchRankings() uses for a match total.
+     *
+     * @return array<int, array{day1: float, day2: float}>
+     */
+    private function championshipDayMaxima(Collection $scores): array
+    {
+        $finalIds = $scores
+            ->filter(fn (Score $s) => $s->match?->series_level === 'final')
+            ->pluck('match_id')
+            ->unique()
+            ->values();
+
+        if ($finalIds->isEmpty()) {
+            return [];
+        }
+
+        return Score::query()
+            ->whereIn('match_id', $finalIds)
+            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+            ->selectRaw('match_id, MAX(day1_raw_score) AS day1_max, MAX(day2_raw_score) AS day2_max')
+            ->groupBy('match_id')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->match_id => [
+                'day1' => (float) $row->day1_max,
+                'day2' => (float) $row->day2_max,
+            ]])
+            ->all();
+    }
+
+    /**
+     * total = best $bestOf national %s (at most HOME_PROVINCE_CAP of them
+     *         from the shooter's home province)
+     *       + championship day 1 % + day 2 % (each day weighted against the
+     *         highest raw score of that day; max 200)
+     *
+     * A shooter with fewer than $bestOf counting nationals (including one
+     * whose nationals were all at home) keeps their points on the log but
+     * is flagged selection_eligible = false.
+     *
+     * The breakdown keeps the annual_log shape (regular[], champs, max) so
+     * the standings, profile and division views render it unchanged.
+     *
+     * @param  array<int, array{day1: float, day2: float}>  $dayMaxima
+     * @return Collection<int, array{user_id:int, points:float, pool_breakdown:array}>
+     */
+    private function aggregateNationalSeries2027(Collection $scores, int $bestOf, array $dayMaxima): Collection
+    {
+        $homeCap = QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP;
+
+        return $scores
+            ->groupBy('user_id')
+            ->map(function (Collection $userScores, int $userId) use ($bestOf, $homeCap, $dayMaxima): array {
+                $homeProvinceId = $userScores->first()?->user?->province_id;
+
+                $nationals = $userScores
+                    ->filter(fn (Score $s) => $s->match?->series_level === 'national')
+                    ->map(fn (Score $s) => [
+                        'match_id' => $s->match_id,
+                        'match_name' => $s->match?->name,
+                        'pct' => round((float) ($s->normalized_score ?? 0), 2),
+                        'home' => $homeProvinceId !== null && $s->match?->province_id === $homeProvinceId,
+                    ])
+                    ->sortByDesc('pct')
+                    ->unique('match_id')
+                    ->values();
+
+                // Greedy best-first pick is optimal under a single cap.
+                $counted = collect();
+                $homeCounted = 0;
+                foreach ($nationals as $row) {
+                    if ($counted->count() >= $bestOf) {
+                        break;
+                    }
+                    if ($row['home']) {
+                        if ($homeCounted >= $homeCap) {
+                            continue;
+                        }
+                        $homeCounted++;
+                    }
+                    $counted->push($row);
+                }
+
+                $regularTotal = round((float) $counted->sum('pct'), 2);
+
+                $champs = $userScores
+                    ->filter(fn (Score $s) => $s->match?->series_level === 'final')
+                    ->map(fn (Score $s) => $this->championshipResult($s, $dayMaxima))
+                    ->sortByDesc('pct')
+                    ->values()
+                    ->first();
+                $champsPct = $champs ? (float) $champs['pct'] : 0.0;
+
+                $total = round($regularTotal + $champsPct, 2);
+
+                $selectionEligible = $counted->count() >= $bestOf && $homeProvinceId !== null;
+                $selectionNote = match (true) {
+                    $homeProvinceId === null => 'No home province on the shooter profile, so the out-of-province rule cannot be checked.',
+                    $counted->count() >= $bestOf => null,
+                    $nationals->isNotEmpty() && $nationals->every(fn (array $n) => $n['home']) => 'All nationals shot in the home province; at least 1 must be outside it.',
+                    default => "Fewer than {$bestOf} counting national results.",
+                };
+
+                return [
+                    'user_id' => $userId,
+                    'points' => $total,
+                    'pool_breakdown' => [
+                        'mode' => 'annual_log',
+                        'variant' => QualificationRule::MODE_NATIONAL_SERIES_2027,
+                        'regular' => $counted->all(),
+                        'regular_counted' => $counted->count(),
+                        'regular_best_of' => $bestOf,
+                        'regular_total' => $regularTotal,
+                        'nationals_shot' => $nationals->count(),
+                        'home_province_cap' => $homeCap,
+                        'home_counted' => $homeCounted,
+                        'out_of_province_counted' => $counted->count() - $homeCounted,
+                        'champs' => $champs,
+                        'champs_pct' => round($champsPct, 2),
+                        'champs_max' => 200,
+                        'selection_eligible' => $selectionEligible,
+                        'selection_note' => $selectionNote,
+                        'max' => $bestOf * 100 + 200,
+                        'total' => $total,
+                    ],
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * One championship score as day 1 % + day 2 %, each against the highest
+     * raw score of that day. When no day 2 scores were captured for the
+     * match (a single total was uploaded), the match % stands in for both
+     * days and the row is flagged days_split = false.
+     *
+     * @param  array<int, array{day1: float, day2: float}>  $dayMaxima
+     * @return array<string, mixed>
+     */
+    private function championshipResult(Score $score, array $dayMaxima): array
+    {
+        $max = $dayMaxima[$score->match_id] ?? ['day1' => 0.0, 'day2' => 0.0];
+        $daysSplit = $max['day2'] > 0;
+
+        if ($daysSplit) {
+            $day1 = $max['day1'] > 0 ? (float) ($score->day1_raw_score ?? 0) / $max['day1'] * 100 : 0.0;
+            $day2 = (float) ($score->day2_raw_score ?? 0) / $max['day2'] * 100;
+        } else {
+            $day1 = $day2 = (float) ($score->normalized_score ?? 0);
+        }
+
+        return [
+            'match_id' => $score->match_id,
+            'match_name' => $score->match?->name,
+            'day1_pct' => round($day1, 2),
+            'day2_pct' => round($day2, 2),
+            'pct' => round($day1 + $day2, 2),
+            'days_split' => $daysSplit,
+            'tiebreak_impacts' => $score->tiebreak_impacts,
+            'tiebreak_time_seconds' => $score->tiebreak_time_seconds !== null ? (float) $score->tiebreak_time_seconds : null,
+        ];
+    }
+
+    /**
+     * Rank on points, then championship score, then the championship
+     * tiebreak stage (more impacts, then faster time). Shooters share a rank
+     * only when every one of those is equal (1, 2, 2, 4).
+     *
+     * @param  Collection<int, array{user_id:int, points:float, pool_breakdown:array}>  $totals
+     */
+    private function persistTieBrokenStandings(Collection $totals, string $series, string $season, ?int $divisionId): void
+    {
+        $ordered = $totals->sort(function (array $a, array $b): int {
+            [$aPoints, $aChamps, $aImpacts, $aTime] = $this->tieBreakKey($a);
+            [$bPoints, $bChamps, $bImpacts, $bTime] = $this->tieBreakKey($b);
+
+            return [$bPoints, $bChamps, $bImpacts, $aTime] <=> [$aPoints, $aChamps, $aImpacts, $bTime];
+        })->values();
+
+        $rank = 0;
+        $previousKey = null;
+
+        foreach ($ordered as $position => $row) {
+            $key = $this->tieBreakKey($row);
+            if ($key !== $previousKey) {
+                $rank = $position + 1;
+                $previousKey = $key;
+            }
+
+            Standing::create([
+                'user_id' => (int) $row['user_id'],
+                'series' => $series,
+                'season' => $season,
+                'province_id' => null,
+                'division_id' => $divisionId,
+                'points' => (float) $row['points'],
+                'rank' => $rank,
+                'pool_breakdown' => $row['pool_breakdown'],
+            ]);
+        }
+    }
+
+    /**
+     * @return array{0: float, 1: float, 2: int, 3: float}
+     */
+    private function tieBreakKey(array $row): array
+    {
+        $champs = $row['pool_breakdown']['champs'] ?? null;
+
+        return [
+            round((float) $row['points'], 2),
+            round((float) ($row['pool_breakdown']['champs_pct'] ?? 0), 2),
+            (int) ($champs['tiebreak_impacts'] ?? -1),
+            (float) ($champs['tiebreak_time_seconds'] ?? PHP_FLOAT_MAX),
+        ];
     }
 
     /**

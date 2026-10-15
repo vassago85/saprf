@@ -10,6 +10,7 @@ use App\Models\SelectionDeclaration;
 use App\Models\User;
 use App\Notifications\SelectionDeclarationSubmittedNotification;
 use App\Services\AuditLogService;
+use App\Services\Selection\DeclarationAttestations;
 use App\Services\Selection\EligibilityEvaluator;
 use App\Services\Selection\ParticipationEvaluator;
 use App\Services\Selection\SelectionAthleteStateService;
@@ -72,6 +73,7 @@ class ShooterSelectionController extends Controller
                 'is_writable' => $this->isWritable($cycle),
                 'has_submitted_form' => $athlete?->declaration?->status === SelectionDeclaration::STATUS_SUBMITTED,
                 'profile_complete' => $this->profileIsComplete($user),
+                'attestations' => DeclarationAttestations::forCycle($cycle),
             ];
         });
 
@@ -214,17 +216,15 @@ class ShooterSelectionController extends Controller
                 ->withInput();
         }
 
+        $attestations = $request->attestations();
+
         $formData = [
             // ELG-05 / ELG-06 boolean read by the ruleset. Submission = received.
             'eligibility_to_compete_received' => true,
             'received_channel' => 'online_form',
             'received_at' => now()->toIso8601String(),
-            'attestations' => [
-                'intention_to_participate' => true,
-                'able_and_willing' => true,
-                'satisfy_preconditions' => true,
-                'no_impairment' => true,
-            ],
+            'attestations' => array_fill_keys(array_keys($attestations), true),
+            'attestation_texts' => $attestations,
             'signature' => $signature,
             'notes' => $request->input('notes'),
             'submitted_by_user_id' => $user->id,

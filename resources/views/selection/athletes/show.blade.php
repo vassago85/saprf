@@ -156,10 +156,9 @@
                         <div class="mt-3 rounded-lg border border-stone-200 bg-stone-50/60 p-3 text-xs text-stone-700 space-y-1">
                             <p class="font-semibold text-stone-600">Attestations submitted</p>
                             <ul class="space-y-0.5">
-                                <li>{{ ($attestations['intention_to_participate'] ?? false) ? '✓' : '✗' }} Intention to participate</li>
-                                <li>{{ ($attestations['able_and_willing'] ?? false) ? '✓' : '✗' }} Able and willing to undertake the programme</li>
-                                <li>{{ ($attestations['satisfy_preconditions'] ?? false) ? '✓' : '✗' }} Will satisfy ExCo preconditions</li>
-                                <li>{{ ($attestations['no_impairment'] ?? false) ? '✓' : '✗' }} No impairment</li>
+                                @foreach ($attestations as $attestation)
+                                    <li>{{ $attestation['agreed'] ? '✓' : '✗' }} {{ $attestation['label'] }}</li>
+                                @endforeach
                             </ul>
                             @if (! empty($formData['signature']))
                                 <p class="mt-2 text-stone-500">Signature: <span class="font-mono">{{ $formData['signature'] }}</span></p>

@@ -123,6 +123,7 @@ Route::get('/social-media-policy', [LegalController::class, 'socialMediaPolicy']
 Route::get('/rules', [RulesController::class, 'rulesAndRegulations'])->name('rules.regulations');
 Route::get('/rules/divisions', [RulesController::class, 'divisions'])->name('rules.divisions');
 Route::get('/rules/pr22-rimfire', [RulesController::class, 'pr22RimfireSeries'])->name('rules.pr22-rimfire');
+Route::get('/rules/national-series-2027', [RulesController::class, 'nationalSeries2027'])->name('rules.national-series-2027');
 
 // Public FAQ. Markdown source at docs/faq.md; controller splits on H2 for accordion rendering.
 Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');

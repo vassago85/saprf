@@ -309,3 +309,66 @@ it('auto-registers the athlete when the form is submitted without a prior opt-in
     expect(AuditLog::where('action_type', 'selection_athlete_self_opted_in')->count())->toBe(1);
     expect(AuditLog::where('action_type', 'selection_declaration_submitted_online')->count())->toBe(1);
 });
+
+function giveCycleTeamDeclaration(SelectionCycle $cycle): SelectionCycle
+{
+    $policy = $cycle->activePolicy;
+    $spec = $policy->spec_json;
+    $spec['declaration'] = ['attestations' => [
+        ['key' => 'attend_if_selected', 'text' => 'I will attend the :championship if selected.'],
+        ['key' => 'abide_by_team_captain', 'text' => 'I will follow the instructions of, and abide by the decisions made by, the team captain.'],
+    ]];
+    $policy->forceFill(['spec_json' => $spec])->save();
+
+    return $cycle->fresh(['activePolicy']);
+}
+
+it('renders the cycle-specific declaration commitments instead of the defaults', function () {
+    $cycle = giveCycleTeamDeclaration(makeShooterCycle());
+    $user = makeShooterUser();
+
+    $this->actingAs($user)
+        ->get(route('iprf.index'))
+        ->assertOk()
+        ->assertSee('I will attend the IPRF PR22 Team World Championships 2027 if selected.')
+        ->assertSee('abide by the decisions made by, the team captain', false)
+        ->assertDontSee('name="no_impairment"', false);
+});
+
+it('refuses a cycle-specific declaration unless the team captain commitment is ticked', function () {
+    $cycle = giveCycleTeamDeclaration(makeShooterCycle());
+    $user = makeShooterUser();
+
+    $this->actingAs($user)->post(route('iprf.form', $cycle), [
+        'attend_if_selected' => '1',
+        'signature' => $user->name,
+    ])->assertSessionHasErrors('abide_by_team_captain');
+
+    expect(SelectionDeclaration::query()->count())->toBe(0);
+});
+
+it('stores exactly the commitments the shooter signed for a cycle-specific declaration', function () {
+    $cycle = giveCycleTeamDeclaration(makeShooterCycle());
+    $user = makeShooterUser();
+
+    $this->actingAs($user)->post(route('iprf.form', $cycle), [
+        'attend_if_selected' => '1',
+        'abide_by_team_captain' => '1',
+        'signature' => $user->name,
+    ])->assertRedirect(route('iprf.index'));
+
+    $formData = SelectionDeclaration::query()->firstOrFail()->form_data;
+
+    expect($formData['attestations'])->toBe(['attend_if_selected' => true, 'abide_by_team_captain' => true])
+        ->and($formData['attestation_texts']['attend_if_selected'])->toBe('I will attend the IPRF PR22 Team World Championships 2027 if selected.')
+        ->and($formData['eligibility_to_compete_received'])->toBeTrue();
+
+    $owner = User::factory()->create();
+    $owner->assignRole('owner');
+    $athlete = SelectionAthlete::forCycle($cycle->id)->where('user_id', $user->id)->firstOrFail();
+
+    $this->actingAs($owner)
+        ->get(route('selection.cycles.athletes.show', [$cycle, $athlete]))
+        ->assertOk()
+        ->assertSee('abide by the decisions made by, the team captain', false);
+});

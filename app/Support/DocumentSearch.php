@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Services\SettingsService;
 use Illuminate\Support\Str;
 
 /**
@@ -57,6 +58,7 @@ class DocumentSearch
      *   route: string,
      *   route_params?: array<string, string>,
      *   md_path: string,
+     *   published_setting?: string,
      * }>
      */
     private const CORPUS = [
@@ -77,6 +79,13 @@ class DocumentSearch
             'kicker' => 'Sport Rules',
             'route' => 'rules.pr22-rimfire',
             'md_path' => 'docs/rules/pr22-rimfire-series.md',
+        ],
+        [
+            'doc_title' => 'SAPRF 2027 National Series, Championships and Selection',
+            'kicker' => 'Sport Rules',
+            'route' => 'rules.national-series-2027',
+            'md_path' => 'docs/rules/national-series-2027.md',
+            'published_setting' => SettingsService::NATIONAL_SERIES_2027_PUBLISHED,
         ],
         [
             'doc_title' => 'PR22 Team Selection (Rimfire) — 2027',
@@ -172,11 +181,10 @@ class DocumentSearch
 
         $hits = [];
         foreach (self::CORPUS as $doc) {
-            $abs = base_path($doc['md_path']);
-            if (! is_file($abs)) {
+            if (! $this->isAvailable($doc)) {
                 continue;
             }
-            $md = (string) file_get_contents($abs);
+            $md = (string) file_get_contents(base_path($doc['md_path']));
 
             $lowerDocTitle = mb_strtolower($doc['doc_title']);
             $sections = $this->splitSections($md, $doc['doc_title']);
@@ -374,10 +382,29 @@ class DocumentSearch
     {
         $n = 0;
         foreach (self::CORPUS as $doc) {
-            if (is_file(base_path($doc['md_path']))) {
+            if ($this->isAvailable($doc)) {
                 $n++;
             }
         }
         return $n;
+    }
+
+    /**
+     * A document is searchable once its markdown is on disk and, for parked
+     * documents carrying a `published_setting`, once that setting is '1'.
+     *
+     * @param  array{md_path: string, published_setting?: string}  $doc
+     */
+    private function isAvailable(array $doc): bool
+    {
+        if (! is_file(base_path($doc['md_path']))) {
+            return false;
+        }
+
+        if (isset($doc['published_setting'])) {
+            return (string) app(SettingsService::class)->get($doc['published_setting'], '0') === '1';
+        }
+
+        return true;
     }
 }

@@ -35,6 +35,7 @@
                 $writable = $entry['is_writable'];
                 $hasForm = $entry['has_submitted_form'];
                 $profileComplete = $entry['profile_complete'];
+                $attestations = $entry['attestations'];
                 $policyRoute = route('selection.policy.public', ['series' => strtolower($cycle->series)]);
             @endphp
 
@@ -150,25 +151,12 @@
                             @endif
 
                             <div class="space-y-2 text-sm text-stone-700">
-                                <label class="flex items-start gap-3">
-                                    <input type="checkbox" name="intention_to_participate" value="1" class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" @checked(old('intention_to_participate'))>
-                                    <span>I declare my intention to participate in the {{ $cycle->championship_name ?: ($cycle->series.' '.$cycle->season) }}.</span>
-                                </label>
-                                <label class="flex items-start gap-3">
-                                    <input type="checkbox" name="able_and_willing" value="1" class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" @checked(old('able_and_willing'))>
-                                    <span>I am able and willing to undertake the matches, training and competition programme
-                                        recommended by ExCo and the Selectors, unless a written exemption is granted.</span>
-                                </label>
-                                <label class="flex items-start gap-3">
-                                    <input type="checkbox" name="satisfy_preconditions" value="1" class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" @checked(old('satisfy_preconditions'))>
-                                    <span>I will satisfy any additional preconditions advised in writing by ExCo
-                                        prior to or at the time of selection.</span>
-                                </label>
-                                <label class="flex items-start gap-3">
-                                    <input type="checkbox" name="no_impairment" value="1" class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" @checked(old('no_impairment'))>
-                                    <span>I confirm that I am not suffering any physical or mental impairment that may
-                                        prevent me from competing at the highest possible standard.</span>
-                                </label>
+                                @foreach ($attestations as $key => $text)
+                                    <label class="flex items-start gap-3">
+                                        <input type="checkbox" name="{{ $key }}" value="1" class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" @checked(old($key))>
+                                        <span>{{ $text }}</span>
+                                    </label>
+                                @endforeach
                             </div>
 
                             <div>

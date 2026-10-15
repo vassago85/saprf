@@ -11,6 +11,8 @@ class SettingsService
 
     private const CACHE_TTL = 3600;
 
+    public const NATIONAL_SERIES_2027_PUBLISHED = 'national_series_2027_published';
+
     public function get(string $key, mixed $default = null): mixed
     {
         $settings = $this->all();
@@ -70,6 +72,16 @@ class SettingsService
     public function cancellationRefundsEnabled(): bool
     {
         return (string) $this->get('cancellation_refunds_enabled', '0') === '1';
+    }
+
+    /**
+     * The 2027 national series rules document stays parked (owner/admin
+     * preview only, off /documents and search) until SAPRF announces it.
+     * Flipped by `php artisan saprf:national-series-2027 publish`.
+     */
+    public function nationalSeries2027Published(): bool
+    {
+        return (string) $this->get(self::NATIONAL_SERIES_2027_PUBLISHED, '0') === '1';
     }
 
     /**

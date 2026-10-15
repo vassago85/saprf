@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QualificationRule extends Model
 {
+    public const MODE_NATIONAL_SERIES_2027 = 'national_series_2027';
+
+    /**
+     * 2027 rules: no more than 2 of the best 3 nationals may come from the
+     * shooter's home province.
+     */
+    public const NATIONAL_SERIES_2027_HOME_PROVINCE_CAP = 2;
+
     protected $fillable = [
         'series',
         'season',
@@ -50,6 +58,27 @@ class QualificationRule extends Model
     public function isAnnualLogWithChamps(): bool
     {
         return $this->scoring_mode === 'best_n_plus_champs';
+    }
+
+    /**
+     * 2027 national series final ranking (max 500): best 3 nationals with at
+     * most 2 from the shooter's home province, plus the 2-day championships
+     * with each day weighted separately (max 200). Ties go to the higher
+     * championship score, then the championship tiebreak stage.
+     */
+    public function isNationalSeries2027(): bool
+    {
+        return $this->scoring_mode === self::MODE_NATIONAL_SERIES_2027;
+    }
+
+    /**
+     * Both the PRS annual log and the 2027 national series build the national
+     * table from national + final matches only, with provincial matches
+     * feeding a separate best-of-N provincial table.
+     */
+    public function usesNationalLog(): bool
+    {
+        return $this->isAnnualLogWithChamps() || $this->isNationalSeries2027();
     }
 
     /**

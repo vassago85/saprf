@@ -40,6 +40,54 @@ class QualificationService
     }
 
     /**
+     * 2027 rules: entering the championships (a final-level match) needs 1
+     * national and 1 provincial match in the same discipline and season.
+     * Any shot match counts, whatever the shooter's membership status was on
+     * the day. `applies` is false for every other match or scoring mode.
+     *
+     * @return array{applies:bool, national:int, provincial:int, eligible:bool}
+     */
+    public function championshipEntryStatus(User $user, MatchEvent $match): array
+    {
+        $season = $match->season ?: (string) $match->match_date->year;
+
+        $applies = $match->series_level === 'final'
+            && QualificationRule::query()
+                ->where('series', $match->series)
+                ->where('season', $season)
+                ->where('scoring_mode', QualificationRule::MODE_NATIONAL_SERIES_2027)
+                ->exists();
+
+        if (! $applies) {
+            return ['applies' => false, 'national' => 0, 'provincial' => 0, 'eligible' => true];
+        }
+
+        $levels = $user->exists
+            ? Score::query()
+                ->where('user_id', $user->id)
+                ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+                ->whereHas('match', fn ($q) => $q
+                    ->where('series', $match->series)
+                    ->where('season', $season)
+                    ->whereIn('series_level', ['national', 'provincial']))
+                ->with('match:id,series_level')
+                ->get()
+                ->unique('match_id')
+                ->map(fn (Score $score) => $score->match?->series_level)
+            : collect();
+
+        $national = $levels->filter(fn ($level) => $level === 'national')->count();
+        $provincial = $levels->filter(fn ($level) => $level === 'provincial')->count();
+
+        return [
+            'applies' => true,
+            'national' => $national,
+            'provincial' => $provincial,
+            'eligible' => $national >= 1 && $provincial >= 1,
+        ];
+    }
+
+    /**
      * Bulk equivalent of getQualificationStatus() for a batch of shooters.
      * Used by the public standings leaderboard to render the finale-eligibility
      * ✓ next to each shooter's name without triggering a per-row query.
@@ -200,6 +248,35 @@ class QualificationService
             ];
         }
 
+        if ($rule->isNationalSeries2027()) {
+            $bestOf = $rule->regularBestOf();
+            $homeCap = QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP;
+
+            return [
+                [
+                    'key' => 'national',
+                    'label' => 'Best nationals',
+                    'completed' => $levelCounts['national'],
+                    'required' => $bestOf,
+                    'detail' => "Best {$bestOf} national %s · max {$homeCap} from your home province",
+                ],
+                [
+                    'key' => 'champs_entry',
+                    'label' => 'Championship entry',
+                    'completed' => min(1, $levelCounts['national']) + min(1, $levelCounts['provincial']),
+                    'required' => 2,
+                    'detail' => '1 national + 1 provincial match',
+                ],
+                [
+                    'key' => 'champs',
+                    'label' => 'Championships (2 days)',
+                    'completed' => $levelCounts['final'],
+                    'required' => 1,
+                    'detail' => 'Each day weighted separately · max 200',
+                ],
+            ];
+        }
+
         if ($rule->isAnnualLogWithChamps()) {
             $regularBestOf = $rule->regularBestOf();
 
@@ -239,6 +316,12 @@ class QualificationService
     {
         if ($rule->isPooledScoring()) {
             return 'Weighted pools: provincial, national, and SA Champs each contribute to the season total.';
+        }
+
+        if ($rule->isNationalSeries2027()) {
+            $n = $rule->regularBestOf();
+
+            return "2027 national series: best {$n} nationals (max ".QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP." from your home province) plus the 2-day championships, out of 500.";
         }
 
         if ($rule->isAnnualLogWithChamps()) {
