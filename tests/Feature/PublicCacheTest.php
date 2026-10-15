@@ -12,44 +12,41 @@ beforeEach(function () {
     Cache::flush();
 });
 
+/*
+ * Regression harness for the "500 on the second request" bug.
+ *
+ * The public /sa-team, /media and home-feature band controllers USED to
+ * wrap their query results in Cache::remember(). That worked on the first
+ * request (cold cache -> runs the query, serialises the Eloquent
+ * Collection into Redis). On the second request, PHP's unserialize()
+ * handed back an __PHP_Incomplete_Class for the Collection and the first
+ * method call (`$allAppearances->pluck('year')`) crashed with a 500.
+ *
+ * The fix is to NOT cache the raw Eloquent graph. These tests assert
+ * exactly that — hit each public page twice back-to-back; both must
+ * return 200. If anyone re-adds a Cache::remember() around a Collection
+ * of models, these tests will catch it the moment the cache is primed.
+ */
+
 // ────────────────────────────────────────────────────────────────────────
-// /sa-team: cached for guests, invalidated on any team/appearance write
+// /sa-team
 // ────────────────────────────────────────────────────────────────────────
 
-it('caches the /sa-team dataset for guests under PUBLIC_PAGE_CACHE_KEY', function () {
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeFalse();
-
+it('/sa-team survives repeated requests for guests (no cached incomplete class)', function () {
     $this->get('/sa-team')->assertOk();
-
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeTrue();
+    $this->get('/sa-team')->assertOk();
+    $this->get('/sa-team')->assertOk();
 });
 
-it('does NOT cache the /sa-team dataset for authed users (POPIA junior visibility differs per viewer)', function () {
+it('/sa-team survives repeated requests for authed users', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)->get('/sa-team')->assertOk();
-
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeFalse();
+    $this->actingAs($user)->get('/sa-team')->assertOk();
 });
 
-it('invalidates the /sa-team cache when a NationalTeamAppearance is saved', function () {
+it('/sa-team survives a write between two reads', function () {
     $this->get('/sa-team')->assertOk();
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeTrue();
-
-    $shooter = User::factory()->create();
-    NationalTeamAppearance::create([
-        'user_id' => $shooter->id,
-        'year' => 2026,
-        'championship_name' => '2026 Worlds',
-        'appeared_at' => '2026-09-23',
-    ]);
-
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeFalse();
-});
-
-it('invalidates the /sa-team cache when a NationalTeam is saved', function () {
-    $this->get('/sa-team')->assertOk();
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeTrue();
 
     NationalTeam::create([
         'year' => 2027,
@@ -57,55 +54,70 @@ it('invalidates the /sa-team cache when a NationalTeam is saved', function () {
         'discipline' => 'centrefire',
     ]);
 
-    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeFalse();
+    $this->get('/sa-team')->assertOk();
 });
 
 // ────────────────────────────────────────────────────────────────────────
-// /media: cached per category, invalidated on album/item writes
+// /media
 // ────────────────────────────────────────────────────────────────────────
 
-it('caches the /media index per category under media.index.<category>', function () {
-    expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeFalse();
-    expect(Cache::has(MediaAlbum::indexCacheKey('team_sa')))->toBeFalse();
-
+it('/media survives repeated requests at the same category', function () {
+    $this->get('/media')->assertOk();
     $this->get('/media')->assertOk();
     $this->get('/media?category=team_sa')->assertOk();
-
-    expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeTrue();
-    expect(Cache::has(MediaAlbum::indexCacheKey('team_sa')))->toBeTrue();
-});
-
-it('invalidates every /media cache key on any album write', function () {
-    $this->get('/media')->assertOk();
     $this->get('/media?category=team_sa')->assertOk();
-    expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeTrue();
-    expect(Cache::has(MediaAlbum::indexCacheKey('team_sa')))->toBeTrue();
-
-    MediaAlbum::create([
-        'title' => 'Fresh album',
-        'category' => 'nationals',
-        'is_published' => true,
-    ]);
-
-    expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeFalse();
-    expect(Cache::has(MediaAlbum::indexCacheKey('team_sa')))->toBeFalse();
 });
 
-it('invalidates the /media cache + home-feature cache when a MediaItem is saved', function () {
+it('/media survives an album + item write between two reads', function () {
+    $this->get('/media')->assertOk();
+
     $album = MediaAlbum::create([
-        'title' => 'An album', 'category' => 'team_sa', 'is_published' => true,
+        'title' => 'Fresh', 'category' => 'nationals', 'is_published' => true,
     ]);
-
-    $this->get('/media')->assertOk();
-    expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeTrue();
-
     MediaItem::create([
         'media_album_id' => $album->id,
         'original_filename' => 'photo.jpg',
-        'path' => 'media/1/photo.jpg',
+        'path' => 'media/'.$album->id.'/photo.jpg',
         'disk' => 'public',
     ]);
 
+    $this->get('/media')->assertOk();
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Home feature band (lives on every public landing-page response)
+// ────────────────────────────────────────────────────────────────────────
+
+it('the home feature band survives repeated landing-page requests', function () {
+    $album = MediaAlbum::create([
+        'title' => 'Band test', 'category' => 'team_sa', 'is_published' => true,
+    ]);
+    $item = MediaItem::create([
+        'media_album_id' => $album->id,
+        'original_filename' => 'cover.jpg',
+        'path' => 'media/'.$album->id.'/cover.jpg',
+        'disk' => 'public',
+        'is_home_feature' => true,
+        'home_label' => 'Team South Africa',
+        'home_headline' => 'Flying the flag',
+    ]);
+
+    $this->get('/')->assertOk();
+    $this->get('/')->assertOk();
+    $this->get('/')->assertOk();
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Belt-and-braces: no cache key for the removed caches should be written.
+// If this ever fails it means someone has re-introduced the antipattern.
+// ────────────────────────────────────────────────────────────────────────
+
+it('does not populate the removed Eloquent-collection cache keys', function () {
+    $this->get('/sa-team')->assertOk();
+    $this->get('/media')->assertOk();
+    $this->get('/')->assertOk();
+
+    expect(Cache::has(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY))->toBeFalse();
     expect(Cache::has(MediaAlbum::indexCacheKey(null)))->toBeFalse();
     expect(Cache::has(MediaItem::HOME_FEATURE_CACHE_KEY))->toBeFalse();
 });

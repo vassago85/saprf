@@ -6,7 +6,6 @@ use App\Models\MediaAlbum;
 use App\Models\MediaItem;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Public photo library:
@@ -24,14 +23,11 @@ class PublicMediaController extends Controller
         $filterCategory = in_array($category, array_keys(MediaAlbum::CATEGORIES), true)
             ? $category : null;
 
-        // Same output for every visitor at the same category → cache the
-        // query results for 15 min. Model booted hooks forget the key on
-        // any album / item write.
-        [$albums, $featured] = Cache::remember(
-            MediaAlbum::indexCacheKey($filterCategory),
-            now()->addMinutes(15),
-            fn () => $this->fetchIndexData($filterCategory),
-        );
+        // Deliberately NOT caching: Eloquent Collections with eager loads
+        // don't round-trip through PHP serialize + Redis cleanly — the
+        // second read deserialises to __PHP_Incomplete_Class and crashes.
+        // See PublicNationalTeamController for the matching note.
+        [$albums, $featured] = $this->fetchIndexData($filterCategory);
 
         return view('media.index', [
             'albums' => $albums,

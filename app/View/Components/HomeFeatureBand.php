@@ -4,33 +4,29 @@ namespace App\View\Components;
 
 use App\Models\MediaItem;
 use App\Models\NationalTeam;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\Component;
 use Illuminate\View\View;
 
 /**
  * The "Team South Africa" band on the public landing page.
  *
- * Fallback order (cached under MediaItem::HOME_FEATURE_CACHE_KEY):
+ * Fallback order:
  *   1. The MediaItem flagged `is_home_feature = true`.
  *   2. The cover photo of the most-recent NationalTeam row (we still
  *      want to showcase the latest team even if no one has toggled a
  *      specific photo as the homepage feature).
  *   3. Nothing — the band is hidden.
  *
- * The cache is invalidated on any MediaItem write (see MediaItem::booted).
+ * Deliberately NOT cached: the resolved array contains Eloquent model
+ * instances with eager-loaded relations, and PHP serialize + Redis
+ * round-trips those as __PHP_Incomplete_Class on the second read. The
+ * two queries involved are both PK/single-row and sub-5ms.
  */
 class HomeFeatureBand extends Component
 {
     public function render(): View
     {
-        $data = Cache::remember(
-            MediaItem::HOME_FEATURE_CACHE_KEY,
-            now()->addHour(),
-            fn () => $this->resolveBand(),
-        );
-
-        return view('components.home-feature-band', $data);
+        return view('components.home-feature-band', $this->resolveBand());
     }
 
     /**

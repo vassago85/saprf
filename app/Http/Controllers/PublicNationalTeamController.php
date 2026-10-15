@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Public "Represented South Africa" roster at /sa-team and /sa-team/{year}.
@@ -28,16 +27,13 @@ class PublicNationalTeamController extends Controller
     {
         $viewer = $request->user();
 
-        // Guest responses are identical shape-for-shape and this page is
-        // the most expensive public query in the app — cache the raw data
-        // pass for 15 min; model booted hooks forget it on any write.
-        [$teams, $allAppearances] = $viewer === null
-            ? Cache::remember(
-                NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY,
-                now()->addMinutes(15),
-                fn () => $this->fetchDataset($viewer),
-            )
-            : $this->fetchDataset($viewer);
+        // Deliberately NOT caching the raw Eloquent collections. Caching
+        // deeply-eager-loaded models round-trips badly through PHP's
+        // serialize() on Redis — the second read returns an incomplete
+        // class and crashes. If this page ever becomes a bottleneck,
+        // cache a shaped array payload (via toArray/DTO), not the raw
+        // models. The underlying queries are 2 selects + eager joins.
+        [$teams, $allAppearances] = $this->fetchDataset($viewer);
 
         // Pick the selected year — honour the URL, else default to the
         // newest year we have appearances for.
