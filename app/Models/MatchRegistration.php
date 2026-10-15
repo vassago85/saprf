@@ -115,8 +115,8 @@ class MatchRegistration extends Model
     }
 
     /**
-     * Card payments plus any account credit redeemed against this entry —
-     * i.e. what SAPRF actually holds for it.
+     * Card payments plus any account credit redeemed against this entry,
+     * less surcharge already given back — i.e. what SAPRF actually holds for it.
      */
     public function amountPaidOnPlatform(): float
     {
@@ -131,7 +131,21 @@ class MatchRegistration extends Model
             ->where('status', AccountCredit::STATUS_POSTED)
             ->sum('amount'));
 
-        return round($cardPaid + $creditRedeemed, 2);
+        $paid = $cardPaid + $creditRedeemed;
+
+        return $paid > 0 ? round(max(0, $paid - $this->surchargeCreditIssued()), 2) : 0.0;
+    }
+
+    /**
+     * Surcharge credited back to the payer after the surcharge was lowered.
+     */
+    public function surchargeCreditIssued(): float
+    {
+        return round((float) AccountCredit::query()
+            ->where('adjusted_registration_id', $this->id)
+            ->where('type', AccountCredit::TYPE_SURCHARGE_ADJUSTMENT)
+            ->where('status', AccountCredit::STATUS_POSTED)
+            ->sum('amount'), 2);
     }
 
     /**

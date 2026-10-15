@@ -25,6 +25,9 @@ class AccountCredit extends Model
     /** Member withdrew and chose a cash refund; posted and held in one go. */
     public const TYPE_WITHDRAWAL_REFUND = 'withdrawal_refund';
 
+    /** Part of a paid surcharge given back after the surcharge was lowered. */
+    public const TYPE_SURCHARGE_ADJUSTMENT = 'surcharge_adjustment';
+
     protected $fillable = [
         'user_id',
         'amount',
@@ -35,6 +38,7 @@ class AccountCredit extends Model
         'match_id',
         'issued_for_registration_id',
         'applied_to_registration_id',
+        'adjusted_registration_id',
         'payment_id',
         'description',
         'created_by',
@@ -67,6 +71,11 @@ class AccountCredit extends Model
     public function appliedToRegistration(): BelongsTo
     {
         return $this->belongsTo(MatchRegistration::class, 'applied_to_registration_id');
+    }
+
+    public function adjustedRegistration(): BelongsTo
+    {
+        return $this->belongsTo(MatchRegistration::class, 'adjusted_registration_id');
     }
 
     public function payment(): BelongsTo

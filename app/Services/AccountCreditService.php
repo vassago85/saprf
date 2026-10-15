@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\EntryRemovedCreditNotification;
 use App\Notifications\MatchCancellationCreditNotification;
+use App\Notifications\SurchargeAdjustmentCreditNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -121,7 +122,7 @@ class AccountCreditService
                     ?? $registration->user_id;
 
                 $amount = $completed->isNotEmpty()
-                    ? round((float) $completed->sum('amount'), 2)
+                    ? round(max(0, (float) $completed->sum('amount') - $registration->surchargeCreditIssued()), 2)
                     : round((float) $registration->fee_amount, 2);
 
                 if (! $holderId || $amount <= 0) {
@@ -354,6 +355,101 @@ class AccountCreditService
     }
 
     /**
+     * Give back part of the surcharge on a paid entry after the surcharge was
+     * lowered. The credit goes to whoever paid on the platform, or to the
+     * shooter when the entry was paid off the platform. The entry's fee and
+     * surcharge drop by the same amount, so SAPRF's surcharge income and any
+     * later withdrawal or cancellation credit reflect what it still holds.
+     * Returns null when the entry was already adjusted or fully credited.
+     */
+    public function issueSurchargeAdjustment(MatchRegistration $registration, float $amount, string $reason, ?User $actor = null): ?AccountCredit
+    {
+        $registration->loadMissing('match');
+
+        $credit = DB::transaction(function () use ($registration, $amount, $reason, $actor) {
+            $locked = MatchRegistration::query()->whereKey($registration->id)->lockForUpdate()->first();
+
+            if (! $locked
+                || $locked->registration_status === 'cancelled'
+                || ! in_array($locked->payment_status, ['paid', 'waived'], true)
+                || $locked->hasIssuedCredit()
+                || AccountCredit::query()->where('adjusted_registration_id', $locked->id)->exists()) {
+                return null;
+            }
+
+            $amount = round(min($amount, (float) $locked->surcharge_amount), 2);
+            $holderId = $locked->withdrawalCreditHolderId();
+            $paidOffPlatform = $locked->amountPaidOnPlatform() <= 0;
+
+            if (! $holderId || $amount <= 0) {
+                return null;
+            }
+
+            $matchName = $registration->match?->name ?? 'event';
+            $old = $locked->only(['fee_amount', 'surcharge_amount']);
+
+            $credit = AccountCredit::query()->create([
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'status' => AccountCredit::STATUS_POSTED,
+                'type' => AccountCredit::TYPE_SURCHARGE_ADJUSTMENT,
+                'match_id' => $locked->match_id,
+                'adjusted_registration_id' => $locked->id,
+                'description' => 'Surcharge credit: '.$matchName.' ('.$locked->shooter_name.')',
+                'created_by' => $actor?->id,
+            ]);
+
+            $locked->update([
+                'fee_amount' => round((float) $locked->fee_amount - $amount, 2),
+                'surcharge_amount' => round((float) $locked->surcharge_amount - $amount, 2),
+            ]);
+
+            FinancialTransaction::query()->create([
+                'type' => 'refund',
+                'source_type' => 'match_registration',
+                'source_id' => $locked->id,
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'description' => 'Surcharge credit issued — '.$matchName,
+                'meta' => [
+                    'account_credit_id' => $credit->id,
+                    'shooter_name' => $locked->shooter_name,
+                    'match_id' => $locked->match_id,
+                    'paid_off_platform' => $paidOffPlatform,
+                    'reason' => $reason,
+                ],
+            ]);
+
+            $this->auditLogService->log(
+                $actor,
+                'registration.surcharge_credit.issued',
+                'MatchRegistration',
+                $locked->id,
+                $old,
+                [
+                    'fee_amount' => (float) $locked->fee_amount,
+                    'surcharge_amount' => (float) $locked->surcharge_amount,
+                    'account_credit_id' => $credit->id,
+                    'credited_user_id' => $holderId,
+                    'amount' => $amount,
+                ],
+                $reason,
+            );
+
+            $credit->setAttribute('shooter_name', $locked->shooter_name);
+
+            return $credit;
+        });
+
+        if ($credit) {
+            $registration->refresh();
+            $this->notifySurchargeCredit($registration, $credit);
+        }
+
+        return $credit;
+    }
+
+    /**
      * Unspent credit from withdrawals, and the PayFast fee still riding on it.
      * Redemptions draw on withdrawal credit first.
      *
@@ -555,6 +651,29 @@ class AccountCreditService
             ));
         } catch (\Throwable $e) {
             Log::warning('Failed to send entry removal credit notification', [
+                'user_id' => $user->id,
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifySurchargeCredit(MatchRegistration $registration, AccountCredit $credit): void
+    {
+        $user = User::query()->find($credit->user_id);
+        if (! $user) {
+            return;
+        }
+
+        try {
+            $user->notify(new SurchargeAdjustmentCreditNotification(
+                $registration->match?->name ?? 'event',
+                (string) $registration->shooter_name,
+                (float) $credit->amount,
+                $this->summary($user)['posted'],
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send surcharge credit notification', [
                 'user_id' => $user->id,
                 'registration_id' => $registration->id,
                 'error' => $e->getMessage(),
