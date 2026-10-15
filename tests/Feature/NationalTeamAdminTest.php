@@ -42,9 +42,9 @@ it('plain members get 403 on all team-year admin routes', function () {
     $member = User::factory()->create();
     $member->assignRole('member');
 
-    $this->actingAs($member)->get('/national-teams')->assertForbidden();
-    $this->actingAs($member)->get('/national-teams/create')->assertForbidden();
-    $this->actingAs($member)->post('/national-teams', ['year' => 2027, 'championship_name' => 'x', 'discipline' => 'centrefire'])->assertForbidden();
+    $this->actingAs($member)->get('/team-years')->assertForbidden();
+    $this->actingAs($member)->get('/team-years/create')->assertForbidden();
+    $this->actingAs($member)->post('/team-years', ['year' => 2027, 'championship_name' => 'x', 'discipline' => 'centrefire'])->assertForbidden();
 });
 
 it('plain members get 403 on appearance edit routes', function () {
@@ -60,9 +60,9 @@ it('plain members get 403 on appearance edit routes', function () {
     $member = User::factory()->create();
     $member->assignRole('member');
 
-    $this->actingAs($member)->get('/national-team/'.$appearance->id.'/edit')->assertForbidden();
+    $this->actingAs($member)->get('/appearances/'.$appearance->id.'/edit')->assertForbidden();
     $this->actingAs($member)
-        ->patch('/national-team/'.$appearance->id, ['year' => 2026, 'championship_name' => 'Worlds 2026', 'appeared_at' => '2026-09-23'])
+        ->patch('/appearances/'.$appearance->id, ['year' => 2026, 'championship_name' => 'Worlds 2026', 'appeared_at' => '2026-09-23'])
         ->assertForbidden();
 });
 
@@ -81,7 +81,7 @@ it('admin can promote a shooter to captain via the edit screen', function () {
         'appeared_at' => '2026-09-23',
     ]);
 
-    $response = $this->actingAs(adminActor())->patch('/national-team/'.$appearance->id, [
+    $response = $this->actingAs(adminActor())->patch('/appearances/'.$appearance->id, [
         'year' => 2026,
         'division_id' => $open->id,
         'role' => NationalTeamAppearance::ROLE_CAPTAIN,
@@ -106,7 +106,7 @@ it('admin can fix a shooter-imported-as-manager by switching the role', function
         'appeared_at' => '2026-09-23',
     ]);
 
-    $this->actingAs(adminActor())->patch('/national-team/'.$appearance->id, [
+    $this->actingAs(adminActor())->patch('/appearances/'.$appearance->id, [
         'year' => 2026,
         'division_id' => $open->id,
         'role' => NationalTeamAppearance::ROLE_MANAGER,
@@ -142,7 +142,7 @@ it('admin cannot double-award colours to the same shooter across two rows', func
     ]);
 
     // Admin tries to tick colours on the second row too.
-    $response = $this->actingAs(adminActor())->patch('/national-team/'.$second->id, [
+    $response = $this->actingAs(adminActor())->patch('/appearances/'.$second->id, [
         'year' => 2026,
         'division_id' => $open->id,
         'championship_name' => '2026 Worlds',
@@ -170,7 +170,7 @@ it('admin can re-attach an appearance to a different team year by changing the c
         'appeared_at' => '2026-09-23',
     ]);
 
-    $this->actingAs(adminActor())->patch('/national-team/'.$appearance->id, [
+    $this->actingAs(adminActor())->patch('/appearances/'.$appearance->id, [
         'year' => 2026,
         'division_id' => $open->id,
         'championship_name' => '2026 IPRF Worlds (Rimfire)',
@@ -199,13 +199,13 @@ it('appearance update with back_to=team_year redirects to the team year edit pag
         'appeared_at' => '2026-09-23',
     ]);
 
-    $this->actingAs(adminActor())->patch('/national-team/'.$appearance->id, [
+    $this->actingAs(adminActor())->patch('/appearances/'.$appearance->id, [
         'year' => 2026,
         'division_id' => $open->id,
         'championship_name' => '2026 Worlds',
         'appeared_at' => '2026-09-23',
         'back_to' => 'team_year',
-    ])->assertRedirect('/national-teams/'.$team->id.'/edit');
+    ])->assertRedirect('/team-years/'.$team->id.'/edit');
 });
 
 // ────────────────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ it('appearance update with back_to=team_year redirects to the team year edit pag
 // ────────────────────────────────────────────────────────────────────────
 
 it('admin can create a new team year directly from the admin panel', function () {
-    $response = $this->actingAs(adminActor())->post('/national-teams', [
+    $response = $this->actingAs(adminActor())->post('/team-years', [
         'year' => 2027,
         'championship_name' => '2027 IPRF World Championship (Centrefire)',
         'discipline' => 'centrefire',
@@ -227,7 +227,7 @@ it('admin can create a new team year directly from the admin panel', function ()
     $team = NationalTeam::where('year', 2027)->first();
     expect($team)->not->toBeNull();
     expect($team->championship_name)->toBe('2027 IPRF World Championship (Centrefire)');
-    $response->assertRedirect('/national-teams/'.$team->id.'/edit');
+    $response->assertRedirect('/team-years/'.$team->id.'/edit');
 });
 
 it('creating a duplicate (year, championship_name) is rejected with a friendly error', function () {
@@ -237,7 +237,7 @@ it('creating a duplicate (year, championship_name) is rejected with a friendly e
         'discipline' => 'centrefire',
     ]);
 
-    $this->actingAs(adminActor())->post('/national-teams', [
+    $this->actingAs(adminActor())->post('/team-years', [
         'year' => 2026,
         'championship_name' => '2026 Worlds',
         'discipline' => 'rimfire',
@@ -247,7 +247,7 @@ it('creating a duplicate (year, championship_name) is rejected with a friendly e
 });
 
 it('end date must be on or after start date', function () {
-    $this->actingAs(adminActor())->post('/national-teams', [
+    $this->actingAs(adminActor())->post('/team-years', [
         'year' => 2027,
         'championship_name' => '2027 Worlds',
         'discipline' => 'centrefire',
@@ -282,7 +282,7 @@ it('team year edit page lists the roster with role chips, Edit links and + Add s
         ]);
     }
 
-    $response = $this->actingAs(adminActor())->get('/national-teams/'.$team->id.'/edit');
+    $response = $this->actingAs(adminActor())->get('/team-years/'.$team->id.'/edit');
 
     $response->assertOk();
     $response->assertSee('Roster');

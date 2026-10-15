@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Public "Represented South Africa" roster at /sa-team and /sa-team/{year}.
@@ -27,22 +28,16 @@ class PublicNationalTeamController extends Controller
     {
         $viewer = $request->user();
 
-        $teams = NationalTeam::query()
-            ->with(['cover.album'])
-            ->orderByDesc('year')
-            ->orderBy('championship_name')
-            ->get();
-
-        // All appearances once, so we can compute stats, past-year squad
-        // sizes, division cards and the honour roll from a single pass.
-        $allAppearances = NationalTeamAppearance::query()
-            ->with(['user.membership', 'user.province', 'division', 'nationalTeam'])
-            ->orderByDesc('year')
-            ->orderBy('championship_name')
-            ->get()
-            ->filter(fn (NationalTeamAppearance $a) => $a->user !== null
-                && $a->user->isProfileVisibleTo($viewer))
-            ->values();
+        // Guest responses are identical shape-for-shape and this page is
+        // the most expensive public query in the app — cache the raw data
+        // pass for 15 min; model booted hooks forget it on any write.
+        [$teams, $allAppearances] = $viewer === null
+            ? Cache::remember(
+                NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY,
+                now()->addMinutes(15),
+                fn () => $this->fetchDataset($viewer),
+            )
+            : $this->fetchDataset($viewer);
 
         // Pick the selected year — honour the URL, else default to the
         // newest year we have appearances for.
@@ -131,6 +126,33 @@ class PublicNationalTeamController extends Controller
                 ->unique()
                 ->count(),
         ]);
+    }
+
+    /**
+     * Fetch the two base collections used by the rest of index(): all
+     * teams, and all visible appearances. Guest results are cacheable
+     * because every guest sees the same POPIA-filtered set.
+     *
+     * @return array{0: Collection, 1: Collection}
+     */
+    private function fetchDataset(?User $viewer): array
+    {
+        $teams = NationalTeam::query()
+            ->with(['cover.album'])
+            ->orderByDesc('year')
+            ->orderBy('championship_name')
+            ->get();
+
+        $allAppearances = NationalTeamAppearance::query()
+            ->with(['user.membership', 'user.province', 'division', 'nationalTeam'])
+            ->orderByDesc('year')
+            ->orderBy('championship_name')
+            ->get()
+            ->filter(fn (NationalTeamAppearance $a) => $a->user !== null
+                && $a->user->isProfileVisibleTo($viewer))
+            ->values();
+
+        return [$teams, $allAppearances];
     }
 
     /**

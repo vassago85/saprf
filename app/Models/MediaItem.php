@@ -80,10 +80,15 @@ class MediaItem extends Model
 
     protected static function booted(): void
     {
-        // Bust the cached featured item whenever any item changes — covers
-        // caption/headline edits as well as feature flips.
-        static::saved(fn () => Cache::forget(self::HOME_FEATURE_CACHE_KEY));
-        static::deleted(fn () => Cache::forget(self::HOME_FEATURE_CACHE_KEY));
+        // Bust both the featured-item cache and the public /media listing
+        // whenever any item changes — covers caption/headline edits, cover
+        // reassignments, and feature flips in one hook.
+        $forget = function (): void {
+            Cache::forget(self::HOME_FEATURE_CACHE_KEY);
+            MediaAlbum::forgetIndexCache();
+        };
+        static::saved($forget);
+        static::deleted($forget);
     }
 
     public function album(): BelongsTo

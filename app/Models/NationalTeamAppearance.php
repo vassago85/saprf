@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * One row per year a shooter shot for South Africa at an IPRF world
@@ -38,6 +39,23 @@ class NationalTeamAppearance extends Model
         self::ROLE_OFFICIAL => 'Official',
     ];
 
+    /**
+     * Display order on team-year rosters + honour-roll "best role" picks:
+     * managers run the team (0), captains lead the squad (1), shooters
+     * fill it out (2), officials bring up the rear (3).
+     */
+    public const ROLE_PRIORITY = [
+        self::ROLE_MANAGER => 0,
+        self::ROLE_CAPTAIN => 1,
+        self::ROLE_SHOOTER => 2,
+        self::ROLE_OFFICIAL => 3,
+    ];
+
+    public static function rolePriority(?string $role): int
+    {
+        return self::ROLE_PRIORITY[$role] ?? self::ROLE_PRIORITY[self::ROLE_SHOOTER];
+    }
+
     protected $fillable = [
         'user_id',
         'year',
@@ -55,6 +73,9 @@ class NationalTeamAppearance extends Model
         'notes',
     ];
 
+    /** Cache key for the public /sa-team page's data pass (guest-only). */
+    public const PUBLIC_PAGE_CACHE_KEY = 'sa_team.public.data';
+
     protected function casts(): array
     {
         return [
@@ -63,6 +84,13 @@ class NationalTeamAppearance extends Model
             'awarded_colours' => 'boolean',
             'appeared_at' => 'date',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Any appearance write invalidates the public /sa-team cache.
+        static::saved(fn () => Cache::forget(self::PUBLIC_PAGE_CACHE_KEY));
+        static::deleted(fn () => Cache::forget(self::PUBLIC_PAGE_CACHE_KEY));
     }
 
     public function user(): BelongsTo

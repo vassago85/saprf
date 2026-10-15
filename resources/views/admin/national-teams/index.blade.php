@@ -5,10 +5,10 @@
                 <h1 class="font-heading text-3xl font-bold text-stone-900">Team years</h1>
                 <p class="text-sm text-stone-500 mt-1">
                     One row per SA team sent to an IPRF World Championship. Edit venue, dates, cover photo and roster here.
-                    Full appearance list is at <a href="{{ route('national-team.index') }}" class="text-emerald-700 hover:underline">National Team & Colours</a>.
+                    Full appearance list is at <a href="{{ route('appearances.index') }}" class="text-emerald-700 hover:underline">Appearances & Colours</a>.
                 </p>
             </div>
-            <a href="{{ route('national-teams.create') }}"
+            <a href="{{ route('team-years.create') }}"
                class="shrink-0 inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
                 + New team year
             </a>
@@ -18,16 +18,16 @@
             <div class="mt-8 bg-white border border-stone-200 rounded-2xl p-10 text-center">
                 <p class="text-stone-500">
                     No team years yet. Click
-                    <a href="{{ route('national-teams.create') }}" class="text-emerald-700 hover:underline">+ New team year</a>
+                    <a href="{{ route('team-years.create') }}" class="text-emerald-700 hover:underline">+ New team year</a>
                     above, or add an appearance via
-                    <a href="{{ route('national-team.create') }}" class="text-emerald-700 hover:underline">National Team &amp; Colours</a>
+                    <a href="{{ route('appearances.create') }}" class="text-emerald-700 hover:underline">Appearances &amp; Colours</a>
                     and the team record is created automatically.
                 </p>
             </div>
         @else
             <div class="mt-6 grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));">
                 @foreach($teams as $team)
-                    <a href="{{ route('national-teams.edit', ['nationalTeam' => $team->id]) }}"
+                    <a href="{{ route('team-years.edit', ['teamYear' => $team->id]) }}"
                        class="group block bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-emerald-600 transition">
                         <div class="h-40 bg-stone-800 relative">
                             @if($team->cover)

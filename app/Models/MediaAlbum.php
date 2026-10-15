@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -67,6 +68,26 @@ class MediaAlbum extends Model
                 $album->slug = $slug;
             }
         });
+
+        // Any album write busts the public /media listing cache for every
+        // category — a published/featured flip can move an album into or
+        // out of any filter view.
+        static::saved(fn () => self::forgetIndexCache());
+        static::deleted(fn () => self::forgetIndexCache());
+    }
+
+    /** Cache key for the public /media index at a given category filter. */
+    public static function indexCacheKey(?string $category): string
+    {
+        return 'media.index.'.($category ?? 'all');
+    }
+
+    public static function forgetIndexCache(): void
+    {
+        Cache::forget(self::indexCacheKey(null));
+        foreach (array_keys(self::CATEGORIES) as $category) {
+            Cache::forget(self::indexCacheKey($category));
+        }
     }
 
     public function getRouteKeyName(): string

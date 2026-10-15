@@ -1,6 +1,6 @@
 <x-layouts.app :title="'New team year — SAPRF'">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <a href="{{ route('national-teams.index') }}" class="text-sm text-stone-500 hover:text-emerald-700 inline-flex items-center gap-1">
+        <a href="{{ route('team-years.index') }}" class="text-sm text-stone-500 hover:text-emerald-700 inline-flex items-center gap-1">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
             All team years
         </a>
@@ -10,7 +10,7 @@
             You'll add venue details, cover photo and the roster on the next screen.
         </p>
 
-        <form method="POST" action="{{ route('national-teams.store') }}" class="mt-6 bg-white border border-stone-200 rounded-2xl p-6">
+        <form method="POST" action="{{ route('team-years.store') }}" class="mt-6 bg-white border border-stone-200 rounded-2xl p-6">
             @csrf
 
             <div class="grid gap-5 sm:grid-cols-2">
@@ -89,7 +89,7 @@
                 <button type="submit" class="inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
                     Create team year
                 </button>
-                <a href="{{ route('national-teams.index') }}" class="inline-flex items-center min-h-[44px] px-5 rounded-lg border border-stone-300 text-stone-700 text-sm font-semibold hover:bg-stone-50">
+                <a href="{{ route('team-years.index') }}" class="inline-flex items-center min-h-[44px] px-5 rounded-lg border border-stone-300 text-stone-700 text-sm font-semibold hover:bg-stone-50">
                     Cancel
                 </a>
             </div>

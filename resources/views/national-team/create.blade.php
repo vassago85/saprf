@@ -1,7 +1,7 @@
 <x-layouts.app :title="'Record National-Team Appearance - SAPRF'">
     <div class="max-w-2xl">
         <div class="mb-6">
-            <a href="{{ route('national-team.index') }}" class="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-emerald-700 transition mb-3">
+            <a href="{{ route('appearances.index') }}" class="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-emerald-700 transition mb-3">
                 <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                 Back to National Team
             </a>
@@ -9,7 +9,7 @@
             <p class="mt-1 text-sm text-stone-500">One row per year the shooter shot for South Africa. Tick the Protea Colours box only for the shooter's <strong>first-ever</strong> SA appearance.</p>
         </div>
 
-        <form action="{{ route('national-team.store') }}" method="POST" class="space-y-6 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+        <form action="{{ route('appearances.store') }}" method="POST" class="space-y-6 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
             @csrf
 
             <div>
@@ -168,7 +168,7 @@
                 <button type="submit" class="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                     Record Appearance
                 </button>
-                <a href="{{ route('national-team.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Cancel</a>
+                <a href="{{ route('appearances.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Cancel</a>
             </div>
         </form>
     </div>

@@ -42,6 +42,7 @@ use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\NationalTeamAppearanceController;
+use App\Http\Controllers\NationalTeamController;
 use App\Http\Controllers\PublicMediaController;
 use App\Http\Controllers\PublicNationalTeamController;
 use App\Http\Controllers\NotificationPreferencesController;
@@ -692,19 +693,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Each row is one year a shooter represented SA; the
         // awarded_colours flag on the ONE colours-awarding row shows the
         // Protea Colours hero card on the shooter's public profile.
-        // Kept as its own admin resource (rather than a nested
-        // selection-cycle modal) because the initial backfill will be
-        // historical / pre-cycle.
-        Route::resource('national-team', NationalTeamAppearanceController::class)
+        Route::resource('appearances', NationalTeamAppearanceController::class)
             ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
-            ->parameters(['national-team' => 'nationalTeam']);
+            ->parameters(['appearances' => 'appearance']);
 
         // Team-year records — venue, dates, cover photo for each
         // championship the SA team has sent a roster to. The appearances
         // table hangs off these via national_team_id.
-        Route::resource('national-teams', \App\Http\Controllers\NationalTeamController::class)
+        Route::resource('team-years', NationalTeamController::class)
             ->only(['index', 'create', 'store', 'edit', 'update'])
-            ->parameters(['national-teams' => 'nationalTeam']);
+            ->parameters(['team-years' => 'teamYear']);
 
         // Media library: albums + photos, with homepage-feature toggle.
         // Mounted under /admin/… so the admin URLs can't collide with the

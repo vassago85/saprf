@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * The YEAR record for a national team — e.g. "2026 IPRF World Championship
@@ -40,6 +41,18 @@ class NationalTeam extends Model
             'starts_on' => 'date',
             'ends_on' => 'date',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Venue / cover edits invalidate the public /sa-team cache + the
+        // home-feature band (which falls back to the latest team cover).
+        $forget = function (): void {
+            Cache::forget(NationalTeamAppearance::PUBLIC_PAGE_CACHE_KEY);
+            Cache::forget(MediaItem::HOME_FEATURE_CACHE_KEY);
+        };
+        static::saved($forget);
+        static::deleted($forget);
     }
 
     public function appearances(): HasMany

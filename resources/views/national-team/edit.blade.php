@@ -4,8 +4,8 @@
             @php
                 $backToTeamYear = request('back_to') === 'team_year' && $appearance->national_team_id;
                 $backHref = $backToTeamYear
-                    ? route('national-teams.edit', ['nationalTeam' => $appearance->national_team_id])
-                    : route('national-team.index', ['year' => $appearance->year]);
+                    ? route('team-years.edit', ['teamYear' => $appearance->national_team_id])
+                    : route('appearances.index', ['year' => $appearance->year]);
                 $backLabel = $backToTeamYear
                     ? 'Back to '.$appearance->year.' team year'
                     : 'Back to National Team';
@@ -26,7 +26,7 @@
             </p>
         </div>
 
-        <form action="{{ route('national-team.update', ['nationalTeam' => $appearance->id]) }}" method="POST" class="space-y-6 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+        <form action="{{ route('appearances.update', ['appearance' => $appearance->id]) }}" method="POST" class="space-y-6 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
             @csrf
             @method('PATCH')
             @if($backToTeamYear)
@@ -184,7 +184,7 @@
                 <div class="ml-auto">
                     {{-- Separate form so the DELETE doesn't carry the whole
                          edit form's bytes with it. --}}
-                    <form method="POST" action="{{ route('national-team.destroy', ['nationalTeam' => $appearance->id]) }}"
+                    <form method="POST" action="{{ route('appearances.destroy', ['appearance' => $appearance->id]) }}"
                           onsubmit="return confirm('Delete this appearance for {{ addslashes($appearance->user?->name ?? 'this shooter') }}? This cannot be undone.')">
                         @csrf
                         @method('DELETE')

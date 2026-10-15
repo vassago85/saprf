@@ -6,6 +6,7 @@ use App\Models\MediaAlbum;
 use App\Models\MediaItem;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Public photo library:
@@ -20,9 +21,31 @@ class PublicMediaController extends Controller
     public function index(Request $request): View
     {
         $category = $request->string('category')->toString();
-        $validCategories = array_keys(MediaAlbum::CATEGORIES);
-        $filterCategory = in_array($category, $validCategories, true) ? $category : null;
+        $filterCategory = in_array($category, array_keys(MediaAlbum::CATEGORIES), true)
+            ? $category : null;
 
+        // Same output for every visitor at the same category → cache the
+        // query results for 15 min. Model booted hooks forget the key on
+        // any album / item write.
+        [$albums, $featured] = Cache::remember(
+            MediaAlbum::indexCacheKey($filterCategory),
+            now()->addMinutes(15),
+            fn () => $this->fetchIndexData($filterCategory),
+        );
+
+        return view('media.index', [
+            'albums' => $albums,
+            'featured' => $featured,
+            'activeCategory' => $filterCategory,
+            'categories' => MediaAlbum::CATEGORIES,
+        ]);
+    }
+
+    /**
+     * @return array{0: \Illuminate\Support\Collection, 1: ?MediaItem}
+     */
+    private function fetchIndexData(?string $filterCategory): array
+    {
         $albumsQuery = MediaAlbum::query()
             ->published()
             ->with(['cover'])
@@ -35,26 +58,14 @@ class PublicMediaController extends Controller
             $albumsQuery->where('category', $filterCategory);
         }
 
-        $albums = $albumsQuery->get();
-
-        // Featured item for the big card at the top. Only shows items whose
-        // parent album is published, so an unpublished-album photo can't
-        // leak through the feature toggle.
-        $featured = MediaItem::query()
-            ->featured()
-            ->with(['album'])
-            ->first();
-
+        // Featured item: only honour it when the parent album is published,
+        // so an unpublished-album photo can't leak via the feature toggle.
+        $featured = MediaItem::query()->featured()->with(['album'])->first();
         if ($featured && ! $featured->album?->is_published) {
             $featured = null;
         }
 
-        return view('media.index', [
-            'albums' => $albums,
-            'featured' => $featured,
-            'activeCategory' => $filterCategory,
-            'categories' => MediaAlbum::CATEGORIES,
-        ]);
+        return [$albumsQuery->get(), $featured];
     }
 
     public function show(Request $request, MediaAlbum $album): View

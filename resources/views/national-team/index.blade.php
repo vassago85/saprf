@@ -12,7 +12,7 @@
                     badge marks the one-time appearance that granted the shooter their Protea Colours.
                 </p>
             </div>
-            <a href="{{ route('national-team.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+            <a href="{{ route('appearances.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                 <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                 Record Appearance
             </a>
@@ -25,7 +25,7 @@
         @endif
 
         <div class="flex flex-wrap items-end gap-4">
-            <form method="GET" action="{{ route('national-team.index') }}" class="flex items-end gap-3 flex-wrap" aria-label="Appearance filters">
+            <form method="GET" action="{{ route('appearances.index') }}" class="flex items-end gap-3 flex-wrap" aria-label="Appearance filters">
                 <div>
                     <label for="filter_search" class="block text-xs font-medium text-stone-500 mb-1">Shooter</label>
                     <input type="text" id="filter_search" name="search" value="{{ request('search') }}" placeholder="Name..."
@@ -55,7 +55,7 @@
                 </label>
                 <button type="submit" class="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">Filter</button>
                 @if(request()->hasAny(['search', 'year', 'series', 'colours_only']))
-                    <a href="{{ route('national-team.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Clear</a>
+                    <a href="{{ route('appearances.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Clear</a>
                 @endif
             </form>
         </div>
@@ -105,7 +105,7 @@
                                 </td>
                                 <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ $appearance->appeared_at?->format('d M Y') }}</td>
                                 <td class="px-5 py-3 text-right">
-                                    <form action="{{ route('national-team.destroy', $appearance) }}" method="POST" onsubmit="return confirm('{{ $appearance->awarded_colours ? "This entry granted Protea Colours. Deleting it will auto-promote the shooter\'s earliest remaining appearance to the colours slot. Continue?" : "Remove this national-team appearance?" }}');" class="inline">
+                                    <form action="{{ route('appearances.destroy', $appearance) }}" method="POST" onsubmit="return confirm('{{ $appearance->awarded_colours ? "This entry granted Protea Colours. Deleting it will auto-promote the shooter\'s earliest remaining appearance to the colours slot. Continue?" : "Remove this national-team appearance?" }}');" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">Remove</button>
@@ -116,7 +116,7 @@
                             <tr>
                                 <td colspan="9" class="px-5 py-12 text-center text-sm text-stone-400">
                                     No national-team appearances recorded yet.
-                                    <a href="{{ route('national-team.create') }}" class="text-emerald-700 hover:underline">Record the first one</a>.
+                                    <a href="{{ route('appearances.create') }}" class="text-emerald-700 hover:underline">Record the first one</a>.
                                 </td>
                             </tr>
                         @endforelse

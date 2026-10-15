@@ -1,6 +1,6 @@
 <x-layouts.app :title="'Edit team year — SAPRF'">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <a href="{{ route('national-teams.index') }}" class="text-sm text-stone-500 hover:text-emerald-700 inline-flex items-center gap-1">
+        <a href="{{ route('team-years.index') }}" class="text-sm text-stone-500 hover:text-emerald-700 inline-flex items-center gap-1">
             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
             All team years
         </a>
@@ -17,7 +17,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('national-teams.update', ['nationalTeam' => $team->id]) }}"
+        <form method="POST" action="{{ route('team-years.update', ['teamYear' => $team->id]) }}"
               class="mt-6 bg-white border border-stone-200 rounded-2xl p-6">
             @csrf
             @method('PATCH')
@@ -118,7 +118,7 @@
                 <button type="submit" class="inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
                     Save
                 </button>
-                <a href="{{ route('national-teams.index') }}" class="inline-flex items-center min-h-[44px] px-5 rounded-lg border border-stone-300 text-stone-700 text-sm font-semibold hover:bg-stone-50">
+                <a href="{{ route('team-years.index') }}" class="inline-flex items-center min-h-[44px] px-5 rounded-lg border border-stone-300 text-stone-700 text-sm font-semibold hover:bg-stone-50">
                     Cancel
                 </a>
             </div>
@@ -138,7 +138,7 @@
                         Edit a row to change its role, division or Protea Colours flag.
                     </p>
                 </div>
-                <a href="{{ route('national-team.create') }}?championship_name={{ urlencode($team->championship_name) }}&year={{ $team->year }}&host_country={{ $team->host_country }}"
+                <a href="{{ route('appearances.create') }}?championship_name={{ urlencode($team->championship_name) }}&year={{ $team->year }}&host_country={{ $team->host_country }}"
                    class="inline-flex items-center min-h-[40px] px-4 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
                     + Add shooter
                 </a>
@@ -196,7 +196,7 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-3 text-right">
-                                    <a href="{{ route('national-team.edit', ['nationalTeam' => $a->id]) }}?back_to=team_year"
+                                    <a href="{{ route('appearances.edit', ['appearance' => $a->id]) }}?back_to=team_year"
                                        class="text-emerald-700 font-semibold hover:underline text-sm">
                                         Edit
                                     </a>

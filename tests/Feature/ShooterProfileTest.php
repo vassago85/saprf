@@ -651,7 +651,7 @@ it('rejects a second colours-awarding appearance for a shooter who already has c
     $admin = User::factory()->create();
     $admin->assignRole('exco');
 
-    $response = $this->actingAs($admin)->post(route('national-team.store'), [
+    $response = $this->actingAs($admin)->post(route('appearances.store'), [
         'shooter_lookup' => '5001',
         'year' => 2018,
         'championship_name' => 'Worlds 2018',
@@ -693,7 +693,7 @@ it('auto-promotes the earliest remaining appearance to colours when the colours 
     $admin->assignRole('exco');
 
     $this->actingAs($admin)
-        ->delete(route('national-team.destroy', $coloursRow))
+        ->delete(route('appearances.destroy', $coloursRow))
         ->assertRedirect();
 
     // Original colours row is gone.
@@ -722,7 +722,7 @@ it('leaves colours cleared when the last remaining appearance is deleted', funct
     $admin->assignRole('exco');
 
     $this->actingAs($admin)
-        ->delete(route('national-team.destroy', $only))
+        ->delete(route('appearances.destroy', $only))
         ->assertRedirect();
 
     expect($shooter->fresh()->hasProteaColours())->toBeFalse();
@@ -730,14 +730,14 @@ it('leaves colours cleared when the last remaining appearance is deleted', funct
 });
 
 it('blocks unauthenticated access to the national-team admin index', function () {
-    $this->get(route('national-team.index'))->assertRedirect(route('login'));
+    $this->get(route('appearances.index'))->assertRedirect(route('login'));
 });
 
 it('blocks a plain member from the national-team admin index', function () {
     $member = User::factory()->create();
     $member->assignRole('member');
 
-    $this->actingAs($member)->get(route('national-team.index'))->assertForbidden();
+    $this->actingAs($member)->get(route('appearances.index'))->assertForbidden();
 });
 
 it('lets a member update their own public profile visibility from /profile', function () {
