@@ -135,7 +135,8 @@
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
                         @php
-                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores) {
+                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores, $saBadgesByUser) {
+                                $saBadge = $saBadgesByUser[$score->user_id] ?? null;
                                 return [
                                     'id' => $score->id,
                                     'name' => $score->shooter_name,
@@ -156,6 +157,9 @@
                                         'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
                                         default      => null,
                                     },
+                                    // "SA 2026" chip data for the Alpine row — null means render nothing.
+                                    'sa_years' => $saBadge['years'] ?? [],
+                                    'sa_tooltip' => $saBadge['tooltip'] ?? null,
                                 ];
                             })->values()->toArray();
 
@@ -232,6 +236,21 @@
                                                 </td>
                                                 <td class="px-5 py-3 text-sm font-medium text-stone-900">
                                                     <span x-text="row.name"></span>
+                                                    <template x-if="row.sa_years && row.sa_years.length">
+                                                        <span class="ml-2 inline-flex items-center gap-1" :title="row.sa_tooltip || ('Represented South Africa in ' + row.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + row.sa_years.join(', ')">
+                                                            <template x-for="(y, idx) in row.sa_years.slice(0, 2)" :key="y">
+                                                                <span class="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-emerald-50 to-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                                                                    <svg class="size-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                        <path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/>
+                                                                    </svg>
+                                                                    <span>SA <span x-text="y"></span></span>
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="row.sa_years.length > 2">
+                                                                <span class="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200" x-text="'+' + (row.sa_years.length - 2)"></span>
+                                                            </template>
+                                                        </span>
+                                                    </template>
                                                     <template x-if="row.badge">
                                                         <span class="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset uppercase tracking-wide"
                                                               :class="row.badge.class"
@@ -373,8 +392,9 @@
                             </div>
                         @else
                             @php
-                                $entryRows = $entries->map(function ($entry) {
+                                $entryRows = $entries->map(function ($entry) use ($saBadgesByUser) {
                                     $status = $entry->registration_status;
+                                    $saBadge = $saBadgesByUser[$entry->user_id] ?? null;
 
                                     return [
                                         'id' => $entry->id,
@@ -398,6 +418,8 @@
                                             'waitlisted' => 2,
                                             default => 3,
                                         },
+                                        'sa_years' => $saBadge['years'] ?? [],
+                                        'sa_tooltip' => $saBadge['tooltip'] ?? null,
                                     ];
                                 })->values()->all();
                             @endphp
@@ -426,7 +448,24 @@
                                             <template x-for="(entry, i) in sortedEntries" :key="entry.id">
                                                 <tr class="hover:bg-stone-50 transition-colors">
                                                     <td class="px-6 py-3 text-sm text-stone-400 tabular-nums" x-text="i + 1"></td>
-                                                    <td class="px-6 py-3 text-sm font-medium text-stone-900" x-text="entry.name"></td>
+                                                    <td class="px-6 py-3 text-sm font-medium text-stone-900">
+                                                        <span x-text="entry.name"></span>
+                                                        <template x-if="entry.sa_years && entry.sa_years.length">
+                                                            <span class="ml-2 inline-flex items-center gap-1" :title="entry.sa_tooltip || ('Represented South Africa in ' + entry.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + entry.sa_years.join(', ')">
+                                                                <template x-for="(y, idx) in entry.sa_years.slice(0, 2)" :key="y">
+                                                                    <span class="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-emerald-50 to-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                                                                        <svg class="size-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                            <path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/>
+                                                                        </svg>
+                                                                        <span>SA <span x-text="y"></span></span>
+                                                                    </span>
+                                                                </template>
+                                                                <template x-if="entry.sa_years.length > 2">
+                                                                    <span class="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200" x-text="'+' + (entry.sa_years.length - 2)"></span>
+                                                                </template>
+                                                            </span>
+                                                        </template>
+                                                    </td>
                                                     <td class="px-6 py-3 text-sm">
                                                         <template x-if="entry.division">
                                                             <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="entry.division"></span>

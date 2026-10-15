@@ -85,6 +85,20 @@ final class SidebarNavigation
                         'current_is' => 'standings*',
                     ],
                     [
+                        // Public "Represented South Africa" roster — every
+                        // SAPRF shooter who has worn the Protea at an IPRF
+                        // world championship. Visible to all authenticated
+                        // users because the underlying route is also public.
+                        'id' => 'sa-team',
+                        'label' => 'SA Team',
+                        'route' => 'sa-team.index',
+                        'icon' => 'flag',
+                        'contexts' => [self::CONTEXT_ADMIN, self::CONTEXT_SHOOTER],
+                        'roles' => null,
+                        'current_route_is' => ['sa-team.*'],
+                        'current_is' => 'sa-team*',
+                    ],
+                    [
                         'id' => 'registrations',
                         'label' => 'My Registrations',
                         'route' => 'registrations.index',

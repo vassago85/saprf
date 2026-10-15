@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateMatchRequest;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\NationalTeamAppearance;
 use App\Models\Payment;
 use App\Models\Province;
 use App\Models\Score;
@@ -651,9 +652,20 @@ class MatchController extends Controller
             || $match->created_by === $viewer->id
         );
 
+        // "SA 2026" chips next to shooter names in both the results table
+        // and the entry list. One bulk query covers both sets so the Alpine
+        // row payloads stay N+1-safe.
+        $saBadgeUserIds = $match->scores->pluck('user_id')
+            ->merge($entries->pluck('user_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers($saBadgeUserIds);
+
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
-            'viewerCanRemoveZeroScores',
+            'viewerCanRemoveZeroScores', 'saBadgesByUser',
         ));
     }
 

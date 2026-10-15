@@ -42,6 +42,7 @@ use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\NationalTeamAppearanceController;
+use App\Http\Controllers\PublicNationalTeamController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
@@ -136,6 +137,12 @@ Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('conta
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
 Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
+
+// Public "Represented South Africa" roster — every IPRF World Championship
+// appearance grouped by year. Powered by the admin-maintained
+// national_team_appearances table (admin UI lives at /national-team under
+// the Exco role group, which is why the public URL uses a different slug).
+Route::get('/sa-team', [PublicNationalTeamController::class, 'index'])->name('sa-team.index');
 
 // Legacy shooter URL. Kept live so external bookmarks and the many
 // {{ url('/standings/'.$season.'/shooter/'.$user->id) }} template links

@@ -2,6 +2,8 @@
     $showProvince = $showProvince ?? true;
     $showDivision = $showDivision ?? false;
     $colCount = 2 + ($showProvince ? 1 : 0) + ($showDivision ? 1 : 0);
+    // "SA 2026" chips keyed by user_id — missing key renders nothing.
+    $saBadgesByUser = $saBadgesByUser ?? [];
 @endphp
 
 <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
@@ -37,7 +39,13 @@
                         @endif
                     </td>
                     <td class="px-5 py-4">
-                        <span class="text-sm font-semibold text-stone-900">{{ $standing->user->name ?? '—' }}</span>
+                        <span class="inline-flex items-center gap-1.5 flex-wrap">
+                            <span class="text-sm font-semibold text-stone-900">{{ $standing->user->name ?? '—' }}</span>
+                            @php $saBadge = $saBadgesByUser[$standing->user_id] ?? null; @endphp
+                            @if($saBadge)
+                                <x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" />
+                            @endif
+                        </span>
                         @if($showDivision)
                             <span class="sm:hidden block text-xs text-stone-400 mt-0.5">
                                 {{ $userDiv?->name ?? '—' }}

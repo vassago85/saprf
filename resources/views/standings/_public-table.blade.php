@@ -8,6 +8,10 @@
     // rule for this season/series (or no OOP nationals requirement) — in
     // which case we render nothing at all so the leaderboard stays clean.
     $qualificationByUser = $qualificationByUser ?? [];
+    // "SA 2026" / "SA 2024" chips keyed by user_id. Each entry is
+    // ['years' => [...], 'tooltip' => '...', 'is_manager' => bool].
+    // Missing key = never represented SA → <x-sa-team-badge> renders nothing.
+    $saBadgesByUser = $saBadgesByUser ?? [];
 
     // Default direction for each column when a user first clicks its header.
     // Points/rank are numeric; name-based columns read better ascending.
@@ -132,11 +136,15 @@
                                     // Otherwise the flag is meaningless noise.
                                     $showQualifierFlag = $q && $q['required'] > 0;
                                 @endphp
-                                <span class="inline-flex items-center gap-1.5">
+                                <span class="inline-flex items-center gap-1.5 flex-wrap">
                                     <a href="{{ url('/standings/' . $season . '/shooter/' . ($standing->user_id ?? $standing->id)) }}"
                                        class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
                                         {{ $standing->user->name ?? '—' }}
                                     </a>
+                                    @php $saBadge = $saBadgesByUser[$standing->user_id] ?? null; @endphp
+                                    @if($saBadge)
+                                        <x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" />
+                                    @endif
                                     @if($showQualifierFlag)
                                         @if($q['qualified'])
                                             <span class="inline-flex items-center justify-center size-4 rounded-full bg-emerald-100 text-emerald-700"

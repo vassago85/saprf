@@ -88,6 +88,96 @@ class NationalTeamAppearance extends Model
     }
 
     /**
+     * Bulk-fetch years each user has shot for SA. Scoreboards call this once
+     * per request with every visible user_id to render the inline "SA YYYY"
+     * chips without an N+1 relation load.
+     *
+     * Returns `[user_id => [2026, 2024, ...]]` with years sorted newest first.
+     * Users with no appearances are omitted from the map (callers use
+     * `$map[$id] ?? []`).
+     *
+     * @param  array<int>  $userIds
+     * @return array<int, array<int, int>>
+     */
+    public static function yearsForUsers(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $rows = self::query()
+            ->whereIn('user_id', $userIds)
+            ->orderByDesc('year')
+            ->get(['user_id', 'year']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $uid = (int) $row->user_id;
+            $yr = (int) $row->year;
+            // Dedupe within a year (two championships in the same year on
+            // the same user still render as one chip).
+            $map[$uid] ??= [];
+            if (! in_array($yr, $map[$uid], true)) {
+                $map[$uid][] = $yr;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Richer badge payload for the same bulk set — one entry per user with
+     * the years list PLUS a precomputed tooltip summarising their most
+     * recent appearance (e.g. "Team Manager · 2026 IPRF World Championship").
+     *
+     * Returned shape:
+     *   [user_id => [
+     *       'years' => [2026, 2024],
+     *       'tooltip' => 'Open · 2026 IPRF World Championship (Centrefire)',
+     *       'is_manager' => false,
+     *   ]]
+     *
+     * @param  array<int>  $userIds
+     * @return array<int, array{years: array<int,int>, tooltip: string, is_manager: bool}>
+     */
+    public static function badgeDataForUsers(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $rows = self::query()
+            ->whereIn('user_id', $userIds)
+            ->orderByDesc('year')
+            ->orderByDesc('appeared_at')
+            ->get(['user_id', 'year', 'championship_name', 'division_label', 'host_country']);
+
+        $out = [];
+        foreach ($rows as $row) {
+            $uid = (int) $row->user_id;
+            $yr = (int) $row->year;
+
+            if (! isset($out[$uid])) {
+                $labelParts = array_filter([
+                    $row->division_label,
+                    $row->championship_name,
+                ]);
+                $out[$uid] = [
+                    'years' => [],
+                    'tooltip' => implode(' · ', $labelParts),
+                    'is_manager' => strcasecmp((string) $row->division_label, 'Team Manager') === 0,
+                ];
+            }
+
+            if (! in_array($yr, $out[$uid]['years'], true)) {
+                $out[$uid]['years'][] = $yr;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * IPRF & regional-championship host countries. Broader than
      * User::COUNTRY_OPTIONS (which is limited to South Africa + likely
      * diaspora residences) because IPRF worlds have been held in Sweden,

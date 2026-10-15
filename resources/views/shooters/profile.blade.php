@@ -29,8 +29,33 @@
                 {{-- Identity header. Simpler than the legacy /standings/… view
                      — no back link, because this is a top-level canonical
                      URL, not a drill-down. --}}
+                @php
+                    // SA representation years derived from the full appearance
+                    // list already loaded by ShooterProfileService::career().
+                    // The hero Protea Colours card below still owns the "which
+                    // year granted Colours" story; this chip just mirrors the
+                    // scoreboard chip so visual identity stays consistent.
+                    $headerSaYears = ($nationalTeamAppearances ?? collect())
+                        ->pluck('year')
+                        ->filter()
+                        ->map(fn ($y) => (int) $y)
+                        ->unique()
+                        ->sortDesc()
+                        ->values()
+                        ->all();
+                    $headerSaTooltip = null;
+                    if ($latestAppearance = ($nationalTeamAppearances ?? collect())->first()) {
+                        $headerSaTooltip = trim(implode(' · ', array_filter([
+                            $latestAppearance->division_label ?: $latestAppearance->divisionName(),
+                            $latestAppearance->championship_name,
+                        ])));
+                    }
+                @endphp
                 <div class="mb-6">
-                    <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $shooter->name }}</h1>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $shooter->name }}</h1>
+                        <x-sa-team-badge :years="$headerSaYears" :tooltip="$headerSaTooltip" />
+                    </div>
                     <div class="flex flex-wrap items-center gap-2 mt-2">
                         @if($shooter->province)
                             <span class="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ $shooter->province->name }}</span>

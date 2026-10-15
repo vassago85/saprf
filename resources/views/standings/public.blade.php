@@ -156,6 +156,7 @@
             @include('standings._public-table', [
                 'standings' => $standings,
                 'qualificationByUser' => $qualificationByUser ?? [],
+                'saBadgesByUser' => $saBadgesByUser ?? [],
                 'showProvince' => true,
                 'showDivision' => true,
                 'series' => $series,

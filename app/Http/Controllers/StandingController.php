@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\NationalTeamAppearance;
 use App\Models\Province;
 use App\Models\Standing;
 use App\Models\User;
@@ -64,6 +65,10 @@ class StandingController extends Controller
             $standings = (clone $base)->whereNull('province_id')->get();
         }
 
+        $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers(
+            $standings->pluck('user_id')->filter()->unique()->values()->all(),
+        );
+
         return view('standings.index', [
             'season' => $season,
             'seasons' => $seasons,
@@ -73,6 +78,7 @@ class StandingController extends Controller
             'divisions' => $divisions,
             'provinces' => $provinces,
             'standings' => $standings,
+            'saBadgesByUser' => $saBadgesByUser,
         ]);
     }
 
@@ -232,6 +238,10 @@ class StandingController extends Controller
             $season,
         );
 
+        $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers(
+            $standingsResult->pluck('user_id')->filter()->unique()->values()->all(),
+        );
+
         return view('standings.public', [
             'season' => $season,
             'seasons' => $seasons,
@@ -243,6 +253,7 @@ class StandingController extends Controller
             'provinces' => $provinces,
             'standings' => $standingsResult,
             'qualificationByUser' => $qualificationByUser,
+            'saBadgesByUser' => $saBadgesByUser,
             'totalRanked' => $totalRanked,
             'totalMatches' => $totalMatches,
             'completedMatches' => $completedMatches,
