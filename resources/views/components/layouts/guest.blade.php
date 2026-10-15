@@ -79,5 +79,6 @@
     @endif
 
     @fluxScripts
+    @stack('scripts')
 </body>
 </html>

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Division;
 use App\Models\Membership;
+use App\Models\NationalTeam;
 use App\Models\NationalTeamAppearance;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -66,8 +67,8 @@ class SeedNationalTeam2026Command extends Command
      * FALSE because Protea Colours are a shooter-only honour.
      */
     private const ROSTER = [
-        // Open division (6)
-        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open — Team Captain', 'is_manager' => false],
+        // Open division (6) — Warren is captain (role=captain).
+        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false, 'is_captain' => true],
         ['name' => 'Leon Goosen',           'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
         ['name' => 'Ruan Zeeman',           'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
         ['name' => 'Dennis van der Merwe',  'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
@@ -152,6 +153,19 @@ class SeedNationalTeam2026Command extends Command
             ->orderBy('id')
             ->value('id') ?? User::query()->min('id');
 
+        // Find-or-create the shared NationalTeam header so every row in
+        // this roster links back to the same team-year record.
+        $team = NationalTeam::firstOrCreate(
+            ['year' => self::YEAR, 'championship_name' => self::CHAMPIONSHIP],
+            [
+                'discipline' => 'centrefire',
+                'host_country' => self::HOST_COUNTRY,
+                'city' => 'Lipan, Texas',
+                'starts_on' => self::APPEARED_AT,
+                'ends_on' => '2026-09-28',
+            ],
+        );
+
         // Build an in-PHP name index so resolution works identically on
         // MySQL (prod) and SQLite (tests). Covers both strict and
         // punctuation-stripped forms so "J.C. Robertson" matches
@@ -221,6 +235,12 @@ class SeedNationalTeam2026Command extends Command
                 // only when they don't already have a colours-awarding
                 // row somewhere in their history.
                 $isManager = ! empty($entry['is_manager']);
+                $isCaptain = ! empty($entry['is_captain']);
+                $role = $isManager
+                    ? NationalTeamAppearance::ROLE_MANAGER
+                    : ($isCaptain
+                        ? NationalTeamAppearance::ROLE_CAPTAIN
+                        : NationalTeamAppearance::ROLE_SHOOTER);
                 $awardColours = ! $isManager && ! $user->hasProteaColours();
 
                 // Use ->get() rather than array access so a missing slug
@@ -233,6 +253,9 @@ class SeedNationalTeam2026Command extends Command
                 if ($isManager) {
                     $noteSuffix = '(team manager — no colours)';
                     $label = 'CREATE-M';
+                } elseif ($isCaptain) {
+                    $noteSuffix = $awardColours ? '(captain + Protea Colours)' : '(captain)';
+                    $label = 'CREATE+K';
                 } elseif ($awardColours) {
                     $noteSuffix = '(awards Protea Colours)';
                     $label = 'CREATE+C';
@@ -255,6 +278,8 @@ class SeedNationalTeam2026Command extends Command
                         'year' => self::YEAR,
                         'division_id' => $divisionId,
                         'division_label' => $entry['division_label'],
+                        'role' => $role,
+                        'national_team_id' => $team->id,
                         'championship_name' => self::CHAMPIONSHIP,
                         'host_country' => self::HOST_COUNTRY,
                         'placing' => null,

@@ -42,6 +42,7 @@ use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\NationalTeamAppearanceController;
+use App\Http\Controllers\PublicMediaController;
 use App\Http\Controllers\PublicNationalTeamController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PaymentController;
@@ -143,6 +144,13 @@ Route::get('/standings', [StandingController::class, 'publicIndex'])->name('stan
 // national_team_appearances table (admin UI lives at /national-team under
 // the Exco role group, which is why the public URL uses a different slug).
 Route::get('/sa-team', [PublicNationalTeamController::class, 'index'])->name('sa-team.index');
+Route::get('/sa-team/{year}', [PublicNationalTeamController::class, 'index'])
+    ->whereNumber('year')
+    ->name('sa-team.year');
+
+// Public photo library (albums + accessible lightbox).
+Route::get('/media', [PublicMediaController::class, 'index'])->name('media.index');
+Route::get('/media/{album:slug}', [PublicMediaController::class, 'show'])->name('media.show');
 
 // Legacy shooter URL. Kept live so external bookmarks and the many
 // {{ url('/standings/'.$season.'/shooter/'.$user->id) }} template links
@@ -690,6 +698,22 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('national-team', NationalTeamAppearanceController::class)
             ->only(['index', 'create', 'store', 'destroy'])
             ->parameters(['national-team' => 'nationalTeam']);
+
+        // Team-year records — venue, dates, cover photo for each
+        // championship the SA team has sent a roster to. The appearances
+        // table hangs off these via national_team_id.
+        Route::resource('national-teams', \App\Http\Controllers\NationalTeamController::class)
+            ->only(['index', 'edit', 'update'])
+            ->parameters(['national-teams' => 'nationalTeam']);
+
+        // Media library: albums + photos, with homepage-feature toggle.
+        // Mounted under /admin/… so the admin URLs can't collide with the
+        // public /media/{album:slug} album page.
+        Route::resource('admin/media/albums', \App\Http\Controllers\MediaAlbumController::class)
+            ->parameters(['albums' => 'album'])
+            ->names('media.albums');
+        Volt::route('/admin/media/albums/{album}/items', 'admin.media.album-manager')
+            ->name('media.albums.items');
 
         // Shooting clubs — master list, recognition toggle, merge tool.
         // Recognition drives IPRF ELG-03 / ELG-05 checks.

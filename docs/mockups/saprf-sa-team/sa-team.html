@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team South Africa · SAPRF (mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saprf-mockup.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap bar">
+    <div class="logo">SAPRF</div>
+    <nav class="nav">
+      <a href="#">Events</a><a href="#">Standings</a><a href="sa-team.html" class="active">SA Team</a><a href="media.html">Media</a><a href="#">Documents</a><a href="#">Contact</a><a href="#" class="btn-sm">Log in</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-photo"><span class="ph-label">[Team photo for selected year, full width, object-fit cover]</span></div>
+  <div class="hero-scrim"></div>
+  <div class="hero-content wrap">
+    <div class="hero-text">
+      <span class="pill-gold">Team South Africa</span>
+      <h1 class="display-xl">The Proteas</h1>
+      <p class="lead-light">Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>27</b><span>Proteas</span></div>
+      <div class="stat"><b>27</b><span>Appearances</span></div>
+      <div class="stat gold"><b>26</b><span>Colours awarded</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="yearbar">
+  <div class="wrap row">
+    <span class="muted-label">Team year</span>
+    <button class="chip active">2026</button>
+    <button class="chip">[Year]</button>
+    <button class="chip">[Year]</button>
+    <button class="chip">[Year]</button>
+  </div>
+</div>
+
+<main class="wrap section">
+  <div class="year-head">
+    <div>
+      <div class="year-tag">2026</div>
+      <h2 class="display-l">IPRF World Championship · Centrefire</h2>
+      <div class="muted">Lipan, Texas, United States · [Dates]</div>
+    </div>
+    <div class="kv-row">
+      <div class="kv"><small>Team captain</small><b>Warren Britnell</b></div>
+      <div class="kv"><small>Team manager</small><b>Clive Mey</b></div>
+      <div class="kv"><small>Squad</small><b>26 shooters</b></div>
+    </div>
+  </div>
+  <div id="divisions" class="grid-340"></div>
+</main>
+
+<section class="wrap section">
+  <h2 class="display-m">Past teams</h2>
+  <p class="muted mb">Every South African team sent to an IPRF World Championship.</p>
+  <div class="grid-260">
+    <a class="card" href="#"><div class="thumb">[Team photo]</div><div class="card-body"><div class="year-big">[Year]</div><b>IPRF World Championship</b><div class="muted sm">[Venue] · [n] shooters</div></div></a>
+    <a class="card" href="#"><div class="thumb">[Team photo]</div><div class="card-body"><div class="year-big">[Year]</div><b>IPRF World Championship</b><div class="muted sm">[Venue] · [n] shooters</div></div></a>
+    <a class="card" href="#"><div class="thumb">[Team photo]</div><div class="card-body"><div class="year-big">[Year]</div><b>IPRF World Championship</b><div class="muted sm">[Venue] · [n] shooters</div></div></a>
+    <a class="card" href="#"><div class="thumb">[Team photo]</div><div class="card-body"><div class="year-big">[Year]</div><b>IPRF World Championship</b><div class="muted sm">[Venue] · [n] shooters</div></div></a>
+  </div>
+</section>
+
+<section class="dark-band">
+  <div class="wrap section">
+    <div class="year-head">
+      <div>
+        <h2 class="display-m">Honour roll</h2>
+        <p class="muted-light">All Proteas, A to Z, with the years they represented South Africa.</p>
+      </div>
+      <label class="search-label">Find a shooter<input id="q" type="search" placeholder="Search by name"></label>
+    </div>
+    <div id="roll" class="roll"></div>
+  </div>
+</section>
+
+<footer class="site-footer"><div class="wrap">© 2026 South African Precision Rifle Federation (NPC)</div></footer>
+
+<script>
+const PROV = { GP: 'Gauteng', WC: 'Western Cape', MP: 'Mpumalanga', LP: 'Limpopo' };
+const DIVS = {
+  Open: [['Warren Britnell','GP',1],['Dennis Van der Merwe','GP'],['Leon Goosen','GP'],['Marcel Steyn','GP'],['Ruan Zeeman','WC'],['Terblanche De Jager','WC']],
+  Factory: [['Chris Leeson','GP'],['Hanno Van Niekerk','GP'],['Patrick Capes','WC'],['Russell Ferreira','GP']],
+  Limited: [['JC Robertson','GP'],['Mohsin Tajbhai','WC'],['Pieter Cronje','MP'],['Willem Van Biljon','LP']],
+  Ladies: [['Aliza Mey','GP'],['Kim-Leigh Ferreira','GP'],['Monica Le Roux','WC'],['Natasha Britnell','GP']],
+  Juniors: [['Conner Britnell','GP'],['Donovan Cook','GP'],['Johan Nel','GP'],['Tinus Cronje','MP']],
+  Seniors: [['Andries Lategan','GP'],['Etienne De Waal','GP'],['LeRiche Coetzer Snr','WC'],['Trevor Graham','GP']]
+};
+const initials = n => n.split(' ').filter(w => /^[A-Z]/.test(w)).slice(0, 2).map(w => w[0]).join('');
+const divEl = document.getElementById('divisions');
+const roll = [['Clive Mey (manager)', '2026']];
+for (const [name, members] of Object.entries(DIVS)) {
+  const items = members.map(([n, p, c]) => {
+    roll.push([n, '2026']);
+    return `<li><div class="avatar">${initials(n)}</div><div class="who"><b>${n}</b><span>${PROV[p]}</span></div>${c ? '<span class="tag gold">Captain</span>' : ''}<span class="tag green">Colours</span></li>`;
+  }).join('');
+  divEl.insertAdjacentHTML('beforeend', `<section class="div-card"><div class="div-head"><h3>${name}</h3><span>${members.length} shooters</span></div><ul>${items}</ul></section>`);
+}
+roll.sort((a, b) => a[0].localeCompare(b[0]));
+const rollEl = document.getElementById('roll');
+const draw = q => rollEl.innerHTML = roll.filter(r => r[0].toLowerCase().includes(q)).map(r => `<div class="roll-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
+draw('');
+document.getElementById('q').addEventListener('input', e => draw(e.target.value.toLowerCase()));
+</script>
+</body>
+</html>

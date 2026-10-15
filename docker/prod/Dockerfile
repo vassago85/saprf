@@ -66,6 +66,7 @@ RUN apk add --no-cache \
     supervisor \
     libpng \
     libjpeg-turbo \
+    libwebp \
     freetype \
     libzip \
     icu-libs \
@@ -85,6 +86,7 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN apk add --no-cache --virtual .build-deps \
     libpng-dev \
     libjpeg-turbo-dev \
+    libwebp-dev \
     freetype-dev \
     libzip-dev \
     icu-dev \
@@ -92,7 +94,9 @@ RUN apk add --no-cache --virtual .build-deps \
     linux-headers \
     $PHPIZE_DEPS
 
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+# GD compiled with WebP so Intervention's queued job can emit WebP as
+# well as JPEG variants for the media library.
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
 RUN docker-php-ext-install -j$(nproc) pdo_mysql gd zip intl bcmath opcache mbstring pcntl exif
 
 RUN pecl install redis && docker-php-ext-enable redis

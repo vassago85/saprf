@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media · SAPRF (mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saprf-mockup.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap bar">
+    <div class="logo">SAPRF</div>
+    <nav class="nav">
+      <a href="#">Events</a><a href="#">Standings</a><a href="sa-team.html">SA Team</a><a href="media.html" class="active">Media</a><a href="#">Documents</a><a href="#">Contact</a><a href="#" class="btn-sm">Log in</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap section">
+  <h1 class="display-xl" style="margin-top:0">Media</h1>
+  <p class="muted mb" style="font-size:17px;max-width:640px">Photos from national championships, Team South Africa and SAPRF matches around the country.</p>
+
+  <a class="feature" href="#">
+    <div class="thumb">[Featured photo]</div>
+    <div class="feature-body">
+      <span class="pill-gold" style="align-self:flex-start">Featured</span>
+      <h2>2026 IPRF World Championship</h2>
+      <p class="lead-light" style="font-size:16px">Team South Africa in Lipan, Texas.</p>
+      <span class="muted-light sm">[n] photos · Photo credit: [Name]</span>
+    </div>
+  </a>
+
+  <div class="row" style="margin-bottom:24px" id="filters">
+    <button class="chip active" data-f="All">All</button>
+    <button class="chip" data-f="Team SA">Team SA</button>
+    <button class="chip" data-f="SA Champs">SA Champs</button>
+    <button class="chip" data-f="Nationals">Nationals</button>
+    <button class="chip" data-f="Provincial">Provincial</button>
+  </div>
+
+  <div class="grid-320" id="albums"></div>
+</main>
+
+<footer class="site-footer"><div class="wrap">© 2026 South African Precision Rifle Federation (NPC)</div></footer>
+
+<script>
+const ALBUMS = [
+  ['Team SA', '2026 IPRF World Championship', 'Lipan, Texas · [n] photos'],
+  ['SA Champs', '[SA Champs year] · Centrefire', '[Venue] · [n] photos'],
+  ['SA Champs', '[SA Champs year] · PR22', '[Venue] · [n] photos'],
+  ['Nationals', 'Centrefire WC 2-Day National', 'Darling Steel Valley · Oct 2026'],
+  ['Nationals', 'Rimfire PR22 GP 2-Day National Championship', 'Rayton · Nov 2026'],
+  ['Provincial', 'WC Provincial Rimfire Champs', 'Atlantis · Oct 2026']
+];
+const el = document.getElementById('albums');
+const draw = f => el.innerHTML = ALBUMS.filter(a => f === 'All' || a[0] === f).map(a =>
+  `<a class="card" href="#"><div class="thumb tall">[Album cover]</div><div class="card-body"><div class="eyebrow">${a[0]}</div><b style="font-size:17px">${a[1]}</b><div class="muted sm">${a[2]}</div></div></a>`).join('');
+draw('All');
+document.querySelectorAll('#filters .chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#filters .chip').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); draw(b.dataset.f);
+}));
+</script>
+</body>
+</html>

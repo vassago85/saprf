@@ -134,6 +134,9 @@ it('renders the SA badge in the public profile header for a Protea shooter', fun
 // ── Public /sa-team roster ──────────────────────────────────────────────
 
 it('lists the 2026 roster at /sa-team grouped by year with division labels', function () {
+    // Division cards are keyed on the Division model, so seed Ladies.
+    $ladies = Division::create(['slug' => 'ladies', 'name' => 'Ladies', 'display_order' => 5, 'is_active' => true]);
+
     $shooter = User::factory()->create(['name' => 'Roster Rachel']);
     Membership::create([
         'user_id' => $shooter->id, 'saprf_number' => 'RR-1', 'membership_type' => 'paid',
@@ -142,6 +145,7 @@ it('lists the 2026 roster at /sa-team grouped by year with division labels', fun
     ]);
     NationalTeamAppearance::create([
         'user_id' => $shooter->id, 'year' => 2026,
+        'division_id' => $ladies->id,
         'division_label' => 'Ladies',
         'championship_name' => '2026 IPRF World Championship (Centrefire)',
         'host_country' => 'US', 'awarded_colours' => true,
@@ -151,35 +155,55 @@ it('lists the 2026 roster at /sa-team grouped by year with division labels', fun
     $response = $this->get('/sa-team');
 
     $response->assertOk();
-    $response->assertSee('Represented South Africa');
+    $response->assertSee('The Proteas');          // hero heading
     $response->assertSee('2026');
     $response->assertSee('Roster Rachel');
-    $response->assertSee('Ladies');
+    $response->assertSee('Ladies');               // division card header (styled uppercase via CSS)
     $response->assertSee('2026 IPRF World Championship (Centrefire)');
-    // The flag indicator for US host.
     $response->assertSee('United States');
 });
 
-it('renders the team-manager chip for a Clive-style manager entry', function () {
+it('shows the team manager in the header tile rather than a division card', function () {
+    // Also create a shooter so the page has a non-empty roster block.
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1, 'is_active' => true]);
+
     $manager = User::factory()->create(['name' => 'Clive Example']);
-    Membership::create([
-        'user_id' => $manager->id, 'saprf_number' => 'MGR-1', 'membership_type' => 'paid',
-        'status' => 'active', 'payment_status' => 'paid',
-        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
-    ]);
+    $shooter = User::factory()->create(['name' => 'Open Oscar']);
+    foreach ([
+        ['u' => $manager, 'n' => 'MGR-1'],
+        ['u' => $shooter, 'n' => 'OPN-1'],
+    ] as $entry) {
+        Membership::create([
+            'user_id' => $entry['u']->id, 'saprf_number' => $entry['n'], 'membership_type' => 'paid',
+            'status' => 'active', 'payment_status' => 'paid',
+            'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+        ]);
+    }
     NationalTeamAppearance::create([
         'user_id' => $manager->id, 'year' => 2026,
         'division_label' => 'Team Manager',
+        'role' => NationalTeamAppearance::ROLE_MANAGER,
         'championship_name' => '2026 IPRF World Championship (Centrefire)',
         'host_country' => 'US', 'awarded_colours' => false,
+        'appeared_at' => '2026-09-23',
+    ]);
+    NationalTeamAppearance::create([
+        'user_id' => $shooter->id, 'year' => 2026,
+        'division_id' => $open->id, 'division_label' => 'Open',
+        'championship_name' => '2026 IPRF World Championship (Centrefire)',
+        'host_country' => 'US', 'awarded_colours' => true,
         'appeared_at' => '2026-09-23',
     ]);
 
     $response = $this->get('/sa-team');
 
     $response->assertOk();
+    // Manager appears in the "Team manager" header tile …
+    $response->assertSee('Team manager');
     $response->assertSee('Clive Example');
-    $response->assertSee('Team Manager');
+    // … and the shooter appears in the Open division card.
+    $response->assertSee('Open Oscar');
+    $response->assertSee('Open');
 });
 
 it('hides members-only shooters from the roster for guests but shows them to authed members', function () {
@@ -217,7 +241,7 @@ it('hides members-only shooters from the roster for guests but shows them to aut
 it('renders a friendly empty state when no appearances have been recorded yet', function () {
     $this->get('/sa-team')
         ->assertOk()
-        ->assertSee('No appearances recorded yet');
+        ->assertSee('No teams recorded yet');
 });
 
 // ── NationalTeamAppearance::badgeDataForUsers bulk lookup ───────────────
@@ -242,6 +266,7 @@ it('badgeDataForUsers returns one entry per user with newest year first and a to
     NationalTeamAppearance::create([
         'user_id' => $bob->id, 'year' => 2026,
         'division_label' => 'Team Manager',
+        'role' => NationalTeamAppearance::ROLE_MANAGER,
         'championship_name' => 'Worlds 2026',
         'awarded_colours' => false, 'appeared_at' => '2026-09-23',
     ]);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Division;
 use App\Models\Membership;
+use App\Models\NationalTeam;
 use App\Models\NationalTeamAppearance;
 use App\Models\SelectionCycle;
 use App\Models\User;
@@ -86,6 +87,7 @@ class NationalTeamAppearanceController extends Controller
             'year' => ['required', 'integer', 'between:1990,'.(now()->year + 1)],
             'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
             'division_label' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', Rule::in(array_keys(NationalTeamAppearance::ROLES))],
             'championship_name' => ['required', 'string', 'max:255'],
             'host_country' => ['nullable', 'string', 'size:2', Rule::in(array_keys(NationalTeamAppearance::HOST_COUNTRIES))],
             'placing' => ['nullable', 'integer', 'between:1,999'],
@@ -119,11 +121,37 @@ class NationalTeamAppearanceController extends Controller
             }
         }
 
+        $role = $validated['role'] ?? NationalTeamAppearance::ROLE_SHOOTER;
+
+        // Managers never get Protea Colours — they don't shoot. Keep the
+        // invariant consistent even if the admin forgot to untick the box.
+        if ($role === NationalTeamAppearance::ROLE_MANAGER) {
+            $awardsColours = false;
+        }
+
+        // Find-or-create the shared NationalTeam header for this year +
+        // championship so every appearance in the roster hangs off the
+        // same record for venue / dates / cover photo.
+        $discipline = str_contains(strtolower((string) $validated['championship_name']), 'rimfire')
+            ? 'rimfire' : 'centrefire';
+        $team = NationalTeam::firstOrCreate(
+            [
+                'year' => $validated['year'],
+                'championship_name' => $validated['championship_name'],
+            ],
+            [
+                'discipline' => $discipline,
+                'host_country' => $validated['host_country'] ?? null,
+            ],
+        );
+
         $appearance = NationalTeamAppearance::create([
             'user_id' => $user->id,
             'year' => $validated['year'],
             'division_id' => $validated['division_id'] ?? null,
             'division_label' => $validated['division_label'] ?? null,
+            'role' => $role,
+            'national_team_id' => $team->id,
             'championship_name' => $validated['championship_name'],
             'host_country' => $validated['host_country'] ?? null,
             'placing' => $validated['placing'] ?? null,

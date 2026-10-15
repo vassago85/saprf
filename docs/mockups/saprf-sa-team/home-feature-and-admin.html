@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homepage feature + admin · SAPRF (mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saprf-mockup.css">
+</head>
+<body>
+
+<div class="wrap" style="padding-top:24px;padding-bottom:12px"><div class="admin-tag">Homepage · feature band (replaces the current Team South Africa block)</div></div>
+<section class="band">
+  <div class="wrap band-grid">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <span class="pill-gold" style="align-self:flex-start">Team South Africa</span>
+      <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(36px,5vw,52px);line-height:.98">Flying the flag at the 2026 IPRF World Championship</h2>
+      <p class="lead-light" style="font-size:17px">The South African team that represented the country in Lipan, Texas.</p>
+      <div class="row" style="gap:12px;margin-top:8px">
+        <a class="btn" href="sa-team.html">Meet the team</a>
+        <a class="btn ghost" href="media.html">View gallery</a>
+      </div>
+    </div>
+    <figure style="margin:0">
+      <div class="thumb" style="height:360px;border-radius:16px">[Featured media item]</div>
+      <figcaption style="margin-top:10px;font-size:13px;color:#9AA59F">Team South Africa · 2026 IPRF World Championship, Lipan, Texas</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="admin-tag">Admin · media item</div>
+  <div class="panel">
+    <div class="thumb" style="height:260px;border-radius:12px">[Uploaded photo]</div>
+    <form class="form" onsubmit="return false">
+      <label>Album<select><option>2026 IPRF World Championship</option><option>[SA Champs year] · Centrefire</option></select></label>
+      <label>Caption<input value="Team South Africa · 2026 IPRF World Championship, Lipan, Texas"></label>
+      <label>Photo credit<input placeholder="Photographer"></label>
+      <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:12px">
+        <label class="check"><input type="checkbox" checked>Feature on homepage</label>
+        <label>Homepage label<input value="Team South Africa"></label>
+        <label>Homepage headline<input value="Flying the flag at the 2026 IPRF World Championship"></label>
+        <label>Homepage summary<input value="The South African team that represented the country in Lipan, Texas."></label>
+        <label>Button link<select><option>SA Team page</option><option>This album</option><option>Results</option><option>Custom URL</option></select></label>
+        <p class="muted sm" style="margin:0">Featuring this item replaces the current homepage feature. The previous one stays in its album.</p>
+      </div>
+      <button class="btn" type="button" style="align-self:flex-start">Save</button>
+    </form>
+  </div>
+</section>
+</body>
+</html>

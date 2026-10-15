@@ -214,60 +214,10 @@
         </div>
     </section>
 
-    {{-- TEAM SOUTH AFRICA — IPRF WORLDS 2026 --}}
-    <section class="relative overflow-hidden bg-stone-900 py-16 lg:py-20">
-        <div class="absolute inset-0 bg-gradient-to-br from-emerald-950/60 via-stone-900 to-stone-900"></div>
-
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6">
-            <div class="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-                <div class="lg:col-span-5">
-                    <div class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-400/20 px-4 py-1.5 mb-6">
-                        <span class="size-2 rounded-full bg-amber-400"></span>
-                        <span class="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Team South Africa</span>
-                    </div>
-
-                    <h2 class="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
-                        Flying the flag at the 2026 IPRF World Championship
-                    </h2>
-
-                    <p class="mt-4 text-base sm:text-lg text-stone-300 leading-relaxed max-w-md">
-                        The South African team that represented the country at the International Precision Rifle Federation World Championship in Lipan, Texas.
-                    </p>
-
-                    <dl class="mt-8 grid grid-cols-3 gap-3 max-w-md">
-                        <div class="rounded-xl bg-white/5 border border-white/10 px-3 py-3">
-                            <dt class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Event</dt>
-                            <dd class="mt-1 text-sm font-semibold text-white">IPRF Worlds</dd>
-                        </div>
-                        <div class="rounded-xl bg-white/5 border border-white/10 px-3 py-3">
-                            <dt class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Venue</dt>
-                            <dd class="mt-1 text-sm font-semibold text-white">Texas, USA</dd>
-                        </div>
-                        <div class="rounded-xl bg-white/5 border border-white/10 px-3 py-3">
-                            <dt class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Year</dt>
-                            <dd class="mt-1 text-sm font-semibold text-white">2026</dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <div class="lg:col-span-7">
-                    {{-- Source photo is only 639×360; cap the width so it isn't upscaled into blur. --}}
-                    <figure class="mx-auto max-w-[640px]">
-                        <div class="rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/40 bg-stone-800">
-                            <img src="{{ asset('images/team-sa-iprf-worlds-2026.jpg') }}"
-                                 alt="The South African team on stage at the 2026 IPRF World Championship in Texas"
-                                 width="639" height="360"
-                                 loading="lazy" decoding="async"
-                                 class="block w-full h-auto">
-                        </div>
-                        <figcaption class="mt-3 text-xs text-stone-400 text-center">
-                            Team South Africa &middot; 2026 IPRF World Championship, Lipan, Texas
-                        </figcaption>
-                    </figure>
-                </div>
-            </div>
-        </div>
-    </section>
+    {{-- TEAM SOUTH AFRICA — data-driven feature band.
+         Picks the item flagged `is_home_feature`, falling back to the
+         cover of the most recent NationalTeam, else hides itself. --}}
+    <x-home-feature-band />
 
     {{-- UPCOMING MATCHES --}}
     <section class="bg-stone-50 py-20" x-data="{

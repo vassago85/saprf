@@ -107,6 +107,23 @@
                 </div>
             </div>
 
+            {{-- Team role: shooter / captain / manager / official. Managers
+                 and officials appear in the team header on the public page
+                 rather than inside a division card. --}}
+            <div>
+                <label for="role" class="block text-sm font-medium text-stone-700 mb-1">Team role</label>
+                <select id="role" name="role"
+                        class="w-full rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500 @error('role') border-red-300 @enderror">
+                    @foreach(\App\Models\NationalTeamAppearance::ROLES as $key => $label)
+                        <option value="{{ $key }}" @selected(old('role', 'shooter') === $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-stone-500">
+                    "Team Captain" is a shooter who also leads the squad. "Team Manager" is a non-shooting support role and never receives Protea Colours.
+                </p>
+                @error('role')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
             <div>
                 <label for="selection_cycle_id" class="block text-sm font-medium text-stone-700 mb-1">
                     Selection cycle <span class="text-stone-400 font-normal">(optional)</span>

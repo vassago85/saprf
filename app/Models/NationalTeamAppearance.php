@@ -23,11 +23,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class NationalTeamAppearance extends Model
 {
+    public const ROLE_SHOOTER = 'shooter';
+
+    public const ROLE_CAPTAIN = 'captain';
+
+    public const ROLE_MANAGER = 'manager';
+
+    public const ROLE_OFFICIAL = 'official';
+
+    public const ROLES = [
+        self::ROLE_SHOOTER => 'Shooter',
+        self::ROLE_CAPTAIN => 'Team Captain',
+        self::ROLE_MANAGER => 'Team Manager',
+        self::ROLE_OFFICIAL => 'Official',
+    ];
+
     protected $fillable = [
         'user_id',
         'year',
         'division_id',
         'division_label',
+        'role',
+        'national_team_id',
         'championship_name',
         'host_country',
         'placing',
@@ -56,6 +73,26 @@ class NationalTeamAppearance extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    public function nationalTeam(): BelongsTo
+    {
+        return $this->belongsTo(NationalTeam::class);
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === self::ROLE_MANAGER;
+    }
+
+    public function isCaptain(): bool
+    {
+        return $this->role === self::ROLE_CAPTAIN;
+    }
+
+    public function isOfficial(): bool
+    {
+        return in_array($this->role, [self::ROLE_MANAGER, self::ROLE_OFFICIAL], true);
     }
 
     public function selectionCycle(): BelongsTo
@@ -150,7 +187,7 @@ class NationalTeamAppearance extends Model
             ->whereIn('user_id', $userIds)
             ->orderByDesc('year')
             ->orderByDesc('appeared_at')
-            ->get(['user_id', 'year', 'championship_name', 'division_label', 'host_country']);
+            ->get(['user_id', 'year', 'championship_name', 'division_label', 'host_country', 'role']);
 
         $out = [];
         foreach ($rows as $row) {
@@ -158,14 +195,24 @@ class NationalTeamAppearance extends Model
             $yr = (int) $row->year;
 
             if (! isset($out[$uid])) {
+                // Prefer the structural role for the badge label; fall
+                // back to the division text when a historical row
+                // predates the role column.
+                $role = $row->role ?? self::ROLE_SHOOTER;
+                $primaryLabel = match ($role) {
+                    self::ROLE_MANAGER => 'Team Manager',
+                    self::ROLE_CAPTAIN => trim(($row->division_label ? $row->division_label.' · ' : '').'Captain'),
+                    self::ROLE_OFFICIAL => 'Official',
+                    default => $row->division_label,
+                };
                 $labelParts = array_filter([
-                    $row->division_label,
+                    $primaryLabel,
                     $row->championship_name,
                 ]);
                 $out[$uid] = [
                     'years' => [],
                     'tooltip' => implode(' · ', $labelParts),
-                    'is_manager' => strcasecmp((string) $row->division_label, 'Team Manager') === 0,
+                    'is_manager' => $role === self::ROLE_MANAGER,
                 ];
             }
 
