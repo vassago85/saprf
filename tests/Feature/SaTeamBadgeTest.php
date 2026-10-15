@@ -329,6 +329,24 @@ it('saprf:seed-national-team-2026 only awards colours when the user has no exist
     expect($alreadyColoured->fresh()->nationalTeamAppearances()->awardedColours()->first()->year)->toBe(2015);
 });
 
+it('saprf:seed-national-team-2026 never awards Protea Colours to the team manager', function () {
+    // Clive Mey is a non-shooting support role — the seeder must record
+    // his appearance (so the badge shows) but leave awarded_colours FALSE,
+    // even on a brand-new user with no prior appearances.
+    $clive = User::factory()->create(['name' => 'Clive Mey']);
+
+    $this->artisan('saprf:seed-national-team-2026')->assertExitCode(0);
+
+    $row = NationalTeamAppearance::where('user_id', $clive->id)->where('year', 2026)->first();
+    expect($row)->not->toBeNull();
+    expect($row->awarded_colours)->toBeFalse();
+    expect($row->division_label)->toBe('Team Manager');
+    expect($row->division_id)->toBeNull();
+
+    // Invariant check: zero colours rows for the manager.
+    expect($clive->fresh()->nationalTeamAppearances()->awardedColours()->count())->toBe(0);
+});
+
 it('saprf:seed-national-team-2026 reports ambiguous names without inserting them', function () {
     // Two users share the name "J.C. Robertson" — the command must flag it
     // ambiguous and skip rather than silently picking one.

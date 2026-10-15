@@ -59,48 +59,56 @@ class SeedNationalTeam2026Command extends Command
      * from the image, so the admin index and public roster can show
      * "Open — Team Captain" / "Team Manager" even when a Division row is
      * also attached.
+     *
+     * `is_manager` marks non-shooting support staff (team manager, coach,
+     * armourer, etc). Their appearance is still recorded so the badge
+     * shows next to their name — but `awarded_colours` is forced to
+     * FALSE because Protea Colours are a shooter-only honour.
      */
     private const ROSTER = [
         // Open division (6)
-        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open — Team Captain'],
-        ['name' => 'Leon Goosen',           'division_slug' => 'open',    'division_label' => 'Open'],
-        ['name' => 'Ruan Zeeman',           'division_slug' => 'open',    'division_label' => 'Open'],
-        ['name' => 'Dennis van der Merwe',  'division_slug' => 'open',    'division_label' => 'Open'],
-        ['name' => 'Terblanche de Jager',   'division_slug' => 'open',    'division_label' => 'Open'],
-        ['name' => 'Marcel Steyn',          'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open — Team Captain', 'is_manager' => false],
+        ['name' => 'Leon Goosen',           'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
+        ['name' => 'Ruan Zeeman',           'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
+        ['name' => 'Dennis van der Merwe',  'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
+        ['name' => 'Terblanche de Jager',   'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
+        ['name' => 'Marcel Steyn',          'division_slug' => 'open',    'division_label' => 'Open',                'is_manager' => false],
 
-        // Ladies division (4)
-        ['name' => 'Eliza Mey',             'division_slug' => 'ladies',  'division_label' => 'Ladies'],
-        ['name' => 'Monica le Roux',        'division_slug' => 'ladies',  'division_label' => 'Ladies'],
-        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'ladies',  'division_label' => 'Ladies'],
-        ['name' => 'Natasha Britnell',      'division_slug' => 'ladies',  'division_label' => 'Ladies'],
+        // Ladies division (4) — "Eliza Mey" on the On Target Africa page
+        // is "Aliza Mey" in the SAPRF membership roll; SAPRF_HINTS pins
+        // the lookup by number so the magazine spelling still works.
+        ['name' => 'Eliza Mey',             'division_slug' => 'ladies',  'division_label' => 'Ladies',              'is_manager' => false],
+        ['name' => 'Monica le Roux',        'division_slug' => 'ladies',  'division_label' => 'Ladies',              'is_manager' => false],
+        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'ladies',  'division_label' => 'Ladies',              'is_manager' => false],
+        ['name' => 'Natasha Britnell',      'division_slug' => 'ladies',  'division_label' => 'Ladies',              'is_manager' => false],
 
         // Seniors division (4)
-        ['name' => 'Etienne de Waal',       'division_slug' => 'senior',  'division_label' => 'Seniors'],
-        ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors'],
-        ['name' => 'Le Riche Coetzer Snr',  'division_slug' => 'senior',  'division_label' => 'Seniors'],
-        ['name' => 'Trevor Graham',         'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Etienne de Waal',       'division_slug' => 'senior',  'division_label' => 'Seniors',             'is_manager' => false],
+        ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors',             'is_manager' => false],
+        ['name' => 'Le Riche Coetzer Snr',  'division_slug' => 'senior',  'division_label' => 'Seniors',             'is_manager' => false],
+        ['name' => 'Trevor Graham',         'division_slug' => 'senior',  'division_label' => 'Seniors',             'is_manager' => false],
 
         // Juniors division (4)
-        ['name' => 'Conner Britnell',       'division_slug' => 'junior',  'division_label' => 'Juniors'],
-        ['name' => 'Tinus Cronje',          'division_slug' => 'junior',  'division_label' => 'Juniors'],
-        ['name' => 'Johan Nel',             'division_slug' => 'junior',  'division_label' => 'Juniors'],
-        ['name' => 'Donovan Cook',          'division_slug' => 'junior',  'division_label' => 'Juniors'],
+        ['name' => 'Conner Britnell',       'division_slug' => 'junior',  'division_label' => 'Juniors',             'is_manager' => false],
+        ['name' => 'Tinus Cronje',          'division_slug' => 'junior',  'division_label' => 'Juniors',             'is_manager' => false],
+        ['name' => 'Johan Nel',             'division_slug' => 'junior',  'division_label' => 'Juniors',             'is_manager' => false],
+        ['name' => 'Donovan Cook',          'division_slug' => 'junior',  'division_label' => 'Juniors',             'is_manager' => false],
 
         // Limited division (4)
-        ['name' => 'Pieter Cronje',         'division_slug' => 'limited', 'division_label' => 'Limited'],
-        ['name' => 'Willem van Biljon',     'division_slug' => 'limited', 'division_label' => 'Limited'],
-        ['name' => 'Mohsin Tajbhai',        'division_slug' => 'limited', 'division_label' => 'Limited'],
-        ['name' => 'J.C. Robertson',        'division_slug' => 'limited', 'division_label' => 'Limited'],
+        ['name' => 'Pieter Cronje',         'division_slug' => 'limited', 'division_label' => 'Limited',             'is_manager' => false],
+        ['name' => 'Willem van Biljon',     'division_slug' => 'limited', 'division_label' => 'Limited',             'is_manager' => false],
+        ['name' => 'Mohsin Tajbhai',        'division_slug' => 'limited', 'division_label' => 'Limited',             'is_manager' => false],
+        ['name' => 'J.C. Robertson',        'division_slug' => 'limited', 'division_label' => 'Limited',             'is_manager' => false],
 
         // Factory division (4)
-        ['name' => 'Russell Ferreira',      'division_slug' => 'factory', 'division_label' => 'Factory'],
-        ['name' => 'Hanno van Niekerk',     'division_slug' => 'factory', 'division_label' => 'Factory'],
-        ['name' => 'Chris Leeson',          'division_slug' => 'factory', 'division_label' => 'Factory'],
-        ['name' => 'Patrick Capes',         'division_slug' => 'factory', 'division_label' => 'Factory'],
+        ['name' => 'Russell Ferreira',      'division_slug' => 'factory', 'division_label' => 'Factory',             'is_manager' => false],
+        ['name' => 'Hanno van Niekerk',     'division_slug' => 'factory', 'division_label' => 'Factory',             'is_manager' => false],
+        ['name' => 'Chris Leeson',          'division_slug' => 'factory', 'division_label' => 'Factory',             'is_manager' => false],
+        ['name' => 'Patrick Capes',         'division_slug' => 'factory', 'division_label' => 'Factory',             'is_manager' => false],
 
-        // Team manager — no shooting division, kept as free-text label.
-        ['name' => 'Clive Mey',             'division_slug' => null,      'division_label' => 'Team Manager'],
+        // Team manager — non-shooting support role. No shooting division
+        // and no Protea Colours (enforced below by is_manager).
+        ['name' => 'Clive Mey',             'division_slug' => null,      'division_label' => 'Team Manager',        'is_manager' => true],
     ];
 
     /**
@@ -114,7 +122,14 @@ class SeedNationalTeam2026Command extends Command
      *   'J.C. Robertson' => '12345',
      */
     private const SAPRF_HINTS = [
-        // Populate after a first dry-run if ambiguous names show up.
+        // The On Target Africa team page lists "Eliza Mey", but her SAPRF
+        // membership is in the name "Aliza Mey" (SAPRF #427, Gauteng).
+        'Eliza Mey' => '427',
+
+        // Two users share the name "Tinus Cronje" — the paid Mpumalanga
+        // member (#1083) and a managed shell account auto-created from
+        // a match entry. Pin the real one.
+        'Tinus Cronje' => '1083',
     ];
 
     public function handle(): int
@@ -197,7 +212,12 @@ class SeedNationalTeam2026Command extends Command
                     continue;
                 }
 
-                $awardColours = ! $user->hasProteaColours();
+                // Team managers / non-shooting support staff never
+                // receive Protea Colours. Everyone else gets colours
+                // only when they don't already have a colours-awarding
+                // row somewhere in their history.
+                $isManager = ! empty($entry['is_manager']);
+                $awardColours = ! $isManager && ! $user->hasProteaColours();
 
                 // Use ->get() rather than array access so a missing slug
                 // (e.g. seeded DB that hasn't yet run DivisionCategorySeeder)
@@ -206,12 +226,23 @@ class SeedNationalTeam2026Command extends Command
                     ? $divisionsBySlug->get($entry['division_slug'])?->id
                     : null;
 
+                if ($isManager) {
+                    $noteSuffix = '(team manager — no colours)';
+                    $label = 'CREATE-M';
+                } elseif ($awardColours) {
+                    $noteSuffix = '(awards Protea Colours)';
+                    $label = 'CREATE+C';
+                } else {
+                    $noteSuffix = '(already has colours)';
+                    $label = 'CREATE';
+                }
+
                 $this->line(sprintf(
                     '  %-11s %-28s  div=%-8s  %s',
-                    $awardColours ? 'CREATE+C' : 'CREATE',
+                    $label,
                     $entry['name'],
                     $entry['division_label'],
-                    $awardColours ? '(awards Protea Colours)' : '(already has colours)',
+                    $noteSuffix,
                 ));
 
                 if (! $dryRun) {
