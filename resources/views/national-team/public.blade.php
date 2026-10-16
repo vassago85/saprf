@@ -5,7 +5,7 @@
         : 'The Proteas — Team South Africa — SAPRF';
     $pageDescription = $selectedYear
         ? "The South African team that represented the country at an IPRF World Precision Rifle Championship in {$selectedYear}."
-        : 'Every SAPRF shooter who has worn the Protea at an IPRF World Precision Rifle Championship.';
+        : 'Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.';
     $ogImage = $selectedHeroCover?->variantUrl(1600, 'jpg')
         ?? $selectedHeroCover?->originalUrl()
         ?? null;
@@ -67,10 +67,6 @@
                     <div class="rounded-xl bg-white/10 border border-white/15 backdrop-blur px-5 py-3 min-w-[110px]">
                         <dt class="font-heading text-4xl font-extrabold tabular-nums">{{ $statAppearances }}</dt>
                         <dd class="mt-1 text-[11px] font-semibold tracking-[0.12em] uppercase text-stone-300">Appearances</dd>
-                    </div>
-                    <div class="rounded-xl bg-amber-400/15 border border-amber-400/40 backdrop-blur px-5 py-3 min-w-[110px]">
-                        <dt class="font-heading text-4xl font-extrabold tabular-nums text-amber-300">{{ $statColours }}</dt>
-                        <dd class="mt-1 text-[11px] font-semibold tracking-[0.12em] uppercase text-amber-200">Colours awarded</dd>
                     </div>
                 </dl>
             </div>
@@ -206,9 +202,6 @@
                                                 </div>
                                                 @if($isCaptain)
                                                     <span class="shrink-0 inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900">Captain</span>
-                                                @endif
-                                                @if($appearance->awarded_colours)
-                                                    <span class="shrink-0 inline-flex items-center rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">Colours</span>
                                                 @endif
                                             </li>
                                         @endforeach

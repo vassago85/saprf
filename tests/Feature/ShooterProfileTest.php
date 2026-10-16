@@ -508,7 +508,7 @@ it('serves public profiles to guests without authentication', function () {
 
 // ── Protea Colours hero card + national-team appearances list ───────────
 
-it('renders the Protea Colours hero card for a shooter with an awarded_colours appearance', function () {
+it('lists a national-team appearance as representing South Africa, without a Protea Colours label', function () {
     $shooter = User::factory()->create(['name' => 'Proud Percy']);
     Membership::create([
         'user_id' => $shooter->id, 'saprf_number' => 'PC-1', 'membership_type' => 'paid',
@@ -528,8 +528,8 @@ it('renders the Protea Colours hero card for a shooter with an awarded_colours a
     $response = $this->get('/shooters/PC-1/2026');
 
     $response->assertOk();
-    // Hero card content — year, championship, host country.
-    $response->assertSee('Protea Colours', false);
+    $response->assertDontSee('Protea Colours', false);
+    $response->assertSee('Represented South Africa', false);
     $response->assertSee('2015');
     $response->assertSee('IPRF PR22 World Championship');
     $response->assertSee('Sweden');
@@ -564,13 +564,12 @@ it('lists subsequent SA appearances below the Protea Colours hero card', functio
     $response = $this->get('/shooters/MR-1/2026');
 
     $response->assertOk();
-    // The colours-awarding row lives inside the hero card, above the list.
+    $response->assertDontSee('Protea Colours', false);
+    $response->assertSee('Represented South Africa', false);
+    $response->assertDontSee('Also Represented South Africa', false);
     $response->assertSee('IPRF PR22 Worlds 2015');
-    // The two subsequent appearances go into the compact list below.
     $response->assertSee('IPRF PR22 Worlds 2018');
     $response->assertSee('IPRF PR22 Worlds 2022');
-    // Section heading changes based on presence of colours.
-    $response->assertSee('Also Represented South Africa', false);
 });
 
 it('shows the season switcher tabs linking to every year the shooter has scores in', function () {

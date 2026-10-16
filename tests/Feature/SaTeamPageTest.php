@@ -86,7 +86,7 @@ it('deep-links to /sa-team/{year} render that year even when it is not the newes
     expect($html2024)->toContain('href="'.url('/sa-team/2026').'"');
 });
 
-it('hero stat tiles count distinct Proteas, total appearances and colours separately', function () {
+it('hero stat tiles count distinct Proteas and total appearances, without a colours total', function () {
     $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1, 'is_active' => true]);
 
     // 2 shooters, 3 appearances between them (one has two years), 2 colours.
@@ -127,11 +127,10 @@ it('hero stat tiles count distinct Proteas, total appearances and colours separa
     $response->assertOk();
     $html = $response->getContent();
 
-    // Each tile has a tabular-nums number near the stat label — assert the
-    // triple appears in order (2 Proteas, 3 Appearances, 2 Colours).
     expect($html)->toMatch('/>2<\/dt>\s*<dd[^>]*>\s*Proteas/is');
     expect($html)->toMatch('/>3<\/dt>\s*<dd[^>]*>\s*Appearances/is');
-    expect($html)->toMatch('/>2<\/dt>\s*<dd[^>]*>\s*Colours/is');
+    expect($html)->not->toContain('Colours awarded');
+    expect($html)->not->toContain('>Colours<');
 });
 
 it('officials (manager) are excluded from division cards and the squad size count', function () {
