@@ -19,26 +19,23 @@
     :forcePublic="true">
 
     {{-- =====================================================================
-         HERO — full-width group photo (natural aspect, no crop) with the
-         title + stat tiles in a band underneath so nobody is cropped or
-         covered by overlay text.
+         HERO — same footprint as the original fixed-height band, but
+         object-contain so the full group fits (letterboxed, never cropped).
+         Title + stats sit underneath so they don't cover anyone.
          ================================================================== --}}
     <section class="relative bg-stone-950 text-white overflow-hidden">
-        <div class="relative bg-stone-900 px-4 sm:px-6 py-6 sm:py-8">
+        <div class="relative h-[480px] sm:h-[560px] bg-stone-900">
             @if($selectedHeroCover)
-                {{-- Capped width + natural aspect: smaller hero, never crops. --}}
-                <div class="mx-auto w-full max-w-3xl">
-                    <x-media-picture
-                        :item="$selectedHeroCover"
-                        sizes="(min-width: 768px) 48rem, 100vw"
-                        class="block w-full"
-                        imgClass="block w-full h-auto object-contain object-center mx-auto"
-                        loading="eager"
-                        :showCaption="false" />
-                </div>
+                <x-media-picture
+                    :item="$selectedHeroCover"
+                    sizes="100vw"
+                    class="absolute inset-0"
+                    imgClass="absolute inset-0 w-full h-full object-contain object-center"
+                    loading="eager"
+                    :showCaption="false" />
             @else
                 {{-- Neutral placeholder when the year has no cover photo yet --}}
-                <div class="relative mx-auto max-w-3xl h-[220px] sm:h-[280px] bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center rounded-lg">
+                <div class="absolute inset-0 bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center">
                     <svg class="size-24 text-emerald-700/40" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/>
                     </svg>
