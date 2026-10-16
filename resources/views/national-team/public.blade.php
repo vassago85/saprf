@@ -19,9 +19,8 @@
     :forcePublic="true">
 
     {{-- =====================================================================
-         HERO — same footprint as the original fixed-height band, but
-         object-contain so the full group fits (letterboxed, never cropped).
-         Title + stats sit underneath so they don't cover anyone.
+         HERO — fixed-height band with object-contain (full group, no crop)
+         and title + stats overlaid on a bottom scrim.
          ================================================================== --}}
     <section class="relative bg-stone-950 text-white overflow-hidden">
         <div class="relative h-[480px] sm:h-[560px] bg-stone-900">
@@ -41,18 +40,21 @@
                     </svg>
                 </div>
             @endif
+
+            {{-- Dark bottom scrim --}}
+            <div class="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-stone-950/95 via-stone-950/60 to-transparent"></div>
         </div>
 
-        <div class="relative border-t border-white/10">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-wrap items-end justify-between gap-6">
+        <div class="absolute inset-x-0 bottom-0">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-8 sm:pb-10 flex flex-wrap items-end justify-between gap-6">
                 <div class="max-w-2xl">
                     <span class="inline-block px-3 py-1.5 rounded-full bg-amber-400/15 text-amber-300 text-[11px] font-bold uppercase tracking-[0.15em]">
                         Team South Africa
                     </span>
-                    <h1 class="mt-3 font-heading font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[0.95] text-white">
+                    <h1 class="mt-4 font-heading font-extrabold text-5xl sm:text-6xl lg:text-7xl leading-[0.95] text-white">
                         The Proteas
                     </h1>
-                    <p class="mt-2 text-sm sm:text-base text-stone-300 leading-relaxed">
+                    <p class="mt-3 text-base sm:text-lg text-stone-200 leading-relaxed">
                         Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.
                     </p>
                 </div>
