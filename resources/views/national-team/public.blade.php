@@ -24,19 +24,21 @@
          covered by overlay text.
          ================================================================== --}}
     <section class="relative bg-stone-950 text-white overflow-hidden">
-        <div class="relative bg-stone-900">
+        <div class="relative bg-stone-900 px-4 sm:px-6 py-6 sm:py-8">
             @if($selectedHeroCover)
-                {{-- Natural aspect + object-contain: never crop edge people. --}}
-                <x-media-picture
-                    :item="$selectedHeroCover"
-                    sizes="100vw"
-                    class="block w-full"
-                    imgClass="block w-full h-auto object-contain object-center mx-auto bg-stone-900"
-                    loading="eager"
-                    :showCaption="false" />
+                {{-- Capped width + natural aspect: smaller hero, never crops. --}}
+                <div class="mx-auto w-full max-w-3xl">
+                    <x-media-picture
+                        :item="$selectedHeroCover"
+                        sizes="(min-width: 768px) 48rem, 100vw"
+                        class="block w-full"
+                        imgClass="block w-full h-auto object-contain object-center mx-auto"
+                        loading="eager"
+                        :showCaption="false" />
+                </div>
             @else
                 {{-- Neutral placeholder when the year has no cover photo yet --}}
-                <div class="relative h-[320px] sm:h-[420px] bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center">
+                <div class="relative mx-auto max-w-3xl h-[220px] sm:h-[280px] bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center rounded-lg">
                     <svg class="size-24 text-emerald-700/40" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/>
                     </svg>
