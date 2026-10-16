@@ -19,40 +19,41 @@
     :forcePublic="true">
 
     {{-- =====================================================================
-         HERO — full-width cover photo with scrim + headline + stat tiles
+         HERO — full-width group photo (natural aspect, no crop) with the
+         title + stat tiles in a band underneath so nobody is cropped or
+         covered by overlay text.
          ================================================================== --}}
     <section class="relative bg-stone-950 text-white overflow-hidden">
-        <div class="relative h-[480px] sm:h-[560px] bg-stone-800">
+        <div class="relative bg-stone-900">
             @if($selectedHeroCover)
+                {{-- Natural aspect + object-contain: never crop edge people. --}}
                 <x-media-picture
                     :item="$selectedHeroCover"
                     sizes="100vw"
-                    class="absolute inset-0"
-                    imgClass="absolute inset-0 w-full h-full object-cover"
-                    loading="eager" />
+                    class="block w-full"
+                    imgClass="block w-full h-auto object-contain object-center mx-auto bg-stone-900"
+                    loading="eager"
+                    :showCaption="false" />
             @else
                 {{-- Neutral placeholder when the year has no cover photo yet --}}
-                <div class="absolute inset-0 bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center">
+                <div class="relative h-[320px] sm:h-[420px] bg-gradient-to-br from-emerald-900 via-stone-900 to-stone-950 flex items-center justify-center">
                     <svg class="size-24 text-emerald-700/40" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/>
                     </svg>
                 </div>
             @endif
-
-            {{-- Dark bottom scrim --}}
-            <div class="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-stone-950/95 via-stone-950/60 to-transparent"></div>
         </div>
 
-        <div class="absolute inset-x-0 bottom-0">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-8 sm:pb-10 flex flex-wrap items-end justify-between gap-6">
+        <div class="relative border-t border-white/10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-wrap items-end justify-between gap-6">
                 <div class="max-w-2xl">
                     <span class="inline-block px-3 py-1.5 rounded-full bg-amber-400/15 text-amber-300 text-[11px] font-bold uppercase tracking-[0.15em]">
                         Team South Africa
                     </span>
-                    <h1 class="mt-4 font-heading font-extrabold text-5xl sm:text-6xl lg:text-7xl leading-[0.95] text-white">
+                    <h1 class="mt-3 font-heading font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[0.95] text-white">
                         The Proteas
                     </h1>
-                    <p class="mt-3 text-base sm:text-lg text-stone-200 leading-relaxed">
+                    <p class="mt-2 text-sm sm:text-base text-stone-300 leading-relaxed">
                         Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.
                     </p>
                 </div>

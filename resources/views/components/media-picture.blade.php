@@ -5,6 +5,7 @@
     'imgClass' => 'block w-full h-auto',
     'loading' => 'lazy',
     'alt' => null,  // Override item alt text if needed (e.g. decorative)
+    'showCaption' => true,
 ])
 
 {{--
@@ -40,7 +41,7 @@
             decoding="async"
             class="{{ $imgClass }}">
     </picture>
-    @if(($item->caption || $item->credit) && $slot->isNotEmpty() === false)
+    @if($showCaption && ($item->caption || $item->credit) && $slot->isNotEmpty() === false)
         <figcaption class="mt-2 text-xs text-stone-500">
             @if($item->caption)<span>{{ $item->caption }}</span>@endif
             @if($item->caption && $item->credit)<span class="mx-1 text-stone-300">·</span>@endif
