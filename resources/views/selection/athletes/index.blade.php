@@ -1,27 +1,23 @@
 <x-layouts.app :title="'Athletes · '.$cycle->series.' '.$cycle->season">
     <div class="space-y-6">
-        <div class="flex items-start justify-between gap-4">
-            <div>
-                <div class="text-xs font-semibold uppercase tracking-widest text-stone-400">Athlete registry</div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">{{ $cycle->series }} {{ $cycle->season }} · Athletes</h1>
-                <p class="text-sm text-stone-500">Every shooter registered for selection this cycle.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                @can('create', App\Models\SelectionAthlete::class)
+        <x-page-header :title="$cycle->series . ' ' . $cycle->season . ' · Athletes'" subtitle="Every shooter registered for selection this cycle.">
+            <x-slot:breadcrumb>Athlete registry</x-slot:breadcrumb>
+            @can('create', App\Models\SelectionAthlete::class)
+                <x-slot:actions>
                     <form method="POST" action="{{ route('selection.cycles.athletes.bulk-register', $cycle) }}">
                         @csrf
                         <button type="submit" onclick="return confirm('Bulk-register every shooter with a qualifying score?')" class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Bulk-register from scores</button>
                     </form>
                     <a href="{{ route('selection.cycles.athletes.create', $cycle) }}" class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Register athlete</a>
-                @endcan
-            </div>
-        </div>
+                </x-slot:actions>
+            @endcan
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
         @endif
 
-        <form method="GET" class="flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+        <x-filter-bar :action="route('selection.cycles.athletes.index', $cycle)" label="Athlete filters">
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">State</label>
                 <select name="state" class="rounded-lg border border-stone-300 text-sm">
@@ -41,10 +37,9 @@
                 </select>
             </div>
             <button type="submit" class="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900">Filter</button>
-        </form>
+        </x-filter-bar>
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
@@ -79,8 +74,7 @@
                     @endforelse
                 </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
         <div>{{ $athletes->links() }}</div>
     </div>
 </x-layouts.app>

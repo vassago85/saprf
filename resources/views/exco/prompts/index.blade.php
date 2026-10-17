@@ -1,14 +1,15 @@
 <x-layouts.app :title="'ExCo — AI Prompts'">
     <div class="max-w-4xl space-y-6">
-        <div>
-            <a href="{{ route('exco.meetings.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← ExCo</a>
-            <h1 class="mt-1 font-heading text-3xl font-bold text-stone-900">AI prompts</h1>
+        <x-page-header title="AI prompts">
+            <x-slot:breadcrumb>
+                <a href="{{ route('exco.meetings.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← ExCo</a>
+            </x-slot:breadcrumb>
             <p class="mt-1 text-sm text-stone-500">
                 Reusable prompts for turning a meeting notice into JSON, and a transcript into structured minutes.
                 Copy the prompt, paste it above your source text in Claude / ChatGPT / your model of choice, then
                 paste the output back into the platform.
             </p>
-        </div>
+        </x-page-header>
 
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
             <p class="font-semibold">Handling sensitive content</p>

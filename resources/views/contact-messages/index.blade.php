@@ -1,11 +1,8 @@
 <x-layouts.app :title="'Contact Enquiries'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Contact Enquiries</h1>
-                <p class="mt-1 text-sm text-stone-500">Submissions from the public <a href="{{ route('contact.create') }}" class="text-emerald-700 underline">/contact</a> form. Every message is stored here even if outbound mail failed.</p>
-            </div>
-        </div>
+        <x-page-header title="Contact Enquiries">
+            <p class="mt-1 text-sm text-stone-500">Submissions from the public <a href="{{ route('contact.create') }}" class="text-emerald-700 underline">/contact</a> form. Every message is stored here even if outbound mail failed.</p>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
@@ -22,7 +19,7 @@
             </div>
         </div>
 
-        <form method="GET" action="{{ route('contact-messages.index') }}" class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm flex flex-wrap gap-3 items-end">
+        <x-filter-bar :action="route('contact-messages.index')" label="Contact enquiry filters" class="flex flex-wrap gap-3 items-end">
             <div>
                 <label for="status" class="block text-xs font-medium text-stone-500 mb-1">Spam status</label>
                 <select name="status" id="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3">
@@ -41,10 +38,9 @@
                 </select>
             </div>
             <button type="submit" class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">Filter</button>
-        </form>
+        </x-filter-bar>
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
@@ -93,8 +89,7 @@
                     @endforelse
                 </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
 
         <div>{{ $messages->links() }}</div>
     </div>

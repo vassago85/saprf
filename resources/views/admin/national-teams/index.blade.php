@@ -1,18 +1,17 @@
 <x-layouts.app :title="'Team Years — SAPRF'">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div class="flex items-start justify-between gap-4">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Team years</h1>
-                <p class="text-sm text-stone-500 mt-1">
-                    One row per SA team sent to an IPRF World Championship. Edit venue, dates, cover photo and roster here.
-                    Full appearance list is at <a href="{{ route('appearances.index') }}" class="text-emerald-700 hover:underline">Appearances & Colours</a>.
-                </p>
-            </div>
-            <a href="{{ route('team-years.create') }}"
-               class="shrink-0 inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
-                + New team year
-            </a>
-        </div>
+        <x-page-header title="Team years">
+            <p class="text-sm text-stone-500 mt-1">
+                One row per SA team sent to an IPRF World Championship. Edit venue, dates, cover photo and roster here.
+                Full appearance list is at <a href="{{ route('appearances.index') }}" class="text-emerald-700 hover:underline">Appearances & Colours</a>.
+            </p>
+            <x-slot:actions>
+                <a href="{{ route('team-years.create') }}"
+                   class="shrink-0 inline-flex items-center min-h-[44px] px-5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
+                    + New team year
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if($teams->isEmpty())
             <div class="mt-8 bg-white border border-stone-200 rounded-2xl p-10 text-center">

@@ -1,11 +1,6 @@
 <x-layouts.app :title="'String Analyser - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">String Analyser</h1>
-                <p class="mt-1 text-sm text-stone-500">One load, N shots, in fire order. Confirm the SD you thought you had.</p>
-            </div>
-        </div>
+        <x-page-header title="String Analyser" subtitle="One load, N shots, in fire order. Confirm the SD you thought you had." />
 
         @if (session('success'))
             <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
@@ -45,7 +40,7 @@
                 <p class="mt-1 text-sm text-stone-500">Create one above, then paste the chronograph velocities in fire order.</p>
             </div>
         @else
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-100 text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
                         <tr>
@@ -74,7 +69,7 @@
                         @endforeach
                     </tbody>
                 </table>
-            </div>
+            </x-admin-table>
         @endif
     </div>
 </x-layouts.app>

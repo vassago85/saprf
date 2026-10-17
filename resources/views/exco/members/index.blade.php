@@ -1,14 +1,15 @@
 <x-layouts.app :title="'ExCo — Members'">
     <div class="max-w-4xl space-y-6">
-        <div>
-            <a href="{{ route('exco.meetings.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← ExCo</a>
-            <h1 class="mt-1 font-heading text-3xl font-bold text-stone-900">Committee members</h1>
+        <x-page-header title="Committee members">
+            <x-slot:breadcrumb>
+                <a href="{{ route('exco.meetings.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← ExCo</a>
+            </x-slot:breadcrumb>
             <p class="mt-1 text-sm text-stone-500">
                 Everyone with the <strong>exco</strong> or <strong>chair</strong> role. Assign a position (Chair, Secretary,
                 Treasurer, portfolio chair, etc.) so it renders alongside their name in printed minutes, on the meeting page,
                 and next to action item owners. Leave blank for a general member without a specific portfolio.
             </p>
-        </div>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -35,7 +36,7 @@
             @endforeach
         </datalist>
 
-        <div class="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+        <x-admin-table>
             <table class="min-w-full divide-y divide-stone-200 text-sm">
                 <thead class="bg-stone-50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500">
                     <tr>
@@ -87,7 +88,7 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
+        </x-admin-table>
 
         <div class="rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs text-stone-600">
             <p class="font-semibold text-stone-800">Suggested positions</p>

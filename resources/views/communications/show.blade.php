@@ -1,4 +1,4 @@
-<x-layouts.app :title="$announcement->title">
+<x-layouts.app :title="$announcement->display_title">
     <div class="max-w-3xl space-y-6">
         <div class="flex items-center justify-between">
             <a href="{{ route('communications.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← All communications</a>
@@ -13,7 +13,7 @@
                 @endif
             </div>
 
-            <h1 class="font-heading text-2xl font-bold text-stone-900">{{ $announcement->title }}</h1>
+            <h1 class="font-heading text-2xl font-bold text-stone-900">{{ $announcement->display_title }}</h1>
 
             <div class="prose prose-stone max-w-none text-sm text-stone-800">
                 {!! \App\Support\AnnouncementBodyRenderer::toHtml((string) $announcement->body) !!}

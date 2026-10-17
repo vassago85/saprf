@@ -18,23 +18,19 @@
     @endif
 
     @if($match)
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-stone-400">Entry List</p>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">{{ $match->name }}</h1>
-                <p class="mt-1 text-sm text-stone-500">
-                    {{ $registrations->total() }} {{ Str::plural('shooter', $registrations->total()) }} registered
-                </p>
-            </div>
-            <a href="{{ route('events.show', $match) }}" class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
-                View Event
-            </a>
-        </div>
+        <x-page-header :title="$match->name" :subtitle="$registrations->total() . ' ' . Str::plural('shooter', $registrations->total()) . ' registered'">
+            <x-slot:breadcrumb>Entry List</x-slot:breadcrumb>
+            <x-slot:actions>
+                <a href="{{ route('events.show', $match) }}" class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                    View Event
+                </a>
+            </x-slot:actions>
+        </x-page-header>
     @else
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Registrations</h1>
+        <x-page-header title="Registrations" />
     @endif
 
-    <div class="mt-8 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    <x-admin-table class="mt-8">
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -149,7 +145,7 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
+    </x-admin-table>
 
     <div class="mt-6">
         {{ $registrations->withQueryString()->links() }}

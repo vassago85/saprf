@@ -126,13 +126,28 @@ class DashboardController extends Controller
 
     private function ownerDashboard(User $user): View
     {
+        $season = (string) Carbon::now()->year;
+
         return view('dashboard.owner', [
             'user' => $user,
+            'season' => $season,
             'qualificationRulesCount' => QualificationRule::count(),
             'totalMembers' => User::count(),
             'activeMemberships' => Membership::query()->active()->count(),
-            'totalMatches' => MatchEvent::count(),
-            'totalScores' => Score::count(),
+            'totalMatches' => MatchEvent::query()
+                ->where(function ($q) use ($season) {
+                    $q->where('season', $season)
+                        ->orWhereYear('match_date', $season);
+                })
+                ->count(),
+            'totalScores' => Score::query()
+                ->whereHas('match', function ($q) use ($season) {
+                    $q->where(function ($q2) use ($season) {
+                        $q2->where('season', $season)
+                            ->orWhereYear('match_date', $season);
+                    });
+                })
+                ->count(),
             'settings' => $this->settingsService->all(),
             'feeTiers' => \App\Models\MembershipFeeTier::active()->ordered()->get(),
         ]);
@@ -298,7 +313,7 @@ class DashboardController extends Controller
             'user' => $user,
             'membership' => $membership,
             'nextMatch' => $nextMatch,
-            'scoresCount' => $user->scores()->count(),
+            'scoresCount' => $matchesShot,
             'standingsPosition' => $standingsPosition,
             'qualificationProgress' => $qualificationProgress,
             'matchesShot' => $matchesShot,

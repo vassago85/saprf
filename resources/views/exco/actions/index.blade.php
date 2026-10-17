@@ -1,11 +1,6 @@
 <x-layouts.app :title="'ExCo Actions'">
     <div class="max-w-5xl space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">ExCo Actions</h1>
-                <p class="mt-1 text-sm text-stone-500">All follow-up items across meetings. Filter by status; check off as complete.</p>
-            </div>
-        </div>
+        <x-page-header title="ExCo Actions" subtitle="All follow-up items across meetings. Filter by status; check off as complete." />
 
         <div class="flex flex-wrap items-center gap-2">
             @foreach (['open' => 'Open', 'done' => 'Done', 'cancelled' => 'Cancelled', 'all' => 'All'] as $key => $label)
@@ -16,7 +11,7 @@
             @endforeach
         </div>
 
-        <div class="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+        <x-admin-table>
             <table class="min-w-full divide-y divide-stone-200 text-sm">
                 <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                     <tr>
@@ -157,7 +152,7 @@
                     </tbody>
                 @endforelse
             </table>
-        </div>
+        </x-admin-table>
 
         <div>{{ $actions->links() }}</div>
 

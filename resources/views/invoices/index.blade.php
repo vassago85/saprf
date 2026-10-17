@@ -1,15 +1,13 @@
 <x-layouts.app :title="'My Invoices'">
     <div class="max-w-4xl mx-auto space-y-6">
-        <div class="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">My Invoices</h1>
-                <p class="mt-1 text-sm text-stone-600">Every payment you've made on the SAPRF platform. Download the PDF for your records, tax submission, or firearm licence application.</p>
-            </div>
-            <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
-                Back
-            </a>
-        </div>
+        <x-page-header title="My Invoices" subtitle="Every payment you've made on the SAPRF platform. Download the PDF for your records, tax submission, or firearm licence application.">
+            <x-slot:actions>
+                <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                    Back
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if($payments->isEmpty())
             <div class="rounded-xl border border-stone-200 bg-white p-10 text-center shadow-sm">
@@ -28,7 +26,7 @@
                 </div>
             </div>
         @else
-            <div class="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+            <x-admin-table>
                 {{-- Table (sm+) --}}
                 <table class="hidden min-w-full divide-y divide-stone-200 sm:table">
                     <thead class="bg-stone-50">
@@ -129,7 +127,7 @@
                         </li>
                     @endforeach
                 </ul>
-            </div>
+            </x-admin-table>
 
             @if($payments->hasPages())
                 <div class="pt-2">

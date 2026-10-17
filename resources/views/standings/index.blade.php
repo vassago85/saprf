@@ -15,16 +15,12 @@
     @endphp
 
     <div class="space-y-6">
-        <div>
-            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">
-                Standings
-                <span class="ml-2 text-sm font-semibold uppercase tracking-wider {{ $series === 'PRS' ? 'text-emerald-700' : 'text-sky-700' }} align-middle">{{ $series }}</span>
-                <span class="ml-1 text-sm font-semibold uppercase tracking-wider {{ $level === 'provincial' ? 'text-blue-700' : 'text-stone-700' }} align-middle">&middot; {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span>
-            </h1>
-            <p class="mt-1 text-sm text-stone-500">
-                Official <span class="font-semibold text-stone-700">{{ $series }} {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span> rankings for the {{ $season }} season.
-            </p>
-        </div>
+        <x-page-header title="Standings" :subtitle="'Official ' . $series . ' ' . ($level === 'provincial' ? 'Provincial' : 'National') . ' rankings for the ' . $season . ' season.'">
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+                <span class="text-sm font-semibold uppercase tracking-wider {{ $series === 'PRS' ? 'text-emerald-700' : 'text-sky-700' }}">{{ $series }}</span>
+                <span class="text-sm font-semibold uppercase tracking-wider {{ $level === 'provincial' ? 'text-blue-700' : 'text-stone-700' }}">&middot; {{ $level === 'provincial' ? 'Provincial' : 'National' }}</span>
+            </div>
+        </x-page-header>
 
         <h2 class="sr-only">Filters</h2>
 

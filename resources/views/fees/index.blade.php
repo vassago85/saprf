@@ -1,15 +1,13 @@
 <x-layouts.app :title="'Membership Fees'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Membership Fees</h1>
-                <p class="mt-1 text-sm text-stone-500">Manage the annual membership fee tiers members can join or renew on.</p>
-            </div>
-            <a href="{{ route('fees.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add Fee
-            </a>
-        </div>
+        <x-page-header title="Membership Fees" subtitle="Manage the annual membership fee tiers members can join or renew on.">
+            <x-slot:actions>
+                <a href="{{ route('fees.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Fee
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{{ session('success') }}</div>
@@ -18,8 +16,7 @@
             <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ session('error') }}</div>
         @endif
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
@@ -87,8 +84,7 @@
                     @endforelse
                 </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
 
         <p class="text-xs text-stone-400">
             Application and renewal are charged at the same amount per fee. The <strong class="text-stone-500">Default</strong> fee is pre-selected when a member joins.

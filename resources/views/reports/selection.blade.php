@@ -4,7 +4,7 @@
             <div>
                 <a href="{{ route('reports.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; All Reports</a>
                 <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">Selection Report</h1>
-                <p class="mt-1 text-sm text-stone-500">Qualified shooters with rank, season points, and out-of-province requirement status.</p>
+                <p class="mt-1 text-sm text-stone-500">Shooters with rank, season points, and out-of-province requirement status. "Qualified" means the out-of-province minimum is met. Rank and points are the overall standing, or the shooter's best division standing when there is no overall one.</p>
             </div>
             <a href="{{ route('reports.selection.export', request()->only(['series', 'season'])) }}"
                class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition">
@@ -83,6 +83,9 @@
                                 <td class="px-5 py-3 font-mono text-stone-900">
                                     @if($row['rank'])
                                         <span class="font-bold">{{ $row['rank'] }}</span>
+                                        @if($row['rank_division'])
+                                            <span class="block text-[10px] font-sans text-stone-400">{{ $row['rank_division'] }}</span>
+                                        @endif
                                     @else
                                         <span class="text-stone-300">—</span>
                                     @endif
@@ -93,7 +96,7 @@
                                 <td class="px-5 py-3">
                                     <x-membership-status :membership="$row['user']->membership" />
                                 </td>
-                                <td class="px-5 py-3 text-center text-stone-600">
+                                <td class="px-5 py-3 text-center text-stone-600" title="{{ $row['progress'] }}">
                                     <span class="font-mono">{{ $row['completed'] }} / {{ $row['required'] }}</span>
                                 </td>
                                 <td class="px-5 py-3 text-right font-mono font-semibold text-stone-900">

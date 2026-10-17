@@ -1,14 +1,13 @@
 <x-layouts.app :title="'IPRF Team Selection'">
     <div class="space-y-6">
-        <div>
-            <p class="text-sm text-stone-500">SAPRF IPRF Team Selection</p>
-            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Team Selection</h1>
+        <x-page-header title="Team Selection">
+            <x-slot:breadcrumb>SAPRF IPRF Team Selection</x-slot:breadcrumb>
             <p class="mt-2 max-w-2xl text-sm text-stone-600">
                 Choose whether you want to be considered for a SAPRF IPRF national team, complete the
                 required Eligibility to Compete forms, and see your live eligibility and participation
                 status. Submitting the online form here is treated by ExCo as receipt of your form.
             </p>
-        </div>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>

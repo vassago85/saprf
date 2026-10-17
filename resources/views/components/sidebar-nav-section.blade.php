@@ -8,7 +8,7 @@
                 <flux:icon.chevron-right class="size-3! block group-data-open/disclosure-button:hidden rtl:rotate-180" />
             </div>
 
-            <span class="flex-1 text-sm font-medium leading-none text-start">{{ $section['heading'] }}</span>
+            <span class="flex-1 text-[11px] font-semibold uppercase tracking-wider text-stone-600 leading-none text-start">{{ $section['heading'] }}</span>
 
             @if ($section['badge'] !== null)
                 <flux:navlist.badge :color="$section['badge_color']" class="me-3">{{ $section['badge'] }}</flux:navlist.badge>
@@ -24,7 +24,7 @@
 @else
     <div class="block space-y-[2px]">
         <div class="px-3 py-2 flex items-center gap-2">
-            <div class="flex-1 text-sm text-zinc-400 font-medium leading-none">{{ $section['heading'] }}</div>
+            <div class="flex-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-none">{{ $section['heading'] }}</div>
             @if ($section['badge'] !== null)
                 <flux:navlist.badge :color="$section['badge_color']">{{ $section['badge'] }}</flux:navlist.badge>
             @endif

@@ -1,5 +1,5 @@
 <x-layouts.app :title="'Audit Logs'">
-    <h1 class="font-heading text-3xl font-bold text-stone-900">Audit Logs</h1>
+    <x-page-header title="Audit Logs" />
 
     @php
         $counts = $counts ?? collect();
@@ -23,7 +23,7 @@
         @endforeach
     </div>
 
-    <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    <x-admin-table>
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -112,7 +112,7 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
+    </x-admin-table>
 
     <div class="mt-6">
         {{ $auditLogs->links() }}

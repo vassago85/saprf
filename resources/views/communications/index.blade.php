@@ -9,17 +9,15 @@
         $archiveUrl = route('communications.index', array_merge($tabQueryBase, ['tab' => 'archive']));
     @endphp
     <div class="max-w-4xl space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Communications</h1>
-                <p class="mt-1 text-sm text-stone-500">Every announcement, bulletin, and policy update sent to you.</p>
-            </div>
+        <x-page-header title="Communications" subtitle="Every announcement, bulletin, and policy update sent to you.">
             @if ($unreadCount > 0)
-                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                    {{ $unreadCount }} unread
-                </span>
+                <x-slot:actions>
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {{ $unreadCount }} unread
+                    </span>
+                </x-slot:actions>
             @endif
-        </div>
+        </x-page-header>
 
         {{-- Inbox / Archive tabs. Inbox is the default landing view and
              shows anything currently "live" for the member; Archive is
@@ -56,7 +54,7 @@
             </nav>
         </div>
 
-        <form method="GET" action="{{ route('communications.index') }}" class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+        <x-filter-bar :action="route('communications.index')" label="Communication filters">
             {{-- Keep the current tab selected across a filter submit so
                  the form stays inside whichever view the member is
                  looking at. --}}
@@ -90,7 +88,7 @@
                     </button>
                 </div>
             </div>
-        </form>
+        </x-filter-bar>
 
         <div class="space-y-3">
             @forelse ($items as $recipient)
@@ -109,7 +107,7 @@
                                     <span class="inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">New</span>
                                 @endif
                             </div>
-                            <h2 class="mt-1 font-heading text-lg font-semibold text-stone-900">{{ $a->title }}</h2>
+                            <h2 class="mt-1 font-heading text-lg font-semibold text-stone-900">{{ $a->display_title }}</h2>
                             <p class="mt-1 line-clamp-2 text-sm text-stone-600">{{ \Illuminate\Support\Str::limit(\App\Support\AnnouncementBodyRenderer::toPreview((string) $a->body), 200) }}</p>
                         </div>
                         <div class="text-right text-xs text-stone-500 shrink-0">

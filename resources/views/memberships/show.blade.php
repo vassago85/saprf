@@ -62,7 +62,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Type</dt>
-                    <dd class="mt-1 text-sm text-stone-900 capitalize">{{ $membership->membership_type }}</dd>
+                    <dd class="mt-1 text-sm text-stone-900">{{ ucfirst(str_replace('_', ' ', (string) $membership->membership_type)) }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Status</dt>

@@ -1,24 +1,21 @@
 <x-layouts.app :title="'Selection Cycles'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Selection Cycles</h1>
-                <p class="mt-1 text-sm text-stone-500">Per-championship selection cycles (series + season). Every cycle runs against a versioned policy.</p>
-            </div>
+        <x-page-header title="Selection Cycles" subtitle="Per-championship selection cycles (series + season). Every cycle runs against a versioned policy.">
             @can('create', App\Models\SelectionCycle::class)
-                <a href="{{ route('selection.cycles.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                    New Cycle
-                </a>
+                <x-slot:actions>
+                    <a href="{{ route('selection.cycles.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        New Cycle
+                    </a>
+                </x-slot:actions>
             @endcan
-        </div>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
         @endif
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
@@ -69,7 +66,6 @@
                     @endforelse
                 </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
     </div>
 </x-layouts.app>

@@ -67,10 +67,10 @@
         aria-hidden="true"
     ></div>
 
-    <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white">
+    <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white !flex !flex-col !max-h-dvh lg:!h-dvh">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
-        <a href="{{ url('/') }}" class="block px-2">
+        <a href="{{ url('/') }}" class="block shrink-0 px-2">
             <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-10 w-auto">
         </a>
 
@@ -81,7 +81,7 @@
             $canSwitchView = (bool) auth()->user()?->canSwitchViewMode();
         @endphp
         @if($canSwitchView)
-            <div class="px-2 pt-2">
+            <div class="shrink-0 px-2 pt-2">
                 <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">View as</div>
                 <div class="flex rounded-lg bg-stone-100 p-0.5 ring-1 ring-inset ring-stone-200">
                     <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
@@ -112,36 +112,38 @@
             </div>
         @endif
 
-        <x-sidebar-nav />
+        {{-- Scroll the long admin nav independently so logo + account stay pinned. --}}
+        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
+            <x-sidebar-nav />
+            <x-sponsors-sidebar placement="app_sidebar" />
+        </div>
 
-        <flux:spacer />
+        <div class="shrink-0 border-t border-stone-200 pt-2">
+            <flux:navlist variant="outline">
+                <flux:navlist.item icon="user-circle" :href="route('profile')" :current="request()->routeIs('profile')">
+                    {{ Auth::user()->name }}
+                </flux:navlist.item>
+            </flux:navlist>
 
-        <x-sponsors-sidebar placement="app_sidebar" />
-
-        <flux:navlist variant="outline">
-            <flux:navlist.item icon="user-circle" :href="route('profile')" :current="request()->routeIs('profile')">
-                {{ Auth::user()->name }}
-            </flux:navlist.item>
-        </flux:navlist>
-
-        {{-- Sign Out lives in its own form because logout must be a POST
-             (CSRF protected). Styled to match the navlist rows above so
-             members recognise it as a nav action rather than a random
-             button. The extra bottom margin keeps it clear of iOS home-
-             indicator gestures and the sidebar's own padding-bottom that
-             kicks in for installed PWAs (see app.css). --}}
-        <form method="POST" action="{{ route('logout') }}" class="mt-1">
-            @csrf
-            <button
-                type="submit"
-                class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 shrink-0">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
-                </svg>
-                <span>Sign Out</span>
-            </button>
-        </form>
+            {{-- Sign Out lives in its own form because logout must be a POST
+                 (CSRF protected). Styled to match the navlist rows above so
+                 members recognise it as a nav action rather than a random
+                 button. The extra bottom margin keeps it clear of iOS home-
+                 indicator gestures and the sidebar's own padding-bottom that
+                 kicks in for installed PWAs (see app.css). --}}
+            <form method="POST" action="{{ route('logout') }}" class="mt-1">
+                @csrf
+                <button
+                    type="submit"
+                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
+                    </svg>
+                    <span>Sign Out</span>
+                </button>
+            </form>
+        </div>
     </flux:sidebar>
 
     <flux:header class="lg:hidden border-b border-stone-200 bg-white">

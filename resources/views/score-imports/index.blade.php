@@ -1,13 +1,11 @@
 <x-layouts.app :title="'Score Imports'">
-    <div class="flex items-center justify-between">
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Score Imports</h1>
-
-        <flux:button href="{{ route('score-imports.create') }}" variant="primary" icon="arrow-up-tray">
-            Upload Scores
-        </flux:button>
-    </div>
-
-    <div class="mt-6 border-t border-stone-200"></div>
+    <x-page-header title="Score Imports">
+        <x-slot:actions>
+            <flux:button href="{{ route('score-imports.create') }}" variant="primary" icon="arrow-up-tray">
+                Upload Scores
+            </flux:button>
+        </x-slot:actions>
+    </x-page-header>
 
     @if($scoreImports->isEmpty())
         <div class="mt-6">
@@ -24,8 +22,7 @@
             </x-empty-state>
         </div>
     @else
-        <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="min-w-full">
                 <thead class="border-b-2 border-stone-200">
                     <tr>
@@ -71,8 +68,7 @@
                     @endforeach
                 </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
 
         <div class="mt-6">
             {{ $scoreImports->withQueryString()->links() }}

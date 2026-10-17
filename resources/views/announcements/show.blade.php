@@ -1,9 +1,9 @@
-<x-layouts.app :title="$announcement->title">
+<x-layouts.app :title="$announcement->display_title">
     <div class="max-w-4xl space-y-6">
         <div class="flex items-center justify-between">
             <div>
                 <a href="{{ route('announcements.index') }}" class="text-sm font-medium text-emerald-700 hover:text-emerald-800">← All announcements</a>
-                <h1 class="mt-1 font-heading text-3xl font-bold text-stone-900">{{ $announcement->title }}</h1>
+                <h1 class="mt-1 font-heading text-3xl font-bold text-stone-900">{{ $announcement->display_title }}</h1>
             </div>
             @php
                 $statusClass = match ($announcement->status->value) {

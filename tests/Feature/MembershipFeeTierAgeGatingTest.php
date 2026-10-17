@@ -44,7 +44,7 @@ beforeEach(function () {
         ->and((bool) MembershipFeeTier::where('slug', 'adult')->value('is_default'))->toBeTrue();
 });
 
-function stubPayFast(): void
+function stubPayFastForAgeGating(): void
 {
     $stub = new class(true) extends PayFastService {
         public function __construct(private readonly bool $enabled)
@@ -126,7 +126,7 @@ it('returns nothing for a user with no date of birth (DOB gate is the only path)
 // ── Controller: joinMembership ────────────────────────────────────
 
 it('rejects a fee_tier_id that is not allowed for the applicant\'s age', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,
@@ -151,7 +151,7 @@ it('rejects a fee_tier_id that is not allowed for the applicant\'s age', functio
 });
 
 it('auto-picks the junior tier at R425 when a parent enrols a 14 year-old with no tier', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,
@@ -177,7 +177,7 @@ it('auto-picks the junior tier at R425 when a parent enrols a 14 year-old with n
 });
 
 it('rejects a 60 year-old actor trying to pick the senior tier', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $actor = User::factory()->create([
         'email_verified_at' => now(),
@@ -198,7 +198,7 @@ it('rejects a 60 year-old actor trying to pick the senior tier', function () {
 });
 
 it('lets a 66 year-old actor pick the senior tier', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $actor = User::factory()->create([
         'email_verified_at' => now(),
@@ -221,7 +221,7 @@ it('lets a 66 year-old actor pick the senior tier', function () {
 // ── DOB gate ──────────────────────────────────────────────────────
 
 it('redirects a parent enrolling a managed junior with no date of birth to the family edit page', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,
@@ -240,7 +240,7 @@ it('redirects a parent enrolling a managed junior with no date of birth to the f
 });
 
 it('redirects an actor with no date of birth to their profile', function () {
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $actor = User::factory()->create([
         'email_verified_at' => now(),
@@ -268,7 +268,7 @@ it('shows only the junior tier when a parent views my-membership for a 14 year-o
     ]);
 
     app(SettingsService::class)->set('payments_enabled', '1');
-    stubPayFast();
+    stubPayFastForAgeGating();
 
     $this->actingAs($this->parent)
         ->get(route('my-membership', ['for_user' => $junior->id]))

@@ -1,19 +1,16 @@
 <x-layouts.app :title="'Matches'">
-    <div class="flex items-center justify-between">
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Matches</h1>
-
-        @can('create', App\Models\MatchEvent::class)
-            <flux:button href="{{ route('matches.create') }}" variant="primary" icon="plus">
-                Create Match
-            </flux:button>
-        @endcan
-    </div>
-
-    <div class="mt-6 border-t border-stone-200"></div>
+    <x-page-header title="Matches">
+        <x-slot:actions>
+            @can('create', App\Models\MatchEvent::class)
+                <flux:button href="{{ route('matches.create') }}" variant="primary" icon="plus">
+                    Create Match
+                </flux:button>
+            @endcan
+        </x-slot:actions>
+    </x-page-header>
 
     <h2 class="sr-only">Filters</h2>
-    <div class="mt-6 flex flex-wrap gap-3">
-        <form method="GET" action="{{ route('matches.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Match filters">
+    <x-filter-bar :action="route('matches.index')" label="Match filters">
             <div>
                 <label for="matches_match_type" class="sr-only">Match type</label>
                 <select id="matches_match_type" name="match_type" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
@@ -35,13 +32,11 @@
             </div>
 
             <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
-        </form>
-    </div>
+    </x-filter-bar>
 
     <h2 class="sr-only">Matches list</h2>
 
-    <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
+    <x-admin-table>
             <table class="min-w-full">
             <thead class="border-b-2 border-stone-200">
                 <tr>
@@ -107,8 +102,7 @@
                 @endforelse
             </tbody>
             </table>
-        </div>
-    </div>
+    </x-admin-table>
 
     <div class="mt-6">
         {{ $matches->withQueryString()->links() }}

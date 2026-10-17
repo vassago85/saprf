@@ -84,13 +84,15 @@
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">
-                <p class="text-sm text-stone-500">Total Matches</p>
+                <p class="text-sm text-stone-500">Matches ({{ $season ?? now()->year }})</p>
                 <p class="text-3xl font-bold text-stone-900">{{ number_format($totalMatches ?? 0) }}</p>
+                <p class="text-xs text-stone-400">This season only.</p>
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">
-                <p class="text-sm text-stone-500">Total Scores</p>
+                <p class="text-sm text-stone-500">Scores ({{ $season ?? now()->year }})</p>
                 <p class="text-3xl font-bold text-stone-900">{{ number_format($totalScores ?? 0) }}</p>
+                <p class="text-xs text-stone-400">This season only.</p>
             </div>
         </div>
 

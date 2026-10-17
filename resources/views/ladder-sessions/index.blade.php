@@ -1,11 +1,6 @@
 <x-layouts.app :title="'Ladder Analyser - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Ladder Analyser</h1>
-                <p class="mt-1 text-sm text-stone-500">Fire the ladder, paste the chrono, see what the data actually supports.</p>
-            </div>
-        </div>
+        <x-page-header title="Ladder Analyser" subtitle="Fire the ladder, paste the chrono, see what the data actually supports." />
 
         @if (session('success'))
             <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
@@ -52,7 +47,7 @@
                 <p class="mt-1 text-sm text-stone-500">Create one above.</p>
             </div>
         @else
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-100 text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
                         <tr>
@@ -83,7 +78,7 @@
                         @endforeach
                     </tbody>
                 </table>
-            </div>
+            </x-admin-table>
         @endif
     </div>
 </x-layouts.app>

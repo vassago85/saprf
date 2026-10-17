@@ -92,12 +92,12 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">Gross Income</p>
-                <p class="mt-1 text-2xl font-bold text-stone-900">R{{ number_format($summary['gross_income'], 2) }}</p>
+                <p class="mt-1 text-2xl font-bold text-stone-900">{{ money($summary['gross_income']) }}</p>
                 <p class="mt-1 text-xs text-stone-400">All revenue sources</p>
             </div>
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm p-5">
                 <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Net Revenue</p>
-                <p class="mt-1 text-2xl font-bold text-emerald-800">R{{ number_format($summary['net_revenue'], 2) }}</p>
+                <p class="mt-1 text-2xl font-bold text-emerald-800">{{ money($summary['net_revenue']) }}</p>
                 <p class="mt-1 text-xs text-emerald-600">Before expenses</p>
             </div>
             <div class="rounded-xl border border-red-200 bg-red-50 shadow-sm p-5">
@@ -112,7 +112,7 @@
             </div>
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">MD share accrued</p>
-                <p class="mt-1 text-2xl font-bold text-stone-900">R{{ number_format($summary['total_md_payouts'], 2) }}</p>
+                <p class="mt-1 text-2xl font-bold text-stone-900">{{ money($summary['total_md_payouts']) }}</p>
                 <p class="mt-1 text-xs text-stone-400">Sum of match-director share on paid entries in this period. This is not the pending balance on the payouts page.</p>
                 <a href="{{ route('financials.payouts.create') }}" class="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:text-emerald-800">Generate payouts</a>
             </div>

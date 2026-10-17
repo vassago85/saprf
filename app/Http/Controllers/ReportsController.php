@@ -6,8 +6,10 @@ use App\Models\MatchEvent;
 use App\Models\PlatformIncome;
 use App\Models\Score;
 use App\Models\Sponsor;
+use App\Models\Standing;
 use App\Services\QualificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -151,16 +153,12 @@ class ReportsController extends Controller
             ->orderBy('name')
             ->get();
 
-        $rows = $users->map(function ($user) use ($series, $season) {
+        $standings = $this->resolveSelectionStandings($users->pluck('id'), $series, $season);
+
+        $rows = $users->map(function ($user) use ($series, $season, $standings) {
             $status = $this->qualificationService->getQualificationStatus($user, $series, $season);
 
-            $standing = \App\Models\Standing::query()
-                ->where('user_id', $user->id)
-                ->where('series', $series)
-                ->where('season', $season)
-                ->whereNull('province_id')
-                ->whereNull('division_id')
-                ->first();
+            $standing = $standings->get($user->id);
 
             return [
                 'user' => $user,
@@ -171,13 +169,15 @@ class ReportsController extends Controller
                 'required' => $status['required'],
                 'completed' => $status['completed'],
                 'qualified' => $status['qualified'],
+                'progress' => "{$status['completed']} of {$status['required']} out-of-province",
                 'rank' => $standing?->rank,
                 'points' => $standing?->points,
+                'rank_division' => $standing?->division_id ? $standing->division?->name : null,
             ];
         })
             ->sortBy([
                 ['qualified', 'desc'],
-                ['rank', 'asc'],
+                [fn (array $row) => $row['rank'] ?? PHP_INT_MAX, 'asc'],
             ])
             ->values();
 
@@ -188,6 +188,38 @@ class ReportsController extends Controller
         return view('reports.selection', compact(
             'series', 'season', 'seasons', 'rows', 'qualifiedCount',
         ));
+    }
+
+    /**
+     * Pick one national standing per shooter for the selection report.
+     *
+     * Standings are persisted per division (plus an overall row with a null
+     * division when the scoring mode produces one), so a null-division lookup
+     * alone leaves most shooters unranked. Prefer the overall standing; if it
+     * does not exist, fall back to the shooter's best division standing
+     * (best rank, then highest points).
+     *
+     * @param  Collection<int, int>  $userIds
+     * @return Collection<int, Standing> keyed by user id
+     */
+    private function resolveSelectionStandings(Collection $userIds, string $series, string $season): Collection
+    {
+        return Standing::query()
+            ->whereIn('user_id', $userIds)
+            ->where('series', $series)
+            ->where('season', $season)
+            ->whereNull('province_id')
+            ->with('division:id,name')
+            ->get()
+            ->groupBy('user_id')
+            ->map(function (Collection $standings) {
+                $overall = $standings->first(fn (Standing $s) => $s->division_id === null);
+
+                return $overall ?? $standings
+                    ->sort(fn (Standing $a, Standing $b) => [$a->rank ?? PHP_INT_MAX, -(float) $a->points]
+                        <=> [$b->rank ?? PHP_INT_MAX, -(float) $b->points])
+                    ->first();
+            });
     }
 
     public function selectionExport(Request $request): StreamedResponse
@@ -216,7 +248,9 @@ class ReportsController extends Controller
 
         $filename = "SAPRF_Selection_Report_{$series}_{$season}.csv";
 
-        return response()->streamDownload(function () use ($users, $series, $season) {
+        $standings = $this->resolveSelectionStandings($users->pluck('id'), $series, $season);
+
+        return response()->streamDownload(function () use ($users, $series, $season, $standings) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'Rank', 'Name', 'SAPRF Number', 'Province', 'Membership',
@@ -224,16 +258,10 @@ class ReportsController extends Controller
                 'Season Points', 'Email',
             ]);
 
-            $rows = $users->map(function ($user) use ($series, $season) {
+            $rows = $users->map(function ($user) use ($series, $season, $standings) {
                 $status = $this->qualificationService->getQualificationStatus($user, $series, $season);
 
-                $standing = \App\Models\Standing::query()
-                    ->where('user_id', $user->id)
-                    ->where('series', $series)
-                    ->where('season', $season)
-                    ->whereNull('province_id')
-                    ->whereNull('division_id')
-                    ->first();
+                $standing = $standings->get($user->id);
 
                 return [
                     'rank' => $standing?->rank,
@@ -250,7 +278,7 @@ class ReportsController extends Controller
             })
                 ->sortBy([
                     ['qualified', 'desc'],
-                    ['rank', 'asc'],
+                    [fn (array $row) => $row['rank'] ?? PHP_INT_MAX, 'asc'],
                 ]);
 
             foreach ($rows as $r) {

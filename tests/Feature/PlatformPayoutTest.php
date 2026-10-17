@@ -53,7 +53,7 @@ beforeEach(function () {
     ]);
 });
 
-function makePaidRegistration(MatchEvent $match, Carbon $registeredAt, float $platformFee = 50, string $paymentStatus = 'paid', string $registrationStatus = 'confirmed'): MatchRegistration
+function makePlatformPaidRegistration(MatchEvent $match, Carbon $registeredAt, float $platformFee = 50, string $paymentStatus = 'paid', string $registrationStatus = 'confirmed'): MatchRegistration
 {
     $shooter = User::factory()->create();
 
@@ -76,11 +76,11 @@ function makePaidRegistration(MatchEvent $match, Carbon $registeredAt, float $pl
 }
 
 it('previews platform fees grouped by the month the shooter paid', function () {
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 15));
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 31, 23, 59, 59));
-    makePaidRegistration($this->match, Carbon::create(2026, 9, 1));
-    makePaidRegistration($this->match, Carbon::create(2026, 7, 31, 23, 59, 59));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 15));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 31, 23, 59, 59));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 9, 1));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 7, 31, 23, 59, 59));
 
     $preview = app(PlatformPayoutService::class)->preview(Carbon::create(2026, 8, 20));
 
@@ -93,10 +93,10 @@ it('previews platform fees grouped by the month the shooter paid', function () {
 });
 
 it('excludes unpaid and cancelled registrations from the payout', function () {
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 5));
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 6), paymentStatus: 'unpaid');
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 7), registrationStatus: 'cancelled');
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 8), platformFee: 0);
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 6), paymentStatus: 'unpaid');
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 7), registrationStatus: 'cancelled');
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 8), platformFee: 0);
 
     $preview = app(PlatformPayoutService::class)->preview(Carbon::create(2026, 8, 1));
 
@@ -105,8 +105,8 @@ it('excludes unpaid and cancelled registrations from the payout', function () {
 });
 
 it('generates a payout with per-registration payout items', function () {
-    $r1 = makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
-    $r2 = makePaidRegistration($this->match, Carbon::create(2026, 8, 20));
+    $r1 = makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    $r2 = makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 20));
 
     $payout = app(PlatformPayoutService::class)->createForMonth(
         Carbon::create(2026, 8, 1),
@@ -128,7 +128,7 @@ it('generates a payout with per-registration payout items', function () {
 });
 
 it('refuses to create a second payout for the same month', function () {
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
 
     $service = app(PlatformPayoutService::class);
     $service->createForMonth(Carbon::create(2026, 8, 1), $this->creator);
@@ -148,7 +148,7 @@ it('refuses to create a payout when no operator is configured', function () {
     Setting::where('key', 'platform_operator_user_id')->update(['value' => '']);
     app(SettingsService::class)->clearCache();
 
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
 
     expect(fn () => app(PlatformPayoutService::class)->createForMonth(Carbon::create(2026, 8, 1), $this->creator))
         ->toThrow(RuntimeException::class, 'not configured');
@@ -158,9 +158,9 @@ it('lists unsettled past months and skips the current month', function () {
     $now = Carbon::create(2026, 11, 20);
     Carbon::setTestNow($now);
 
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 5));
-    makePaidRegistration($this->match, Carbon::create(2026, 9, 5));
-    makePaidRegistration($this->match, Carbon::create(2026, 11, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 9, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 11, 5));
 
     $service = app(PlatformPayoutService::class);
     $service->createForMonth(Carbon::create(2026, 9, 1), $this->creator);
@@ -175,7 +175,7 @@ it('lists unsettled past months and skips the current month', function () {
 });
 
 it('routes the create platform payout page for authorised users', function () {
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
 
     $this->actingAs($this->creator)
         ->get(route('financials.payouts.platform.create', ['month' => '2026-08']))
@@ -185,8 +185,8 @@ it('routes the create platform payout page for authorised users', function () {
 });
 
 it('creates a payout via the controller and redirects to payouts', function () {
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 3));
-    makePaidRegistration($this->match, Carbon::create(2026, 8, 10));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 3));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 10));
 
     $this->actingAs($this->creator)
         ->post(route('financials.payouts.platform.store'), ['month' => '2026-08'])

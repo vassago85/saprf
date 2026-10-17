@@ -1,18 +1,14 @@
 <x-layouts.app :title="'Provincial Members - SAPRF'">
     <div class="space-y-6">
-        <div>
-            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Provincial Members</h1>
-            <p class="mt-1 text-sm text-stone-500">
-                @if($federationWide)
-                    Every province. Status uses the same rules as Memberships.
-                @else
-                    Members registered in your province. Status uses the same rules as Memberships.
-                @endif
-            </p>
-        </div>
+        <x-page-header
+            title="Provincial Members"
+            :subtitle="$federationWide
+                ? 'Every province. Status uses the same rules as Memberships.'
+                : 'Members registered in your province. Status uses the same rules as Memberships.'"
+        />
 
         <h2 class="sr-only">Filters</h2>
-        <form method="GET" action="{{ route('provincial-members.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Provincial member filters">
+        <x-filter-bar :action="route('provincial-members.index')" label="Provincial member filters" class="mt-0">
             <div>
                 <label for="pm_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
                 <input type="text" id="pm_search" name="search" value="{{ request('search') }}" placeholder="Name, email, SAPRF number..."
@@ -37,7 +33,7 @@
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                 Download CSV
             </a>
-        </form>
+        </x-filter-bar>
 
         @if($showSaId)
             <p class="text-xs text-stone-400 flex items-center gap-1.5">
@@ -46,8 +42,7 @@
             </p>
         @endif
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table class="mt-0">
                 <table class="w-full">
                     <thead>
                         <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -85,7 +80,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
                                     @if($user->membership?->membershipStatus()?->showsExpiry())
-                                        {{ $user->membership->expiry_date?->format('d M Y') ?? '—' }}
+                                        {{ date_short($user->membership->expiry_date) }}
                                     @else
                                         <span title="Free accounts are not memberships, so they have no expiry.">—</span>
                                     @endif
@@ -98,8 +93,7 @@
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
 
         @if ($users->hasPages())
             <div class="mt-4">{{ $users->withQueryString()->links() }}</div>

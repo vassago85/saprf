@@ -1,14 +1,12 @@
 <x-layouts.app :title="'Email Log'">
-    <div class="flex flex-wrap items-baseline justify-between gap-4">
-        <div>
-            <h1 class="font-heading text-3xl font-bold text-stone-900">Email Log</h1>
-            <p class="mt-1 text-sm text-stone-500">Every email the app has attempted to send. Live delivery status is driven by Mailgun webhooks.</p>
-        </div>
-        <a href="{{ route('email-logs.index') }}"
-            class="rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
-            Reset filters
-        </a>
-    </div>
+    <x-page-header title="Email Log" subtitle="Every email the app has attempted to send. Live delivery status is driven by Mailgun webhooks.">
+        <x-slot:actions>
+            <a href="{{ route('email-logs.index') }}"
+                class="rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                Reset filters
+            </a>
+        </x-slot:actions>
+    </x-page-header>
 
     @if ($mailgunPausedUntil)
         <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -43,7 +41,7 @@
 
     <p class="mt-3 text-sm text-stone-500">Sent means Mailgun accepted the message and has not yet reported delivery. Delivered messages are no longer counted as Sent. Closed means an operator closed the row; it was not delivered.</p>
 
-    <form method="GET" action="{{ route('email-logs.index') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+    <x-filter-bar :action="route('email-logs.index')" label="Email log filters" class="mt-4">
         <input type="hidden" name="status" value="{{ $status }}">
         <div class="flex-1 min-w-[220px]">
             <label for="search" class="block text-xs font-medium text-stone-500">Recipient contains</label>
@@ -61,7 +59,7 @@
             </select>
         </div>
         <button class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Filter</button>
-    </form>
+    </x-filter-bar>
 
     @if ($status === \App\Models\EmailLog::STATUS_QUEUED && (int) ($counts[\App\Models\EmailLog::STATUS_QUEUED] ?? 0) > 0)
         <form method="POST" action="{{ route('email-logs.dismiss-queued') }}" class="mt-4"
@@ -73,7 +71,7 @@
         </form>
     @endif
 
-    <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    <x-admin-table>
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -89,7 +87,7 @@
                 @forelse ($logs as $log)
                     <tr class="hover:bg-stone-50 transition-colors">
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
-                            {{ ($log->sent_at ?? $log->created_at)->format('d M Y H:i:s') }}
+                            {{ datetime_short($log->sent_at ?? $log->created_at) }}
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">
                             {{ $log->to_email }}
@@ -135,7 +133,7 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
+    </x-admin-table>
 
     <div class="mt-4">
         {{ $logs->links() }}

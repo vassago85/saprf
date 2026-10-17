@@ -102,7 +102,7 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
         ]);
 
         $message = (new MailMessage)
-            ->subject($announcement->title)
+            ->subject($announcement->display_title)
             ->greeting('Hi ' . $greetingName . ',')
             ->line('From SAPRF — ' . $announcement->category->label() . ':')
             ->line($body);

@@ -9,12 +9,12 @@
         ];
     @endphp
     <div class="space-y-6">
-        <div>
-            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">SASCOC Federation Report</h1>
-            <p class="mt-1 text-sm text-stone-500">Generate the SASCOC membership template. Junior = under 18 on the date of issue; everyone else is a senior. Only paid federation members are included.</p>
-        </div>
+        <x-page-header
+            title="SASCOC Federation Report"
+            subtitle="Generate the SASCOC membership template. Junior = under 18 on the date of issue; everyone else is a senior. Only paid federation members are included."
+        />
 
-        <form method="GET" action="{{ route('sascoc-report.index') }}" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+        <x-filter-bar :action="route('sascoc-report.index')" label="SASCOC report filters" class="space-y-4 p-6">
             <div class="flex flex-wrap items-end gap-4">
                 <div>
                     <label for="year" class="block text-sm font-medium text-stone-700 mb-1">Reporting Year</label>
@@ -51,7 +51,7 @@
                        @checked($includeExpired)>
                 <span class="text-sm font-medium text-stone-700">Include members who expired during {{ $year }}</span>
             </label>
-        </form>
+        </x-filter-bar>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">

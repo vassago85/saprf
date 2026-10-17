@@ -1,11 +1,6 @@
 <x-layouts.app :title="'My Ammo Loads - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">My Ammo</h1>
-                <p class="mt-1 text-sm text-stone-500">All ammunition loads across your rifles.</p>
-            </div>
-        </div>
+        <x-page-header title="My Ammo" subtitle="All ammunition loads across your rifles." />
 
         @php $hasLoads = $rifles->pluck('ammoLoads')->flatten()->isNotEmpty(); @endphp
 

@@ -1,16 +1,14 @@
 <x-layouts.app :title="'My Barrels - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">My Barrels</h1>
-                <p class="mt-1 text-sm text-stone-500">Physical barrels — round count travels with the barrel, not the rifle.</p>
-            </div>
-            <a href="{{ route('barrels.create') }}"
-                class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add barrel
-            </a>
-        </div>
+        <x-page-header title="My Barrels" subtitle="Physical barrels — round count travels with the barrel, not the rifle.">
+            <x-slot:actions>
+                <a href="{{ route('barrels.create') }}"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add barrel
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
@@ -28,7 +26,7 @@
                 </a>
             </div>
         @else
-            <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <x-admin-table>
                 <table class="min-w-full divide-y divide-stone-100 text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
                         <tr>
@@ -74,7 +72,7 @@
                         @endforeach
                     </tbody>
                 </table>
-            </div>
+            </x-admin-table>
         @endif
     </div>
 </x-layouts.app>

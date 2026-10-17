@@ -251,4 +251,23 @@ class Announcement extends Model
 
         return in_array($channel->value, $via, true);
     }
+
+    /**
+     * Title safe for UI and email subjects: strip leftover markdown emphasis
+     * and a redundant "Announcement:" prefix from older composer drafts.
+     */
+    protected function displayTitle(): Attribute
+    {
+        return Attribute::get(fn (): string => self::plainTitle((string) ($this->attributes['title'] ?? '')));
+    }
+
+    public static function plainTitle(?string $title): string
+    {
+        $plain = trim((string) $title);
+        // Remove common markdown emphasis left in titles (*bold*, _italic_, `code`).
+        $plain = preg_replace('/[*_`]+/', '', $plain) ?? $plain;
+        $plain = preg_replace('/^\s*announcement\s*:\s*/i', '', $plain) ?? $plain;
+
+        return trim(preg_replace('/\s+/', ' ', $plain) ?? $plain);
+    }
 }

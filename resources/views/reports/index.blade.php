@@ -1,9 +1,9 @@
 <x-layouts.app :title="'Reports - SAPRF'">
     <div class="space-y-6">
-        <div>
-            <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Reports</h1>
-            <p class="mt-1 text-sm text-stone-500">Federation reports for governance, selection, and reporting to stakeholders.</p>
-        </div>
+        <x-page-header
+            title="Reports"
+            subtitle="Federation reports for governance, selection, and reporting to stakeholders."
+        />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {{-- Sponsorship --}}

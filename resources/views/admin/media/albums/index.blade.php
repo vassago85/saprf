@@ -1,15 +1,13 @@
 <x-layouts.app :title="'Media Albums — SAPRF'">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Media Albums</h1>
-                <p class="text-sm text-stone-500 mt-1">Photos from Team SA, SA Champs, Nationals and provincial matches.</p>
-            </div>
-            <a href="{{ route('media.albums.create') }}"
-               class="inline-flex items-center min-h-[44px] px-4 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
-                New album
-            </a>
-        </div>
+        <x-page-header title="Media Albums" subtitle="Photos from Team SA, SA Champs, Nationals and provincial matches." class="mb-6">
+            <x-slot:actions>
+                <a href="{{ route('media.albums.create') }}"
+                   class="inline-flex items-center min-h-[44px] px-4 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
+                    New album
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if(session('status'))
             <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm">

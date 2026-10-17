@@ -428,7 +428,7 @@ final class SidebarNavigation
                 'items' => [
                     [
                         'id' => 'reports-hub',
-                        'label' => 'Reports Hub',
+                        'label' => 'Reports',
                         'route' => 'reports.index',
                         'icon' => 'chart-bar',
                         'contexts' => [self::CONTEXT_ADMIN],
@@ -490,7 +490,7 @@ final class SidebarNavigation
                 'items' => [
                     [
                         'id' => 'financials-dashboard',
-                        'label' => 'Dashboard',
+                        'label' => 'Overview',
                         'route' => 'financials.dashboard',
                         'icon' => 'banknotes',
                         'contexts' => [self::CONTEXT_ADMIN],
@@ -628,7 +628,7 @@ final class SidebarNavigation
                     ],
                     [
                         'id' => 'email-logs',
-                        'label' => 'Email Log',
+                        'label' => 'Email Logs',
                         'route' => 'email-logs.index',
                         'icon' => 'envelope',
                         'contexts' => [self::CONTEXT_ADMIN],

@@ -1,16 +1,14 @@
 <x-layouts.app :title="'Announcements'">
     <div class="max-w-5xl space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Announcements</h1>
-                <p class="mt-1 text-sm text-stone-500">Federation-wide notifications sent from Exco to members.</p>
-            </div>
-            <a href="{{ route('announcements.create') }}"
-                class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Compose
-            </a>
-        </div>
+        <x-page-header title="Announcements" subtitle="Federation-wide notifications sent from Exco to members.">
+            <x-slot:actions>
+                <a href="{{ route('announcements.create') }}"
+                    class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Compose
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
@@ -23,7 +21,7 @@
             </div>
         @endif
 
-        <div class="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+        <x-admin-table>
             <table class="min-w-full divide-y divide-stone-200 text-sm">
                 <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                     <tr>
@@ -50,7 +48,7 @@
                         <tr class="hover:bg-stone-50 {{ $a->isRetracted() ? 'bg-red-50/40' : '' }}">
                             <td class="px-4 py-3 font-medium text-stone-900">
                                 <a href="{{ route('announcements.show', $a) }}" class="hover:text-emerald-700">
-                                    {{ $a->title }}
+                                    {{ $a->display_title }}
                                 </a>
                             </td>
                             <td class="px-4 py-3 text-stone-600">{{ $a->category->label() }}</td>
@@ -77,7 +75,7 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
+        </x-admin-table>
 
         <div>{{ $announcements->links() }}</div>
     </div>

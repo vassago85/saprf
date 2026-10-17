@@ -32,6 +32,7 @@ it('lists the expected shooter items for a member', function () {
         'My Registrations',
         'My Membership',
         'My Family',
+        'My Invoices',
         'My Rifles',
         'My Ammo',
         'My Barrels',

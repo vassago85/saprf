@@ -1,19 +1,17 @@
 <x-layouts.app :title="'Saved Distribution Lists'">
     <div class="max-w-5xl space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Saved distribution lists</h1>
-                <p class="mt-1 text-sm text-stone-500">Reusable audience rule sets you can pick from the announcement composer.</p>
-            </div>
-            <a href="{{ route('saved-lists.create') }}"
-                class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">+ New list</a>
-        </div>
+        <x-page-header title="Saved distribution lists" subtitle="Reusable audience rule sets you can pick from the announcement composer.">
+            <x-slot:actions>
+                <a href="{{ route('saved-lists.create') }}"
+                    class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">+ New list</a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if (session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{{ session('success') }}</div>
         @endif
 
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+        <x-admin-table>
             <table class="min-w-full divide-y divide-stone-200 text-sm">
                 <thead class="bg-stone-50 uppercase tracking-wide text-xs text-stone-500">
                     <tr>
@@ -50,7 +48,7 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
+        </x-admin-table>
 
         <div>{{ $lists->links() }}</div>
     </div>

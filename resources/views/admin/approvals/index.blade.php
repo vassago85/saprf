@@ -2,17 +2,15 @@
     <x-slot:title>Pending Approvals - SAPRF</x-slot:title>
 
     <div class="space-y-8">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">Pending Approvals</h1>
-                <p class="text-sm text-stone-500 mt-1">Review and approve user-submitted entries before they become visible.</p>
-            </div>
+        <x-page-header title="Pending Approvals" subtitle="Review and approve user-submitted entries before they become visible.">
             @if($totalPending > 0)
-                <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-amber-100 text-amber-800">
-                    {{ $totalPending }} pending
-                </span>
+                <x-slot:actions>
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-amber-100 text-amber-800">
+                        {{ $totalPending }} pending
+                    </span>
+                </x-slot:actions>
             @endif
-        </div>
+        </x-page-header>
 
         @if($totalPending === 0)
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-12 text-center">

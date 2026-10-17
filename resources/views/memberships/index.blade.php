@@ -8,10 +8,8 @@
         };
     @endphp
 
-    <div class="flex items-center justify-between">
-        <h1 class="font-heading text-3xl font-bold text-stone-900">Memberships</h1>
-
-        <div class="flex items-center gap-2">
+    <x-page-header title="Memberships">
+        <x-slot:actions>
             @if($isAdmin && $pendingInviteCount > 0)
                 <form method="POST" action="{{ route('memberships.invite-pending') }}" onsubmit="return confirm('Send an activation invitation email to {{ $pendingInviteCount }} member(s) who have not yet activated their account?');">
                     @csrf
@@ -33,8 +31,8 @@
                     Create Membership
                 </a>
             @endrole
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-page-header>
 
     @if($isAdmin)
         {{-- Legend: Type vs Status --}}
@@ -69,7 +67,7 @@
         </details>
 
         <h2 class="sr-only">Filters</h2>
-        <form method="GET" action="{{ route('memberships.index') }}" class="mt-6 flex flex-wrap items-end gap-3" aria-label="Membership filters">
+        <x-filter-bar :action="route('memberships.index')" label="Membership filters">
             <input type="hidden" name="sort" value="{{ $sort }}">
             <input type="hidden" name="dir" value="{{ $dir }}">
             <div class="flex-1 min-w-[220px]">
@@ -100,12 +98,12 @@
                     <a href="{{ route('memberships.index') }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
                 @endif
             </div>
-        </form>
+        </x-filter-bar>
 
         <h2 class="sr-only">Memberships list</h2>
     @endif
 
-    <div class="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    <x-admin-table>
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -139,7 +137,7 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
                             {{ $membership->user->name }}
                             @if($membership->user?->email_bounced_at)
-                                <div class="mt-1 text-xs font-semibold text-rose-700" title="Hard bounce recorded {{ $membership->user->email_bounced_at->timezone('Africa/Johannesburg')->format('d M Y') }}. Repeat mail to this address is skipped until the email is changed.">Email bouncing</div>
+                                <div class="mt-1 text-xs font-semibold text-rose-700" title="Hard bounce recorded {{ date_short($membership->user->email_bounced_at) }}. Repeat mail to this address is skipped until the email is changed.">Email bouncing</div>
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">{{ $membership->saprf_number ?? '—' }}</td>
@@ -150,13 +148,13 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->user->province?->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
                             @if($membership->membershipStatus()->showsExpiry())
-                                {{ $membership->expiry_date?->format('d M Y') ?? '—' }}
+                                {{ date_short($membership->expiry_date) }}
                             @else
                                 <span title="Free accounts are not memberships, so they have no expiry.">—</span>
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
-                            <div class="flex items-center justify-end gap-2">
+                            <x-row-actions>
                                 @if($isAdmin && $membership->user && ! $membership->user->is_managed_account && ! $membership->user->hasOnboarded() && filled($membership->user->email))
                                     @php $invited = $membership->user->invitation_sent_at !== null; @endphp
                                     <form method="POST" action="{{ route('memberships.invite', $membership) }}" onsubmit="return confirm('Send an activation invitation email to {{ $membership->user->email }}?');">
@@ -167,30 +165,27 @@
                                         </button>
                                     </form>
                                 @endif
-                                <a href="{{ route('memberships.show', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
+                                <x-row-action :href="route('memberships.show', $membership)" title="View">
                                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                                </a>
+                                </x-row-action>
                                 @role('owner|admin')
-                                    <a href="{{ route('memberships.edit', $membership) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Edit">
+                                    <x-row-action :href="route('memberships.edit', $membership)" title="Edit">
                                         <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                                    </a>
+                                    </x-row-action>
                                 @endrole
-                                {{-- Developer-only support tool: log in as this member to see exactly
-                                     what they see. Every impersonation is written to the audit log
-                                     via ImpersonationController. Not shown to owners/admins by design
-                                     — assuming a member's identity in production is a POPIA-sensitive
-                                     action and we keep the surface as narrow as possible. --}}
                                 @role('developer')
                                     @if($membership->user_id !== auth()->id())
-                                        <a href="{{ route('impersonate.start', $membership->user) }}"
-                                           class="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600"
-                                           title="View as this member (developer support tool — audit logged)"
-                                           onclick="return confirm('View SAPRF as {{ $membership->user->name }}? This action is logged. You will need to click \'Return to yourself\' to exit.');">
+                                        <x-row-action
+                                            :href="route('impersonate.start', $membership->user)"
+                                            variant="danger"
+                                            title="View as this member (developer support tool — audit logged)"
+                                            :confirm="'View SAPRF as '.$membership->user->name.'? This action is logged. You will need to click Return to yourself to exit.'"
+                                        >
                                             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                                        </a>
+                                        </x-row-action>
                                     @endif
                                 @endrole
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @empty
@@ -200,7 +195,7 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
+    </x-admin-table>
 
     <div class="mt-6">
         {{ $memberships->withQueryString()->links() }}

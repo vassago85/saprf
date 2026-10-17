@@ -1,19 +1,17 @@
 <x-layouts.app :title="'Venues - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Venues</h1>
-                <p class="mt-1 text-sm text-stone-500">Manage shooting venues and ranges.</p>
-            </div>
-            <a href="{{ route('venues.create') }}"
-               class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add Venue
-            </a>
-        </div>
+        <x-page-header title="Venues" subtitle="Manage shooting venues and ranges.">
+            <x-slot:actions>
+                <a href="{{ route('venues.create') }}"
+                   class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Venue
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         <h2 class="sr-only">Filters</h2>
-        <form method="GET" action="{{ route('venues.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Venue filters">
+        <x-filter-bar :action="route('venues.index')" label="Venue filters">
             <div>
                 <label for="venues_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
                 <input type="text" id="venues_search" name="search" value="{{ $search ?? '' }}" placeholder="Name, city, address..."
@@ -32,7 +30,7 @@
             @if($search || $provinceFilter)
                 <a href="{{ route('venues.index') }}" class="text-sm text-stone-500 hover:text-stone-700 py-2">Clear</a>
             @endif
-        </form>
+        </x-filter-bar>
 
         <h2 class="sr-only">Venues list</h2>
 
@@ -50,8 +48,7 @@
                 </x-slot:icon>
             </x-empty-state>
         @else
-        <div class="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
+        <x-admin-table>
                 <table class="w-full">
                     <thead>
                         <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -118,8 +115,7 @@
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-        </div>
+        </x-admin-table>
         @endif
 
         @if($venues->hasPages())

@@ -17,6 +17,7 @@
 
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
+use Spatie\Permission\Models\Role;
 use App\Models\AuditLog;
 use App\Models\Barrel;
 use App\Models\Club;
@@ -127,6 +128,10 @@ function dumpSession(): void
     $user = null;
 
     foreach (['owner', 'developer', 'exco', 'admin'] as $role) {
+        if (! Role::where('name', $role)->where('guard_name', 'web')->exists()) {
+            continue;
+        }
+
         $user = User::role($role)
             ->whereNotNull('email_verified_at')
             ->where(function ($query) {
@@ -183,7 +188,8 @@ function shouldSkip(string $uri): bool
         '#confirm-old-site-payment#',
         '#^payments/\{payment\}/redirect$#',
         '#^payments/cancel$#',
-        '#^email/verify/#',
+        '#^email/verify(/|$)#',
+        '#^verify-email(/|$)#',
         '#unsubscribe#',
         '#handover#',
         '#^(logout|login|register|forgot-password|reset-password|invitation)(/|$)#',

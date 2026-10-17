@@ -1,22 +1,21 @@
 <x-layouts.app :title="'National Team & Protea Colours - SAPRF'">
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">National Team &amp; Protea Colours</h1>
-                <p class="mt-1 text-sm text-stone-500">
-                    Every year a shooter has represented South Africa. The
-                    <span class="inline-flex items-center gap-1 font-semibold text-emerald-700">
-                        <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/></svg>
-                        Colours
-                    </span>
-                    badge marks the one-time appearance that granted the shooter their Protea Colours.
-                </p>
-            </div>
-            <a href="{{ route('appearances.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Record Appearance
-            </a>
-        </div>
+        <x-page-header title="National Team &amp; Protea Colours">
+            <p class="mt-1 text-sm text-stone-500">
+                Every year a shooter has represented South Africa. The
+                <span class="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                    <svg class="size-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/></svg>
+                    Colours
+                </span>
+                badge marks the one-time appearance that granted the shooter their Protea Colours.
+            </p>
+            <x-slot:actions>
+                <a href="{{ route('appearances.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Record Appearance
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if(session('success'))
             <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
@@ -24,8 +23,7 @@
             </div>
         @endif
 
-        <div class="flex flex-wrap items-end gap-4">
-            <form method="GET" action="{{ route('appearances.index') }}" class="flex items-end gap-3 flex-wrap" aria-label="Appearance filters">
+        <x-filter-bar :action="route('appearances.index')" label="Appearance filters">
                 <div>
                     <label for="filter_search" class="block text-xs font-medium text-stone-500 mb-1">Shooter</label>
                     <input type="text" id="filter_search" name="search" value="{{ request('search') }}" placeholder="Name..."
@@ -57,8 +55,7 @@
                 @if(request()->hasAny(['search', 'year', 'series', 'colours_only']))
                     <a href="{{ route('appearances.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Clear</a>
                 @endif
-            </form>
-        </div>
+        </x-filter-bar>
 
         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
             <div class="overflow-x-auto">

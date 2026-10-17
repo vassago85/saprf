@@ -3,13 +3,24 @@ set -e
 
 cd /var/www
 
+# Fast path for local hardcore testing / restarts. Set SKIP_BOOTSTRAP=1 in
+# docker-compose so php-fpm starts immediately; migrate/cache stay host-driven.
+if [ "${SKIP_BOOTSTRAP:-0}" = "1" ]; then
+    exec "$@"
+fi
+
 if [ ! -f .env ]; then
     cp .env.docker .env
     echo "Copied .env.docker to .env"
 fi
 
-echo "Installing Composer dependencies..."
-composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=ext-gd
+# Local compose bind-mounts ./vendor from the host. Skip composer when autoload already
+# exists — regenerating the optimized classmap over a Windows bind mount can stall boot
+# for many minutes. Production uses docker/prod/entrypoint.sh instead.
+if [ ! -f vendor/autoload.php ]; then
+    echo "Installing Composer dependencies..."
+    COMPOSER_OPTIMIZE_AUTOLOADER=0 composer install --no-interaction --ignore-platform-req=ext-gd --no-scripts
+fi
 
 if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
     echo "Installing NPM dependencies..."

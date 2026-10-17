@@ -1,16 +1,14 @@
 <x-layouts.app :title="'My Family - SAPRF'">
     <div class="space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">My Family</h1>
-                <p class="mt-1 text-sm text-stone-500">Manage family members under your care — juniors, your spouse, or other relatives. Handle their match entries, memberships, and standings, and pay for everyone from one account.</p>
-            </div>
-            <a href="{{ route('family.create') }}"
-               class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Add Family Member
-            </a>
-        </div>
+        <x-page-header title="My Family" subtitle="Manage family members under your care — juniors, your spouse, or other relatives. Handle their match entries, memberships, and standings, and pay for everyone from one account.">
+            <x-slot:actions>
+                <a href="{{ route('family.create') }}"
+                   class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Add Family Member
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
         @if($juniors->isEmpty())
             <div class="rounded-2xl border-2 border-dashed border-stone-200 bg-white px-6 py-12 text-center">

@@ -5,8 +5,13 @@ services:
       dockerfile: docker/php/Dockerfile
     container_name: saprf_app
     restart: unless-stopped
+    environment:
+      # Skip migrate/composer/cache on every start — Windows bind mounts make those hang.
+      SKIP_BOOTSTRAP: "1"
     volumes:
       - ./:/var/www
+      # Bind local entrypoint so require-dev survives restarts without rebuilding the image.
+      - ./docker/php/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
     depends_on:
       mysql:
         condition: service_healthy

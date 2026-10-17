@@ -1,11 +1,8 @@
 <x-layouts.app :title="'Scores'">
-    <h1 class="font-heading text-3xl font-bold text-stone-900">Scores</h1>
-
-    <div class="mt-6 border-t border-stone-200"></div>
+    <x-page-header title="Scores" />
 
     <h2 class="sr-only">Filters</h2>
-    <div class="mt-6 flex flex-wrap gap-3">
-        <form method="GET" action="{{ route('scores.index') }}" class="flex flex-wrap items-end gap-3" aria-label="Score filters">
+    <x-filter-bar :action="route('scores.index')" label="Score filters">
             <div>
                 <label for="scores_match" class="sr-only">Match</label>
                 <select id="scores_match" name="match_id" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
@@ -28,13 +25,11 @@
             </div>
 
             <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
-        </form>
-    </div>
+    </x-filter-bar>
 
     <h2 class="sr-only">Scores list</h2>
 
-    <div class="mt-6 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
+    <x-admin-table>
             <table class="min-w-full">
             <thead class="border-b-2 border-stone-200">
                 <tr>
@@ -84,8 +79,7 @@
                 @endforelse
             </tbody>
             </table>
-        </div>
-    </div>
+    </x-admin-table>
 
     <div class="mt-6">
         {{ $scores->withQueryString()->links() }}
