@@ -56,7 +56,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-2xl font-bold text-stone-900">{{ number_format($memberCount) }}</p>
-                <p class="text-xs text-stone-500">total members</p>
+                <p class="text-xs text-stone-500">paid members whose membership covered {{ $year }}</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
                 <p class="text-2xl font-bold text-emerald-700">{{ number_format($seniorCount) }}</p>

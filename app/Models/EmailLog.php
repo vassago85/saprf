@@ -126,6 +126,32 @@ class EmailLog extends Model
         return $query->where('to_email', 'like', '%' . trim($search) . '%');
     }
 
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DISMISSED => 'Closed',
+            default => ucfirst((string) $this->status),
+        };
+    }
+
+    public function typeLabel(): string
+    {
+        return self::labelForClass($this->notification_class);
+    }
+
+    public static function labelForClass(?string $class): string
+    {
+        if ($class === null || $class === '') {
+            return 'Ad-hoc';
+        }
+
+        $name = class_basename($class);
+        $name = preg_replace('/Notification$/', '', $name) ?? $name;
+        $name = preg_replace('/(?<!^)[A-Z]/', ' $0', $name) ?? $name;
+
+        return trim($name);
+    }
+
     /**
      * Colour class for the status pill in the UI. Keeping presentation
      * here (rather than a Blade `@switch`) means the same colours are

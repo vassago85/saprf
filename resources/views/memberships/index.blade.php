@@ -58,9 +58,10 @@
                     <ul class="space-y-1">
                         <li><span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span> Paid up and within the membership window.</li>
                         <li><span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span> Registered but not yet paid / approved.</li>
-                        <li><span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired / Lapsed</span> Past the expiry date.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20">Lapsed (in grace)</span> Paid membership inside the 90-day window after expiry.</li>
+                        <li><span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span> Paid membership past that grace window.</li>
                         <li><span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked / Suspended</span> Manually terminated by an admin.</li>
-                        <li><span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-400/20">Non-member</span> Has an account but no valid paid plan (typical for Free accounts).</li>
+                        <li><span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-400/20">Non-member</span> Free account. A stored expiry on a free record is not a membership.</li>
                     </ul>
                     <p class="mt-2 text-[11px] text-stone-500">A row can read e.g. <em>Free / Non-member</em> (a guest account) or <em>Full / Expired</em> (a paying member whose renewal is overdue).</p>
                 </div>
@@ -88,8 +89,8 @@
                 <label for="memberships_status" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Status</label>
                 <select id="memberships_status" name="status" class="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     <option value="">All</option>
-                    @foreach(['active' => 'Active', 'expired' => 'Expired', 'non_member' => 'Non-member', 'revoked' => 'Revoked'] as $val => $label)
-                        <option value="{{ $val }}" @selected(($filters['status'] ?? '') === $val)>{{ $label }}</option>
+                    @foreach(\App\Enums\MembershipStatus::cases() as $case)
+                        <option value="{{ $case->value }}" @selected(($filters['status'] ?? '') === $case->value)>{{ $case->label() }}</option>
                     @endforeach
                 </select>
             </div>
@@ -135,29 +136,25 @@
             <tbody class="divide-y divide-stone-100">
                 @forelse ($memberships as $membership)
                     <tr class="hover:bg-stone-50 transition-colors">
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">{{ $membership->user->name }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
+                            {{ $membership->user->name }}
+                            @if($membership->user?->email_bounced_at)
+                                <div class="mt-1 text-xs font-semibold text-rose-700" title="Hard bounce recorded {{ $membership->user->email_bounced_at->timezone('Africa/Johannesburg')->format('d M Y') }}. Repeat mail to this address is skipped until the email is changed.">Email bouncing</div>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">{{ $membership->saprf_number ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500 capitalize">{{ $membership->membership_type }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                            @switch($membership->effective_status)
-                                @case('active')
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
-                                    @break
-                                @case('expired')
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span>
-                                    @break
-                                @case('pending')
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
-                                    @break
-                                @case('revoked')
-                                    <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
-                                    @break
-                                @default
-                                    <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">Non-member</span>
-                            @endswitch
+                            <x-membership-status :membership="$membership" />
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->user->province?->name ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $membership->expiry_date?->format('d M Y') ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
+                            @if($membership->membershipStatus()->showsExpiry())
+                                {{ $membership->expiry_date?->format('d M Y') ?? '—' }}
+                            @else
+                                <span title="Free accounts are not memberships, so they have no expiry.">—</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             <div class="flex items-center justify-end gap-2">
                                 @if($isAdmin && $membership->user && ! $membership->user->is_managed_account && ! $membership->user->hasOnboarded() && filled($membership->user->email))

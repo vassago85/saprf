@@ -138,7 +138,7 @@ class ReportsController extends Controller
                 $q->where('series', $series)
                     ->where(function ($q2) use ($season) {
                         $q2->where('season', $season)
-                            ->orWhereRaw('YEAR(match_date) = ?', [$season]);
+                            ->orWhereYear('match_date', $season);
                     });
             })
             ->whereNotNull('user_id')
@@ -165,7 +165,8 @@ class ReportsController extends Controller
             return [
                 'user' => $user,
                 'province' => $user->province?->name,
-                'membership_active' => $user->membership?->status === 'active' && $user->membership?->payment_status === 'paid',
+                'membership_active' => $user->membershipStatus() === \App\Enums\MembershipStatus::Active,
+                'membership_label' => $user->membershipStatus()?->label() ?? 'No membership',
                 'saprf_number' => $user->membership?->saprf_number,
                 'required' => $status['required'],
                 'completed' => $status['completed'],
@@ -200,7 +201,7 @@ class ReportsController extends Controller
                 $q->where('series', $series)
                     ->where(function ($q2) use ($season) {
                         $q2->where('season', $season)
-                            ->orWhereRaw('YEAR(match_date) = ?', [$season]);
+                            ->orWhereYear('match_date', $season);
                     });
             })
             ->whereNotNull('user_id')
@@ -239,7 +240,7 @@ class ReportsController extends Controller
                     'name' => $user->name,
                     'saprf_number' => $user->membership?->saprf_number,
                     'province' => $user->province?->name,
-                    'membership' => ($user->membership?->status === 'active' && $user->membership?->payment_status === 'paid') ? 'Active' : ($user->membership?->status ?? 'None'),
+                    'membership' => $user->membershipStatus()?->label() ?? 'No membership',
                     'required' => $status['required'],
                     'completed' => $status['completed'],
                     'qualified' => $status['qualified'] ? 'Yes' : 'No',

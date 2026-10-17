@@ -20,7 +20,9 @@ use App\Models\SelectionAthlete;
 use App\Models\SelectionCycle;
 use App\Models\SelectionWaiver;
 use App\Models\Setting;
+use App\Models\User;
 use App\Notifications\EmailOtpNotification;
+use App\Notifications\FederationAnnouncementNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Observers\MembershipObserver;
 use App\Policies\AmmoStringPolicy;
@@ -41,6 +43,7 @@ use App\Policies\Selection\SelectionAthletePolicy;
 use App\Policies\Selection\SelectionCyclePolicy;
 use App\Policies\Selection\SelectionWaiverPolicy;
 use App\Services\SettingsService;
+use App\Support\BackupNotificationAddress;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Config;
@@ -111,6 +114,7 @@ class AppServiceProvider extends ServiceProvider
         Membership::observe(MembershipObserver::class);
 
         $this->applyMailgunSettings();
+        BackupNotificationAddress::applyFromSettings();
         $this->registerNotificationsToggle();
         $this->registerMailRateLimiter();
 
@@ -181,6 +185,17 @@ class AppServiceProvider extends ServiceProvider
             // Only touch the mail channel — DB / broadcast channels are unaffected.
             if ($event->channel !== 'mail') {
                 return true;
+            }
+
+            if ($event->notifiable instanceof User
+                && ! $event->notification instanceof FederationAnnouncementNotification
+                && ($event->notifiable->email_bounced_at !== null || $event->notifiable->email_complained_at !== null)) {
+                Log::info('Email notification suppressed because the address hard-bounced or was marked as spam', [
+                    'notification' => $event->notification::class,
+                    'user_id' => $event->notifiable->getKey(),
+                ]);
+
+                return false;
             }
 
             try {

@@ -20,6 +20,10 @@
 /storage/*.key
 /storage/pail
 /vendor
+playwright/readonly-report.json
+/test-results/
+/playwright-report/
+/blob-report/
 Homestead.json
 Homestead.yaml
 Thumbs.db

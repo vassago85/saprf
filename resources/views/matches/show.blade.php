@@ -567,10 +567,7 @@
                                         :disabled="r.id === currentDirectorId"
                                         class="w-full text-left flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <div class="min-w-0">
-                                        <p class="text-sm font-medium text-stone-900" x-text="r.name"></p>
-                                        <p class="text-[11px] text-stone-500">
-                                            <span x-text="r.saprf_number ? 'SAPRF ' + r.saprf_number : (r.email || 'No SAPRF number')"></span>
-                                        </p>
+                                        <p class="text-sm font-medium text-stone-900" x-text="r.saprf_number ? r.name + ' (' + r.saprf_number + ')' : r.name"></p>
                                     </div>
                                     <span x-show="r.id === currentDirectorId" class="text-[10px] font-semibold text-stone-400 uppercase">Current</span>
                                 </button>
@@ -586,8 +583,7 @@
                             <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
                                     <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">New Director</p>
-                                    <p class="mt-1 text-sm font-medium text-stone-900" x-text="selected?.name"></p>
-                                    <p class="text-xs text-stone-500" x-text="selected?.saprf_number ? 'SAPRF ' + selected.saprf_number : (selected?.email || '')"></p>
+                                    <p class="mt-1 text-sm font-medium text-stone-900" x-text="selected?.saprf_number ? selected.name + ' (' + selected.saprf_number + ')' : selected?.name"></p>
                                 </div>
                                 <button type="button" @click="clearSelection()" class="text-xs font-medium text-stone-500 hover:text-stone-700">
                                     Change

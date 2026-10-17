@@ -238,6 +238,7 @@ class SascocReportController extends Controller
     {
         return Membership::query()
             ->where('payment_status', 'paid')
+            ->where('membership_type', '!=', 'free')
             ->whereNotIn('status', ['revoked', 'pending'])
             ->when($includeExpired, function ($q) {
                 $q->whereIn('status', ['active', 'expired', 'lapsed']);

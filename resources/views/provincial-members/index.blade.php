@@ -2,7 +2,13 @@
     <div class="space-y-6">
         <div>
             <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Provincial Members</h1>
-            <p class="mt-1 text-sm text-stone-500">Members registered in your province.</p>
+            <p class="mt-1 text-sm text-stone-500">
+                @if($federationWide)
+                    Every province. Status uses the same rules as Memberships.
+                @else
+                    Members registered in your province. Status uses the same rules as Memberships.
+                @endif
+            </p>
         </div>
 
         <h2 class="sr-only">Filters</h2>
@@ -75,28 +81,15 @@
                                     </td>
                                 @endif
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm">
-                                    @switch($user->membership?->status)
-                                        @case('active')
-                                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
-                                            @break
-                                        @case('pending')
-                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
-                                            @break
-                                        @case('lapsed')
-                                            <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Lapsed</span>
-                                            @break
-                                        @case('suspended')
-                                            <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Suspended</span>
-                                            @break
-                                        @case('revoked')
-                                            <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-700/30">Revoked</span>
-                                            @break
-                                        @case('expired')
-                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Expired</span>
-                                            @break
-                                    @endswitch
+                                    <x-membership-status :membership="$user->membership" />
                                 </td>
-                                <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->membership?->expiry_date?->format('d M Y') ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
+                                    @if($user->membership?->membershipStatus()?->showsExpiry())
+                                        {{ $user->membership->expiry_date?->format('d M Y') ?? '—' }}
+                                    @else
+                                        <span title="Free accounts are not memberships, so they have no expiry.">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>

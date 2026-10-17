@@ -3,7 +3,11 @@
         x-data="disciplinarySubjectPicker(@js([
             'searchUrl' => route('exco.disciplinary.subject-search'),
             'initialSubjectId' => $case?->subject_user_id,
-            'initialSubjectName' => $case?->subject?->name ?? $case?->subject_name,
+            'initialSubjectName' => $case?->subject
+                ? ($case->subject->membership?->saprf_number
+                    ? $case->subject->name.' ('.$case->subject->membership->saprf_number.')'
+                    : $case->subject->name)
+                : $case?->subject_name,
         ]))">
         <div class="flex items-center justify-between">
             <div>
@@ -50,8 +54,7 @@
                                 <button type="button"
                                     @click="pick(r)"
                                     class="block w-full px-3 py-2 text-left text-sm hover:bg-emerald-50">
-                                    <span class="font-medium text-stone-900" x-text="r.name"></span>
-                                    <span class="ml-2 text-xs text-stone-500" x-text="r.saprf_number ? '#' + r.saprf_number : ''"></span>
+                                    <span class="font-medium text-stone-900" x-text="r.saprf_number ? r.name + ' (' + r.saprf_number + ')' : r.name"></span>
                                 </button>
                             </li>
                         </template>
@@ -143,8 +146,8 @@
 
                     pick(r) {
                         this.selectedId = r.id;
-                        this.selectedName = r.name;
-                        this.query = r.name;
+                        this.selectedName = r.saprf_number ? r.name + ' (' + r.saprf_number + ')' : r.name;
+                        this.query = this.selectedName;
                         this.results = [];
                         this.showResults = false;
                     },

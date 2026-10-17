@@ -11,7 +11,7 @@
     <div x-show="selected.length" class="mb-1.5 flex flex-wrap gap-1.5">
         <template x-for="user in selected" :key="user.id">
             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 py-0.5 pl-2.5 pr-1 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-600/20">
-                <span x-text="user.name"></span>
+                <span x-text="user.saprf_number ? user.name + ' (' + user.saprf_number + ')' : user.name"></span>
                 <button type="button" @click="remove(user.id)"
                     :aria-label="`Remove ${user.name}`"
                     class="rounded-full px-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900">&times;</button>
@@ -44,10 +44,9 @@
                 :disabled="isSelected(user.id)"
                 class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none disabled:cursor-default disabled:opacity-50">
                 <span class="min-w-0">
-                    <span class="font-medium text-stone-800" x-text="user.name"></span>
-                    <span class="ml-1 text-stone-400" x-text="user.email"></span>
+                    <span class="font-medium text-stone-800" x-text="user.saprf_number ? user.name + ' (' + user.saprf_number + ')' : user.name"></span>
                 </span>
-                <span class="shrink-0 text-stone-400" x-text="isSelected(user.id) ? 'Added' : (user.saprf_number || '')"></span>
+                <span class="shrink-0 text-stone-400" x-show="isSelected(user.id)">Added</span>
             </button>
         </template>
     </div>

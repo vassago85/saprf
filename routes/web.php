@@ -39,6 +39,7 @@ use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchExpenseController;
 use App\Http\Controllers\MemberSearchController;
+use App\Http\Controllers\MemberLookupController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
 use App\Http\Controllers\NationalTeamAppearanceController;
@@ -365,6 +366,9 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     // Sponsor search: look up another member by name or SAPRF number to enter
     // or pay for them on this match. Auth-only; no PII beyond name/number.
     Route::get('/events/{match}/members/search', [MemberSearchController::class, 'search'])->name('events.members.search');
+    Route::middleware(['role:developer|exco|owner|admin|chair|iprf_selector|provincial_admin'])
+        ->get('/members/search', [MemberLookupController::class, 'search'])
+        ->name('members.search');
 
     // ── Notification Centre — member archive ──
     Route::get('/communications', [CommunicationsController::class, 'index'])->name('communications.index');

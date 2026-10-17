@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\MembershipStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -145,116 +147,85 @@ class Membership extends Model
     }
 
     /**
-     * A single, human-friendly status derived from the facts we trust — the
-     * expiry date and the membership type — rather than the messy legacy
-     * "status"/"payment_status" flags. This is what should be shown to users:
-     * a membership is simply Active (paid up, not yet expired) or Expired.
-     *
-     * Returns one of: non_member | revoked | pending | expired | active
+     * The status every screen must show. Free records are always Non-member;
+     * a stored expiry on a free row is ignored. Paid rows past expiry are
+     * Lapsed until the grace cutoff, then Expired.
      */
-    public function getEffectiveStatusAttribute(): string
+    public function membershipStatus(): MembershipStatus
     {
         if ($this->membership_type === 'free') {
-            return 'non_member';
+            return MembershipStatus::NonMember;
         }
 
         if ($this->status === 'revoked') {
-            return 'revoked';
+            return MembershipStatus::Revoked;
         }
 
-        // Awaiting first payment/approval and no window opened yet.
+        if ($this->status === 'suspended') {
+            return MembershipStatus::Suspended;
+        }
+
         if ($this->status === 'pending' && ! $this->expiry_date) {
-            return 'pending';
+            return MembershipStatus::Pending;
         }
 
-        if ($this->expiry_date && $this->expiry_date->lt(now()->startOfDay())) {
-            return 'expired';
+        if ($this->expiry_date && $this->expiry_date->copy()->startOfDay()->lt(now()->startOfDay())) {
+            $graceStart = now()->startOfDay()->subDays(\App\Services\MembershipValidationService::LAPSED_CUTOFF_DAYS);
+
+            return $this->expiry_date->copy()->startOfDay()->gte($graceStart)
+                ? MembershipStatus::Lapsed
+                : MembershipStatus::Expired;
         }
 
-        return 'active';
+        return MembershipStatus::Active;
+    }
+
+    /**
+     * @deprecated Read membershipStatus() instead. Kept so older callers
+     * still receive the enum value string.
+     */
+    public function getEffectiveStatusAttribute(): string
+    {
+        return $this->membershipStatus()->value;
     }
 
     public function getEffectiveStatusLabelAttribute(): string
     {
-        return match ($this->effective_status) {
-            'non_member' => 'Non-member',
-            'revoked' => 'Revoked',
-            'pending' => 'Pending',
-            'expired' => 'Expired',
-            default => 'Active',
-        };
+        return $this->membershipStatus()->label();
     }
 
     /**
-     * True when this person should be treated as a current federation member
-     * in the UI (dashboard badge, membership card, etc.).
-     *
-     * Uses expiry + payment rather than requiring membership_type === 'paid',
-     * because legacy imports often used other type labels (or left type as
-     * "free" while still stamping a real SAPRF number and paid window).
+     * Current federation member: the display status is Active.
+     * Free accounts never qualify, including legacy rows that still carry
+     * a SAPRF number and a future expiry.
      */
     public function isActiveMember(): bool
     {
-        if ($this->status === 'revoked') {
-            return false;
-        }
-
-        // Explicit free/non-member registrations — unless they clearly have a
-        // real paid membership window (legacy bad data).
-        if ($this->membership_type === 'free') {
-            $looksLikeRealMember = filled($this->saprf_number)
-                && ! str_starts_with((string) $this->saprf_number, 'SAPRF-IMPORT-')
-                && in_array($this->payment_status, ['paid', 'waived'], true)
-                && $this->expiry_date
-                && $this->expiry_date->gte(now()->startOfDay());
-
-            return $looksLikeRealMember;
-        }
-
-        if (! in_array($this->payment_status, ['paid', 'waived'], true) && $this->status !== 'active') {
-            return false;
-        }
-
-        if ($this->expiry_date && $this->expiry_date->lt(now()->startOfDay())) {
-            return false;
-        }
-
-        // Paid/waived with a current window, or active status with no expiry yet.
-        return in_array($this->payment_status, ['paid', 'waived'], true)
-            || ($this->status === 'active' && filled($this->saprf_number));
+        return $this->membershipStatus() === MembershipStatus::Active;
     }
 
     /**
-     * SQL translation of `isActiveMember()`. Kept in lockstep with the
-     * predicate above and with MembershipController::buildIndexQuery so
-     * the Notification Centre "Active members" audience picks the same
-     * cohort the admin membership list does.
-     *
-     * A row counts as an active member when:
-     *   - status is NOT 'revoked'
-     *   - membership_type is not 'free' (free registrants are non-members
-     *     — the legacy "looks like a real member" exception in the PHP
-     *     predicate is not replicated here; those rows have `type = paid`
-     *     after cleanup, and the tiny set that don't are ineligible for
-     *     federation broadcasts)
-     *   - either payment_status is paid/waived OR status is 'active'
-     *   - expiry_date is null OR today or later
+     * Paid memberships whose expiry is today or later. Same cohort as
+     * membershipStatus() === Active, including the admin list filter and
+     * the owner dashboard count.
      */
-    public function scopeActiveMembers(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeActive(Builder $query): Builder
     {
-        $today = now()->startOfDay()->toDateString();
+        return MembershipStatus::Active->constrain($query);
+    }
 
-        return $query
-            ->where('memberships.status', '!=', 'revoked')
-            ->where('memberships.membership_type', '!=', 'free')
-            ->where(function ($q) {
-                $q->whereIn('memberships.payment_status', ['paid', 'waived'])
-                    ->orWhere('memberships.status', 'active');
-            })
-            ->where(function ($q) use ($today) {
-                $q->whereNull('memberships.expiry_date')
-                    ->orWhereDate('memberships.expiry_date', '>=', $today);
-            });
+    public function scopeActiveMembers(Builder $query): Builder
+    {
+        return $this->scopeActive($query);
+    }
+
+    public function scopeDisplayStatus(Builder $query, MembershipStatus|string $status): Builder
+    {
+        $status = $status instanceof MembershipStatus
+            ? $status
+            : MembershipStatus::from($status);
+
+        return $status->constrain($query);
     }
 
     public function revokedByUser(): BelongsTo

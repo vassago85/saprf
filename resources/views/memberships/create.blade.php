@@ -16,14 +16,8 @@
 
         <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                    <label for="user_id" class="block text-sm font-medium text-stone-700">Member</label>
-                    <select name="user_id" id="user_id" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="">Select member…</option>
-                        @foreach ($users as $user)
-                            <option value="{{ $user->id }}" @selected(old('user_id') == $user->id)>{{ $user->name }} ({{ $user->email }})</option>
-                        @endforeach
-                    </select>
+                <div class="sm:col-span-2">
+                    <x-member-picker name="user_id" label="Member" />
                 </div>
 
                 <div>

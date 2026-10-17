@@ -41,16 +41,19 @@
         {{-- KPIs --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-                <p class="text-xs font-medium text-emerald-700 uppercase">Qualified Shooters</p>
+                <p class="text-xs font-medium text-emerald-700 uppercase">Qualified for this report</p>
                 <p class="mt-1 text-2xl font-bold text-emerald-900">{{ $qualifiedCount }}</p>
+                <p class="mt-1 text-xs text-emerald-800">Met the out-of-province minimum for {{ $series }} {{ $season }}. This is not the season standings qualification.</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white p-5">
-                <p class="text-xs font-medium text-stone-500 uppercase">Total Active Shooters</p>
+                <p class="text-xs font-medium text-stone-500 uppercase">Shooters with a valid score</p>
                 <p class="mt-1 text-2xl font-bold text-stone-900">{{ $rows->count() }}</p>
+                <p class="mt-1 text-xs text-stone-400">{{ $series }} scores marked valid in {{ $season }}.</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white p-5">
-                <p class="text-xs font-medium text-stone-500 uppercase">Active Memberships</p>
+                <p class="text-xs font-medium text-stone-500 uppercase">Active among these shooters</p>
                 <p class="mt-1 text-2xl font-bold text-stone-900">{{ $rows->where('membership_active', true)->count() }}</p>
+                <p class="mt-1 text-xs text-stone-400">Of the shooters above, how many are Active. Not the federation-wide active count.</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white p-5">
                 <p class="text-xs font-medium text-stone-500 uppercase">Series &middot; Season</p>
@@ -88,11 +91,7 @@
                                 <td class="px-5 py-3 font-mono text-xs text-stone-600">{{ $row['saprf_number'] ?? '—' }}</td>
                                 <td class="px-5 py-3 text-stone-600">{{ $row['province'] ?? '—' }}</td>
                                 <td class="px-5 py-3">
-                                    @if($row['membership_active'])
-                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Active</span>
-                                    @else
-                                        <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-500">Inactive</span>
-                                    @endif
+                                    <x-membership-status :membership="$row['user']->membership" />
                                 </td>
                                 <td class="px-5 py-3 text-center text-stone-600">
                                     <span class="font-mono">{{ $row['completed'] }} / {{ $row['required'] }}</span>

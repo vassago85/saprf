@@ -84,33 +84,13 @@
                                     @if($user->membership)
                                         <div class="flex flex-col gap-1">
                                         <div class="flex items-center gap-1.5">
-                                        @if($user->membership->membership_type === 'free')
-                                            <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-500/20" title="Registered to shoot a provincial — not a paid-up member">Non-member (free)</span>
-                                        @else
-                                        @switch($user->membership->status)
-                                            @case('active')
-                                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
-                                                @break
-                                            @case('lapsed')
-                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Lapsed</span>
-                                                @break
-                                            @case('expired')
-                                                <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Expired</span>
-                                                @break
-                                            @case('revoked')
-                                                <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Revoked</span>
-                                                @break
-                                            @case('pending')
-                                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Pending</span>
-                                                @break
-                                            @default
-                                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($user->membership->status) }}</span>
-                                        @endswitch
-                                        @endif
+                                            <x-membership-status :membership="$user->membership" />
                                         </div>
                                         <span class="text-[11px] text-stone-400">
-                                            @if($user->membership->expiry_date)
+                                            @if($user->membership->membershipStatus()->showsExpiry() && $user->membership->expiry_date)
                                                 Expires {{ $user->membership->expiry_date->format('d M Y') }}
+                                            @elseif(! $user->membership->membershipStatus()->showsExpiry())
+                                                Free account, no membership expiry
                                             @else
                                                 No expiry date
                                             @endif

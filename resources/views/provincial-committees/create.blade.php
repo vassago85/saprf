@@ -34,15 +34,8 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="user_id" class="block text-sm font-medium text-stone-700 mb-1">Member</label>
-                    <select name="user_id" id="user_id" required
-                        class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">Select member...</option>
-                        @foreach ($users as $user)
-                            <option value="{{ $user->id }}" @selected(old('user_id') == $user->id)>{{ $user->name }} ({{ $user->email }})</option>
-                        @endforeach
-                    </select>
+                <div class="sm:col-span-2">
+                    <x-member-picker name="user_id" label="Member" />
                 </div>
 
                 <div>

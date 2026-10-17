@@ -130,7 +130,7 @@ class DashboardController extends Controller
             'user' => $user,
             'qualificationRulesCount' => QualificationRule::count(),
             'totalMembers' => User::count(),
-            'activeMemberships' => Membership::where('status', 'active')->count(),
+            'activeMemberships' => Membership::query()->active()->count(),
             'totalMatches' => MatchEvent::count(),
             'totalScores' => Score::count(),
             'settings' => $this->settingsService->all(),

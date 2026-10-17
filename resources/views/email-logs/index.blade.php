@@ -13,7 +13,7 @@
     @if ($mailgunPausedUntil)
         <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <p class="font-semibold">Mailgun is paused until {{ $mailgunPausedUntil->timezone('Africa/Johannesburg')->format('H:i') }} SAST.</p>
-            <p class="mt-1">Resend is disabled. Do not retry — each attempt restarts the hour lock. Use <strong>Complete</strong> on leftover queued rows; that does not send.</p>
+            <p class="mt-1">Resend is disabled. Do not retry — each attempt restarts the hour lock. Use <strong>Closed</strong> on leftover queued rows; that does not send.</p>
         </div>
     @endif
 
@@ -26,7 +26,7 @@
             \App\Models\EmailLog::STATUS_FAILED     => ['label' => 'Failed',     'count' => (int) ($counts[\App\Models\EmailLog::STATUS_FAILED] ?? 0),     'classes' => 'bg-amber-100 text-amber-800'],
             \App\Models\EmailLog::STATUS_BOUNCED    => ['label' => 'Bounced',    'count' => (int) ($counts[\App\Models\EmailLog::STATUS_BOUNCED] ?? 0),    'classes' => 'bg-rose-100 text-rose-800'],
             \App\Models\EmailLog::STATUS_COMPLAINED => ['label' => 'Complained', 'count' => (int) ($counts[\App\Models\EmailLog::STATUS_COMPLAINED] ?? 0), 'classes' => 'bg-rose-100 text-rose-800'],
-            \App\Models\EmailLog::STATUS_DISMISSED  => ['label' => 'Complete',   'count' => (int) ($counts[\App\Models\EmailLog::STATUS_DISMISSED] ?? 0),  'classes' => 'bg-stone-100 text-stone-500'],
+            \App\Models\EmailLog::STATUS_DISMISSED  => ['label' => 'Closed',     'count' => (int) ($counts[\App\Models\EmailLog::STATUS_DISMISSED] ?? 0),  'classes' => 'bg-stone-100 text-stone-500'],
         ];
     @endphp
 
@@ -41,6 +41,8 @@
         @endforeach
     </div>
 
+    <p class="mt-3 text-sm text-stone-500">Sent means Mailgun accepted the message and has not yet reported delivery. Delivered messages are no longer counted as Sent. Closed means an operator closed the row; it was not delivered.</p>
+
     <form method="GET" action="{{ route('email-logs.index') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
         <input type="hidden" name="status" value="{{ $status }}">
         <div class="flex-1 min-w-[220px]">
@@ -54,7 +56,7 @@
                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 <option value="">All types</option>
                 @foreach($notificationClasses as $cls => $count)
-                    <option value="{{ $cls }}" @selected($notificationClass === $cls)>{{ class_basename($cls) }} ({{ $count }})</option>
+                    <option value="{{ $cls }}" @selected($notificationClass === $cls)>{{ \App\Models\EmailLog::labelForClass($cls) }} ({{ $count }})</option>
                 @endforeach
             </select>
         </div>
@@ -99,11 +101,11 @@
                             <span class="line-clamp-1">{{ $log->subject }}</span>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-xs text-stone-500">
-                            {{ $log->notification_class ? class_basename($log->notification_class) : 'Ad-hoc' }}
+                            {{ $log->typeLabel() }}
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
-                                {{ $log->status === \App\Models\EmailLog::STATUS_DISMISSED ? 'Complete' : ucfirst($log->status) }}
+                                {{ $log->statusLabel() }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
@@ -120,7 +122,7 @@
                                     <form method="POST" action="{{ route('email-logs.dismiss', $log) }}"
                                         onsubmit="return confirm('Mark this attempt as complete without sending?')">
                                         @csrf
-                                        <button class="font-semibold text-stone-500 hover:text-stone-800">Complete</button>
+                                        <button class="font-semibold text-stone-500 hover:text-stone-800">Close</button>
                                     </form>
                                 @endif
                             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MembershipStatus;
 use App\Notifications\AccountHandoverInvitationNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\AccountCreditService;
@@ -190,6 +191,16 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected static function booted(): void
     {
+        static::updating(function (User $user): void {
+            if (! $user->isDirty('email')) {
+                return;
+            }
+
+            $user->email_bounced_at = null;
+            $user->email_bounce_count = 0;
+            $user->email_complained_at = null;
+        });
+
         static::deleting(function (User $user): void {
             if ($user->isForceDeleting()) {
                 return;
@@ -315,6 +326,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function membership(): HasOne
     {
         return $this->hasOne(Membership::class);
+    }
+
+    public function membershipStatus(): ?MembershipStatus
+    {
+        return $this->membership?->membershipStatus();
     }
 
     public function createdMatches(): HasMany

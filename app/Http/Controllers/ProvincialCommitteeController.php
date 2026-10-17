@@ -28,10 +28,9 @@ class ProvincialCommitteeController extends Controller
     public function create(): View
     {
         $provinces = Province::orderBy('name')->get();
-        $users = User::orderBy('name')->get(['id', 'name', 'email']);
         $positions = ProvincialCommittee::POSITIONS;
 
-        return view('provincial-committees.create', compact('provinces', 'users', 'positions'));
+        return view('provincial-committees.create', compact('provinces', 'positions'));
     }
 
     public function store(Request $request): RedirectResponse

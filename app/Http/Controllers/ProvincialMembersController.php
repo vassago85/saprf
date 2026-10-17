@@ -23,9 +23,10 @@ class ProvincialMembersController extends Controller
         $users = $query->paginate(25)->withQueryString();
         $provinces = Province::orderBy('name')->get();
         $showSaId = $actor->hasRole(['developer', 'exco', 'owner', 'admin']);
+        $federationWide = $actor->hasRole(['developer', 'exco', 'owner', 'admin']);
         $search = $request->input('search');
 
-        return view('provincial-members.index', compact('users', 'provinces', 'search', 'showSaId'));
+        return view('provincial-members.index', compact('users', 'provinces', 'search', 'showSaId', 'federationWide'));
     }
 
     public function downloadCsv(Request $request): StreamedResponse
@@ -74,7 +75,7 @@ class ProvincialMembersController extends Controller
                     $user->email,
                     $user->phone ?? '',
                     $user->province?->name ?? '',
-                    ucfirst($user->membership?->status ?? ''),
+                    $user->membershipStatus()?->label() ?? '',
                     ucfirst($user->membership?->payment_status ?? ''),
                     $user->membership?->start_date?->format('Y-m-d') ?? '',
                     $user->membership?->expiry_date?->format('Y-m-d') ?? '',

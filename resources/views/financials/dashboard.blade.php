@@ -111,9 +111,10 @@
                 <p class="mt-1 text-xs text-emerald-600">Bottom line</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
-                <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">MD Payouts</p>
+                <p class="text-xs font-medium text-stone-500 uppercase tracking-wide">MD share accrued</p>
                 <p class="mt-1 text-2xl font-bold text-stone-900">R{{ number_format($summary['total_md_payouts'], 2) }}</p>
-                <p class="mt-1 text-xs text-stone-400">Due to match directors</p>
+                <p class="mt-1 text-xs text-stone-400">Sum of match-director share on paid entries in this period. This is not the pending balance on the payouts page.</p>
+                <a href="{{ route('financials.payouts.create') }}" class="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:text-emerald-800">Generate payouts</a>
             </div>
         </div>
 
@@ -234,10 +235,10 @@
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                 <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide mb-4">Membership Revenue</h2>
-                <p class="text-xs text-stone-400 mb-3">SAPRF retains all membership fees</p>
+                <p class="text-xs text-stone-400 mb-3">Recorded membership payments in this period. This is not the number of active members.</p>
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between">
-                        <dt class="text-stone-600">Total Payments</dt>
+                        <dt class="text-stone-600">Membership payments</dt>
                         <dd class="font-semibold text-stone-900">{{ number_format($summary['membership_revenue']['total_payments']) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-stone-100 pt-2">

@@ -214,24 +214,11 @@ class MembershipController extends Controller
             });
         }
 
-        // Filter by the same simplified status we display: active vs expired,
-        // plus the non-member / revoked overrides — all derived from the
-        // expiry date and type, not the noisy legacy status flags.
-        $today = now()->startOfDay()->toDateString();
-        match ($request->input('status')) {
-            'active' => $query->where('memberships.membership_type', '!=', 'free')
-                ->where('memberships.status', '!=', 'revoked')
-                ->where(function ($q) use ($today) {
-                    $q->whereNull('memberships.expiry_date')
-                        ->orWhereDate('memberships.expiry_date', '>=', $today);
-                }),
-            'expired' => $query->where('memberships.membership_type', '!=', 'free')
-                ->where('memberships.status', '!=', 'revoked')
-                ->whereDate('memberships.expiry_date', '<', $today),
-            'non_member' => $query->where('memberships.membership_type', 'free'),
-            'revoked' => $query->where('memberships.status', 'revoked'),
-            default => null,
-        };
+        if ($status = $request->input('status')) {
+            if (\App\Enums\MembershipStatus::tryFrom($status)) {
+                $query->displayStatus($status);
+            }
+        }
 
         if ($provinceId = $request->input('province_id')) {
             $query->where('users.province_id', $provinceId);
@@ -263,9 +250,7 @@ class MembershipController extends Controller
 
     public function create(): View
     {
-        $users = User::orderBy('name')->get(['id', 'name', 'email']);
-
-        return view('memberships.create', compact('users'));
+        return view('memberships.create');
     }
 
     public function store(Request $request): RedirectResponse

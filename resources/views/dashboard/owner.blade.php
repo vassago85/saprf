@@ -78,8 +78,9 @@
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">
-                <p class="text-sm text-stone-500">Active Memberships</p>
+                <p class="text-sm text-stone-500">Active memberships</p>
                 <p class="text-3xl font-bold text-stone-900">{{ number_format($activeMemberships ?? 0) }}</p>
+                <p class="text-xs text-stone-400">Paid and in date. Free accounts are excluded.</p>
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-2">

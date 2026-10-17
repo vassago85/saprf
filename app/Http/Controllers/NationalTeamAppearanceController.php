@@ -75,15 +75,19 @@ class NationalTeamAppearanceController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'shooter_lookup' => ['required', 'string', 'max:255'],
+            'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:shooter_lookup'],
+            'shooter_lookup' => ['nullable', 'string', 'max:255', 'required_without:user_id'],
             ...$this->payloadRules(),
         ]);
 
-        $user = $this->resolveShooter($data['shooter_lookup']);
+        $user = filled($data['user_id'] ?? null)
+            ? User::query()->find($data['user_id'])
+            : $this->resolveShooter((string) $data['shooter_lookup']);
 
         if ($user === null) {
             return back()->withInput()->withErrors([
-                'shooter_lookup' => 'No shooter matched that SAPRF number or name. Try the exact SAPRF number.',
+                'user_id' => 'No shooter matched that name or number.',
+                'shooter_lookup' => 'No shooter matched that SAPRF number or name.',
             ]);
         }
 

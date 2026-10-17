@@ -12,19 +12,7 @@
         <form action="{{ route('appearances.store') }}" method="POST" class="space-y-6 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
             @csrf
 
-            <div>
-                <label for="shooter_lookup" class="block text-sm font-medium text-stone-700 mb-1">
-                    Shooter (SAPRF number or exact name)
-                </label>
-                <input type="text" id="shooter_lookup" name="shooter_lookup"
-                       value="{{ old('shooter_lookup') }}" required autofocus
-                       placeholder="e.g. 12345 or exact full name"
-                       class="w-full rounded-lg border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500 @error('shooter_lookup') border-red-300 @enderror">
-                <p class="mt-1 text-xs text-stone-500">Best to use the SAPRF membership number — name matches must be exact.</p>
-                @error('shooter_lookup')
-                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                @enderror
-            </div>
+            <x-member-picker name="user_id" label="Shooter" />
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

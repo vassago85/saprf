@@ -500,6 +500,12 @@
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                             <p class="mt-1 text-xs text-stone-400">Owner-only correspondence. Not used for contact-form, member replies, or eligibility forms.</p>
                         </div>
+                        <div class="sm:col-span-2">
+                            <label for="backup_notification_email" class="block text-sm font-medium text-stone-700">Backup notification email</label>
+                            <input type="email" name="backup_notification_email" id="backup_notification_email" value="{{ old('backup_notification_email', $settings['backup_notification_email'] ?? '') }}" placeholder="owner@precisionrifle.co.za"
+                                class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <p class="mt-1 text-xs text-stone-400">Database backup success and failure mail. Leave blank to use the owner email, then the secretary email. The placeholder your@example.com is never used.</p>
+                        </div>
                     </div>
                 </div>
 

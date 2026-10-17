@@ -6,11 +6,7 @@
         </div>
         <form method="POST" action="{{ route('selection.cycles.athletes.store', $cycle) }}" class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
             @csrf
-            <div>
-                <label class="block text-sm font-medium text-stone-700 mb-1">User ID <span class="text-red-500">*</span></label>
-                <input type="number" name="user_id" required value="{{ old('user_id') }}" class="block w-full rounded-lg border border-stone-300 text-sm">
-                <p class="mt-1 text-xs text-stone-500">Use the user's numeric id (bulk-register is easier for the common case).</p>
-            </div>
+            <x-member-picker name="user_id" label="Athlete" />
             <div>
                 <label class="block text-sm font-medium text-stone-700 mb-1">Claimed division</label>
                 <select name="claimed_division_id" class="block w-full rounded-lg border border-stone-300 text-sm">

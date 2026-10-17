@@ -6,6 +6,7 @@ use App\Models\MatchEvent;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SettingsService;
+use App\Support\BackupNotificationAddress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -65,6 +66,11 @@ class SiteSettingsController extends Controller
             'mail_from_name' => ['nullable', 'string', 'max:255'],
             'owner_email' => ['nullable', 'email', 'max:255'],
             'secretary_email' => ['nullable', 'email', 'max:255'],
+            'backup_notification_email' => ['nullable', 'email', 'max:255', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (BackupNotificationAddress::isPlaceholder(is_string($value) ? $value : null)) {
+                    $fail('Backup notifications need a real inbox. Placeholder addresses such as your@example.com are rejected.');
+                }
+            }],
             'notifications_enabled' => ['required', 'boolean'],
             // Invoice document customisation. All optional — defaults in
             // InvoiceService kick in when fields are blank. The VAT number
@@ -165,6 +171,7 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');
         $this->settingsService->set('owner_email', $validated['owner_email'] ?? '', 'Owner inbox for owner-only correspondence');
         $this->settingsService->set('secretary_email', $validated['secretary_email'] ?? '', 'Secretary inbox for contact-form enquiries and member Reply-To');
+        $this->settingsService->set('backup_notification_email', $validated['backup_notification_email'] ?? '', 'Inbox for database backup success and failure mail');
         $this->settingsService->set('notifications_enabled', $validated['notifications_enabled'], 'Send outgoing email notifications (1=yes, 0=paused). Auth OTP + password reset always send regardless.');
 
         // Invoice document customisation. Blank values are persisted as

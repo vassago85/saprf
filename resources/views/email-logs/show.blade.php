@@ -9,7 +9,7 @@
         <h1 class="font-heading text-2xl font-bold text-stone-900">{{ $log->subject }}</h1>
         <div class="flex flex-wrap items-center gap-3">
             <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
-                {{ $log->status === \App\Models\EmailLog::STATUS_DISMISSED ? 'Complete' : ucfirst($log->status) }}
+                {{ $log->statusLabel() }}
             </span>
             @if ($log->canResend() && ! $mailgunPausedUntil)
                 <form method="POST" action="{{ route('email-logs.resend', $log) }}"
@@ -22,7 +22,7 @@
                 <form method="POST" action="{{ route('email-logs.dismiss', $log) }}"
                     onsubmit="return confirm('Mark this attempt as complete without sending?')">
                     @csrf
-                    <button class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">Mark complete</button>
+                    <button class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">Close</button>
                 </form>
             @endif
         </div>
@@ -90,7 +90,7 @@
                     <div>
                         <dt class="text-xs font-semibold uppercase text-stone-400">Notification type</dt>
                         <dd class="text-stone-900">
-                            {{ $log->notification_class ? class_basename($log->notification_class) : 'Ad-hoc mail' }}
+                            {{ $log->typeLabel() }}
                         </dd>
                     </div>
                     @if ($log->user)

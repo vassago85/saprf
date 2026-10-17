@@ -256,11 +256,8 @@
                             <template x-for="r in results" :key="r.id">
                                 <div class="flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2.5">
                                     <div class="min-w-0">
-                                        <p class="text-sm font-medium text-stone-900" x-text="r.name"></p>
-                                        <p class="text-[11px] text-stone-500">
-                                            <span x-text="r.saprf_number ? 'SAPRF ' + r.saprf_number : 'No SAPRF number'"></span>
-                                            <template x-if="r.province"><span> · <span x-text="r.province"></span></span></template>
-                                        </p>
+                                        <p class="text-sm font-medium text-stone-900" x-text="r.saprf_number ? r.name + ' (' + r.saprf_number + ')' : r.name"></p>
+                                        <p class="text-[11px] text-stone-500" x-show="r.province" x-text="r.province"></p>
                                     </div>
                                     <div class="shrink-0">
                                         <template x-if="r.entry_state === 'none' || r.entry_state === 'cancelled'">
