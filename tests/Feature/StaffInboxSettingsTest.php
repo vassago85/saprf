@@ -108,6 +108,9 @@ it('sends contact-form mail to the secretary inbox, not the owner or a shared ad
 });
 
 it('still notifies role users for contact forms when no dedicated inbox is set', function () {
+    setStaffInbox('secretary_email', '');
+    setStaffInbox('owner_email', '');
+
     $admin = User::factory()->create();
     $admin->assignRole('admin');
 

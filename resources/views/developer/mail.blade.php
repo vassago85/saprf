@@ -76,9 +76,11 @@
                 <div>
                     <label for="mailgun_secret" class="block text-sm font-medium text-stone-700">Mailgun API Key</label>
                     <input type="password" name="mailgun_secret" id="mailgun_secret"
-                           value="{{ old('mailgun_secret', $settings['mailgun_secret'] ?? '') }}"
-                           placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                           value=""
+                           autocomplete="new-password"
+                           placeholder="{{ ($mailgunSecretConfigured ?? false) ? 'Key saved — leave blank to keep it' : 'key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }}"
                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Leave blank to keep the current key. Never sent back to the browser.</p>
                     @error('mailgun_secret')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
 

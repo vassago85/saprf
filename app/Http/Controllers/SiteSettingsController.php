@@ -25,6 +25,14 @@ class SiteSettingsController extends Controller
     {
         $settings = $this->settingsService->all();
 
+        // Secrets must never be rendered into HTML. The password inputs stay
+        // empty; saving with a blank field leaves the stored value untouched.
+        $mailgunSecretConfigured = filled($settings['mailgun_secret'] ?? '');
+        $mailgunWebhookSigningConfigured = filled($settings['mailgun_webhook_signing_key'] ?? '')
+            || filled(config('services.mailgun.webhook_signing_key'));
+        $settings['mailgun_secret'] = '';
+        $settings['mailgun_webhook_signing_key'] = '';
+
         // Owner + developer are the only people who could reasonably receive
         // the platform-fee payout — restrict the picker so we don't offer
         // random shooter accounts.
@@ -32,7 +40,12 @@ class SiteSettingsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        return view('site-settings.index', compact('settings', 'platformOperatorCandidates'));
+        return view('site-settings.index', compact(
+            'settings',
+            'platformOperatorCandidates',
+            'mailgunSecretConfigured',
+            'mailgunWebhookSigningConfigured',
+        ));
     }
 
     public function update(Request $request): RedirectResponse
@@ -171,7 +184,7 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');
         $this->settingsService->set('owner_email', $validated['owner_email'] ?? '', 'Owner inbox for owner-only correspondence');
         $this->settingsService->set('secretary_email', $validated['secretary_email'] ?? '', 'Secretary inbox for contact-form enquiries and member Reply-To');
-        $this->settingsService->set('backup_notification_email', $validated['backup_notification_email'] ?? '', 'Inbox for database backup success and failure mail');
+        $this->settingsService->set('backup_notification_email', $validated['backup_notification_email'] ?? '', 'Inbox for database backup failure mail only');
         $this->settingsService->set('notifications_enabled', $validated['notifications_enabled'], 'Send outgoing email notifications (1=yes, 0=paused). Auth OTP + password reset always send regardless.');
 
         // Invoice document customisation. Blank values are persisted as

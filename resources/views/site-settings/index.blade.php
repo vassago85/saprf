@@ -425,7 +425,7 @@
                         <p class="text-sm text-stone-500">Configure Mailgun credentials for sending transactional email (membership confirmations, registration receipts, etc.).</p>
                     </div>
                     @php
-                        $mgConfigured = !empty($settings['mailgun_domain'] ?? '') && !empty($settings['mailgun_secret'] ?? '');
+                        $mgConfigured = !empty($settings['mailgun_domain'] ?? '') && ($mailgunSecretConfigured ?? false);
                     @endphp
                     @if($mgConfigured)
                         <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Configured</span>
@@ -443,19 +443,23 @@
 
                     <div>
                         <label for="mailgun_secret" class="block text-sm font-medium text-stone-700">Mailgun API Key</label>
-                        <input type="password" name="mailgun_secret" id="mailgun_secret" value="{{ old('mailgun_secret', $settings['mailgun_secret'] ?? '') }}" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        <input type="password" name="mailgun_secret" id="mailgun_secret" value="" autocomplete="new-password" placeholder="{{ ($mailgunSecretConfigured ?? false) ? 'Key saved — leave blank to keep it' : 'key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }}"
                             class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Leave blank to keep the current key. Never sent back to the browser.</p>
+                        <p class="mt-1 text-xs text-stone-400">{{ ($mailgunSecretConfigured ?? false) ? 'A key is stored. Leave blank to keep it — the secret is never sent back to the browser.' : 'Paste the Mailgun private API key. It is never sent back to the browser after save.' }}</p>
                     </div>
 
                     <div>
                         <label for="mailgun_webhook_signing_key" class="block text-sm font-medium text-stone-700">Mailgun Webhook Signing Key</label>
-                        <input type="password" name="mailgun_webhook_signing_key" id="mailgun_webhook_signing_key" value="" placeholder="Separate from the API key — see Mailgun → Sending → Webhooks"
+                        <input type="password" name="mailgun_webhook_signing_key" id="mailgun_webhook_signing_key" value="" autocomplete="new-password" placeholder="{{ ($mailgunWebhookSigningConfigured ?? false) ? 'Key saved — leave blank to keep it' : 'Separate from the API key — see Mailgun → Sending → Webhooks' }}"
                             class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <p class="mt-1 text-xs text-stone-400">
-                            Used to verify inbound webhooks at <code class="text-stone-500">/webhooks/mailgun</code>.
-                            Configure Mailgun to POST <em>delivered</em>, <em>failed</em>, and <em>complained</em> events to that URL and paste the signing key here.
-                            Without this, we can't turn bounces into suppressions and the delivery table stays stuck on "sent".
+                            @if($mailgunWebhookSigningConfigured ?? false)
+                                A signing key is stored (Site Settings or <code class="text-stone-500">.env</code>). Leave blank to keep it — never sent back to the browser.
+                            @else
+                                Used to verify inbound webhooks at <code class="text-stone-500">/webhooks/mailgun</code>.
+                                Configure Mailgun to POST <em>delivered</em>, <em>failed</em>, and <em>complained</em> events to that URL and paste the signing key here.
+                                Without this, we can't turn bounces into suppressions and the delivery table stays stuck on "sent".
+                            @endif
                         </p>
                     </div>
 
@@ -490,21 +494,21 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label for="secretary_email" class="block text-sm font-medium text-stone-700">Secretary Email</label>
-                            <input type="email" name="secretary_email" id="secretary_email" value="{{ old('secretary_email', $settings['secretary_email'] ?? '') }}" placeholder="secretary@precisionrifle.co.za"
+                            <input type="email" name="secretary_email" id="secretary_email" value="{{ old('secretary_email', $settings['secretary_email'] ?? '') }}" placeholder="paul@charsley.co.za"
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <p class="mt-1 text-xs text-stone-400">Contact-form enquiries and the Reply-To on member emails. Must not be the ExCo forwarder.</p>
+                            <p class="mt-1 text-xs text-stone-400">Contact-form enquiries and the Reply-To on member emails. Must not be a bouncing federation alias.</p>
                         </div>
                         <div>
                             <label for="owner_email" class="block text-sm font-medium text-stone-700">Owner Email</label>
-                            <input type="email" name="owner_email" id="owner_email" value="{{ old('owner_email', $settings['owner_email'] ?? '') }}" placeholder="owner@precisionrifle.co.za"
+                            <input type="email" name="owner_email" id="owner_email" value="{{ old('owner_email', $settings['owner_email'] ?? '') }}" placeholder="paul@charsley.co.za"
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                             <p class="mt-1 text-xs text-stone-400">Owner-only correspondence. Not used for contact-form, member replies, or eligibility forms.</p>
                         </div>
                         <div class="sm:col-span-2">
                             <label for="backup_notification_email" class="block text-sm font-medium text-stone-700">Backup notification email</label>
-                            <input type="email" name="backup_notification_email" id="backup_notification_email" value="{{ old('backup_notification_email', $settings['backup_notification_email'] ?? '') }}" placeholder="owner@precisionrifle.co.za"
+                            <input type="email" name="backup_notification_email" id="backup_notification_email" value="{{ old('backup_notification_email', $settings['backup_notification_email'] ?? '') }}" placeholder="paul@charsley.co.za"
                                 class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                            <p class="mt-1 text-xs text-stone-400">Database backup success and failure mail. Leave blank to use the owner email, then the secretary email. The placeholder your@example.com is never used.</p>
+                            <p class="mt-1 text-xs text-stone-400">Failed backups only — successful runs do not email. Defaults to paul@charsley.co.za. The placeholder your@example.com is never used.</p>
                         </div>
                     </div>
                 </div>

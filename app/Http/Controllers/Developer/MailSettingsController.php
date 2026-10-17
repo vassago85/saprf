@@ -21,15 +21,17 @@ class MailSettingsController extends Controller
     public function index(): View
     {
         $settings = $this->settingsService->all();
+        $mailgunSecretConfigured = filled($settings['mailgun_secret'] ?? '');
+        $settings['mailgun_secret'] = '';
 
         $status = [
-            'configured' => ! empty($settings['mailgun_domain'] ?? '') && ! empty($settings['mailgun_secret'] ?? ''),
+            'configured' => ! empty($settings['mailgun_domain'] ?? '') && $mailgunSecretConfigured,
             'mailer' => Config::get('mail.default'),
             'from_address' => Config::get('mail.from.address'),
             'from_name' => Config::get('mail.from.name'),
         ];
 
-        return view('developer.mail', compact('settings', 'status'));
+        return view('developer.mail', compact('settings', 'status', 'mailgunSecretConfigured'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -47,7 +49,9 @@ class MailSettingsController extends Controller
             ->toArray();
 
         $this->settingsService->set('mailgun_domain', $validated['mailgun_domain'] ?? '', 'Mailgun sending domain');
-        $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'] ?? '', 'Mailgun API key');
+        if (filled($validated['mailgun_secret'] ?? null)) {
+            $this->settingsService->set('mailgun_secret', $validated['mailgun_secret'], 'Mailgun API key');
+        }
         $this->settingsService->set('mailgun_endpoint', $validated['mailgun_endpoint'], 'Mailgun API endpoint (EU or US)');
         $this->settingsService->set('mail_from_address', $validated['mail_from_address'] ?? '', 'Email from address');
         $this->settingsService->set('mail_from_name', $validated['mail_from_name'] ?? '', 'Email from name');

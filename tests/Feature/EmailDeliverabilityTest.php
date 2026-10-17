@@ -17,33 +17,51 @@ beforeEach(function () {
     $this->owner->assignRole('owner');
 });
 
-it('sends backup mail to the owner inbox and never to your@example.com', function () {
+it('sends failed-backup mail to the backup inbox and never to your@example.com', function () {
     Setting::updateOrCreate(
         ['key' => 'backup_notification_email'],
         ['value' => 'your@example.com', 'description' => 'test'],
-    );
-    Setting::updateOrCreate(
-        ['key' => 'owner_email'],
-        ['value' => 'owner@precisionrifle.co.za', 'description' => 'test'],
     );
     app(SettingsService::class)->clearCache();
 
     BackupNotificationAddress::applyFromSettings();
 
-    expect(config('backup.notifications.mail.to'))->toBe('owner@precisionrifle.co.za')
-        ->and(BackupNotificationAddress::isPlaceholder('your@example.com'))->toBeTrue()
-        ->and(BackupNotificationAddress::isPlaceholder('owner@precisionrifle.co.za'))->toBeFalse();
+    expect(config('backup.notifications.mail.to'))->toBe('paul@charsley.co.za')
+        ->and(config('backup.notifications.notifications.'.\Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification::class))
+        ->toBe(['mail'])
+        ->and(config('backup.notifications.notifications.'.\Spatie\Backup\Notifications\Notifications\BackupWasSuccessfulNotification::class))
+        ->not->toContain('mail')
+        ->and(BackupNotificationAddress::isPlaceholder('your@example.com'))->toBeTrue();
 });
 
-it('turns backup mail off when every candidate address is a placeholder', function () {
-    Setting::query()->whereIn('key', ['backup_notification_email', 'owner_email', 'secretary_email'])->delete();
+it('defaults failed-backup mail to paul@charsley.co.za when settings are empty', function () {
+    Setting::query()->where('key', 'backup_notification_email')->delete();
     config(['mail.from.address' => 'hello@example.com']);
     app(SettingsService::class)->clearCache();
 
     BackupNotificationAddress::applyFromSettings();
 
-    $channels = collect(config('backup.notifications.notifications'))->flatten();
-    expect($channels->contains('mail'))->toBeFalse();
+    expect(config('backup.notifications.mail.to'))->toBe('paul@charsley.co.za');
+});
+
+it('does not put the Mailgun API key in the site settings HTML', function () {
+    Setting::updateOrCreate(
+        ['key' => 'mailgun_domain'],
+        ['value' => 'mg.saprf.co.za', 'description' => 'test'],
+    );
+    Setting::updateOrCreate(
+        ['key' => 'mailgun_secret'],
+        ['value' => 'key-super-secret-never-leak', 'description' => 'test'],
+    );
+    app(SettingsService::class)->clearCache();
+
+    $html = $this->actingAs($this->owner)
+        ->get(route('site-settings.index'))
+        ->assertOk()
+        ->assertSee('Key saved — leave blank to keep it')
+        ->getContent();
+
+    expect($html)->not->toContain('key-super-secret-never-leak');
 });
 
 it('rejects a placeholder backup address in site settings', function () {
@@ -60,6 +78,7 @@ it('shows the backup inbox on site settings', function () {
         ->get(route('site-settings.index'))
         ->assertOk()
         ->assertSee('Backup notification email')
+        ->assertSee('Failed backups only')
         ->assertSee('your@example.com is never used');
 });
 

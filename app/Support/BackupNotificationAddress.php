@@ -5,17 +5,21 @@ namespace App\Support;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification;
 
 /**
- * Where Spatie backup success/failure mail is delivered.
+ * Where Spatie backup failure mail is delivered.
  *
- * The published package default is your@example.com. That address bounces,
- * so a placeholder is never used. A real address is taken from site settings
- * (backup inbox, then owner, then secretary, then the From address). If none
- * of those is a real inbox, backup mail is turned off rather than sent.
+ * Successful backups never mail. The published package default is
+ * your@example.com; that address bounces, so a placeholder is never used.
+ * Preference order: site setting, BACKUP_NOTIFICATION_EMAIL, then
+ * paul@charsley.co.za. Owner/secretary federation inboxes are not used —
+ * several of those addresses bounce.
  */
 class BackupNotificationAddress
 {
+    public const DEFAULT_ADDRESS = 'paul@charsley.co.za';
+
     public static function isPlaceholder(?string $email): bool
     {
         $email = strtolower(trim((string) $email));
@@ -48,18 +52,15 @@ class BackupNotificationAddress
 
     public static function applyFromSettings(): void
     {
+        self::limitMailToFailuresOnly();
+
         $configured = null;
-        $owner = null;
-        $secretary = null;
 
         try {
             if (Schema::hasTable('settings')) {
-                $values = Setting::query()
-                    ->whereIn('key', ['backup_notification_email', 'owner_email', 'secretary_email'])
-                    ->pluck('value', 'key');
-                $configured = $values->get('backup_notification_email');
-                $owner = $values->get('owner_email');
-                $secretary = $values->get('secretary_email');
+                $configured = Setting::query()
+                    ->where('key', 'backup_notification_email')
+                    ->value('value');
             }
         } catch (\Throwable) {
             // Migrations and early boot have no settings table yet.
@@ -67,9 +68,8 @@ class BackupNotificationAddress
 
         $address = self::resolve(
             $configured,
-            $owner,
-            $secretary,
-            (string) config('mail.from.address'),
+            env('BACKUP_NOTIFICATION_EMAIL'),
+            self::DEFAULT_ADDRESS,
         );
 
         if ($address !== null) {
@@ -85,6 +85,25 @@ class BackupNotificationAddress
                 fn ($channel) => $channel !== 'mail',
             ));
         }
+        Config::set('backup.notifications.notifications', $channels);
+    }
+
+    private static function limitMailToFailuresOnly(): void
+    {
+        $channels = config('backup.notifications.notifications', []);
+
+        foreach ($channels as $notification => $via) {
+            if ($notification === BackupHasFailedNotification::class) {
+                $channels[$notification] = ['mail'];
+                continue;
+            }
+
+            $channels[$notification] = array_values(array_filter(
+                (array) $via,
+                fn ($channel) => $channel !== 'mail',
+            ));
+        }
+
         Config::set('backup.notifications.notifications', $channels);
     }
 }
