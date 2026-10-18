@@ -31,6 +31,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -76,7 +77,7 @@ class MatchController extends Controller
     {
         $validated = $request->validated();
         $divisionIds = $validated['divisions'] ?? [];
-        unset($validated['divisions']);
+        unset($validated['divisions'], $validated['banner'], $validated['remove_banner']);
         $baseFee = (float) ($validated['active_member_fee'] ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
         $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
@@ -92,6 +93,10 @@ class MatchController extends Controller
         // the match can be opened for sign-up without an extra step.
         if (empty($validated['match_director'])) {
             $validated['match_director'] = $request->user()->name;
+        }
+
+        if ($request->hasFile('banner')) {
+            $validated['banner_path'] = $request->file('banner')->store('match-banners', 'public');
         }
 
         $match = MatchEvent::query()->create($validated);
@@ -207,7 +212,8 @@ class MatchController extends Controller
 
         $validated = $request->validated();
         $divisionIds = $validated['divisions'] ?? [];
-        unset($validated['divisions']);
+        $removeBanner = (bool) ($validated['remove_banner'] ?? false);
+        unset($validated['divisions'], $validated['banner'], $validated['remove_banner']);
 
         $baseFee = (float) ($validated['active_member_fee'] ?? $match->active_member_fee ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
@@ -241,6 +247,16 @@ class MatchController extends Controller
         // does this; without it here, reverting Open → Draft left the match
         // on the public calendar with registration closed.
         $validated['published'] = ($validated['status'] ?? $match->status) !== 'draft';
+
+        if ($request->hasFile('banner')) {
+            if ($match->banner_path) {
+                Storage::disk('public')->delete($match->banner_path);
+            }
+            $validated['banner_path'] = $request->file('banner')->store('match-banners', 'public');
+        } elseif ($removeBanner && $match->banner_path) {
+            Storage::disk('public')->delete($match->banner_path);
+            $validated['banner_path'] = null;
+        }
 
         $everyoneCountsChanged = array_key_exists('everyone_counts', $validated)
             && (bool) $old['everyone_counts'] !== (bool) $validated['everyone_counts'];

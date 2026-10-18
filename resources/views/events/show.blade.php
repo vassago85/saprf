@@ -13,6 +13,11 @@
     <div class="bg-stone-50 min-h-screen">
         {{-- Hero / Header --}}
         <div class="bg-white border-b border-stone-200">
+            @if($match->bannerUrl())
+                <div class="w-full max-h-64 sm:max-h-80 overflow-hidden bg-stone-100">
+                    <img src="{{ $match->bannerUrl() }}" alt="{{ $match->name }}" class="w-full h-full max-h-64 sm:max-h-80 object-cover">
+                </div>
+            @endif
             <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
                 <a href="/events?tab={{ $match->status === 'completed' ? 'results' : 'upcoming' }}"
                    class="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-emerald-700 transition mb-5">
@@ -561,11 +566,15 @@
                                         <dd class="text-sm font-medium text-stone-700">R {{ number_format($match->non_member_fee, 2) }}</dd>
                                     </div>
                                 @endif
-                                @if($match->max_competitors)
+                                @if($match->status !== 'completed' && $match->registration_status !== 'closed')
                                     <div class="flex items-center justify-between">
-                                        <dt class="text-xs text-stone-400">Capacity</dt>
+                                        <dt class="text-xs text-stone-400">{{ $match->max_competitors ? 'Capacity' : 'Entries' }}</dt>
                                         <dd class="text-sm font-medium text-stone-700">
-                                            {{ $match->confirmedRegistrationCount() }} / {{ $match->max_competitors }}
+                                            @if($match->max_competitors)
+                                                {{ $match->confirmedRegistrationCount() }} / {{ $match->max_competitors }}
+                                            @else
+                                                {{ $match->confirmedRegistrationCount() }}
+                                            @endif
                                         </dd>
                                     </div>
                                     @if($match->available_slots !== null && $match->available_slots <= 10 && $match->available_slots > 0)

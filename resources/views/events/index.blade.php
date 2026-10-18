@@ -249,7 +249,7 @@
                                                     @if($match->max_competitors)
                                                         <span class="font-mono text-stone-700">{{ $match->confirmedRegistrationCount() }}/{{ $match->max_competitors }}</span>
                                                     @else
-                                                        <span class="text-stone-400">—</span>
+                                                        <span class="font-mono text-stone-700">{{ $match->confirmedRegistrationCount() }}</span>
                                                     @endif
                                                 </td>
                                             @endif

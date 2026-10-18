@@ -32,6 +32,7 @@ class MatchEvent extends Model
         'match_director_contact',
         'whatsapp_invite_url',
         'description',
+        'banner_path',
         'match_date',
         'match_end_date',
         'registration_open_date',
@@ -398,6 +399,15 @@ class MatchEvent extends Model
         return $this->registrations()
             ->whereIn('registration_status', ['confirmed', 'pending'])
             ->count();
+    }
+
+    public function bannerUrl(): ?string
+    {
+        if (! $this->banner_path) {
+            return null;
+        }
+
+        return asset('storage/'.$this->banner_path);
     }
 
     public function userRegistration(?User $user): ?MatchRegistration

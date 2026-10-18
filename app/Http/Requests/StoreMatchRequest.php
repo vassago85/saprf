@@ -29,6 +29,7 @@ class StoreMatchRequest extends FormRequest
             'match_director_contact' => ['nullable', 'string', 'max:255'],
             'whatsapp_invite_url' => MatchEvent::whatsappInviteUrlRules(),
             'description' => ['nullable', 'string'],
+            'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['required', 'numeric', 'min:0'],

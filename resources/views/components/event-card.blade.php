@@ -12,7 +12,12 @@
     $userReg = auth()->check() ? $match->userRegistration(auth()->user()) : null;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'group bg-white rounded-2xl border border-stone-200 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.08)] hover:border-stone-300 transition-all duration-200 flex flex-col h-full']) }}>
+<div {{ $attributes->merge(['class' => 'group bg-white rounded-2xl border border-stone-200 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.08)] hover:border-stone-300 transition-all duration-200 flex flex-col h-full overflow-hidden']) }}>
+    @if($match->bannerUrl())
+        <a href="{{ url('/events/' . $match->id) }}" class="block aspect-[2.4/1] overflow-hidden bg-stone-100" tabindex="-1" aria-hidden="true">
+            <img src="{{ $match->bannerUrl() }}" alt="" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" loading="lazy">
+        </a>
+    @endif
     {{-- Card body --}}
     <div class="p-5 flex flex-col flex-1">
         {{-- Top row: date badge + urgency cue --}}
@@ -95,22 +100,31 @@
             </div>
         @endif
 
-        {{-- Capacity bar --}}
-        @if($match->max_competitors && $regStatus !== 'closed' && $match->status !== 'completed')
+        {{-- Entry count (confirmed + pending); progress bar only when a cap is set --}}
+        @if($regStatus !== 'closed' && $match->status !== 'completed')
             @php
                 $filled = $match->confirmedRegistrationCount();
-                $pct = min(100, round(($filled / $match->max_competitors) * 100));
+                $hasCap = (bool) $match->max_competitors;
+                $pct = $hasCap ? min(100, round(($filled / $match->max_competitors) * 100)) : null;
             @endphp
             <div class="mb-3">
                 <div class="flex items-center justify-between text-[11px] text-stone-400 mb-1">
-                    <span>{{ $filled }}/{{ $match->max_competitors }} entries</span>
+                    <span>
+                        @if($hasCap)
+                            {{ $filled }}/{{ $match->max_competitors }} entries
+                        @else
+                            {{ $filled }} {{ \Illuminate\Support\Str::plural('entry', $filled) }}
+                        @endif
+                    </span>
                     @if($match->available_slots !== null && $match->available_slots <= 5 && $match->available_slots > 0)
                         <span class="text-red-500 font-semibold">{{ $match->available_slots }} left</span>
                     @endif
                 </div>
-                <div class="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-500 {{ $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $pct }}%"></div>
-                </div>
+                @if($hasCap)
+                    <div class="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500 {{ $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $pct }}%"></div>
+                    </div>
+                @endif
             </div>
         @endif
 
