@@ -546,6 +546,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::delete('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'destroy'])
         ->name('barrels.shot-entries.destroy');
 
+    // Load tools hub — tiny landing page that links to the Ladder Analyser
+    // and the Confirmation-string analyser. Lets the sidebar collapse those
+    // two tools under a single "Load tools" entry without hiding either.
+    Route::view('/load-tools', 'load-tools.index')->name('load-tools.index');
+
     // Ladder Analyser — index/store/destroy live on the controller; the
     // show/edit surface is a Volt component that recomputes on every wire
     // update. Owner-only via LadderSessionPolicy.

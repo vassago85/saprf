@@ -100,6 +100,29 @@ html {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+ * Sidebar scroll area: hide the vertical scrollbar until the sidebar is
+ * hovered (fades back in on hover). Keeps the chrome quiet on long nav
+ * trees without surprising power users.
+ * ───────────────────────────────────────────────────────────────────── */
+.sidebar-scroll {
+    scrollbar-width: none;
+}
+.sidebar-scroll::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+}
+[data-flux-sidebar]:hover .sidebar-scroll {
+    scrollbar-width: thin;
+}
+[data-flux-sidebar]:hover .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+[data-flux-sidebar]:hover .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
  * Desktop collapsible sidebar → icon rail.
  *
  * Body gets `data-sidebar-collapsed` from Alpine (persisted in localStorage).
@@ -137,25 +160,39 @@ html {
         object-position: left center;
     }
 
-    body[data-sidebar-collapsed] [data-flux-sidebar] [data-content],
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading-row,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-toggle,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-rail,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-sponsors,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode-label,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode-text,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-footer-label,
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-badge {
+    /* Wordmark brand: shrink to just "SAPRF" and hide the tagline when the
+       sidebar is reduced to the icon rail. */
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand-mark {
+        font-size: 1rem;
+        text-align: center;
+    }
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand-tagline {
         display: none !important;
     }
 
-    /* Expandable groups: always show children when collapsed (no heading to open). */
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-items {
-        display: block !important;
-        padding-inline-start: 0 !important;
+    /* Hide every text-y thing in the collapsed rail. */
+    body[data-sidebar-collapsed] [data-flux-sidebar] [data-content],
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-super-heading,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-section > button,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-section > div > .flex,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-sponsors,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode-text,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-footer-label,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-badge,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-search-label,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-search-kbd,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-list a > span.flex-1 {
+        display: none !important;
     }
 
+    /* Expandable groups: always show children when the sidebar is collapsed. */
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-section > div[x-collapse] {
+        display: block !important;
+        height: auto !important;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-list a,
     body[data-sidebar-collapsed] [data-flux-sidebar] [data-flux-navlist-item] {
         justify-content: center;
         gap: 0;

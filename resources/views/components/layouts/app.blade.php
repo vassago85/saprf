@@ -84,71 +84,72 @@
     <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white !flex !flex-col !max-h-dvh lg:!h-dvh lg:transition-[width] lg:duration-200">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
-        <div class="sidebar-brand-row shrink-0 flex items-center gap-1 px-2">
+        <div class="sidebar-brand-row shrink-0 flex items-center gap-2 px-3 pt-2 pb-3">
             <a href="{{ url('/') }}" class="sidebar-brand block min-w-0 flex-1 overflow-hidden">
-                <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-10 w-auto max-w-none">
+                <div class="sidebar-brand-mark font-heading text-2xl font-bold italic tracking-tight text-emerald-700 leading-none">SAPRF</div>
+                <div class="sidebar-brand-tagline mt-1 text-[10px] font-semibold uppercase tracking-wide text-stone-500 leading-tight truncate">South African Precision Rifle Federation</div>
             </a>
             <button
                 type="button"
-                class="sidebar-collapse-toggle size-8 shrink-0 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                class="sidebar-collapse-toggle size-7 shrink-0 items-center justify-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 @click="toggleSidebarCollapsed()"
                 :aria-expanded="(!sidebarCollapsed).toString()"
                 :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                 :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 transition-transform duration-200" :class="sidebarCollapsed && 'rotate-180'">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 transition-transform duration-200" :class="sidebarCollapsed && 'rotate-180'">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
                 </svg>
             </button>
         </div>
 
-        {{-- View-mode toggle: staff users can flip between their admin console
-             and their own shooter (member) experience. Members-only never see this. --}}
         @php
             $viewMode = auth()->user()?->effectiveViewMode() ?? 'shooter';
             $canSwitchView = (bool) auth()->user()?->canSwitchViewMode();
         @endphp
-        @if($canSwitchView)
-            <div class="sidebar-view-mode shrink-0 px-2 pt-2">
-                <div class="sidebar-view-mode-label mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">View as</div>
-                <div class="flex rounded-lg bg-stone-100 p-0.5 ring-1 ring-inset ring-stone-200">
-                    <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
-                        @csrf
-                        <input type="hidden" name="mode" value="admin">
-                        <button type="submit"
-                                title="Admin"
-                                class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
-                                       {{ $viewMode === 'admin'
-                                          ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
-                                          : 'text-stone-500 hover:text-stone-800' }}">
-                            <svg class="size-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-                            <span class="sidebar-view-mode-text">Admin</span>
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
-                        @csrf
-                        <input type="hidden" name="mode" value="shooter">
-                        <button type="submit"
-                                title="Shooter"
-                                class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
-                                       {{ $viewMode === 'shooter'
-                                          ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
-                                          : 'text-stone-500 hover:text-stone-800' }}">
-                            <svg class="size-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/></svg>
-                            <span class="sidebar-view-mode-text">Shooter</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        @endif
 
-        {{-- Scroll the long admin nav independently so logo + account stay pinned. --}}
-        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
+        {{-- Scroll the long admin nav independently so logo + account stay pinned.
+             `sidebar-scroll` hides the scrollbar until the sidebar is hovered. --}}
+        <div class="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
             <x-sidebar-nav />
             <x-sponsors-sidebar placement="app_sidebar" />
         </div>
 
         <div class="shrink-0 border-t border-stone-200 pt-2">
+            {{-- View-mode segmented control for staff users. Members-only never see it. --}}
+            @if($canSwitchView)
+                <div class="sidebar-view-mode mb-2 px-2">
+                    <div class="flex rounded-md bg-stone-100 p-0.5 ring-1 ring-inset ring-stone-200">
+                        <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
+                            @csrf
+                            <input type="hidden" name="mode" value="admin">
+                            <button type="submit"
+                                    title="View as admin"
+                                    class="w-full inline-flex items-center justify-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition
+                                           {{ $viewMode === 'admin'
+                                              ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
+                                              : 'text-stone-500 hover:text-stone-800' }}">
+                                <svg class="size-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                                <span class="sidebar-view-mode-text">Admin</span>
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
+                            @csrf
+                            <input type="hidden" name="mode" value="shooter">
+                            <button type="submit"
+                                    title="View as shooter"
+                                    class="w-full inline-flex items-center justify-center gap-1 rounded px-2 py-1 text-[11px] font-semibold transition
+                                           {{ $viewMode === 'shooter'
+                                              ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
+                                              : 'text-stone-500 hover:text-stone-800' }}">
+                                <svg class="size-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/></svg>
+                                <span class="sidebar-view-mode-text">Shooter</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
             <flux:navlist variant="outline">
                 <flux:navlist.item icon="user-circle" :href="route('profile')" :current="request()->routeIs('profile')" :title="Auth::user()->name">
                     {{ Auth::user()->name }}

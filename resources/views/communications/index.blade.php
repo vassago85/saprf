@@ -1,4 +1,4 @@
-<x-layouts.app :title="'Communications'">
+<x-layouts.app :title="'Inbox'">
     @php
         // Preserve every non-tab filter (search, category, unread, from, to)
         // when the member flips between Inbox and Archive so their current
@@ -9,7 +9,7 @@
         $archiveUrl = route('communications.index', array_merge($tabQueryBase, ['tab' => 'archive']));
     @endphp
     <div class="max-w-4xl space-y-6">
-        <x-page-header title="Communications" subtitle="Every announcement, bulletin, and policy update sent to you.">
+        <x-page-header title="Inbox" subtitle="Every announcement, bulletin, and policy update sent to you.">
             @if ($unreadCount > 0)
                 <x-slot:actions>
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
