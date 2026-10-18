@@ -262,16 +262,22 @@ class NationalTeamAppearanceController extends Controller
     }
 
     /**
-     * Normalise the colours flag + role together: managers never get
-     * colours regardless of what the admin ticked.
+     * Normalise the colours flag + role together: managers and reserves
+     * never get Protea Colours regardless of what the admin ticked.
+     * Reserves earn Colours only when later promoted to a shooting role
+     * on the same (or a subsequent) championship.
      *
      * @return array{0: bool, 1: string}
      */
     private function normaliseColoursAndRole(array $data): array
     {
         $role = $data['role'] ?? NationalTeamAppearance::ROLE_SHOOTER;
+        $nonShootingRoles = [
+            NationalTeamAppearance::ROLE_MANAGER,
+            NationalTeamAppearance::ROLE_RESERVE,
+        ];
         $awards = (bool) ($data['awarded_colours'] ?? false)
-            && $role !== NationalTeamAppearance::ROLE_MANAGER;
+            && ! in_array($role, $nonShootingRoles, true);
 
         return [$awards, $role];
     }

@@ -76,6 +76,12 @@ class PublicNationalTeamController extends Controller
                         ])
                         ->count(),
                     'divisions' => $this->groupByDivision($champAppearances),
+                    // Reserves hang off their own structure so the view
+                    // can render them in a dedicated section below the
+                    // shooting divisions. The grouping key is the division
+                    // label (not division_id) because that's how reserves
+                    // are listed in the published roster (one per division).
+                    'reserves' => $this->groupReservesByDivision($champAppearances),
                 ];
             })
             ->values();
@@ -205,6 +211,37 @@ class PublicNationalTeamController extends Controller
     }
 
     /**
+     * Build the Reserves roster strip for a championship. One entry per
+     * reserve, ordered by division (so the strip reads Open · Ladies ·
+     * Juniors · Seniors · Factory the same way the official SAPRF
+     * infographics present them). Returned as a flat list because the
+     * view renders reserves as a single horizontal strip, not division
+     * cards (there's usually only one reserve per division).
+     *
+     * @return \Illuminate\Support\Collection<int, array{appearance: NationalTeamAppearance, division_label: string}>
+     */
+    private function groupReservesByDivision(Collection $champAppearances): Collection
+    {
+        $divisionOrder = Division::ordered()->get()->pluck('display_order', 'id');
+
+        return $champAppearances
+            ->where('role', NationalTeamAppearance::ROLE_RESERVE)
+            ->sortBy(fn (NationalTeamAppearance $a) =>
+                // Primary sort: division's display_order (so Open comes
+                // before Ladies etc.). Fall back to the label alphabetically
+                // for historical reserves with no division_id.
+                $a->division_id
+                    ? ($divisionOrder[$a->division_id] ?? 999)
+                    : 500 + ord(strtolower(substr((string) $a->division_label, 0, 1)))
+            )
+            ->map(fn (NationalTeamAppearance $a) => [
+                'appearance' => $a,
+                'division_label' => $a->division?->name ?? $a->division_label ?? 'Reserve',
+            ])
+            ->values();
+    }
+
+    /**
      * A to Z list of everyone who has ever represented SA, with the years
      * they were on a team and an optional role label for officials.
      */
@@ -228,11 +265,16 @@ class PublicNationalTeamController extends Controller
                 // Pick the loudest role across all their appearances for
                 // the honour-roll label — captain beats manager beats
                 // shooter so a 2024-captain / 2026-shooter reads correctly.
+                // Captain beats manager beats shooter beats reserve beats
+                // official so a 2024-captain / 2026-shooter reads as
+                // "Captain", and a 2025-reserve / 2026-shooter reads
+                // without the Reserve diminutive.
                 $rolePriority = [
                     NationalTeamAppearance::ROLE_CAPTAIN => 0,
                     NationalTeamAppearance::ROLE_MANAGER => 1,
-                    NationalTeamAppearance::ROLE_OFFICIAL => 2,
-                    NationalTeamAppearance::ROLE_SHOOTER => 3,
+                    NationalTeamAppearance::ROLE_SHOOTER => 2,
+                    NationalTeamAppearance::ROLE_RESERVE => 3,
+                    NationalTeamAppearance::ROLE_OFFICIAL => 4,
                 ];
                 $bestRole = $userAppearances
                     ->sortBy(fn ($a) => $rolePriority[$a->role] ?? 9)
@@ -243,6 +285,7 @@ class PublicNationalTeamController extends Controller
                     NationalTeamAppearance::ROLE_CAPTAIN => 'Captain',
                     NationalTeamAppearance::ROLE_MANAGER => 'Manager',
                     NationalTeamAppearance::ROLE_OFFICIAL => 'Official',
+                    NationalTeamAppearance::ROLE_RESERVE => 'Reserve',
                     default => null,
                 };
 

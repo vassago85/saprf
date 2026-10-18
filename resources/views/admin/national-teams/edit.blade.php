@@ -176,6 +176,7 @@
                                             'manager' => 'bg-amber-100 text-amber-800',
                                             'captain' => 'bg-emerald-100 text-emerald-800',
                                             'official' => 'bg-stone-200 text-stone-700',
+                                            'reserve' => 'bg-sky-100 text-sky-800',
                                             default => 'bg-stone-100 text-stone-700',
                                         };
                                     @endphp

@@ -210,6 +210,50 @@
                             @endforeach
                         </div>
                     @endif
+
+                    {{-- Reserves strip — rendered beneath the division
+                         cards only when the roster published reserves.
+                         Styled as a lighter secondary block so it reads
+                         as "named but not shooting". --}}
+                    @if($block['reserves']->isNotEmpty())
+                        <div class="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-5 sm:p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-heading font-bold text-lg uppercase tracking-wide text-stone-700">Reserves</h3>
+                                <span class="text-xs font-semibold text-stone-500">{{ $block['reserves']->count() }} named</span>
+                            </div>
+                            <ul class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));">
+                                @foreach($block['reserves'] as $reserve)
+                                    @php
+                                        $user = $reserve['appearance']->user;
+                                        $saprfNumber = $user?->membership?->saprf_number;
+                                        $profileUrl = $saprfNumber
+                                            ? route('shooters.show', ['saprfNumber' => $saprfNumber])
+                                            : null;
+                                        $initials = collect(explode(' ', (string) $user?->name))
+                                            ->filter(fn ($w) => $w !== '' && ctype_upper(substr($w, 0, 1)))
+                                            ->take(2)
+                                            ->map(fn ($w) => substr($w, 0, 1))
+                                            ->implode('');
+                                    @endphp
+                                    <li class="flex items-center gap-3 bg-white border border-stone-200 rounded-xl px-4 py-3">
+                                        <div class="shrink-0 size-9 rounded-full bg-stone-100 ring-1 ring-inset ring-stone-200 text-stone-600 flex items-center justify-center font-bold text-xs">
+                                            {{ $initials ?: 'SA' }}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            @if($profileUrl)
+                                                <a href="{{ $profileUrl }}" class="block font-semibold text-stone-800 hover:text-emerald-700 truncate text-sm">
+                                                    {{ $user?->name }}
+                                                </a>
+                                            @else
+                                                <span class="block font-semibold text-stone-800 truncate text-sm">{{ $user?->name ?? '—' }}</span>
+                                            @endif
+                                            <span class="text-[11px] text-stone-500 uppercase tracking-wide font-semibold">{{ $reserve['division_label'] }}</span>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </section>
             @endforeach
         </main>

@@ -32,23 +32,33 @@ class NationalTeamAppearance extends Model
 
     public const ROLE_OFFICIAL = 'official';
 
+    /**
+     * Named on the team roster but does not shoot. Rendered in a
+     * dedicated Reserves section on the public team page, excluded from
+     * the squad-size stat, and blocked from receiving Protea Colours
+     * (they only earn Colours when later promoted to a shooting role).
+     */
+    public const ROLE_RESERVE = 'reserve';
+
     public const ROLES = [
         self::ROLE_SHOOTER => 'Shooter',
         self::ROLE_CAPTAIN => 'Team Captain',
         self::ROLE_MANAGER => 'Team Manager',
         self::ROLE_OFFICIAL => 'Official',
+        self::ROLE_RESERVE => 'Reserve',
     ];
 
     /**
      * Display order on team-year rosters + honour-roll "best role" picks:
      * managers run the team (0), captains lead the squad (1), shooters
-     * fill it out (2), officials bring up the rear (3).
+     * fill it out (2), reserves stand by (3), officials bring up the rear (4).
      */
     public const ROLE_PRIORITY = [
         self::ROLE_MANAGER => 0,
         self::ROLE_CAPTAIN => 1,
         self::ROLE_SHOOTER => 2,
-        self::ROLE_OFFICIAL => 3,
+        self::ROLE_RESERVE => 3,
+        self::ROLE_OFFICIAL => 4,
     ];
 
     public static function rolePriority(?string $role): int
@@ -121,6 +131,11 @@ class NationalTeamAppearance extends Model
     public function isOfficial(): bool
     {
         return in_array($this->role, [self::ROLE_MANAGER, self::ROLE_OFFICIAL], true);
+    }
+
+    public function isReserve(): bool
+    {
+        return $this->role === self::ROLE_RESERVE;
     }
 
     public function selectionCycle(): BelongsTo
@@ -231,6 +246,7 @@ class NationalTeamAppearance extends Model
                     self::ROLE_MANAGER => 'Team Manager',
                     self::ROLE_CAPTAIN => trim(($row->division_label ? $row->division_label.' · ' : '').'Captain'),
                     self::ROLE_OFFICIAL => 'Official',
+                    self::ROLE_RESERVE => trim(($row->division_label ? $row->division_label.' · ' : '').'Reserve'),
                     default => $row->division_label,
                 };
                 $labelParts = array_filter([

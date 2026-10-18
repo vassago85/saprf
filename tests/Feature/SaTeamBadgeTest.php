@@ -386,3 +386,162 @@ it('saprf:seed-national-team-2026 reports ambiguous names without inserting them
         ->count()
     )->toBe(0);
 });
+
+// ── 2024 Colorado Centrefire Worlds seeder ─────────────────────────────
+
+it('saprf:seed-national-team-2024 --dry-run reports the plan without inserting rows', function () {
+    User::factory()->create(['name' => 'Leon Goosen']);
+
+    $this->artisan('saprf:seed-national-team-2024', ['--dry-run' => true])
+        ->assertExitCode(0);
+
+    expect(NationalTeamAppearance::count())->toBe(0);
+});
+
+it('saprf:seed-national-team-2024 creates one appearance per roster row and never awards colours', function () {
+    foreach ([
+        // Open (6)
+        'Leon Goosen', 'Warren Britnell', 'Ruan Zeeman', 'Johan Lottering',
+        'Marcel Steyn', 'Hendrik Nel',
+        // Senior (3)
+        'Le Riche Coetzer', 'Andries Lategan', 'Glen Clark',
+        // Factory (4)
+        'Russell Ferreira', 'Hanno van Niekerk', 'Noel Rowe', 'Garth Olivier',
+        // Ladies (4)
+        'Kim-Leigh Ferreira', 'Liesl Baben', 'Natasha Britnell', 'Monica le Roux',
+        // Limited (4)
+        'J.C. Robertson', 'Willem van Biljon', 'Pieter Cronje', 'Edward Henwood',
+        // Junior (1)
+        'Donovan Cook',
+    ] as $name) {
+        User::factory()->create(['name' => $name]);
+    }
+
+    $this->artisan('saprf:seed-national-team-2024')->assertExitCode(0);
+
+    expect(NationalTeamAppearance::where('year', 2024)->count())->toBe(22);
+    expect(NationalTeamAppearance::where('year', 2024)->where('awarded_colours', true)->count())->toBe(0);
+
+    $team = \App\Models\NationalTeam::where('year', 2024)->first();
+    expect($team)->not->toBeNull();
+    expect($team->championship_name)->toBe('2024 IPRF World Championship (Centrefire)');
+    expect($team->discipline)->toBe('centrefire');
+    expect($team->host_country)->toBe('US');
+    expect($team->venue)->toBe('Cameo Shooting Centre');
+    expect($team->city)->toBe('Grand Junction, Colorado');
+    expect($team->starts_on->toDateString())->toBe('2024-09-11');
+    expect($team->ends_on->toDateString())->toBe('2024-09-17');
+});
+
+it('saprf:seed-national-team-2024 is idempotent across repeated runs', function () {
+    User::factory()->create(['name' => 'Leon Goosen']);
+    User::factory()->create(['name' => 'Donovan Cook']);
+
+    $this->artisan('saprf:seed-national-team-2024')->assertExitCode(0);
+    $firstCount = NationalTeamAppearance::where('year', 2024)->count();
+    expect($firstCount)->toBe(2);
+
+    $this->artisan('saprf:seed-national-team-2024')->assertExitCode(0);
+    expect(NationalTeamAppearance::where('year', 2024)->count())->toBe($firstCount);
+});
+
+// ── 2025 Rimfire Worlds seeder ─────────────────────────────────────────
+
+it('saprf:seed-national-team-2025 --dry-run reports the plan without inserting rows', function () {
+    // One matching user so the dry run has something to resolve.
+    User::factory()->create(['name' => 'Warren Britnell']);
+
+    $this->artisan('saprf:seed-national-team-2025', ['--dry-run' => true])
+        ->assertExitCode(0);
+
+    expect(NationalTeamAppearance::count())->toBe(0);
+});
+
+it('saprf:seed-national-team-2025 creates one appearance per roster row and never awards colours', function () {
+    // Seed every roster + reserve name — a single user per entry so
+    // resolution is trivially unambiguous. Names match the official
+    // SAPRF/IPRF 2025 infographic.
+    foreach ([
+        // Shooting squad (22)
+        'Willem Van Biljon', 'Warren Britnell', 'Malcolm Coetzee',
+        'Kevin Goncalves', 'Henna du Plessis', 'Jason Marais',
+        'Kim-Leigh Ferreira', 'Jeanette Coetzee', 'Liezel Foot', 'Diana Zoccola',
+        'Desmond Wellen', 'Russell Ferreira', 'Dumisani Shabangu', 'Hanno Van Niekerk',
+        'Greg Sykes', 'Glen Clark', 'Le Riche Coetzer', 'Andries Lategan',
+        'Tinus Cronje', 'Zenique De Klerk', 'Johan Symington', 'Luane Fick',
+        // Reserves (5)
+        'Anthony Barraball', 'Aliza Mey', 'Catelynn Britnell',
+        'Heinrich Strauss', 'Handre van Niekerk',
+    ] as $name) {
+        User::factory()->create(['name' => $name]);
+    }
+
+    $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
+
+    // 27 total rows — 22 shooters + 5 reserves.
+    $count = NationalTeamAppearance::where('year', 2025)->count();
+    expect($count)->toBe(27);
+
+    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'shooter')->count())->toBe(22);
+    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'reserve')->count())->toBe(5);
+
+    // Protea Colours deliberately left to Exco — zero rows should have
+    // been promoted by the seeder itself.
+    $coloursCount = NationalTeamAppearance::where('year', 2025)
+        ->where('awarded_colours', true)
+        ->count();
+    expect($coloursCount)->toBe(0);
+
+    // Championship + discipline + venue hang off the parent NationalTeam
+    // header, sourced from the official SAPRF/IPRF 2025 infographic.
+    $team = \App\Models\NationalTeam::where('year', 2025)->first();
+    expect($team)->not->toBeNull();
+    expect($team->championship_name)->toBe('2025 IPRF PR22lr World Championships');
+    expect($team->discipline)->toBe('rimfire');
+    expect($team->host_country)->toBe('GB');
+    expect($team->venue)->toBe('West Midlands Shooting Centre');
+    expect($team->starts_on->toDateString())->toBe('2025-08-17');
+    expect($team->ends_on->toDateString())->toBe('2025-08-24');
+});
+
+it('saprf:seed-national-team-2025 creates reserves with role=reserve and the correct division', function () {
+    $anthony = User::factory()->create(['name' => 'Anthony Barraball']);
+    $catelynn = User::factory()->create(['name' => 'Catelynn Britnell']);
+
+    $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
+
+    $anthonyRow = NationalTeamAppearance::where('user_id', $anthony->id)->first();
+    expect($anthonyRow)->not->toBeNull();
+    expect($anthonyRow->role)->toBe(NationalTeamAppearance::ROLE_RESERVE);
+    expect($anthonyRow->division_label)->toBe('Open');
+    expect($anthonyRow->awarded_colours)->toBeFalse();
+
+    $catelynnRow = NationalTeamAppearance::where('user_id', $catelynn->id)->first();
+    expect($catelynnRow)->not->toBeNull();
+    expect($catelynnRow->role)->toBe(NationalTeamAppearance::ROLE_RESERVE);
+    expect($catelynnRow->division_label)->toBe('Juniors');
+});
+
+it('saprf:seed-national-team-2025 is idempotent across repeated runs', function () {
+    User::factory()->create(['name' => 'Warren Britnell']);
+    User::factory()->create(['name' => 'Kim-Leigh Ferreira']);
+
+    $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
+    $firstCount = NationalTeamAppearance::where('year', 2025)->count();
+    expect($firstCount)->toBe(2);
+
+    $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
+    expect(NationalTeamAppearance::where('year', 2025)->count())->toBe($firstCount);
+});
+
+it('saprf:seed-national-team-2025 resolves Luane Fick via loose (diacritic-stripped) match', function () {
+    // The infographic drops her accent, but if the SAPRF roll stores
+    // "Luané Fick" (with accent), the loose index must still match.
+    $luane = User::factory()->create(['name' => 'Luané Fick']);
+
+    $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
+
+    $row = NationalTeamAppearance::where('user_id', $luane->id)->where('year', 2025)->first();
+    expect($row)->not->toBeNull();
+    expect($row->division_label)->toBe('Juniors');
+});
