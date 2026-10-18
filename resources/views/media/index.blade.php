@@ -19,7 +19,9 @@
                class="mt-10 block bg-emerald-950 rounded-3xl overflow-hidden text-white hover:ring-2 hover:ring-emerald-500 transition grid"
                style="grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));">
                 <div class="min-h-[260px] sm:min-h-[340px] bg-stone-800 relative">
-                    <x-media-picture :item="$featured" sizes="(min-width: 768px) 50vw, 100vw"
+                    {{-- Caption suppressed: the right-hand card body carries the title + CTA. --}}
+                    <x-media-picture :item="$featured" :showCaption="false"
+                                     sizes="(min-width: 768px) 50vw, 100vw"
                                      class="absolute inset-0"
                                      imgClass="absolute inset-0 w-full h-full object-cover" />
                 </div>
@@ -83,8 +85,11 @@
                        class="group block bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-emerald-600 transition">
                         <div class="h-52 bg-stone-800 relative">
                             @if($album->cover)
-                                <x-media-picture :item="$album->cover" sizes="320px" class="h-52"
-                                                 imgClass="w-full h-52 object-cover group-hover:scale-[1.02] transition" />
+                                {{-- Caption suppressed: the card body below shows album title + category. --}}
+                                <x-media-picture :item="$album->cover" :showCaption="false"
+                                                 sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
+                                                 class="h-full w-full"
+                                                 imgClass="w-full h-full object-cover group-hover:scale-[1.02] transition" />
                             @else
                                 <div class="w-full h-52 bg-gradient-to-br from-stone-700 to-stone-900 flex items-center justify-center text-stone-600 text-xs uppercase tracking-wider">
                                     Album cover

@@ -272,7 +272,9 @@ new #[Layout('components.layouts.app')] #[Title('Album photos — SAPRF')] class
                          class="relative bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm cursor-move">
                         <button type="button" wire:click="editItem({{ $item->id }})"
                                 class="block w-full aspect-[4/3] bg-stone-100 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <x-media-picture :item="$item" sizes="220px" class="w-full h-full"
+                            {{-- Caption suppressed: the card body below shows caption + credit. --}}
+                            <x-media-picture :item="$item" :showCaption="false"
+                                             sizes="220px" class="w-full h-full"
                                              imgClass="w-full h-full object-cover" />
                         </button>
                         <div class="p-3 text-xs text-stone-500 space-y-1">

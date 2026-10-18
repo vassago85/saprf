@@ -273,7 +273,16 @@
                        class="block bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-emerald-600 transition group">
                         <div class="h-40 bg-stone-800 relative">
                             @if($t->cover)
-                                <x-media-picture :item="$t->cover" sizes="260px" class="h-40" imgClass="w-full h-40 object-cover" />
+                                {{-- Sizes derived from the grid: at ≥1024px the max-w-7xl container
+                                     fits ~4 columns of ≈300px; at ≥640px 2 columns @ 50vw; else 100vw.
+                                     Caption suppressed because this card already renders its own
+                                     year + squad label below the image box. --}}
+                                <x-media-picture
+                                    :item="$t->cover"
+                                    :showCaption="false"
+                                    sizes="(min-width: 1024px) 300px, (min-width: 640px) 50vw, 100vw"
+                                    class="h-full w-full"
+                                    imgClass="w-full h-full object-cover" />
                             @else
                                 <div class="w-full h-40 bg-gradient-to-br from-emerald-900 to-stone-900 flex items-center justify-center">
                                     <svg class="size-10 text-emerald-700/40" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

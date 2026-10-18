@@ -40,8 +40,13 @@
             <div class="lg:col-span-7">
                 <figure class="mx-auto max-w-[720px]">
                     <div class="rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/40 bg-stone-800 aspect-[16/9]">
+                        {{-- Caption suppressed: the outer <figure>/<figcaption> below renders
+                             the band's own caption. Leaving the component's figcaption on would
+                             both overflow the aspect-ratio box AND nest a <figure> inside a
+                             <figure>, which is invalid HTML. --}}
                         <x-media-picture
                             :item="$item"
+                            :showCaption="false"
                             sizes="(min-width: 1024px) 720px, 100vw"
                             class="w-full h-full"
                             imgClass="w-full h-full object-cover"

@@ -102,7 +102,10 @@
                                        @checked(old('cover_media_item_id', $team->cover_media_item_id) == $item->id)
                                        class="sr-only">
                                 <div class="aspect-[4/3] bg-stone-100">
-                                    <x-media-picture :item="$item" sizes="180px" class="w-full h-full"
+                                    {{-- Caption suppressed: the overlay bar below renders the
+                                         album title; the figcaption would overflow the aspect box. --}}
+                                    <x-media-picture :item="$item" :showCaption="false"
+                                                     sizes="180px" class="w-full h-full"
                                                      imgClass="w-full h-full object-cover" />
                                 </div>
                                 <div class="absolute inset-x-0 bottom-0 bg-stone-900/70 text-white text-[11px] px-2 py-1 truncate">

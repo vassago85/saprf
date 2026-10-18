@@ -68,7 +68,10 @@
                     <button type="button"
                             @click="open({{ $i }})"
                             class="group block bg-stone-100 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500 aspect-[4/3]">
-                        <x-media-picture :item="$item" sizes="(min-width: 1024px) 260px, (min-width: 640px) 50vw, 100vw"
+                        {{-- Caption suppressed: this is a lightbox-trigger thumbnail; the
+                             full caption + credit are rendered inside the lightbox dialog. --}}
+                        <x-media-picture :item="$item" :showCaption="false"
+                                         sizes="(min-width: 1024px) 260px, (min-width: 640px) 50vw, 100vw"
                                          class="w-full h-full"
                                          imgClass="w-full h-full object-cover group-hover:scale-[1.02] transition" />
                     </button>

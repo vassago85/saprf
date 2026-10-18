@@ -30,8 +30,14 @@
                        class="group block bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-emerald-600 transition">
                         <div class="h-40 bg-stone-800 relative">
                             @if($team->cover)
-                                <x-media-picture :item="$team->cover" sizes="320px" class="h-40"
-                                                 imgClass="w-full h-40 object-cover" />
+                                {{-- Caption suppressed: the card body below already shows the team
+                                     year + squad size. --}}
+                                <x-media-picture
+                                    :item="$team->cover"
+                                    :showCaption="false"
+                                    sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
+                                    class="h-full w-full"
+                                    imgClass="w-full h-full object-cover" />
                             @else
                                 <div class="w-full h-40 bg-gradient-to-br from-stone-700 to-stone-900 flex items-center justify-center text-stone-500 text-xs uppercase tracking-wider">
                                     No cover
