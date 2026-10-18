@@ -427,20 +427,23 @@ class MatchEvent extends Model
                     $q2->whereNotNull('match_end_date')
                         ->where('match_end_date', '>=', now()->startOfDay());
                 });
-        })->whereIn('status', ['open', 'closed', 'draft']);
+        })->whereIn('status', ['open', 'closed', 'draft', 'cancelled']);
     }
 
     public function scopePast(Builder $query): Builder
     {
-        return $query->where(function (Builder $q) {
-            $q->where(function (Builder $q2) {
-                $q2->whereNull('match_end_date')
-                    ->where('match_date', '<', now()->startOfDay());
-            })->orWhere(function (Builder $q2) {
-                $q2->whereNotNull('match_end_date')
-                    ->where('match_end_date', '<', now()->startOfDay());
-            })->orWhere('status', 'completed');
-        });
+        // Cancelled matches never belong under Results — they can still appear
+        // on Upcoming while the date is in the future, then drop off entirely.
+        return $query->where('status', '!=', 'cancelled')
+            ->where(function (Builder $q) {
+                $q->where(function (Builder $q2) {
+                    $q2->whereNull('match_end_date')
+                        ->where('match_date', '<', now()->startOfDay());
+                })->orWhere(function (Builder $q2) {
+                    $q2->whereNotNull('match_end_date')
+                        ->where('match_end_date', '<', now()->startOfDay());
+                })->orWhere('status', 'completed');
+            });
     }
 
     public function scopeFeatured(Builder $query): Builder
