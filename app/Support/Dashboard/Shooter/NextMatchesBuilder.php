@@ -106,6 +106,44 @@ final class NextMatchesBuilder
             'counts_for_finals' => $this->countsForFinals($match, $user, $oop),
             'status' => $this->statusLabel($match, $registered),
             'status_tone' => $this->statusTone($match, $registered),
+            'capacity' => $this->capacity($match),
+            'fee' => $this->feeInfo($match, $user, $registered),
+        ];
+    }
+
+    /**
+     * @return array{taken:int, max:?int, pct:?int}|null
+     */
+    private function capacity(MatchEvent $match): ?array
+    {
+        $max = $match->max_competitors;
+        if (! $max || $max <= 0) {
+            return null;
+        }
+
+        $taken = $match->confirmedRegistrationCount();
+        $pct = (int) min(100, round(($taken / $max) * 100));
+
+        return ['taken' => $taken, 'max' => (int) $max, 'pct' => $pct];
+    }
+
+    /**
+     * @return array{outstanding:bool, amount:?float}|null
+     */
+    private function feeInfo(MatchEvent $match, User $user, bool $registered): ?array
+    {
+        if (! $registered) {
+            return null;
+        }
+
+        $reg = $match->userRegistration($user);
+        if (! $reg) {
+            return null;
+        }
+
+        return [
+            'outstanding' => $reg->hasOutstandingPayment(),
+            'amount' => $reg->hasOutstandingPayment() ? (float) $reg->fee_amount : null,
         ];
     }
 
@@ -132,6 +170,10 @@ final class NextMatchesBuilder
     private function statusLabel(MatchEvent $match, bool $registered): string
     {
         if ($registered) {
+            // Mockup convention: show "Pay R350" when the entry is registered
+            // but the fee hasn't cleared, otherwise show the ✓ Entered badge.
+            // (The view decides the badge styling off status_tone; we keep
+            // the label plain here so it reads correctly in both themes.)
             return 'Registered';
         }
 
