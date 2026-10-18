@@ -44,6 +44,8 @@
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Type</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Series Level</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Province</th>
+                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Venue</th>
+                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">MD</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
                     <th class="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Actions</th>
@@ -64,6 +66,8 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $match->series_level }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->province?->name ?? '—' }}</td>
+                        <td class="max-w-[220px] truncate px-5 py-4 text-sm text-stone-700" title="{{ $match->venue_name }}">{{ $match->venue_name ?: '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->director_name ?: '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">
                             {{ $match->match_date->format('d M Y') }}
                             @if($match->isMultiDay())
@@ -100,7 +104,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-sm text-stone-500">No matches found.</td>
+                        <td colspan="9" class="px-5 py-12 text-center text-sm text-stone-500">No matches found.</td>
                     </tr>
                 @endforelse
             </tbody>
