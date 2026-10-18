@@ -7,6 +7,7 @@ use App\Models\Membership;
 use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
+use App\Models\Standing;
 use App\Models\User;
 use App\Support\Dashboard\Shooter\DisciplineScope;
 use App\Support\Dashboard\Shooter\NextMatchesBuilder;
@@ -282,4 +283,83 @@ it('shows all-discipline upcoming matches when the member has no scores', functi
         ->assertSee('PRS and PR22, from the disciplines you shoot')
         ->assertSee('Open PRS NoScores')
         ->assertSee('Open PR22 NoScores');
+});
+
+it('shows national rank on first paint for a PRS-only shooter without clicking a hero tab', function () {
+    // Livewire exposes public $heroDiscipline (default '') to the Blade view.
+    // The hero lookup must use the resolved active discipline, not that empty
+    // string — otherwise PRS-only shooters (no tab UI) stay on "Not ranked yet"
+    // forever even when standings + scores exist.
+    $user = dashShooter($this->gp);
+    $season = (string) Carbon::now()->year;
+
+    $past = dashMatch([
+        'name' => 'PRS Ranked National',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'match_date' => Carbon::today()->subMonth(),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    dashScore($user, $past, [
+        'normalized_score' => 92.5,
+        'raw_score' => 80,
+        'placement' => 2,
+    ]);
+
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'province_id' => null,
+        'division_id' => null,
+        'points' => 258.879,
+        'rank' => 11,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ShooterDashboard::class)
+        ->assertSet('heroDiscipline', '')
+        ->assertDontSee('Not ranked yet')
+        ->assertSee('258.88')
+        ->assertSee('92.5%');
+});
+
+it('defaults the dual-discipline hero to PRS on first paint before any tab click', function () {
+    $user = dashShooter($this->gp);
+    $season = (string) Carbon::now()->year;
+
+    $prsPast = dashMatch([
+        'name' => 'PRS Dual National',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'match_date' => Carbon::today()->subMonths(2),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    $pr22Past = dashMatch([
+        'name' => 'PR22 Dual Provincial',
+        'series' => 'PR22',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'match_date' => Carbon::today()->subMonth(),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    dashScore($user, $prsPast, ['normalized_score' => 88.0, 'raw_score' => 70]);
+    dashScore($user, $pr22Past, ['normalized_score' => 75.0, 'raw_score' => 60]);
+
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'points' => 200.0,
+        'rank' => 7,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ShooterDashboard::class)
+        ->assertSet('heroDiscipline', '')
+        ->assertDontSee('Not ranked yet')
+        ->assertSee('200.00');
 });

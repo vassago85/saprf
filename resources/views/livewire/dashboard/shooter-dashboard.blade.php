@@ -1,7 +1,7 @@
 @php
     use Illuminate\Support\Str;
 
-    $hero = $heroes[$heroDiscipline] ?? null;
+    $hero = $heroes[$activeHeroDiscipline] ?? null;
     $chart = $hero['chart'] ?? null;
 
     // --- Chart layout helpers (pure PHP, no new Blade deps) ---
@@ -188,7 +188,7 @@
                 <div class="border-b border-white/10 p-6 xl:border-b-0 xl:border-r">
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-xs text-stone-300 sm:text-sm">
-                            {{ $season }} · {{ $hero['label'] ?? ($heroDiscipline.' season standing') }}
+                            {{ $season }} · {{ $hero['label'] ?? ($activeHeroDiscipline.' season standing') }}
                         </p>
                         @if (count($heroDisciplines) > 1)
                             <div role="group" aria-label="Hero discipline" class="inline-flex gap-0.5 rounded-lg bg-white/10 p-0.5 text-xs font-semibold">
@@ -196,10 +196,10 @@
                                     <button type="button" wire:click="setHeroDiscipline('{{ $d }}')"
                                         @class([
                                             'min-h-7 rounded-md px-3 transition',
-                                            'bg-white text-stone-900' => $d === $heroDiscipline,
-                                            'text-stone-300 hover:text-white' => $d !== $heroDiscipline,
+                                            'bg-white text-stone-900' => $d === $activeHeroDiscipline,
+                                            'text-stone-300 hover:text-white' => $d !== $activeHeroDiscipline,
                                         ])
-                                        aria-pressed="{{ $d === $heroDiscipline ? 'true' : 'false' }}">{{ $d }}</button>
+                                        aria-pressed="{{ $d === $activeHeroDiscipline ? 'true' : 'false' }}">{{ $d }}</button>
                                 @endforeach
                             </div>
                         @endif
@@ -273,7 +273,7 @@
                         <div class="mt-6">
                             <p class="font-heading text-3xl font-bold leading-tight">Not ranked yet</p>
                             <p class="mt-2 text-sm text-stone-300">
-                                Shoot a {{ $heroDiscipline }} national or provincial match this season to appear on the standings.
+                                Shoot a {{ $activeHeroDiscipline }} national or provincial match this season to appear on the standings.
                             </p>
                             <a href="{{ route('events.index') }}" class="mt-4 inline-flex min-h-10 items-center rounded-lg bg-white px-3.5 text-sm font-semibold text-stone-900 hover:bg-stone-100">
                                 Browse upcoming events →

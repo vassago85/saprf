@@ -79,8 +79,16 @@ class ShooterDashboard extends Component
         // Hero discipline: use the user's choice if valid, otherwise the first
         // discipline they're active in. For single-discipline shooters this
         // collapses to just that discipline.
+        //
+        // IMPORTANT: pass this to the view as `activeHeroDiscipline`, NOT
+        // `heroDiscipline`. Livewire already exposes the public Url-bound
+        // `$heroDiscipline` property (default '') to Blade. If the view also
+        // receives/uses that name, the empty string wins on first paint and
+        // `$heroes['']` is always null — "Not ranked yet" until the shooter
+        // clicks a PRS/PR22 tab (PRS-only shooters have no tab, so they stay
+        // stuck).
         $heroDisciplines = array_values(array_filter($disciplines, fn ($d) => in_array($d, ['PRS', 'PR22'], true)));
-        $heroDiscipline = in_array($this->heroDiscipline, $heroDisciplines, true)
+        $activeHeroDiscipline = in_array($this->heroDiscipline, $heroDisciplines, true)
             ? $this->heroDiscipline
             : ($heroDisciplines[0] ?? 'PRS');
 
@@ -102,7 +110,7 @@ class ShooterDashboard extends Component
             'membership' => $membership,
             'disciplines' => $disciplines,
             'heroDisciplines' => $heroDisciplines,
-            'heroDiscipline' => $heroDiscipline,
+            'activeHeroDiscipline' => $activeHeroDiscipline,
             'heroes' => $heroes,
             'kpis' => $kpiData,
             'dual' => $dual,
