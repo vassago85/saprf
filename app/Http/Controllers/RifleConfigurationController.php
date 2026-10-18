@@ -23,9 +23,13 @@ class RifleConfigurationController extends Controller
         return view('rifle-configurations.index', compact('rifles'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('rifle-configurations.create');
+        $primarySeries = $this->normalizedPrimarySeries($request);
+
+        return view('rifle-configurations.create', [
+            'primarySeries' => $primarySeries,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

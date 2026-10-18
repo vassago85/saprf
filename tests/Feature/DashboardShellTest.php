@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use App\Support\Dashboard\AdminDashboardPresenter;
-use App\Support\Dashboard\MemberDashboardPresenter;
 use App\Support\Dashboard\OwnerDashboardPresenter;
 
 beforeEach(function () {
@@ -70,19 +69,20 @@ it('renders the provincial admin dashboard shell', function () {
         ->assertDontSee('Provincial Admin Dashboard');
 });
 
-it('wraps the member dashboard in the shared shell', function () {
+it('renders the dual-discipline shooter dashboard for members', function () {
     $member = User::factory()->create(['name' => 'Eve Shooter']);
     $member->assignRole('member');
 
     $this->actingAs($member)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Welcome back, Eve')
-        ->assertSee('Matches shot')
-        ->assertSee('National rank')
-        ->assertSee('Qualification')
-        ->assertSee('Season Stats')
-        ->assertDontSee('Pricing & rules');
+        ->assertSee('Welcome back')
+        ->assertSee('Eve Shooter')
+        ->assertSee('Find a match')
+        ->assertSee('Next matches')
+        ->assertSee('Recent results')
+        ->assertDontSee('Pricing & rules')
+        ->assertDontSee('Season Stats');
 });
 
 it('keeps the developer dashboard unchanged', function () {
@@ -117,16 +117,4 @@ it('builds an admin payload without a pricing footer', function () {
 
     expect($payload->footer)->toBeNull()
         ->and($payload->kpis)->not->toBeEmpty();
-});
-
-it('builds a member payload without primary panels', function () {
-    $member = User::factory()->create();
-    $member->assignRole('member');
-
-    $payload = app(MemberDashboardPresenter::class)->build($member);
-
-    expect($payload->primary)->toBeNull()
-        ->and($payload->secondary)->toBeNull()
-        ->and($payload->footer)->toBeNull()
-        ->and($payload->kpis)->toHaveCount(4);
 });

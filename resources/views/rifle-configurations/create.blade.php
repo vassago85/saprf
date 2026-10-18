@@ -133,7 +133,7 @@
                         class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">{{ old('notes') }}</textarea>
                 </div>
 
-                <x-rifle-primary-series-field />
+                <x-rifle-primary-series-field :current="$primarySeries ?? request('primary_series')" />
             </div>
 
             <div class="flex items-center gap-4 pt-2">

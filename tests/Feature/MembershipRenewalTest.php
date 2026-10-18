@@ -92,30 +92,9 @@ function renderMemberDashboard(User $user, Membership $membership): string
     $user->setRelation('membership', $membership);
     $user->loadMissing('province');
 
-    $payload = app(\App\Support\Dashboard\MemberDashboardPresenter::class)->build($user);
-
-    return view('dashboard.member', [
-        'user' => $user,
-        'payload' => $payload,
-        'membership' => $membership,
-        'nextMatch' => null,
-        'scoresCount' => 0,
-        'qualificationProgress' => [],
-        'matchesShot' => 0,
-        'bestPlacement' => null,
-        'avgPlacement' => null,
-        'totalPoints' => 0,
-        'statsBreakdown' => [
-            ['series' => 'PRS', 'level' => 'provincial', 'matches' => 0, 'best' => null, 'avg' => null, 'points' => 0],
-            ['series' => 'PRS', 'level' => 'national', 'matches' => 0, 'best' => null, 'avg' => null, 'points' => 0],
-            ['series' => 'PR22', 'level' => 'provincial', 'matches' => 0, 'best' => null, 'avg' => null, 'points' => 0],
-            ['series' => 'PR22', 'level' => 'national', 'matches' => 0, 'best' => null, 'avg' => null, 'points' => 0],
-        ],
-        'rifles' => collect(),
-        'rifleCount' => 0,
-        'recentMatches' => collect(),
-        'seasonRankings' => collect(),
-    ])->render();
+    return \Livewire\Livewire::actingAs($user)
+        ->test(\App\Livewire\Dashboard\ShooterDashboard::class)
+        ->html();
 }
 
 it('allows renewal when expiry is within 60 days and keeps membership active', function () {
@@ -211,7 +190,7 @@ it('shows a renew attention pill on the shooter dashboard from 30 days before ex
     $this->actingAs($this->user);
     $html = renderMemberDashboard($this->user, $membership);
 
-    expect($html)->toContain('Membership expires in 8 days')
+    expect($html)->toContain('Membership renewal due')
         ->and($html)->toContain('Renew membership');
 });
 
@@ -221,7 +200,7 @@ it('does not show the dashboard renew pill when expiry is more than 30 days away
     $this->actingAs($this->user);
     $html = renderMemberDashboard($this->user, $membership);
 
-    expect($html)->not->toContain('Membership expires');
+    expect($html)->not->toContain('Membership renewal due');
 });
 
 it('reports window helpers correctly on the model', function () {

@@ -87,6 +87,91 @@ html {
     text-overflow: ellipsis;
 }
 
+/* Collapse toggle: desktop only (Tailwind `lg:inline-flex` was easy to miss
+ * from the production CSS build when the class was brand-new). */
+.sidebar-collapse-toggle {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .sidebar-collapse-toggle {
+        display: inline-flex;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Desktop collapsible sidebar → icon rail.
+ *
+ * Body gets `data-sidebar-collapsed` from Alpine (persisted in localStorage).
+ * Mobile drawer behaviour is untouched — these rules only apply at lg+.
+ * ───────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+    body[data-sidebar-collapsed] [data-flux-sidebar] {
+        width: 4.25rem !important;
+        min-width: 4.25rem !important;
+        max-width: 4.25rem !important;
+        padding-inline: 0.35rem !important;
+        overflow-x: hidden;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        padding-inline: 0;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand {
+        display: flex;
+        justify-content: center;
+        flex: none;
+        width: 100%;
+        padding-inline: 0;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand img {
+        height: 1.75rem;
+        width: auto;
+        max-width: 2.25rem;
+        object-fit: cover;
+        object-position: left center;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] [data-content],
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading-row,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-toggle,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-rail,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-sponsors,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode-label,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode-text,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-footer-label,
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-badge {
+        display: none !important;
+    }
+
+    /* Expandable groups: always show children when collapsed (no heading to open). */
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-items {
+        display: block !important;
+        padding-inline-start: 0 !important;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] [data-flux-navlist-item] {
+        justify-content: center;
+        gap: 0;
+        padding-inline: 0.5rem !important;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode {
+        padding-inline: 0.15rem;
+    }
+
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-view-mode .flex {
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+}
+
 /* Force light mode on public/guest pages */
 .force-light, .force-light * {
     color-scheme: light !important;

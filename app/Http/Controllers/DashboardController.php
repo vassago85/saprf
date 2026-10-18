@@ -2,18 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MatchEvent;
-use App\Models\RifleConfiguration;
-use App\Models\Standing;
 use App\Models\User;
-use App\Services\QualificationService;
-use App\Services\ShooterStandingsSummaryService;
 use App\Support\Dashboard\AdminDashboardPresenter;
 use App\Support\Dashboard\MatchDirectorDashboardPresenter;
-use App\Support\Dashboard\MemberDashboardPresenter;
 use App\Support\Dashboard\OwnerDashboardPresenter;
 use App\Support\Dashboard\ProvincialAdminDashboardPresenter;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -33,13 +26,10 @@ class DashboardController extends Controller
     ];
 
     public function __construct(
-        private QualificationService $qualificationService,
-        private ShooterStandingsSummaryService $shooterStandingsSummary,
         private OwnerDashboardPresenter $ownerPresenter,
         private AdminDashboardPresenter $adminPresenter,
         private MatchDirectorDashboardPresenter $matchDirectorPresenter,
         private ProvincialAdminDashboardPresenter $provincialAdminPresenter,
-        private MemberDashboardPresenter $memberPresenter,
     ) {}
 
     public function index(Request $request): View
@@ -158,109 +148,8 @@ class DashboardController extends Controller
 
     private function memberDashboard(User $user): View
     {
-        $membership = $user->membership;
-        $season = (string) Carbon::now()->year;
-        $payload = $this->memberPresenter->build($user);
-
-        $nextMatch = MatchEvent::where('match_date', '>=', Carbon::today())
-            ->where('status', 'open')
-            ->orderBy('match_date')
-            ->first();
-
-        $qualificationProgress = $this->qualificationService->getDashboardProgress($user, $season);
-
-        // National + provincial rankings for the season, one row per series
-        // the shooter placed in, with a per-division breakdown (Open,
-        // Factory, Senior, Ladies, ...) so the shooter can see at a glance
-        // where they stand in every cohort they've competed in. Shared with
-        // the public shooter profile page via the service so both views
-        // always agree.
-        $seasonRankings = $this->shooterStandingsSummary->build($user, $season);
-
-        $seasonScores = $user->scores()
-            ->whereHas('match', fn ($q) => $q->whereYear('match_date', $season))
-            ->with('match')
-            ->get();
-
-        $matchesShot = $seasonScores->count();
-        $bestPlacement = $seasonScores->whereNotNull('placement')->min('placement');
-        $avgPlacement = $seasonScores->whereNotNull('placement')->avg('placement');
-        $totalPoints = Standing::where('user_id', $user->id)
-            ->whereNull('province_id')
-            ->where('season', $season)
-            ->sum('points');
-
-        // Per-discipline (PRS / PR22) × per-level (provincial / national)
-        // breakdown. Users have consistently asked for these to be split out
-        // rather than aggregated into a single row of numbers.
-        $scoresByCategory = $seasonScores->groupBy(fn ($s) => ($s->match?->match_type ?? 'unknown').'|'.($s->match?->series_level ?? 'unknown'));
-
-        $standingsByCategory = Standing::where('user_id', $user->id)
-            ->where('season', $season)
-            ->whereNull('division_id')
-            ->get()
-            ->groupBy(fn ($st) => $st->series.'|'.($st->province_id ? 'provincial' : 'national'));
-
-        $statsBreakdown = [];
-        foreach (['PRS', 'PR22'] as $seriesKey) {
-            foreach (['provincial', 'national'] as $levelKey) {
-                $key = "{$seriesKey}|{$levelKey}";
-                $catScores = $scoresByCategory->get($key) ?? collect();
-                $catStandings = $standingsByCategory->get($key) ?? collect();
-                $placed = $catScores->whereNotNull('placement');
-
-                $statsBreakdown[] = [
-                    'series' => $seriesKey,
-                    'level' => $levelKey,
-                    'matches' => $catScores->count(),
-                    'best' => $placed->min('placement'),
-                    'avg' => $placed->count() > 0 ? round($placed->avg('placement'), 1) : null,
-                    'points' => (int) $catStandings->sum('points'),
-                ];
-            }
-        }
-
-        $rifles = RifleConfiguration::forUser($user->id)
-            ->active()
-            ->with(['make', 'model', 'calibre'])
-            ->withCount('registrations')
-            ->orderMainsFirst()
-            ->limit(3)
-            ->get();
-
-        $rifleCount = RifleConfiguration::forUser($user->id)->active()->count();
-
-        // Order past matches chronologically (most recent match first) so
-        // the shooter sees their season in the order they actually shot it,
-        // not in upload/import order. Uses a correlated subquery on the
-        // matches table so the 10-row cap picks the newest-shot matches
-        // rather than the 10 most recently uploaded scores.
-        $recentMatches = $user->scores()
-            ->with(['match.province'])
-            ->orderByDesc(
-                MatchEvent::select('match_date')
-                    ->whereColumn('matches.id', 'scores.match_id')
-                    ->limit(1)
-            )
-            ->limit(10)
-            ->get();
-
         return view('dashboard.member', [
             'user' => $user,
-            'payload' => $payload,
-            'membership' => $membership,
-            'nextMatch' => $nextMatch,
-            'scoresCount' => $matchesShot,
-            'qualificationProgress' => $qualificationProgress,
-            'matchesShot' => $matchesShot,
-            'bestPlacement' => $bestPlacement,
-            'avgPlacement' => $avgPlacement ? round($avgPlacement, 1) : null,
-            'totalPoints' => $totalPoints,
-            'statsBreakdown' => $statsBreakdown,
-            'rifles' => $rifles,
-            'rifleCount' => $rifleCount,
-            'recentMatches' => $recentMatches,
-            'seasonRankings' => $seasonRankings,
         ]);
     }
 }

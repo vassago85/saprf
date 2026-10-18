@@ -20,13 +20,27 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="force-light min-h-screen bg-stone-50" style="color-scheme: light;"
-    x-data="{ sidebarOpen: false, ignoreBackdropUntil: 0 }"
-    x-init="$el.querySelectorAll('[data-flux-sidebar-cloak]').forEach((n) => n.removeAttribute('data-flux-sidebar-cloak'))"
-    x-effect="sidebarOpen ? $el.setAttribute('data-sidebar-open', '') : $el.removeAttribute('data-sidebar-open')"
+    x-data="{
+        sidebarOpen: false,
+        ignoreBackdropUntil: 0,
+        sidebarCollapsed: false,
+        init() {
+            try { this.sidebarCollapsed = localStorage.getItem('saprf.sidebarCollapsed') === '1'; } catch (e) {}
+            this.$el.querySelectorAll('[data-flux-sidebar-cloak]').forEach((n) => n.removeAttribute('data-flux-sidebar-cloak'));
+        },
+        toggleSidebarCollapsed() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            try { localStorage.setItem('saprf.sidebarCollapsed', this.sidebarCollapsed ? '1' : '0'); } catch (e) {}
+        },
+    }"
+    x-effect="
+        sidebarOpen ? $el.setAttribute('data-sidebar-open', '') : $el.removeAttribute('data-sidebar-open');
+        sidebarCollapsed ? $el.setAttribute('data-sidebar-collapsed', '') : $el.removeAttribute('data-sidebar-collapsed');
+    "
     @flux-sidebar-toggle.window="sidebarOpen = !sidebarOpen"
     @flux-sidebar-open.window="sidebarOpen = true; ignoreBackdropUntil = Date.now() + 400"
     @keydown.escape.window="sidebarOpen = false"
-    @click="if ($event.target.closest('[data-flux-sidebar] a')) sidebarOpen = false">
+    @click="if ($event.target.closest('[data-flux-sidebar] a') && window.matchMedia('(max-width: 1023px)').matches) sidebarOpen = false">
     <x-skip-link />
 
     {{-- Developer impersonation banner. Fixed to the top of every
@@ -67,12 +81,26 @@
         aria-hidden="true"
     ></div>
 
-    <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white !flex !flex-col !max-h-dvh lg:!h-dvh">
+    <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white !flex !flex-col !max-h-dvh lg:!h-dvh lg:transition-[width] lg:duration-200">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
-        <a href="{{ url('/') }}" class="block shrink-0 px-2">
-            <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-10 w-auto">
-        </a>
+        <div class="sidebar-brand-row shrink-0 flex items-center gap-1 px-2">
+            <a href="{{ url('/') }}" class="sidebar-brand block min-w-0 flex-1 overflow-hidden">
+                <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-10 w-auto max-w-none">
+            </a>
+            <button
+                type="button"
+                class="sidebar-collapse-toggle size-8 shrink-0 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                @click="toggleSidebarCollapsed()"
+                :aria-expanded="(!sidebarCollapsed).toString()"
+                :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 transition-transform duration-200" :class="sidebarCollapsed && 'rotate-180'">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+                </svg>
+            </button>
+        </div>
 
         {{-- View-mode toggle: staff users can flip between their admin console
              and their own shooter (member) experience. Members-only never see this. --}}
@@ -81,31 +109,33 @@
             $canSwitchView = (bool) auth()->user()?->canSwitchViewMode();
         @endphp
         @if($canSwitchView)
-            <div class="shrink-0 px-2 pt-2">
-                <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">View as</div>
+            <div class="sidebar-view-mode shrink-0 px-2 pt-2">
+                <div class="sidebar-view-mode-label mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">View as</div>
                 <div class="flex rounded-lg bg-stone-100 p-0.5 ring-1 ring-inset ring-stone-200">
                     <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
                         @csrf
                         <input type="hidden" name="mode" value="admin">
                         <button type="submit"
+                                title="Admin"
                                 class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
                                        {{ $viewMode === 'admin'
                                           ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
                                           : 'text-stone-500 hover:text-stone-800' }}">
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-                            Admin
+                            <svg class="size-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span class="sidebar-view-mode-text">Admin</span>
                         </button>
                     </form>
                     <form method="POST" action="{{ route('dashboard.view-mode') }}" class="flex-1">
                         @csrf
                         <input type="hidden" name="mode" value="shooter">
                         <button type="submit"
+                                title="Shooter"
                                 class="w-full inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition
                                        {{ $viewMode === 'shooter'
                                           ? 'bg-white text-stone-900 shadow-sm ring-1 ring-inset ring-stone-200'
                                           : 'text-stone-500 hover:text-stone-800' }}">
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/></svg>
-                            Shooter
+                            <svg class="size-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/></svg>
+                            <span class="sidebar-view-mode-text">Shooter</span>
                         </button>
                     </form>
                 </div>
@@ -120,7 +150,7 @@
 
         <div class="shrink-0 border-t border-stone-200 pt-2">
             <flux:navlist variant="outline">
-                <flux:navlist.item icon="user-circle" :href="route('profile')" :current="request()->routeIs('profile')">
+                <flux:navlist.item icon="user-circle" :href="route('profile')" :current="request()->routeIs('profile')" :title="Auth::user()->name">
                     {{ Auth::user()->name }}
                 </flux:navlist.item>
             </flux:navlist>
@@ -135,12 +165,13 @@
                 @csrf
                 <button
                     type="submit"
+                    title="Sign Out"
                     class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5 shrink-0">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
                     </svg>
-                    <span>Sign Out</span>
+                    <span class="sidebar-footer-label">Sign Out</span>
                 </button>
             </form>
         </div>

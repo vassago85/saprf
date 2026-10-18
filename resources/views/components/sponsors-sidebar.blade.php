@@ -6,7 +6,7 @@
 @endphp
 
 @if ($grouped->isNotEmpty())
-    <div class="px-3 py-3 border-t border-stone-100">
+    <div class="sidebar-sponsors px-3 py-3 border-t border-stone-100">
         <p class="text-[9px] uppercase tracking-wider text-stone-400 mb-2 px-1">Sponsors</p>
         <div class="flex flex-wrap items-center gap-3 px-1">
             @foreach ($grouped as $tierName => $sponsors)
