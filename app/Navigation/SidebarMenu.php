@@ -43,6 +43,22 @@ final class SidebarMenu
     private const BADGE_TTL_SECONDS = 60;
 
     /**
+     * Badges whose value does not depend on the viewing user — e.g. the
+     * global "pending approvals" count is the same for every admin that
+     * can see it. Keying these without a user_id means a single
+     * self::clearBadge() call in the mutator (approve/reject etc.)
+     * invalidates every admin's cached copy, instead of each admin
+     * waiting out the 60-second TTL individually.
+     */
+    private const GLOBAL_BADGES = [
+        'pending_approvals',
+        'unhandled_contacts',
+        'pending_md_payouts',
+        'pending_credit_refunds',
+        'score_imports_pending',
+    ];
+
+    /**
      * @return list<array{
      *     key: string,
      *     heading: ?string,
@@ -998,12 +1014,47 @@ final class SidebarMenu
         }
 
         $value = Cache::remember(
-            "sidebar:badge:{$badge}:{$user->id}",
+            self::badgeCacheKey($badge, $user),
             self::BADGE_TTL_SECONDS,
             fn () => self::computeBadge($badge, $user),
         );
 
         return $value > 0 ? $value : null;
+    }
+
+    /**
+     * Build the cache key for one badge. Global badges omit the user_id so
+     * one key serves every admin — see self::GLOBAL_BADGES for why.
+     */
+    private static function badgeCacheKey(string $badge, User $user): string
+    {
+        return in_array($badge, self::GLOBAL_BADGES, true)
+            ? "sidebar:badge:{$badge}"
+            : "sidebar:badge:{$badge}:{$user->id}";
+    }
+
+    /**
+     * Invalidate a sidebar badge cache. For GLOBAL_BADGES, pass no user —
+     * one call clears the badge for every admin. For per-user badges
+     * (family_count, membership_attention, …) pass the user whose badge
+     * is now stale.
+     *
+     * Call this from the controller action that mutates the underlying
+     * data (ApprovalController::approve, ContactMessage::markHandled,
+     * MembershipObserver::updated, …) so the sidebar snaps to the new
+     * value on the next render instead of waiting out the 60s TTL.
+     */
+    public static function clearBadge(string $badge, ?User $user = null): void
+    {
+        if (in_array($badge, self::GLOBAL_BADGES, true)) {
+            Cache::forget("sidebar:badge:{$badge}");
+
+            return;
+        }
+
+        if ($user !== null) {
+            Cache::forget("sidebar:badge:{$badge}:{$user->id}");
+        }
     }
 
     private static function computeBadge(string $badge, User $user): int

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ContactMessage;
+use App\Models\FirearmMake;
 use App\Models\User;
 use App\Navigation\SidebarMenu;
 use App\Support\SidebarNavigation;
@@ -568,4 +569,88 @@ it('keeps the old SidebarNavigation API functional as a shim', function () {
     expect(SidebarNavigation::CONTEXT_ADMIN)->toBe('admin')
         ->and(SidebarNavigation::labelsFor($owner, 'admin'))
             ->toEqual(SidebarMenu::labelsFor($owner, 'admin'));
+});
+
+it('shares the pending-approvals badge cache across every admin', function () {
+    // Global badges (pending_approvals, unhandled_contacts, pending_md_payouts,
+    // pending_credit_refunds, score_imports_pending) are keyed WITHOUT the
+    // viewer's user_id so one `SidebarMenu::clearBadge()` call invalidates
+    // the badge for every admin simultaneously — otherwise each admin's own
+    // 60-second TTL would have to time out independently after an approve.
+    $adminA = staffUser('admin');
+    $adminB = staffUser('admin');
+
+    FirearmMake::create([
+        'name' => 'Pending Make',
+        'country' => 'ZA',
+        'is_active' => true,
+        'user_submitted' => true,
+        'is_approved' => false,
+    ]);
+
+    // Both admins see the badge, pulling the same cached value.
+    $sectionsA = SidebarMenu::sectionsFor($adminA, 'admin');
+    $sectionsB = SidebarMenu::sectionsFor($adminB, 'admin');
+    $approvalsA = collect($sectionsA)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'approvals.index');
+    $approvalsB = collect($sectionsB)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'approvals.index');
+
+    expect($approvalsA['badge'])->toBe(1)
+        ->and($approvalsB['badge'])->toBe(1)
+        // Keys collide → it's a shared cache entry, not two per-user entries.
+        ->and(Cache::has('sidebar:badge:pending_approvals'))->toBeTrue();
+});
+
+it('drops the pending-approvals badge cache when clearBadge is called', function () {
+    $admin = staffUser('admin');
+
+    FirearmMake::create([
+        'name' => 'Still Pending',
+        'country' => 'ZA',
+        'is_active' => true,
+        'user_submitted' => true,
+        'is_approved' => false,
+    ]);
+
+    SidebarMenu::sectionsFor($admin, 'admin');
+    expect(Cache::has('sidebar:badge:pending_approvals'))->toBeTrue();
+
+    SidebarMenu::clearBadge('pending_approvals');
+
+    expect(Cache::has('sidebar:badge:pending_approvals'))->toBeFalse();
+});
+
+it('drops the sidebar badge cache the moment an admin approves', function () {
+    $admin = staffUser('admin');
+
+    $make = FirearmMake::create([
+        'name' => 'Pending Make To Approve',
+        'country' => 'ZA',
+        'is_active' => true,
+        'user_submitted' => true,
+        'is_approved' => false,
+    ]);
+
+    // Warm the sidebar cache so the badge is sitting at "1".
+    SidebarMenu::sectionsFor($admin, 'admin');
+    expect(Cache::has('sidebar:badge:pending_approvals'))->toBeTrue();
+
+    // Approve through the real controller route — this must flush the cache
+    // so the next sidebar render shows "0" instead of the stale "1".
+    $this->actingAs($admin)
+        ->post(route('approvals.approve', ['type' => 'firearm-make', 'id' => $make->id]))
+        ->assertRedirect(route('approvals.index'));
+
+    expect(Cache::has('sidebar:badge:pending_approvals'))->toBeFalse();
+
+    // Recomputing confirms the badge is now null (0 pending collapses to null).
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $approvals = collect($sections)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'approvals.index');
+
+    expect($approvals['badge'])->toBeNull();
 });

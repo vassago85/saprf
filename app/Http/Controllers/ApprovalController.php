@@ -8,6 +8,7 @@ use App\Models\FirearmModel;
 use App\Models\OpticMake;
 use App\Models\OpticModel;
 use App\Models\Venue;
+use App\Navigation\SidebarMenu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,6 +40,11 @@ class ApprovalController extends Controller
             + $pendingOpticMakes->count()
             + $pendingOpticModels->count();
 
+        // Self-heal the sidebar badge: whatever an admin lands on this page
+        // with, we know the authoritative count right now. Dropping the cache
+        // guarantees the next sidebar render recomputes against this truth.
+        SidebarMenu::clearBadge('pending_approvals');
+
         return view('admin.approvals.index', compact(
             'pendingVenues',
             'pendingFirearmMakes',
@@ -56,6 +62,12 @@ class ApprovalController extends Controller
 
         $model->update(['is_approved' => true]);
 
+        // The sidebar caches the pending-approvals count for 60 seconds under
+        // a GLOBAL key (every admin shares it), so this one forget() makes the
+        // badge drop immediately on the next render instead of lingering while
+        // the page body already shows "All clear". See SidebarMenu::GLOBAL_BADGES.
+        SidebarMenu::clearBadge('pending_approvals');
+
         return redirect()->route('approvals.index')
             ->with('success', "'{$model->name}' approved.");
     }
@@ -66,6 +78,8 @@ class ApprovalController extends Controller
 
         $name = $model->name;
         $model->delete();
+
+        SidebarMenu::clearBadge('pending_approvals');
 
         return redirect()->route('approvals.index')
             ->with('success', "'{$name}' rejected and removed.");
