@@ -39,9 +39,6 @@ final class SidebarMenu
 
     public const SUPER_GOVERNANCE = 'Governance';
 
-    /** Collapsed-by-default admin groups (unless they own the active route). */
-    private const DEFAULT_COLLAPSED_ADMIN = ['exco', 'finance', 'reports', 'settings'];
-
     /** Badge counts are expensive — cache per user+key for 60s. */
     private const BADGE_TTL_SECONDS = 60;
 
@@ -620,7 +617,7 @@ final class SidebarMenu
                 'heading' => 'Competition',
                 'super_group' => null,
                 'contexts' => [self::CONTEXT_SHOOTER],
-                'expandable' => false,
+                'expandable' => true,
                 'items' => [
                     [
                         'id' => 'events',
@@ -663,7 +660,7 @@ final class SidebarMenu
                 'heading' => 'Me',
                 'super_group' => null,
                 'contexts' => [self::CONTEXT_SHOOTER],
-                'expandable' => false,
+                'expandable' => true,
                 'items' => [
                     [
                         'id' => 'my-membership',
@@ -705,7 +702,7 @@ final class SidebarMenu
                 'heading' => 'Kit',
                 'super_group' => null,
                 'contexts' => [self::CONTEXT_SHOOTER],
-                'expandable' => false,
+                'expandable' => true,
                 'items' => [
                     [
                         'id' => 'rifles',
@@ -752,7 +749,7 @@ final class SidebarMenu
                 'heading' => 'Federation',
                 'super_group' => null,
                 'contexts' => [self::CONTEXT_SHOOTER],
-                'expandable' => false,
+                'expandable' => true,
                 'items' => [
                     array_merge($rulesAndDocuments, ['contexts' => [self::CONTEXT_SHOOTER]]),
                     array_merge($inbox, ['contexts' => [self::CONTEXT_SHOOTER], 'label' => 'Inbox']),
@@ -823,18 +820,18 @@ final class SidebarMenu
 
             [$sectionBadge, $sectionBadgeColor] = self::aggregateSectionBadge($items);
 
-            $expandable = $section['expandable'] && $viewMode === self::CONTEXT_ADMIN;
-            $defaultOpen = ! in_array($section['key'], self::DEFAULT_COLLAPSED_ADMIN, true);
+            // Expandable groups start collapsed. The group that owns the
+            // active route is forced open below (and again in Alpine so a
+            // stale localStorage collapse can't hide the current page).
+            $expandable = (bool) $section['expandable'];
 
             $resolved[] = [
                 'key' => $section['key'],
                 'heading' => $section['heading'],
                 'super_group' => $section['super_group'] ?? null,
                 'expandable' => $expandable,
-                'default_open' => $defaultOpen,
-                'expanded' => ! $expandable
-                    || $sectionHasCurrent
-                    || $defaultOpen,
+                'default_open' => false,
+                'expanded' => ! $expandable || $sectionHasCurrent,
                 'has_current' => $sectionHasCurrent,
                 'badge' => $sectionBadge,
                 'badge_color' => $sectionBadgeColor,
@@ -850,20 +847,14 @@ final class SidebarMenu
             return $resolved;
         }
 
-        // The group that owns the active route is always open; collapsed-by-default
-        // groups return to their collapsed state unless they own the route.
+        // Only the group that owns the active route stays open; every other
+        // expandable group collapses so the sidebar starts tidy.
         return array_map(function (array $section) use ($activeSectionKey): array {
             if (! $section['expandable']) {
                 return $section;
             }
 
-            if ($section['key'] === $activeSectionKey) {
-                $section['expanded'] = true;
-
-                return $section;
-            }
-
-            $section['expanded'] = $section['default_open'];
+            $section['expanded'] = $section['key'] === $activeSectionKey;
 
             return $section;
         }, $resolved);

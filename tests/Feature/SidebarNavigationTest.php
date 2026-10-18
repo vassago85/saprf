@@ -183,9 +183,9 @@ it('expands the Settings group when a settings route is active', function () {
         ->and($settings['expanded'])->toBeTrue();
 });
 
-it('leaves ExCo, Finance, Reports, and Settings collapsed when the active route is elsewhere', function () {
+it('keeps every expandable group collapsed except the one that owns the active route', function () {
     // ExCo is gated to developer/exco/chair — developer sees everything so
-    // we can assert the four collapsed-by-default governance groups.
+    // we can assert the collapsed-by-default behaviour across the tree.
     $dev = staffUser('developer');
 
     $sections = SidebarMenu::sectionsFor($dev, 'admin', requestForRoute('matches.index'));
@@ -194,17 +194,44 @@ it('leaves ExCo, Finance, Reports, and Settings collapsed when the active route 
     $finance = collect($sections)->firstWhere('key', 'finance');
     $reports = collect($sections)->firstWhere('key', 'reports');
     $settings = collect($sections)->firstWhere('key', 'settings');
+    $members = collect($sections)->firstWhere('key', 'members');
     $competition = collect($sections)->firstWhere('key', 'competition_admin');
 
     expect($exco)->not->toBeNull()
         ->and($finance)->not->toBeNull()
         ->and($reports)->not->toBeNull()
         ->and($settings)->not->toBeNull()
+        ->and($members)->not->toBeNull()
         ->and($exco['expanded'])->toBeFalse()
         ->and($finance['expanded'])->toBeFalse()
         ->and($reports['expanded'])->toBeFalse()
         ->and($settings['expanded'])->toBeFalse()
+        ->and($members['expanded'])->toBeFalse()
         ->and($competition['expanded'])->toBeTrue();
+});
+
+it('starts shooter groups collapsed unless they own the active route', function () {
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $onDashboard = SidebarMenu::sectionsFor($member, 'shooter', requestForRoute('dashboard'));
+    $onEvents = SidebarMenu::sectionsFor($member, 'shooter', requestForRoute('events.index'));
+
+    $competitionOnDash = collect($onDashboard)->firstWhere('key', 'competition');
+    $meOnDash = collect($onDashboard)->firstWhere('key', 'me');
+    $kitOnDash = collect($onDashboard)->firstWhere('key', 'kit');
+    $federationOnDash = collect($onDashboard)->firstWhere('key', 'federation');
+
+    expect($competitionOnDash['expandable'])->toBeTrue()
+        ->and($competitionOnDash['expanded'])->toBeFalse()
+        ->and($meOnDash['expanded'])->toBeFalse()
+        ->and($kitOnDash['expanded'])->toBeFalse()
+        ->and($federationOnDash['expanded'])->toBeFalse();
+
+    $competitionOnEvents = collect($onEvents)->firstWhere('key', 'competition');
+
+    expect($competitionOnEvents['expanded'])->toBeTrue()
+        ->and(collect($onEvents)->firstWhere('key', 'me')['expanded'])->toBeFalse();
 });
 
 it('shows Kit and Load tools in shooter mode without any admin groups', function () {

@@ -136,7 +136,10 @@
 
             loadPersisted() {
                 try {
-                    const raw = localStorage.getItem(`saprf.sidebarGroups.${this.viewMode}`);
+                    // v2: groups default collapsed; bumping the key resets any
+                    // pre-v2 "everything open" preferences so the new default
+                    // actually shows up for returning users.
+                    const raw = localStorage.getItem(`saprf.sidebarGroups.v2.${this.viewMode}`);
                     return raw ? JSON.parse(raw) : {};
                 } catch (e) {
                     return {};
@@ -146,7 +149,7 @@
             persist() {
                 try {
                     localStorage.setItem(
-                        `saprf.sidebarGroups.${this.viewMode}`,
+                        `saprf.sidebarGroups.v2.${this.viewMode}`,
                         JSON.stringify(this.expanded),
                     );
                 } catch (e) {}
