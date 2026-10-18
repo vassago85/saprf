@@ -418,6 +418,66 @@ it('caches per-user badge counts for 60 seconds', function () {
     expect($comms['badge'])->toBe(1);
 });
 
+it('does not raise the My registrations badge for past or completed matches', function () {
+    $shooter = staffUser('member');
+    $province = \App\Models\Province::firstOrCreate(
+        ['abbreviation' => 'GP'],
+        ['name' => 'Gauteng', 'display_order' => 1]
+    );
+
+    $makeMatch = fn (string $name, string $date, string $status) => \App\Models\MatchEvent::create([
+        'name' => $name,
+        'match_type' => 'PRS',
+        'series_level' => 'provincial',
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $province->id,
+        'match_date' => $date,
+        'status' => $status,
+        'active_member_fee' => 500,
+        'non_member_fee' => 500,
+        'created_by' => $shooter->id,
+    ]);
+
+    // Past completed match the shooter never paid for — should NOT nag.
+    $past = $makeMatch('Yesterday Memorial', now()->subDays(3)->toDateString(), 'completed');
+    \App\Models\MatchRegistration::create([
+        'match_id' => $past->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => $shooter->name,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'registration_status' => 'confirmed',
+        'payment_status' => 'unpaid',
+    ]);
+
+    Cache::flush();
+    $sections = SidebarMenu::sectionsFor($shooter, 'shooter');
+    $competition = collect($sections)->firstWhere('key', 'competition');
+    $registrations = collect($competition['items'])->firstWhere('route', 'registrations.index');
+
+    expect($registrations['badge'])->toBeNull();
+
+    // Future unpaid registration — this one SHOULD nag.
+    $future = $makeMatch('Next Weekend Open', now()->addDays(7)->toDateString(), 'open');
+    \App\Models\MatchRegistration::create([
+        'match_id' => $future->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => $shooter->name,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'registration_status' => 'confirmed',
+        'payment_status' => 'unpaid',
+    ]);
+
+    Cache::flush();
+    $sections = SidebarMenu::sectionsFor($shooter, 'shooter');
+    $competition = collect($sections)->firstWhere('key', 'competition');
+    $registrations = collect($competition['items'])->firstWhere('route', 'registrations.index');
+
+    expect($registrations['badge'])->toBe(1);
+});
+
 it('keeps the old SidebarNavigation API functional as a shim', function () {
     $owner = staffUser('owner');
 

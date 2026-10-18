@@ -84,10 +84,9 @@
     <flux:sidebar sticky stashable class="border-r border-stone-200 bg-white !flex !flex-col !max-h-dvh lg:!h-dvh lg:transition-[width] lg:duration-200">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
-        <div class="sidebar-brand-row shrink-0 flex items-center gap-2 px-3 pt-2 pb-3">
+        <div class="sidebar-brand-row shrink-0 flex items-center gap-2 px-2 pt-2 pb-2">
             <a href="{{ url('/') }}" class="sidebar-brand block min-w-0 flex-1 overflow-hidden">
-                <div class="sidebar-brand-mark font-heading text-2xl font-bold italic tracking-tight text-emerald-700 leading-none">SAPRF</div>
-                <div class="sidebar-brand-tagline mt-1 text-[10px] font-semibold uppercase tracking-wide text-stone-500 leading-tight truncate">South African Precision Rifle Federation</div>
+                <img src="/saprf-logo-black-text.png" alt="SAPRF" class="h-9 w-auto max-w-full">
             </a>
             <button
                 type="button"

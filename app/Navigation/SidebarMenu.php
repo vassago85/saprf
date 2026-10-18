@@ -1035,10 +1035,17 @@ final class SidebarMenu
             'score_imports_pending' => (int) \DB::table('score_imports')
                 ->whereIn('import_status', ['pending', 'queued', 'failed'])
                 ->count(),
+            // Only count unpaid registrations for matches that are still live —
+            // past / completed / cancelled matches shouldn't keep nagging the
+            // shooter after the window to actually turn up has closed.
             'unpaid_registrations' => (int) MatchRegistration::query()
                 ->where('user_id', $user->id)
                 ->whereIn('registration_status', ['confirmed', 'waitlisted'])
                 ->whereNotIn('payment_status', ['paid', 'waived'])
+                ->whereHas('match', function ($q) {
+                    $q->whereDate('match_date', '>=', \Illuminate\Support\Carbon::today())
+                        ->whereNotIn('status', ['cancelled', 'completed']);
+                })
                 ->count(),
             'membership_attention' => self::membershipAttentionCount($user),
             default => 0,

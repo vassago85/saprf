@@ -160,16 +160,6 @@ html {
         object-position: left center;
     }
 
-    /* Wordmark brand: shrink to just "SAPRF" and hide the tagline when the
-       sidebar is reduced to the icon rail. */
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand-mark {
-        font-size: 1rem;
-        text-align: center;
-    }
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-brand-tagline {
-        display: none !important;
-    }
-
     /* Hide every text-y thing in the collapsed rail. */
     body[data-sidebar-collapsed] [data-flux-sidebar] [data-content],
     body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-section-heading,
