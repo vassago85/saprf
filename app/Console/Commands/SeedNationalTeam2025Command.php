@@ -162,6 +162,11 @@ class SeedNationalTeam2025Command extends Command
         // Aliza / Eliza Mey spelling difference — same person as the
         // 2026 Centrefire Ladies main-squad row.
         'Aliza Mey' => '427',
+
+        // Two users share the name "Zenique De Klerk" — the paid Gauteng
+        // member (#1229) and a managed shell auto-created from a match
+        // entry. Pin the real one.
+        'Zenique De Klerk' => '1229',
     ];
 
     public function handle(): int
