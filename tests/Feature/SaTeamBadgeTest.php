@@ -458,32 +458,27 @@ it('saprf:seed-national-team-2025 --dry-run reports the plan without inserting r
 });
 
 it('saprf:seed-national-team-2025 creates one appearance per roster row and never awards colours', function () {
-    // Seed every roster + reserve name — a single user per entry so
-    // resolution is trivially unambiguous. Names match the official
-    // SAPRF/IPRF 2025 infographic.
+    // Seed every roster name — a single user per entry so resolution is
+    // trivially unambiguous. Names match the official SAPRF/IPRF 2025
+    // infographic (21 shooters; Greg Sykes was NOT on the 2025 team even
+    // though the earlier Facebook post implied he was).
     foreach ([
-        // Shooting squad (22)
         'Willem Van Biljon', 'Warren Britnell', 'Malcolm Coetzee',
         'Kevin Goncalves', 'Henna du Plessis', 'Jason Marais',
         'Kim-Leigh Ferreira', 'Jeanette Coetzee', 'Liezel Foot', 'Diana Zoccola',
         'Desmond Wellen', 'Russell Ferreira', 'Dumisani Shabangu', 'Hanno Van Niekerk',
-        'Greg Sykes', 'Glen Clark', 'Le Riche Coetzer', 'Andries Lategan',
+        'Glen Clark', 'Le Riche Coetzer', 'Andries Lategan',
         'Tinus Cronje', 'Zenique De Klerk', 'Johan Symington', 'Luane Fick',
-        // Reserves (5)
-        'Anthony Barraball', 'Aliza Mey', 'Catelynn Britnell',
-        'Heinrich Strauss', 'Handre van Niekerk',
     ] as $name) {
         User::factory()->create(['name' => $name]);
     }
 
     $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
 
-    // 27 total rows — 22 shooters + 5 reserves.
-    $count = NationalTeamAppearance::where('year', 2025)->count();
-    expect($count)->toBe(27);
-
-    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'shooter')->count())->toBe(22);
-    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'reserve')->count())->toBe(5);
+    // 21 shooter rows, zero reserves.
+    expect(NationalTeamAppearance::where('year', 2025)->count())->toBe(21);
+    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'shooter')->count())->toBe(21);
+    expect(NationalTeamAppearance::where('year', 2025)->where('role', 'reserve')->count())->toBe(0);
 
     // Protea Colours deliberately left to Exco — zero rows should have
     // been promoted by the seeder itself.
@@ -504,22 +499,15 @@ it('saprf:seed-national-team-2025 creates one appearance per roster row and neve
     expect($team->ends_on->toDateString())->toBe('2025-08-24');
 });
 
-it('saprf:seed-national-team-2025 creates reserves with role=reserve and the correct division', function () {
-    $anthony = User::factory()->create(['name' => 'Anthony Barraball']);
-    $catelynn = User::factory()->create(['name' => 'Catelynn Britnell']);
+it('saprf:seed-national-team-2025 does not insert a row for Greg Sykes (he was not on the 2025 team)', function () {
+    // Guard against the roster regressing: Greg went in 2022 and 2024
+    // but not 2025. Even if a user named "Greg Sykes" exists, the 2025
+    // seeder must leave him alone.
+    $greg = User::factory()->create(['name' => 'Greg Sykes']);
 
     $this->artisan('saprf:seed-national-team-2025')->assertExitCode(0);
 
-    $anthonyRow = NationalTeamAppearance::where('user_id', $anthony->id)->first();
-    expect($anthonyRow)->not->toBeNull();
-    expect($anthonyRow->role)->toBe(NationalTeamAppearance::ROLE_RESERVE);
-    expect($anthonyRow->division_label)->toBe('Open');
-    expect($anthonyRow->awarded_colours)->toBeFalse();
-
-    $catelynnRow = NationalTeamAppearance::where('user_id', $catelynn->id)->first();
-    expect($catelynnRow)->not->toBeNull();
-    expect($catelynnRow->role)->toBe(NationalTeamAppearance::ROLE_RESERVE);
-    expect($catelynnRow->division_label)->toBe('Juniors');
+    expect(NationalTeamAppearance::where('user_id', $greg->id)->where('year', 2025)->count())->toBe(0);
 });
 
 it('saprf:seed-national-team-2025 is idempotent across repeated runs', function () {

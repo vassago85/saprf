@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\DB;
  * national_team_appearances table.
  *
  * Championship context — Great Britain Precision Rifle Association (GBPRA),
- * West Midlands Shooting Centre, United Kingdom, 17–24 August 2025. 22
- * shooters across five divisions (Open, Ladies, Factory, Seniors, Juniors).
+ * West Midlands Shooting Centre, United Kingdom, 17–24 August 2025. 21
+ * shooters across five divisions (Open 6, Ladies 4, Factory 4, Seniors 3,
+ * Juniors 4).
  *
  * Source roster: the official Team South Africa infographic published by
  * SAPRF/IPRF (dates, venue, divisions, full first names) cross-referenced
@@ -25,6 +26,14 @@ use Illuminate\Support\Facades\DB;
  * 2025. Where the two disagree, the infographic wins (e.g. "Desmond Wellen"
  * not "Des", "Luane Fick" not "Luané", "Le Riche Coetzer" not "Le Riche
  * Coetzer Snr", "Glen Clark" not "Glen M Clark").
+ *
+ * Earlier revisions of this seeder included Greg Sykes in Seniors and five
+ * reserves (Anthony Barraball, Aliza Mey, Catelynn Britnell, Heinrich
+ * Strauss, Handre van Niekerk). Those entries were removed on Exco
+ * confirmation that Greg didn't travel to the UK in 2025 (he was on the
+ * 2022 and 2024 teams) and the published 2025 reserves aren't counted
+ * as team appearances. The ROLE_RESERVE enum value stays in place so
+ * future years can use it — this just removes the 2025 roster rows.
  *
  * Mirrors SeedNationalTeam2026Command (the Centrefire Worlds seeder) in
  * every structural respect — same resolution order, same idempotency
@@ -106,8 +115,8 @@ class SeedNationalTeam2025Command extends Command
         ['name' => 'Dumisani Shabangu',     'division_slug' => 'factory', 'division_label' => 'Factory'],
         ['name' => 'Hanno Van Niekerk',     'division_slug' => 'factory', 'division_label' => 'Factory'],
 
-        // Seniors division (4)
-        ['name' => 'Greg Sykes',            'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        // Seniors division (3) — Greg Sykes removed per Exco: he was on
+        // the 2022 and 2024 Protea teams but did not travel in 2025.
         ['name' => 'Glen Clark',            'division_slug' => 'senior',  'division_label' => 'Seniors'],
         ['name' => 'Le Riche Coetzer',      'division_slug' => 'senior',  'division_label' => 'Seniors'],
         ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors'],
@@ -117,26 +126,6 @@ class SeedNationalTeam2025Command extends Command
         ['name' => 'Zenique De Klerk',      'division_slug' => 'junior',  'division_label' => 'Juniors'],
         ['name' => 'Johan Symington',       'division_slug' => 'junior',  'division_label' => 'Juniors'],
         ['name' => 'Luane Fick',            'division_slug' => 'junior',  'division_label' => 'Juniors'],
-    ];
-
-    /**
-     * Reserves — named on the official SAPRF/IPRF infographic but not
-     * part of the shooting squad. They render in a dedicated Reserves
-     * strip beneath the main division cards on /sa-team/2025, and are
-     * excluded from the "22 shooters" squad-size stat and from Protea
-     * Colours (enforced by NationalTeamAppearanceController).
-     *
-     * Aliza Mey has a known SAPRF-roll spelling difference ("Aliza" in
-     * SAPRF, "Eliza" in some press copy) — pinned by SAPRF #427 so the
-     * 2025 reserve row resolves to the same person as the 2026
-     * Centrefire Ladies main-squad row.
-     */
-    private const RESERVES = [
-        ['name' => 'Anthony Barraball',  'division_slug' => 'open',    'division_label' => 'Open'],
-        ['name' => 'Aliza Mey',          'division_slug' => 'ladies',  'division_label' => 'Ladies'],
-        ['name' => 'Catelynn Britnell',  'division_slug' => 'junior',  'division_label' => 'Juniors'],
-        ['name' => 'Heinrich Strauss',   'division_slug' => 'senior',  'division_label' => 'Seniors'],
-        ['name' => 'Handre van Niekerk', 'division_slug' => 'factory', 'division_label' => 'Factory'],
     ];
 
     /**
@@ -158,10 +147,6 @@ class SeedNationalTeam2025Command extends Command
         // member (#1083) and a managed shell account auto-created from
         // a match entry. Pin the real one.
         'Tinus Cronje' => '1083',
-
-        // Aliza / Eliza Mey spelling difference — same person as the
-        // 2026 Centrefire Ladies main-squad row.
-        'Aliza Mey' => '427',
 
         // Two users share the name "Zenique De Klerk" — the paid Gauteng
         // member (#1229) and a managed shell auto-created from a match
@@ -220,8 +205,7 @@ class SeedNationalTeam2025Command extends Command
         });
 
         $report = [
-            'created_shooters' => 0,
-            'created_reserves' => 0,
+            'created' => 0,
             'already_present' => 0,
             'ambiguous' => [],
             'unresolved' => [],
@@ -230,35 +214,76 @@ class SeedNationalTeam2025Command extends Command
         $tx = $dryRun ? null : DB::beginTransaction();
 
         try {
-            $this->line('— Shooting squad —');
             foreach (self::ROSTER as $entry) {
-                $this->processEntry(
-                    entry: $entry,
-                    role: NationalTeamAppearance::ROLE_SHOOTER,
-                    team: $team,
-                    divisionsBySlug: $divisionsBySlug,
-                    usersByStrict: $usersByStrict,
-                    usersByLoose: $usersByLoose,
-                    recordedBy: $recordedBy,
-                    dryRun: $dryRun,
-                    report: $report,
-                );
-            }
+                $resolution = $this->resolveShooter($entry['name'], $usersByStrict, $usersByLoose);
 
-            $this->newLine();
-            $this->line('— Reserves —');
-            foreach (self::RESERVES as $entry) {
-                $this->processEntry(
-                    entry: $entry,
-                    role: NationalTeamAppearance::ROLE_RESERVE,
-                    team: $team,
-                    divisionsBySlug: $divisionsBySlug,
-                    usersByStrict: $usersByStrict,
-                    usersByLoose: $usersByLoose,
-                    recordedBy: $recordedBy,
-                    dryRun: $dryRun,
-                    report: $report,
-                );
+                if ($resolution['status'] === 'unresolved') {
+                    $report['unresolved'][] = $entry['name'];
+                    $this->warn("  UNRESOLVED  {$entry['name']} — no matching user");
+                    continue;
+                }
+
+                if ($resolution['status'] === 'ambiguous') {
+                    $report['ambiguous'][] = [
+                        'name' => $entry['name'],
+                        'matches' => $resolution['matches'],
+                    ];
+                    $this->warn("  AMBIGUOUS   {$entry['name']} — ".count($resolution['matches']).' candidate users; add SAPRF hint');
+                    foreach ($resolution['matches'] as $candidate) {
+                        $saprf = $candidate->membership?->saprf_number ?? '—';
+                        $this->line("                → user id={$candidate->id}  SAPRF={$saprf}  email={$candidate->email}");
+                    }
+                    continue;
+                }
+
+                $user = $resolution['user'];
+
+                // Idempotency guard — a row keyed on
+                // (user, year, championship) already exists.
+                $existing = NationalTeamAppearance::query()
+                    ->where('user_id', $user->id)
+                    ->where('year', self::YEAR)
+                    ->where('championship_name', self::CHAMPIONSHIP)
+                    ->first();
+
+                if ($existing !== null) {
+                    $report['already_present']++;
+                    $this->line("  SKIP        {$entry['name']} — appearance already recorded (id={$existing->id})");
+                    continue;
+                }
+
+                $divisionId = $entry['division_slug']
+                    ? $divisionsBySlug->get($entry['division_slug'])?->id
+                    : null;
+
+                $this->line(sprintf(
+                    '  CREATE      %-28s  div=%-8s',
+                    $entry['name'],
+                    $entry['division_label'],
+                ));
+
+                if (! $dryRun) {
+                    NationalTeamAppearance::create([
+                        'user_id' => $user->id,
+                        'year' => self::YEAR,
+                        'division_id' => $divisionId,
+                        'division_label' => $entry['division_label'],
+                        'role' => NationalTeamAppearance::ROLE_SHOOTER,
+                        'national_team_id' => $team->id,
+                        'championship_name' => self::CHAMPIONSHIP,
+                        'host_country' => self::HOST_COUNTRY,
+                        'placing' => null,
+                        'selection_cycle_id' => null,
+                        // Protea Colours intentionally NOT awarded here —
+                        // Exco awards them separately via the admin UI.
+                        'awarded_colours' => false,
+                        'appeared_at' => Carbon::parse(self::APPEARED_AT),
+                        'recorded_by' => $recordedBy,
+                        'notes' => null,
+                    ]);
+                }
+
+                $report['created']++;
             }
 
             if (! $dryRun) {
@@ -275,8 +300,7 @@ class SeedNationalTeam2025Command extends Command
 
         $this->newLine();
         $this->info('--- Summary ---');
-        $this->line('Shooters created:   '.$report['created_shooters']);
-        $this->line('Reserves created:   '.$report['created_reserves']);
+        $this->line('Created:            '.$report['created']);
         $this->line('Already present:    '.$report['already_present']);
         $this->line('Unresolved names:   '.count($report['unresolved']));
         $this->line('Ambiguous names:    '.count($report['ambiguous']));
@@ -306,106 +330,6 @@ class SeedNationalTeam2025Command extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Resolve one roster/reserve entry, apply the idempotency guard, and
-     * create the appearance row (unless dry-run). Mutates $report in-place.
-     *
-     * @param  array{name: string, division_slug: string|null, division_label: string}  $entry
-     * @param  array<string, array<int, User>>  $usersByStrict
-     * @param  array<string, array<int, User>>  $usersByLoose
-     * @param  array{created_shooters:int, created_reserves:int, already_present:int, ambiguous:array, unresolved:array}  $report
-     */
-    private function processEntry(
-        array $entry,
-        string $role,
-        NationalTeam $team,
-        \Illuminate\Support\Collection $divisionsBySlug,
-        array $usersByStrict,
-        array $usersByLoose,
-        ?int $recordedBy,
-        bool $dryRun,
-        array &$report,
-    ): void {
-        $resolution = $this->resolveShooter($entry['name'], $usersByStrict, $usersByLoose);
-
-        if ($resolution['status'] === 'unresolved') {
-            $report['unresolved'][] = $entry['name'];
-            $this->warn("  UNRESOLVED  {$entry['name']} — no matching user");
-            return;
-        }
-
-        if ($resolution['status'] === 'ambiguous') {
-            $report['ambiguous'][] = [
-                'name' => $entry['name'],
-                'matches' => $resolution['matches'],
-            ];
-            $this->warn("  AMBIGUOUS   {$entry['name']} — ".count($resolution['matches']).' candidate users; add SAPRF hint');
-            foreach ($resolution['matches'] as $candidate) {
-                $saprf = $candidate->membership?->saprf_number ?? '—';
-                $this->line("                → user id={$candidate->id}  SAPRF={$saprf}  email={$candidate->email}");
-            }
-            return;
-        }
-
-        $user = $resolution['user'];
-
-        // Idempotency guard — a row keyed on (user, year, championship)
-        // already exists. We DON'T upgrade an existing shooter row to a
-        // reserve role (that would be a semantic downgrade); likewise
-        // we don't downgrade reserve to shooter. Both are left as-is
-        // and reported so the operator can resolve mismatches manually.
-        $existing = NationalTeamAppearance::query()
-            ->where('user_id', $user->id)
-            ->where('year', self::YEAR)
-            ->where('championship_name', self::CHAMPIONSHIP)
-            ->first();
-
-        if ($existing !== null) {
-            $report['already_present']++;
-            $this->line("  SKIP        {$entry['name']} — appearance already recorded (id={$existing->id}, role={$existing->role})");
-            return;
-        }
-
-        $divisionId = $entry['division_slug']
-            ? $divisionsBySlug->get($entry['division_slug'])?->id
-            : null;
-
-        $this->line(sprintf(
-            '  CREATE %-7s %-28s  div=%-8s',
-            strtoupper($role),
-            $entry['name'],
-            $entry['division_label'],
-        ));
-
-        if (! $dryRun) {
-            NationalTeamAppearance::create([
-                'user_id' => $user->id,
-                'year' => self::YEAR,
-                'division_id' => $divisionId,
-                'division_label' => $entry['division_label'],
-                'role' => $role,
-                'national_team_id' => $team->id,
-                'championship_name' => self::CHAMPIONSHIP,
-                'host_country' => self::HOST_COUNTRY,
-                'placing' => null,
-                'selection_cycle_id' => null,
-                // Protea Colours intentionally NOT awarded by this seeder —
-                // Exco awards them separately via the admin UI. Reserves
-                // never get Colours anyway (enforced by the admin controller).
-                'awarded_colours' => false,
-                'appeared_at' => Carbon::parse(self::APPEARED_AT),
-                'recorded_by' => $recordedBy,
-                'notes' => null,
-            ]);
-        }
-
-        if ($role === NationalTeamAppearance::ROLE_RESERVE) {
-            $report['created_reserves']++;
-        } else {
-            $report['created_shooters']++;
-        }
     }
 
     /**
