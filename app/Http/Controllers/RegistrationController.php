@@ -42,6 +42,10 @@ class RegistrationController extends Controller
         $matchId = $request->integer('match_id') ?: null;
         $match = $matchId ? MatchEvent::find($matchId) : null;
 
+        $paymentStatus = $request->string('payment_status')->toString();
+        $registrationStatus = $request->string('registration_status')->toString();
+        $search = trim($request->string('search')->toString());
+
         if ($match) {
             // Public entry list for a single match — everyone can see who has
             // registered. Cancelled/withdrawn entries are hidden.
@@ -52,7 +56,26 @@ class RegistrationController extends Controller
                 ->paginate(50)
                 ->withQueryString();
         } elseif ($isPrivileged) {
-            $registrations = MatchRegistration::query()->with(['match', 'user', 'division'])->latest()->paginate(20);
+            $query = MatchRegistration::query()->with(['match', 'user', 'division']);
+
+            if ($paymentStatus !== '') {
+                $query->where('payment_status', $paymentStatus);
+            }
+
+            if ($registrationStatus !== '') {
+                $query->where('registration_status', $registrationStatus);
+            }
+
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('shooter_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%"));
+                });
+            }
+
+            $registrations = $query->latest()->paginate(20)->withQueryString();
         } else {
             $registrations = $user->matchRegistrations()->with(['match', 'user', 'division'])->latest()->paginate(20);
         }
@@ -61,7 +84,30 @@ class RegistrationController extends Controller
         // itself (names + category + status) is visible to everyone.
         $canViewFinancials = $isPrivileged;
 
-        return view('registrations.index', compact('registrations', 'match', 'canViewFinancials', 'isPrivileged'));
+        // Only privileged admin-mode users see the filter bar.
+        $showFilters = $isPrivileged && ! $match;
+
+        // Match dropdown for the filter bar — recent matches first so the
+        // list stays short even once we've built up years of entries.
+        $matchOptions = $showFilters
+            ? MatchEvent::query()->orderByDesc('match_date')->limit(100)->get(['id', 'name', 'match_date'])
+            : collect();
+
+        $filters = [
+            'payment_status' => $paymentStatus,
+            'registration_status' => $registrationStatus,
+            'search' => $search,
+        ];
+
+        return view('registrations.index', compact(
+            'registrations',
+            'match',
+            'canViewFinancials',
+            'isPrivileged',
+            'showFilters',
+            'matchOptions',
+            'filters',
+        ));
     }
 
     public function store(StoreRegistrationRequest $request): RedirectResponse

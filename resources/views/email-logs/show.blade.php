@@ -116,54 +116,54 @@
                 <dl class="mt-3 space-y-2 text-sm">
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Queued</dt>
-                        <dd class="text-stone-900">{{ $log->created_at->format('d M Y H:i:s') }}</dd>
+                        <dd class="text-stone-900">{{ datetime_short($log->created_at) }}</dd>
                     </div>
                     @if ($log->sent_at)
                         <div class="flex justify-between">
                             <dt class="text-stone-500">Sent to Mailgun</dt>
-                            <dd class="text-stone-900">{{ $log->sent_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-stone-900">{{ datetime_short($log->sent_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->delivered_at)
                         <div class="flex justify-between">
                             <dt class="text-emerald-700 font-semibold">Delivered</dt>
-                            <dd class="text-emerald-800">{{ $log->delivered_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-emerald-800">{{ datetime_short($log->delivered_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->opened_at)
                         <div class="flex justify-between">
                             <dt class="text-stone-500">Opened</dt>
-                            <dd class="text-stone-900">{{ $log->opened_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-stone-900">{{ datetime_short($log->opened_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->clicked_at)
                         <div class="flex justify-between">
                             <dt class="text-stone-500">Link clicked</dt>
-                            <dd class="text-stone-900">{{ $log->clicked_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-stone-900">{{ datetime_short($log->clicked_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->failed_at)
                         <div class="flex justify-between">
                             <dt class="text-amber-700 font-semibold">Failed</dt>
-                            <dd class="text-amber-800">{{ $log->failed_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-amber-800">{{ datetime_short($log->failed_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->bounced_at)
                         <div class="flex justify-between">
                             <dt class="text-rose-700 font-semibold">Bounced</dt>
-                            <dd class="text-rose-800">{{ $log->bounced_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-rose-800">{{ datetime_short($log->bounced_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->complained_at)
                         <div class="flex justify-between">
                             <dt class="text-rose-700 font-semibold">Spam complaint</dt>
-                            <dd class="text-rose-800">{{ $log->complained_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-rose-800">{{ datetime_short($log->complained_at) }}</dd>
                         </div>
                     @endif
                     @if ($log->status === \App\Models\EmailLog::STATUS_DISMISSED)
                         <div class="flex justify-between">
                             <dt class="text-stone-500 font-semibold">Marked complete</dt>
-                            <dd class="text-stone-700">{{ $log->updated_at->format('d M Y H:i:s') }}</dd>
+                            <dd class="text-stone-700">{{ datetime_short($log->updated_at) }}</dd>
                         </div>
                     @endif
                 </dl>

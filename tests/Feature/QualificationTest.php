@@ -25,7 +25,12 @@ beforeEach(function () {
     $this->service = app(QualificationService::class);
 });
 
-test('qualification status when no rule exists returns 0 required', function () {
+test('qualification status when no rule exists means no requirement and the shooter qualifies', function () {
+    // Historically this test asserted "qualified = false" when the rule row
+    // was missing, which read on the selection report as "0 of 0 — Not yet"
+    // for every shooter even though no out-of-province gate had been
+    // configured. The service now treats missing / zero as "no OOP
+    // requirement" so the report doesn't lie about who's actually eligible.
     $user = User::factory()->create([
         'province_id' => Province::where('abbreviation', 'GP')->first()->id,
     ]);
@@ -33,7 +38,29 @@ test('qualification status when no rule exists returns 0 required', function () 
     $result = $this->service->getQualificationStatus($user, 'PRS', '2026');
 
     expect($result['required'])->toBe(0)
-        ->and($result['qualified'])->toBeFalse()
+        ->and($result['qualified'])->toBeTrue()
+        ->and($result['remaining'])->toBe(0);
+});
+
+test('qualification status with zero-min rule qualifies every shooter', function () {
+    $owner = User::factory()->create();
+
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'min_out_of_province_matches' => 0,
+        'created_by' => $owner->id,
+    ]);
+
+    $user = User::factory()->create([
+        'province_id' => Province::where('abbreviation', 'GP')->first()->id,
+    ]);
+
+    $result = $this->service->getQualificationStatus($user, 'PRS', '2026');
+
+    expect($result['required'])->toBe(0)
+        ->and($result['completed'])->toBe(0)
+        ->and($result['qualified'])->toBeTrue()
         ->and($result['remaining'])->toBe(0);
 });
 

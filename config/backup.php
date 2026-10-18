@@ -251,9 +251,15 @@ return [
         'notifiable' => Notifiable::class,
 
         'mail' => [
-            // Placeholder so the package boots. AppServiceProvider replaces this
-            // with the site-settings inbox, or turns backup mail off.
-            'to' => env('BACKUP_NOTIFICATION_EMAIL', 'your@example.com'),
+            // Fallback recipient used only if BackupNotificationAddress has
+            // not yet overridden it at runtime (early boot, queued worker
+            // picking up a job before AppServiceProvider finished, etc.).
+            // Must NOT be `your@example.com` — that's the published Spatie
+            // placeholder that silently bounces into Mailgun's rejection
+            // queue and shows up on the Email Logs page as a mystery.
+            // AppServiceProvider::boot() replaces this with the site
+            // setting first, env fallback second, then this value.
+            'to' => env('BACKUP_NOTIFICATION_EMAIL', 'paul@charsley.co.za'),
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),

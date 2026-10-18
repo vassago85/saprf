@@ -24,7 +24,6 @@
                         <option value="expired" @selected(request('status') === 'expired')>Expired / Inactive</option>
                     </select>
                 </div>
-                <button type="submit" class="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">Filter</button>
         </x-filter-bar>
 
         <x-admin-table>

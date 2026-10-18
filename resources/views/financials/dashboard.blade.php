@@ -1,8 +1,8 @@
-<x-layouts.app :title="'Financial Dashboard - SAPRF'">
+<x-layouts.app :title="'Overview - SAPRF'">
     <div class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Financial Dashboard</h1>
+                <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight">Overview</h1>
                 <p class="mt-1 text-sm text-stone-500">Platform-wide revenue, fees, and payout overview.</p>
             </div>
             <div class="flex gap-2">
@@ -102,12 +102,12 @@
             </div>
             <div class="rounded-xl border border-red-200 bg-red-50 shadow-sm p-5">
                 <p class="text-xs font-medium text-red-700 uppercase tracking-wide">Platform Expenses</p>
-                <p class="mt-1 text-2xl font-bold text-red-800">R{{ number_format($summary['platform_expenses']['total'], 2) }}</p>
+                <p class="mt-1 text-2xl font-bold text-red-800">{{ money($summary['platform_expenses']['total']) }}</p>
                 <p class="mt-1 text-xs text-red-600">{{ $summary['platform_expenses']['count'] }} items</p>
             </div>
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm p-5">
                 <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Net After Expenses</p>
-                <p class="mt-1 text-2xl font-bold {{ $summary['net_after_expenses'] >= 0 ? 'text-emerald-800' : 'text-red-700' }}">R{{ number_format($summary['net_after_expenses'], 2) }}</p>
+                <p class="mt-1 text-2xl font-bold {{ $summary['net_after_expenses'] >= 0 ? 'text-emerald-800' : 'text-red-700' }}">{{ money($summary['net_after_expenses']) }}</p>
                 <p class="mt-1 text-xs text-emerald-600">Bottom line</p>
             </div>
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-5">
@@ -144,7 +144,7 @@
             <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
                     <dt class="text-xs uppercase text-stone-500">This Month ({{ now()->format('M Y') }})</dt>
-                    <dd class="mt-1 text-xl font-bold text-stone-900">R{{ number_format($mtdPreview['platform_fees'], 2) }}</dd>
+                    <dd class="mt-1 text-xl font-bold text-stone-900">{{ money($mtdPreview['platform_fees']) }}</dd>
                     <dd class="text-xs text-stone-500">{{ $mtdPreview['entry_count'] }} paid registrations so far</dd>
                 </div>
                 @php
@@ -153,14 +153,14 @@
                 @endphp
                 <div class="rounded-lg border {{ $unsettledCount > 0 ? 'border-amber-200 bg-amber-50' : 'border-stone-200 bg-stone-50' }} p-4">
                     <dt class="text-xs uppercase {{ $unsettledCount > 0 ? 'text-amber-700' : 'text-stone-500' }}">Unsettled (past months)</dt>
-                    <dd class="mt-1 text-xl font-bold {{ $unsettledCount > 0 ? 'text-amber-900' : 'text-stone-900' }}">R{{ number_format($unsettledTotal, 2) }}</dd>
+                    <dd class="mt-1 text-xl font-bold {{ $unsettledCount > 0 ? 'text-amber-900' : 'text-stone-900' }}">{{ money($unsettledTotal) }}</dd>
                     <dd class="text-xs {{ $unsettledCount > 0 ? 'text-amber-700' : 'text-stone-500' }}">
                         {{ $unsettledCount }} {{ Str::plural('month', $unsettledCount) }} outstanding
                     </dd>
                 </div>
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                     <dt class="text-xs uppercase text-emerald-700">Total Platform Fees (Filter)</dt>
-                    <dd class="mt-1 text-xl font-bold text-emerald-900">R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
+                    <dd class="mt-1 text-xl font-bold text-emerald-900">{{ money($summary['match_revenue']['platform_fees']) }}</dd>
                     <dd class="text-xs text-emerald-700">In the selected date range</dd>
                 </div>
             </dl>
@@ -174,7 +174,7 @@
                         <a href="{{ route('financials.payouts.platform.create', ['month' => $unsettled['month']->format('Y-m')]) }}"
                            class="inline-flex items-center gap-1 rounded-full bg-white border border-amber-300 px-3 py-1 text-amber-900 hover:bg-amber-100 transition">
                             {{ $unsettled['month']->format('M Y') }}
-                            <span class="text-amber-700">R{{ number_format($unsettled['platform_fees'], 0) }}</span>
+                            <span class="text-amber-700">{{ money($unsettled['platform_fees'], false) }}</span>
                         </a>
                     </li>
                     @endforeach
@@ -197,38 +197,38 @@
                     </div>
                     <div class="flex justify-between border-t border-stone-100 pt-2">
                         <dt class="text-stone-600">Gross Revenue</dt>
-                        <dd class="font-semibold">R{{ number_format($summary['match_revenue']['gross'], 2) }}</dd>
+                        <dd class="font-semibold">{{ money($summary['match_revenue']['gross']) }}</dd>
                     </div>
                     @php
                         $platformFeeType = $settings['platform_fee_type'] ?? 'fixed';
                         $platformFeeValue = (float) ($settings['platform_fee_value'] ?? 0);
                         $platformFeeRateLabel = $platformFeeType === 'fixed'
-                            ? 'R' . number_format($platformFeeValue, 2) . ' / shooter'
+                            ? money($platformFeeValue) . ' / shooter'
                             : rtrim(rtrim(number_format($platformFeeValue, 2), '0'), '.') . '%';
                     @endphp
                     <div class="flex justify-between">
                         <dt class="text-stone-500">SAPRF Fees</dt>
-                        <dd class="text-emerald-600">+R{{ number_format($summary['match_revenue']['saprf_fees'], 2) }}</dd>
+                        <dd class="text-emerald-600">+{{ money($summary['match_revenue']['saprf_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Surcharges (to SAPRF)</dt>
-                        <dd class="text-emerald-600">+R{{ number_format($summary['match_revenue']['surcharges'], 2) }}</dd>
+                        <dd class="text-emerald-600">+{{ money($summary['match_revenue']['surcharges']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Platform Fees ({{ $platformFeeRateLabel }})</dt>
-                        <dd class="text-stone-600">R{{ number_format($summary['match_revenue']['platform_fees'], 2) }}</dd>
+                        <dd class="text-stone-600">{{ money($summary['match_revenue']['platform_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Gateway Fees</dt>
-                        <dd class="text-red-600">-R{{ number_format($summary['match_revenue']['gateway_fees'], 2) }}</dd>
+                        <dd class="text-red-600">-{{ money($summary['match_revenue']['gateway_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-emerald-800">SAPRF from matches</dt>
-                        <dd class="font-bold text-emerald-800">R{{ number_format($summary['match_revenue']['saprf_fees'] + $summary['match_revenue']['surcharges'], 2) }}</dd>
+                        <dd class="font-bold text-emerald-800">{{ money($summary['match_revenue']['saprf_fees'] + $summary['match_revenue']['surcharges']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="font-semibold text-stone-700">Net to MDs</dt>
-                        <dd class="font-bold text-stone-900">R{{ number_format($summary['match_revenue']['md_net'], 2) }}</dd>
+                        <dd class="font-bold text-stone-900">{{ money($summary['match_revenue']['md_net']) }}</dd>
                     </div>
                 </dl>
             </div>
@@ -243,19 +243,19 @@
                     </div>
                     <div class="flex justify-between border-t border-stone-100 pt-2">
                         <dt class="text-stone-600">Gross Revenue</dt>
-                        <dd class="font-semibold">R{{ number_format($summary['membership_revenue']['gross'], 2) }}</dd>
+                        <dd class="font-semibold">{{ money($summary['membership_revenue']['gross']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Platform Cost ({{ $settings['membership_platform_fee_pct'] ?? '2.5' }}%)</dt>
-                        <dd class="text-orange-600">-R{{ number_format($summary['membership_revenue']['platform_cost'], 2) }}</dd>
+                        <dd class="text-orange-600">-{{ money($summary['membership_revenue']['platform_cost']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Est. Gateway Fees</dt>
-                        <dd class="text-red-600">-R{{ number_format($summary['membership_revenue']['gateway_fees'], 2) }}</dd>
+                        <dd class="text-red-600">-{{ money($summary['membership_revenue']['gateway_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-stone-700">Net to SAPRF</dt>
-                        <dd class="font-bold text-emerald-700">R{{ number_format($summary['membership_revenue']['net_to_saprf'], 2) }}</dd>
+                        <dd class="font-bold text-emerald-700">{{ money($summary['membership_revenue']['net_to_saprf']) }}</dd>
                     </div>
                 </dl>
             </div>
@@ -273,12 +273,12 @@
                     @foreach($summary['other_income']['by_category'] as $cat => $amount)
                     <div class="flex justify-between">
                         <dt class="text-stone-600">{{ \App\Models\PlatformIncome::CATEGORIES[$cat] ?? ucfirst($cat) }}</dt>
-                        <dd class="font-semibold text-emerald-700">R{{ number_format($amount, 2) }}</dd>
+                        <dd class="font-semibold text-emerald-700">{{ money($amount) }}</dd>
                     </div>
                     @endforeach
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-stone-700">Total</dt>
-                        <dd class="font-bold text-emerald-800">R{{ number_format($summary['other_income']['total'], 2) }}</dd>
+                        <dd class="font-bold text-emerald-800">{{ money($summary['other_income']['total']) }}</dd>
                     </div>
                 </dl>
                 @else
@@ -296,12 +296,12 @@
                     @foreach($summary['platform_expenses']['by_category'] as $cat => $amount)
                     <div class="flex justify-between">
                         <dt class="text-stone-600">{{ \App\Models\PlatformExpense::CATEGORIES[$cat] ?? ucfirst($cat) }}</dt>
-                        <dd class="font-semibold text-red-600">R{{ number_format($amount, 2) }}</dd>
+                        <dd class="font-semibold text-red-600">{{ money($amount) }}</dd>
                     </div>
                     @endforeach
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-stone-700">Total</dt>
-                        <dd class="font-bold text-red-700">R{{ number_format($summary['platform_expenses']['total'], 2) }}</dd>
+                        <dd class="font-bold text-red-700">{{ money($summary['platform_expenses']['total']) }}</dd>
                     </div>
                 </dl>
                 @else
@@ -327,9 +327,9 @@
                         @foreach($monthlyTrend as $month)
                         <tr class="border-b border-stone-100">
                             <td class="py-2 pr-4 font-medium text-stone-700">{{ $month['label'] }}</td>
-                            <td class="py-2 pr-4 text-right text-stone-600">R{{ number_format($month['match_revenue'], 2) }}</td>
-                            <td class="py-2 pr-4 text-right text-stone-600">R{{ number_format($month['membership_revenue'], 2) }}</td>
-                            <td class="py-2 text-right font-semibold text-stone-900">R{{ number_format($month['total'], 2) }}</td>
+                            <td class="py-2 pr-4 text-right text-stone-600">{{ money($month['match_revenue']) }}</td>
+                            <td class="py-2 pr-4 text-right text-stone-600">{{ money($month['membership_revenue']) }}</td>
+                            <td class="py-2 text-right font-semibold text-stone-900">{{ money($month['total']) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -365,13 +365,13 @@
                         @forelse($matchBreakdown as $m)
                         <tr class="border-b border-stone-100 hover:bg-stone-50">
                             <td class="py-3 px-4 font-medium text-stone-800">{{ $m->name }}</td>
-                            <td class="py-3 px-4 text-stone-500">{{ \Carbon\Carbon::parse($m->match_date)->format('d M Y') }}</td>
+                            <td class="py-3 px-4 text-stone-500">{{ date_short($m->match_date) }}</td>
                             <td class="py-3 px-4 text-right text-stone-700">{{ $m->entries }}</td>
-                            <td class="py-3 px-4 text-right font-medium">R{{ number_format($m->gross, 2) }}</td>
-                            <td class="py-3 px-4 text-right text-emerald-700">R{{ number_format($m->saprf_fees, 2) }}</td>
-                            <td class="py-3 px-4 text-right text-red-600">R{{ number_format($m->platform_fees, 2) }}</td>
-                            <td class="py-3 px-4 text-right text-red-600">R{{ number_format($m->gateway_fees, 2) }}</td>
-                            <td class="py-3 px-4 text-right font-semibold text-stone-900">R{{ number_format($m->md_net, 2) }}</td>
+                            <td class="py-3 px-4 text-right font-medium">{{ money($m->gross) }}</td>
+                            <td class="py-3 px-4 text-right text-emerald-700">{{ money($m->saprf_fees) }}</td>
+                            <td class="py-3 px-4 text-right text-red-600">{{ money($m->platform_fees) }}</td>
+                            <td class="py-3 px-4 text-right text-red-600">{{ money($m->gateway_fees) }}</td>
+                            <td class="py-3 px-4 text-right font-semibold text-stone-900">{{ money($m->md_net) }}</td>
                             <td class="py-3 px-4 text-right">
                                 <a href="{{ route('financials.match-report', $m->id) }}"
                                    class="text-emerald-700 hover:text-emerald-800 text-xs font-medium">View</a>

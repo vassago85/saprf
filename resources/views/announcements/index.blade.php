@@ -1,5 +1,5 @@
 <x-layouts.app :title="'Announcements'">
-    <div class="max-w-5xl space-y-6">
+    <div class="space-y-6">
         <x-page-header title="Announcements" subtitle="Federation-wide notifications sent from Exco to members.">
             <x-slot:actions>
                 <a href="{{ route('announcements.create') }}"
@@ -63,7 +63,7 @@
                             <td class="px-4 py-3 text-stone-600">{{ $a->recipient_count }}</td>
                             <td class="px-4 py-3 text-stone-600">{{ $a->creator?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-stone-500">
-                                {{ $a->sent_at?->format('d M Y H:i') ?? '—' }}
+                                {{ datetime_short($a->sent_at) }}
                             </td>
                         </tr>
                     @empty

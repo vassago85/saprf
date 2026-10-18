@@ -4,8 +4,8 @@
     <h2 class="sr-only">Filters</h2>
     <x-filter-bar :action="route('scores.index')" label="Score filters">
             <div>
-                <label for="scores_match" class="sr-only">Match</label>
-                <select id="scores_match" name="match_id" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="scores_match" class="block text-xs font-medium text-stone-500 mb-1">Match</label>
+                <select id="scores_match" name="match_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Matches</option>
                     @foreach ($matches as $match)
                         <option value="{{ $match->id }}" @selected(request('match_id') == $match->id)>{{ $match->name }}</option>
@@ -14,8 +14,8 @@
             </div>
 
             <div>
-                <label for="scores_status" class="sr-only">Status</label>
-                <select id="scores_status" name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="scores_status" class="block text-xs font-medium text-stone-500 mb-1">Status</label>
+                <select id="scores_status" name="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="valid" @selected(request('status') === 'valid')>Valid</option>
                     <option value="pending" @selected(request('status') === 'pending')>Pending</option>
@@ -24,7 +24,6 @@
                 </select>
             </div>
 
-            <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
     </x-filter-bar>
 
     <h2 class="sr-only">Scores list</h2>
@@ -50,7 +49,7 @@
                         </td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->user->name ?? $score->shooter_name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $score->division?->name ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-right font-mono font-medium text-stone-900">{{ $score->raw_score }}</td>
+                        <td class="whitespace-nowrap px-5 py-4 text-sm text-right font-mono font-medium text-stone-900">{{ impacts($score->raw_score) }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-right text-stone-700">{{ $score->placement ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm">
                             @switch($score->status)

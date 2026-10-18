@@ -28,7 +28,7 @@
                                 {{ $tier->name }}
                                 @if($tier->is_default)<span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-800">Default</span>@endif
                             </p>
-                            <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float) $tier->price, 2) }}</p>
+                            <p class="text-xl font-bold text-stone-900 mt-1">{{ money((float) $tier->price) }}</p>
                         </div>
                     @endforeach
                 </div>
@@ -48,11 +48,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                     <p class="text-xs text-stone-500 uppercase tracking-wider">Non-Member Surcharge</p>
-                    <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float)($settings['non_member_surcharge'] ?? 0), 2) }}</p>
+                    <p class="text-xl font-bold text-stone-900 mt-1">{{ money((float)($settings['non_member_surcharge'] ?? 0)) }}</p>
                 </div>
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4">
                     <p class="text-xs text-stone-500 uppercase tracking-wider">Lapsed Surcharge</p>
-                    <p class="text-xl font-bold text-stone-900 mt-1">R{{ number_format((float)($settings['lapsed_member_surcharge'] ?? 0), 2) }}</p>
+                    <p class="text-xl font-bold text-stone-900 mt-1">{{ money((float)($settings['lapsed_member_surcharge'] ?? 0)) }}</p>
                 </div>
             </div>
         </div>

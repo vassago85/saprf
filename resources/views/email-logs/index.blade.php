@@ -1,5 +1,5 @@
-<x-layouts.app :title="'Email Log'">
-    <x-page-header title="Email Log" subtitle="Every email the app has attempted to send. Live delivery status is driven by Mailgun webhooks.">
+<x-layouts.app :title="'Email Logs'">
+    <x-page-header title="Email Logs" subtitle="Every email the app has attempted to send. Live delivery status is driven by Mailgun webhooks.">
         <x-slot:actions>
             <a href="{{ route('email-logs.index') }}"
                 class="rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">

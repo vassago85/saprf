@@ -160,6 +160,13 @@ class ReportsController extends Controller
 
             $standing = $standings->get($user->id);
 
+            // "x of 0 out-of-province" reads as a failing status even when
+            // the rule explicitly waives the OOP requirement. Flip the
+            // label so it says "No out-of-province requirement" instead.
+            $progress = $status['required'] === 0
+                ? 'No out-of-province requirement'
+                : "{$status['completed']} of {$status['required']} out-of-province";
+
             return [
                 'user' => $user,
                 'province' => $user->province?->name,
@@ -169,16 +176,26 @@ class ReportsController extends Controller
                 'required' => $status['required'],
                 'completed' => $status['completed'],
                 'qualified' => $status['qualified'],
-                'progress' => "{$status['completed']} of {$status['required']} out-of-province",
+                'progress' => $progress,
                 'rank' => $standing?->rank,
                 'points' => $standing?->points,
                 'rank_division' => $standing?->division_id ? $standing->division?->name : null,
             ];
         })
-            ->sortBy([
-                ['qualified', 'desc'],
-                [fn (array $row) => $row['rank'] ?? PHP_INT_MAX, 'asc'],
-            ])
+            // Qualified first, then by rank ascending (nulls last). Done as
+            // an explicit comparator so the ordering is predictable — the
+            // array form of sortBy() with a callback key has quirks
+            // between Laravel minor versions.
+            ->sort(function (array $a, array $b): int {
+                if ($a['qualified'] !== $b['qualified']) {
+                    return $a['qualified'] ? -1 : 1;
+                }
+
+                $rankA = $a['rank'] ?? PHP_INT_MAX;
+                $rankB = $b['rank'] ?? PHP_INT_MAX;
+
+                return $rankA <=> $rankB;
+            })
             ->values();
 
         $seasons = collect(range(now()->year, now()->year - 4))->map(fn ($y) => (string) $y);

@@ -82,11 +82,6 @@
                         <option value="0" @selected(request('unread') === '0')>Read only</option>
                     </select>
                 </div>
-                <div>
-                    <button type="submit" class="w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
-                        Filter
-                    </button>
-                </div>
             </div>
         </x-filter-bar>
 

@@ -1,6 +1,9 @@
 <x-layouts.app :title="'National Team & Protea Colours - SAPRF'">
+@php /* Pass the title via a PHP variable so the ampersand isn't double-escaped
+       (Blade's attribute parser treats a bare & as an HTML entity start). */ @endphp
+@php $appearancesPageTitle = 'National Team & Protea Colours'; @endphp
     <div class="space-y-6">
-        <x-page-header title="National Team &amp; Protea Colours">
+        <x-page-header :title="$appearancesPageTitle">
             <p class="mt-1 text-sm text-stone-500">
                 Every year a shooter has represented South Africa. The
                 <span class="inline-flex items-center gap-1 font-semibold text-emerald-700">
@@ -51,9 +54,8 @@
                            class="rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
                     Colours-awarding only
                 </label>
-                <button type="submit" class="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">Filter</button>
                 @if(request()->hasAny(['search', 'year', 'series', 'colours_only']))
-                    <a href="{{ route('appearances.index') }}" class="text-sm text-stone-500 hover:text-stone-700">Clear</a>
+                    <a href="{{ route('appearances.index') }}" class="text-sm text-stone-500 hover:text-stone-700 pb-2.5">Clear</a>
                 @endif
         </x-filter-bar>
 
@@ -100,13 +102,23 @@
                                         <span class="text-stone-300">—</span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ $appearance->appeared_at?->format('d M Y') }}</td>
+                                <td class="px-5 py-3 text-sm text-stone-500 whitespace-nowrap">{{ date_short($appearance->appeared_at) }}</td>
                                 <td class="px-5 py-3 text-right">
-                                    <form action="{{ route('appearances.destroy', $appearance) }}" method="POST" onsubmit="return confirm('{{ $appearance->awarded_colours ? "This entry granted Protea Colours. Deleting it will auto-promote the shooter\'s earliest remaining appearance to the colours slot. Continue?" : "Remove this national-team appearance?" }}');" class="inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">Remove</button>
-                                    </form>
+                                    <x-row-actions>
+                                        <form action="{{ route('appearances.destroy', $appearance) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <x-row-action
+                                                variant="danger"
+                                                title="Remove appearance"
+                                                :confirm="$appearance->awarded_colours
+                                                    ? 'This entry granted Protea Colours. Deleting it will auto-promote the shooter\'s earliest remaining appearance to the colours slot. Continue?'
+                                                    : 'Remove this national-team appearance?'"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                                            </x-row-action>
+                                        </form>
+                                    </x-row-actions>
                                 </td>
                             </tr>
                         @empty

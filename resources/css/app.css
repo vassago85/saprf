@@ -69,6 +69,24 @@ html {
     }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Sidebar label truncation.
+ *
+ * Flux's navlist item renders its label inside a flex child with
+ * `whitespace-nowrap` and no `min-width: 0`. Longer labels like
+ * "Provincial Committees" or "Appearances & Colours" push the content
+ * wider than the sidebar and introduce a horizontal scrollbar.
+ * Force the content div to shrink and truncate instead.
+ * ───────────────────────────────────────────────────────────────────── */
+[data-flux-sidebar] [data-flux-navlist-item] {
+    min-width: 0;
+}
+[data-flux-sidebar] [data-flux-navlist-item] [data-content] {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Force light mode on public/guest pages */
 .force-light, .force-light * {
     color-scheme: light !important;

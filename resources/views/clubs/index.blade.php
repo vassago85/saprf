@@ -1,6 +1,6 @@
 <x-layouts.app :title="'Shooting Clubs'">
     <div class="space-y-6">
-        <x-page-header title="Shooting Clubs" subtitle="Master list of shooting clubs used across the platform. SAPRF-recognised clubs count toward IPRF selection eligibility (ELG-03 / ELG-05).">
+        <x-page-header title="Clubs" subtitle="Master list of shooting clubs used across the platform. SAPRF-recognised clubs count toward IPRF selection eligibility (ELG-03 / ELG-05).">
             <x-slot:actions>
                 @can('create', App\Models\Club::class)
                     <a href="{{ route('clubs.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
@@ -42,14 +42,11 @@
             </div>
             <div>
                 <label for="active" class="block text-xs font-medium text-stone-500 mb-1">Status</label>
-                <div class="flex gap-2">
-                    <select name="active" id="active" class="flex-1 rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">All</option>
-                        <option value="active" @selected($filters['active'] === 'active')>Active</option>
-                        <option value="inactive" @selected($filters['active'] === 'inactive')>Inactive</option>
-                    </select>
-                    <button type="submit" class="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800">Go</button>
-                </div>
+                <select name="active" id="active" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All</option>
+                    <option value="active" @selected($filters['active'] === 'active')>Active</option>
+                    <option value="inactive" @selected($filters['active'] === 'inactive')>Inactive</option>
+                </select>
             </div>
         </x-filter-bar>
 

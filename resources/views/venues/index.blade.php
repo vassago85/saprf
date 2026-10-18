@@ -26,9 +26,8 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">Filter</button>
             @if($search || $provinceFilter)
-                <a href="{{ route('venues.index') }}" class="text-sm text-stone-500 hover:text-stone-700 py-2">Clear</a>
+                <a href="{{ route('venues.index') }}" class="text-sm text-stone-500 hover:text-stone-700 pb-2.5">Clear</a>
             @endif
         </x-filter-bar>
 

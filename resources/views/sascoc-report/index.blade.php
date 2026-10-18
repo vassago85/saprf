@@ -40,10 +40,6 @@
                     <input type="number" step="0.01" min="0" name="junior_price" id="junior_price" value="{{ $juniorPrice }}"
                         class="w-32 rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
-                <button type="submit"
-                    class="rounded-lg bg-stone-100 px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">
-                    Apply
-                </button>
             </div>
             <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" name="include_expired" value="1"

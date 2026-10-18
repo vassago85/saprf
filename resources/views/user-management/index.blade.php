@@ -16,12 +16,9 @@
                     <label for="user_management_search" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Search</label>
                     <input type="text" id="user_management_search" name="search" placeholder="Name, email or SAPRF number…" value="{{ $search ?? '' }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
-                <div class="flex items-center gap-2">
-                    <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Search</button>
-                    @if($search)
-                        <a href="{{ route('user-management.index', $showTrashed ? ['trashed' => 1] : []) }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
-                    @endif
-                </div>
+                @if($search)
+                    <a href="{{ route('user-management.index', $showTrashed ? ['trashed' => 1] : []) }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
+                @endif
             </x-filter-bar>
 
             <div class="flex items-center gap-2 shrink-0">

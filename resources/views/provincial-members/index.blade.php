@@ -23,10 +23,6 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit"
-                class="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">
-                Filter
-            </button>
             <a href="{{ route('provincial-members.csv', request()->only(['search', 'province_id'])) }}"
                class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition"
                @if($showSaId) onclick="return confirm('This CSV contains full SA ID numbers and personal contact details. Handle in line with POPIA — store securely and delete when no longer needed.\n\nContinue with download?')" @endif>
@@ -61,9 +57,13 @@
                     <tbody class="divide-y divide-stone-100">
                         @forelse ($users as $user)
                             <tr class="hover:bg-stone-50 transition-colors">
-                                <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">{{ $user->name }}</td>
+                                <td class="px-5 py-3.5 text-sm font-medium text-stone-900">
+                                    <span class="block max-w-[14rem] truncate" title="{{ $user->name }}">{{ $user->name }}</span>
+                                </td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm font-mono text-stone-500">{{ $user->membership?->saprf_number ?? '—' }}</td>
-                                <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->email }}</td>
+                                <td class="px-5 py-3.5 text-sm text-stone-500">
+                                    <span class="block max-w-[16rem] truncate" title="{{ $user->email }}">{{ $user->email }}</span>
+                                </td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->phone ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->province?->name ?? '—' }}</td>
                                 @if ($showSaId)

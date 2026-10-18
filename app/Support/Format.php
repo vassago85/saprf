@@ -10,6 +10,13 @@ use Illuminate\Support\Carbon;
  */
 class Format
 {
+    /**
+     * Narrow no-break space (U+202F) used as the thousands separator.
+     * It is visually tighter than a regular space, won't line-wrap mid-number,
+     * and gives us a consistent "R1 234.56" across every money cell.
+     */
+    public const THOUSANDS_SEPARATOR = "\u{202F}";
+
     public static function money(int|float|string|null $amount, bool $showCents = true): string
     {
         if ($amount === null || $amount === '') {
@@ -17,7 +24,14 @@ class Format
         }
 
         $value = (float) $amount;
-        $formatted = number_format($value, $showCents ? 2 : 0, '.', ' ');
+
+        // number_format turns -0.0 into "-0.00". Clamp near-zero so we never
+        // render "-R0.00" on the dashboard.
+        if (abs($value) < 0.005) {
+            $value = 0.0;
+        }
+
+        $formatted = number_format($value, $showCents ? 2 : 0, '.', self::THOUSANDS_SEPARATOR);
 
         return 'R'.$formatted;
     }

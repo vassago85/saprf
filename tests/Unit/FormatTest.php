@@ -4,9 +4,15 @@ use App\Support\Format;
 use Carbon\Carbon;
 
 it('formats money with a thin space thousands separator', function () {
+    $thin = Format::THOUSANDS_SEPARATOR;
+
     expect(Format::money(850))->toBe('R850.00')
-        ->and(Format::money(24255, false))->toBe('R24 255')
-        ->and(money(null))->toBe('—');
+        ->and(Format::money(24255, false))->toBe('R24'.$thin.'255')
+        ->and(Format::money(185665.14))->toBe('R185'.$thin.'665.14')
+        ->and(money(null))->toBe('—')
+        // -0.0 would otherwise come out as "-R0.00"; must clamp to R0.00.
+        ->and(Format::money(-0.0))->toBe('R0.00')
+        ->and(Format::money(-0.001))->toBe('R0.00');
 });
 
 it('formats short dates in Johannesburg time', function () {

@@ -97,7 +97,11 @@
                                     <x-membership-status :membership="$row['user']->membership" />
                                 </td>
                                 <td class="px-5 py-3 text-center text-stone-600" title="{{ $row['progress'] }}">
-                                    <span class="font-mono">{{ $row['completed'] }} / {{ $row['required'] }}</span>
+                                    @if ($row['required'] === 0)
+                                        <span class="text-xs text-stone-400">No requirement</span>
+                                    @else
+                                        <span class="font-mono">{{ $row['completed'] }} / {{ $row['required'] }}</span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-3 text-right font-mono font-semibold text-stone-900">
                                     {{ $row['points'] !== null ? number_format((float) $row['points'], 2) : '—' }}

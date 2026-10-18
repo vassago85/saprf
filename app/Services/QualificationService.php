@@ -26,10 +26,16 @@ class QualificationService
 
         $completed = $this->countOutOfProvinceMatches($user, $series, $season);
 
+        // A rule of 0 (or no rule row at all) means "no out-of-province
+        // requirement for this series/season" — every shooter who shows up
+        // on the standings list qualifies for finals. Anything above 0 is
+        // the normal "shoot N nationals outside your province" gate.
+        $qualified = $required === 0 || $completed >= $required;
+
         return [
             'required' => $required,
             'completed' => $completed,
-            'qualified' => $required > 0 && $completed >= $required,
+            'qualified' => $qualified,
             'remaining' => max(0, $required - $completed),
         ];
     }
@@ -140,10 +146,13 @@ class QualificationService
         $out = [];
         foreach ($userIds as $userId) {
             $completed = (int) ($counts[$userId] ?? 0);
+            // See getQualificationStatus() — required=0 means "no OOP
+            // requirement for this series", so everyone qualifies.
+            $qualified = $required === 0 || $completed >= $required;
             $out[$userId] = [
                 'required' => $required,
                 'completed' => $completed,
-                'qualified' => $required > 0 && $completed >= $required,
+                'qualified' => $qualified,
                 'remaining' => max(0, $required - $completed),
             ];
         }

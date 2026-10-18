@@ -37,7 +37,6 @@
                     <option value="handled" @selected($filters['handled'] === 'handled')>Handled</option>
                 </select>
             </div>
-            <button type="submit" class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">Filter</button>
         </x-filter-bar>
 
         <x-admin-table>

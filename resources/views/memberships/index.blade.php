@@ -93,7 +93,6 @@
                 </select>
             </div>
             <div class="flex items-center gap-2">
-                <button type="submit" class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Filter</button>
                 @if(array_filter($filters))
                     <a href="{{ route('memberships.index') }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
                 @endif

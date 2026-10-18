@@ -36,7 +36,6 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-900">Filter</button>
         </x-filter-bar>
 
         <x-admin-table>

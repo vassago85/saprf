@@ -30,7 +30,7 @@
         @if ($announcement->isRetracted())
             <div class="rounded-xl border border-red-300 bg-red-50 p-4">
                 <p class="text-sm font-semibold text-red-900">
-                    Retracted on {{ $announcement->retracted_at->format('d M Y H:i') }}
+                    Retracted on {{ datetime_short($announcement->retracted_at) }}
                     @if ($announcement->retractor)
                         by {{ $announcement->retractor->name }}
                     @endif
@@ -92,7 +92,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-semibold uppercase text-stone-400">Sent at</dt>
-                    <dd class="mt-1 text-stone-800">{{ $announcement->sent_at?->format('d M Y H:i') ?? '—' }}</dd>
+                    <dd class="mt-1 text-stone-800">{{ datetime_short($announcement->sent_at) }}</dd>
                 </div>
             </dl>
         </div>

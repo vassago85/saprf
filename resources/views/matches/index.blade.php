@@ -1,5 +1,5 @@
 <x-layouts.app :title="'Matches'">
-    <x-page-header title="Matches">
+    <x-page-header title="Manage Matches">
         <x-slot:actions>
             @can('create', App\Models\MatchEvent::class)
                 <flux:button href="{{ route('matches.create') }}" variant="primary" icon="plus">
@@ -12,8 +12,8 @@
     <h2 class="sr-only">Filters</h2>
     <x-filter-bar :action="route('matches.index')" label="Match filters">
             <div>
-                <label for="matches_match_type" class="sr-only">Match type</label>
-                <select id="matches_match_type" name="match_type" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="matches_match_type" class="block text-xs font-medium text-stone-500 mb-1">Type</label>
+                <select id="matches_match_type" name="match_type" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Types</option>
                     <option value="PRS" @selected(request('match_type') === 'PRS')>PRS</option>
                     <option value="PR22" @selected(request('match_type') === 'PR22')>PR22</option>
@@ -21,8 +21,8 @@
             </div>
 
             <div>
-                <label for="matches_status" class="sr-only">Status</label>
-                <select id="matches_status" name="status" class="rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                <label for="matches_status" class="block text-xs font-medium text-stone-500 mb-1">Status</label>
+                <select id="matches_status" name="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="">All Statuses</option>
                     <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                     <option value="open" @selected(request('status') === 'open')>Open</option>
@@ -31,7 +31,6 @@
                 </select>
             </div>
 
-            <flux:button type="submit" variant="ghost" icon="funnel">Filter</flux:button>
     </x-filter-bar>
 
     <h2 class="sr-only">Matches list</h2>

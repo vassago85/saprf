@@ -27,10 +27,52 @@
             </x-slot:actions>
         </x-page-header>
     @else
-        <x-page-header title="Registrations" />
+        <x-page-header title="Registrations" :subtitle="($isPrivileged ?? false) ? 'Every registration across every match.' : 'Your match registrations.'" />
     @endif
 
-    <x-admin-table class="mt-8">
+    @if ($showFilters ?? false)
+        <x-filter-bar :action="route('registrations.index')" label="Registration filters">
+            <div class="min-w-[220px]">
+                <label for="reg_search" class="block text-xs font-medium text-stone-500 mb-1">Search</label>
+                <input type="search" id="reg_search" name="search" value="{{ $filters['search'] }}" placeholder="Shooter or email…"
+                    class="w-full rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label for="reg_match" class="block text-xs font-medium text-stone-500 mb-1">Match</label>
+                <select id="reg_match" name="match_id" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All matches</option>
+                    @foreach ($matchOptions as $m)
+                        <option value="{{ $m->id }}" @selected((string) request('match_id') === (string) $m->id)>{{ $m->name }} — {{ date_short($m->match_date) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="reg_payment" class="block text-xs font-medium text-stone-500 mb-1">Payment</label>
+                <select id="reg_payment" name="payment_status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All</option>
+                    <option value="paid" @selected($filters['payment_status'] === 'paid')>Paid</option>
+                    <option value="pending" @selected($filters['payment_status'] === 'pending')>Pending</option>
+                    <option value="unpaid" @selected($filters['payment_status'] === 'unpaid')>Unpaid</option>
+                    <option value="waived" @selected($filters['payment_status'] === 'waived')>Waived</option>
+                </select>
+            </div>
+            <div>
+                <label for="reg_status" class="block text-xs font-medium text-stone-500 mb-1">Status</label>
+                <select id="reg_status" name="registration_status" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All</option>
+                    <option value="confirmed" @selected($filters['registration_status'] === 'confirmed')>Confirmed</option>
+                    <option value="pending" @selected($filters['registration_status'] === 'pending')>Pending</option>
+                    <option value="waitlisted" @selected($filters['registration_status'] === 'waitlisted')>Waitlisted</option>
+                    <option value="cancelled" @selected($filters['registration_status'] === 'cancelled')>Cancelled</option>
+                </select>
+            </div>
+            @if (array_filter($filters))
+                <a href="{{ route('registrations.index') }}" class="text-sm text-stone-500 hover:text-stone-700 pb-2.5">Clear</a>
+            @endif
+        </x-filter-bar>
+    @endif
+
+    <x-admin-table class="mt-6">
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
@@ -50,10 +92,12 @@
             <tbody class="divide-y divide-stone-100">
                 @forelse ($registrations as $registration)
                     <tr class="hover:bg-stone-50 transition-colors">
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
-                            <a href="{{ route('events.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
+                        <td class="px-5 py-3.5 text-sm font-medium text-stone-900">
+                            <a href="{{ route('events.show', $registration->match) }}" class="block max-w-[16rem] truncate text-emerald-700 hover:text-emerald-900 hover:underline" title="{{ $registration->match->name }}">{{ $registration->match->name }}</a>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">{{ $registration->user->name }}</td>
+                        <td class="px-5 py-3.5 text-sm text-stone-900">
+                            <span class="block max-w-[14rem] truncate" title="{{ $registration->user->name }}">{{ $registration->user->name }}</span>
+                        </td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                             @if($registration->division)
                                 <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{{ $registration->division->name }}</span>
@@ -67,7 +111,7 @@
                         <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $registration->feeCategoryLabel() }}</td>
                         @if($canViewFinancials)
                             <td class="whitespace-nowrap px-5 py-3.5 text-sm text-right font-mono text-stone-900">
-                                {{ $registration->fee_amount ? 'R ' . number_format($registration->fee_amount, 2) : '—' }}
+                                {{ money($registration->fee_amount) }}
                             </td>
                             <td class="whitespace-nowrap px-5 py-3.5 text-sm">
                                 @switch($registration->payment_status)
@@ -101,7 +145,7 @@
                                     @break
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $registration->created_at->format('d M Y') }}</td>
+                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ date_short($registration->created_at) }}</td>
                         <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
                             @if($canViewFinancials || $registration->user_id === auth()->id())
                                 <div class="inline-flex items-center gap-1">
