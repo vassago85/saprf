@@ -418,6 +418,63 @@ it('caches per-user badge counts for 60 seconds', function () {
     expect($comms['badge'])->toBe(1);
 });
 
+it('does not raise the Score imports badge for historical failed imports', function () {
+    $admin = staffUser('admin');
+    $province = \App\Models\Province::firstOrCreate(
+        ['abbreviation' => 'GP'],
+        ['name' => 'Gauteng', 'display_order' => 1]
+    );
+    $match = \App\Models\MatchEvent::create([
+        'name' => 'Score Import Fixture',
+        'match_type' => 'PRS',
+        'series_level' => 'provincial',
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $province->id,
+        'match_date' => now()->subMonths(2)->toDateString(),
+        'status' => 'completed',
+        'active_member_fee' => 500,
+        'non_member_fee' => 500,
+        'created_by' => $admin->id,
+    ]);
+
+    // Three ancient failures (like the real server state) and nothing pending.
+    foreach (range(1, 3) as $i) {
+        \DB::table('score_imports')->insert([
+            'match_id' => $match->id,
+            'uploaded_by' => $admin->id,
+            'original_filename' => "ancient-{$i}.csv",
+            'import_status' => 'failed',
+            'created_at' => now()->subMonths(2),
+            'updated_at' => now()->subMonths(2),
+        ]);
+    }
+
+    Cache::flush();
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $competition = collect($sections)->firstWhere('key', 'competition_admin');
+    $scoreImports = collect($competition['items'])->firstWhere('route', 'score-imports.index');
+
+    expect($scoreImports['badge'])->toBeNull();
+
+    // A truly actionable pending import SHOULD light the badge.
+    \DB::table('score_imports')->insert([
+        'match_id' => $match->id,
+        'uploaded_by' => $admin->id,
+        'original_filename' => 'fresh.csv',
+        'import_status' => 'pending',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    Cache::flush();
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $competition = collect($sections)->firstWhere('key', 'competition_admin');
+    $scoreImports = collect($competition['items'])->firstWhere('route', 'score-imports.index');
+
+    expect($scoreImports['badge'])->toBe(1);
+});
+
 it('does not raise the My registrations badge for past or completed matches', function () {
     $shooter = staffUser('member');
     $province = \App\Models\Province::firstOrCreate(

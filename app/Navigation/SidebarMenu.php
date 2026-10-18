@@ -1032,8 +1032,12 @@ final class SidebarMenu
             'pending_credit_refunds' => (int) CreditRefundRequest::query()
                 ->where('status', CreditRefundRequest::STATUS_PENDING)
                 ->count(),
+            // Only count genuinely actionable imports (pending/queued).
+            // Historical 'failed' imports stay visible on the Score imports page
+            // itself but shouldn't keep lighting the sidebar months after the
+            // fact — mirrors the OwnerDashboardPresenter attention logic.
             'score_imports_pending' => (int) \DB::table('score_imports')
-                ->whereIn('import_status', ['pending', 'queued', 'failed'])
+                ->whereIn('import_status', ['pending', 'queued'])
                 ->count(),
             // Only count unpaid registrations for matches that are still live —
             // past / completed / cancelled matches shouldn't keep nagging the
