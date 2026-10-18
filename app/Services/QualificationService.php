@@ -358,8 +358,9 @@ class QualificationService
             ->whereHas('match', function ($query) use ($series, $season) {
                 $query->where('series', $series)
                     ->where(function ($q) use ($season) {
+                        // whereYear is SQLite-safe; raw YEAR() is MySQL-only.
                         $q->where('season', $season)
-                            ->orWhereRaw('YEAR(match_date) = ?', [$season]);
+                            ->orWhereYear('match_date', $season);
                     });
             })
             ->with('match:id,series_level')
@@ -384,9 +385,14 @@ class QualificationService
                     ->where('series_level', 'national')
                     ->where(function ($q) use ($season) {
                         $q->where('season', $season)
-                            ->orWhereRaw('YEAR(match_date) = ?', [$season]);
-                    })
-                    ->where('province_id', '!=', $user->province_id);
+                            ->orWhereYear('match_date', $season);
+                    });
+
+                if ($user->province_id) {
+                    $query->where('province_id', '!=', $user->province_id);
+                } else {
+                    $query->whereNotNull('province_id');
+                }
             })
             ->distinct('match_id')
             ->count('match_id');

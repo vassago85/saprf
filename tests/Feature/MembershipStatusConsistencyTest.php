@@ -29,10 +29,9 @@ test('membership status is the same label on the dashboard, memberships, users a
     $dashboard = $this->actingAs($this->owner)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Active memberships')
-        ->assertSee('Paid and in date. Free accounts are excluded.');
+        ->assertSee('Active members');
 
-    expect($dashboard->getContent())->toMatch('/Active memberships<\/p>\s*<p[^>]*>1<\/p>/');
+    expect($dashboard->getContent())->toMatch('/Active members<\/span>[\s\S]*?>1</');
 
     foreach ([
         $this->free->name => 'Non-member',

@@ -89,12 +89,17 @@ function signedRenewalItn(array $data): array
 
 function renderMemberDashboard(User $user, Membership $membership): string
 {
+    $user->setRelation('membership', $membership);
+    $user->loadMissing('province');
+
+    $payload = app(\App\Support\Dashboard\MemberDashboardPresenter::class)->build($user);
+
     return view('dashboard.member', [
-        'user' => $user->load('province'),
+        'user' => $user,
+        'payload' => $payload,
         'membership' => $membership,
         'nextMatch' => null,
         'scoresCount' => 0,
-        'standingsPosition' => null,
         'qualificationProgress' => [],
         'matchesShot' => 0,
         'bestPlacement' => null,
@@ -200,23 +205,23 @@ it('hides the renew card on my-membership outside the 60-day window', function (
         ->assertDontSee('Renew Membership');
 });
 
-it('shows a renew banner on the shooter dashboard from 30 days before expiry', function () {
+it('shows a renew attention pill on the shooter dashboard from 30 days before expiry', function () {
     $membership = makeActiveMembership($this->user, Carbon::today()->addDays(8));
 
     $this->actingAs($this->user);
     $html = renderMemberDashboard($this->user, $membership);
 
-    expect($html)->toContain('Membership renewal due')
+    expect($html)->toContain('Membership expires in 8 days')
         ->and($html)->toContain('Renew membership');
 });
 
-it('does not show the dashboard renew banner when expiry is more than 30 days away', function () {
+it('does not show the dashboard renew pill when expiry is more than 30 days away', function () {
     $membership = makeActiveMembership($this->user, Carbon::today()->addDays(45));
 
     $this->actingAs($this->user);
     $html = renderMemberDashboard($this->user, $membership);
 
-    expect($html)->not->toContain('Membership renewal due');
+    expect($html)->not->toContain('Membership expires');
 });
 
 it('reports window helpers correctly on the model', function () {

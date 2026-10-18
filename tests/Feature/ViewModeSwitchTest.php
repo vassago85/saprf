@@ -106,7 +106,8 @@ it('renders the admin dashboard for an admin in admin mode', function () {
     $this->actingAs($admin)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Admin Dashboard');
+        ->assertSee('Pending memberships')
+        ->assertSee('MD payouts pending');
 });
 
 it('routes an admin in shooter mode to the member dashboard branch', function () {

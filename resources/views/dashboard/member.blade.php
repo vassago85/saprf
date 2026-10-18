@@ -1,95 +1,31 @@
 <x-layouts.app>
-    <x-slot:title>My Dashboard - SAPRF</x-slot:title>
+    <x-slot:title>Dashboard - SAPRF</x-slot:title>
 
-    <div class="space-y-8">
-        {{-- Reminder banner when a staff user has switched into shooter mode.
-             Pure members never see this because they can't switch. --}}
-        @if(auth()->user()->canSwitchViewMode())
-            <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 flex items-center justify-between gap-4">
-                <div class="flex items-start gap-3">
-                    <svg class="size-5 text-sky-600 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/>
-                    </svg>
-                    <div>
-                        <p class="text-sm font-semibold text-sky-900">Shooter mode</p>
-                        <p class="text-xs text-sky-800/80 mt-0.5">You're viewing your own shooter dashboard. Admin tools are hidden until you switch back.</p>
-                    </div>
-                </div>
-                <form method="POST" action="{{ route('dashboard.view-mode') }}">
-                    @csrf
-                    <input type="hidden" name="mode" value="admin">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 hover:bg-sky-100 whitespace-nowrap">
-                        Switch to Admin
-                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
-                    </button>
-                </form>
-            </div>
-        @endif
-
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-                <p class="text-sm text-stone-500">Welcome back,</p>
-                <h1 class="font-heading text-3xl font-bold text-stone-900">{{ Str::before($user->name, ' ') }}</h1>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ route('standings.shooter', ['season' => now()->year, 'user' => $user->id]) }}"
-                   class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-emerald-300 hover:text-emerald-700 shadow-sm">
-                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                    View public profile
-                </a>
-                @if($membership?->isActiveMember())
-                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20">SAPRF Member</span>
-                @else
-                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-stone-100 text-stone-600 ring-1 ring-inset ring-stone-500/20">Free Account</span>
-                @endif
-            </div>
-        </div>
-
-        @php
-            $credit = $user->accountCreditSummary();
-            $refundsOpen = app(\App\Services\SettingsService::class)->cancellationRefundsEnabled();
-        @endphp
-        @if($credit['posted'] > 0)
-            <div class="rounded-xl border border-emerald-200 bg-white shadow-sm p-6">
-                <div class="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                        <h2 class="font-heading text-xl font-bold text-stone-900">Entry credit</h2>
-                        <p class="text-sm text-stone-600 mt-1">From a cancelled match. Applied automatically when you pay for another event.</p>
-                        @if($refundsOpen && $credit['available'] > 0)
-                            <a href="{{ route('account.refund') }}" class="mt-2 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-800">Request a cash refund</a>
-                        @elseif(($credit['refund_reserved'] ?? 0) > 0)
-                            <a href="{{ route('account.refund') }}" class="mt-2 inline-flex text-sm font-semibold text-emerald-700 hover:text-emerald-800">Refund request in progress</a>
-                        @endif
-                    </div>
-                    <p class="text-2xl font-bold text-emerald-700 tabular-nums">R {{ number_format($credit['posted'], 2) }}</p>
+    {{-- Reminder banner when a staff user has switched into shooter mode.
+         Pure members never see this because they can't switch. --}}
+    @if(auth()->user()->canSwitchViewMode())
+        <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 flex items-center justify-between gap-4">
+            <div class="flex items-start gap-3">
+                <svg class="size-5 text-sky-600 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.412 15.655.706-.706m-.706.706-3.032 3.032a1.5 1.5 0 0 1-2.121 0l-2.29-2.29a1.5 1.5 0 0 1 0-2.122L7.001 11.253l.706-.706m3.705 5.108-3.705-5.108m3.705 5.108L15.68 12.19m-7.973-1.643L11.412 4.84l4.268 4.268-3.706 3.083m-4.267-1.644L15.68 12.19m-7.973-1.643 4.268-4.267"/>
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-sky-900">Shooter mode</p>
+                    <p class="text-xs text-sky-800/80 mt-0.5">You're viewing your own shooter dashboard. Admin tools are hidden until you switch back.</p>
                 </div>
             </div>
-        @endif
-
-        {{-- Membership renewal notice (from 30 days before expiry) --}}
-        @if($membership?->shouldShowDashboardRenewalNotice())
-            @php $daysLeft = $membership->daysUntilExpiry(); @endphp
-            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-4 flex-wrap">
-                <div class="flex items-start gap-3">
-                    <svg class="size-5 text-amber-600 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
-                    </svg>
-                    <div>
-                        <p class="text-sm font-semibold text-amber-900">Membership renewal due</p>
-                        <p class="text-xs text-amber-800/90 mt-0.5">
-                            Your membership
-                            {{ $daysLeft === 0 ? 'expires today' : ($daysLeft === 1 ? 'expires tomorrow' : "expires in {$daysLeft} days") }}
-                            ({{ $membership->expiry_date->format('d M Y') }}). Renew now to keep standings and member rates uninterrupted.
-                        </p>
-                    </div>
-                </div>
-                <a href="{{ route('my-membership') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 whitespace-nowrap">
-                    Renew membership
+            <form method="POST" action="{{ route('dashboard.view-mode') }}">
+                @csrf
+                <input type="hidden" name="mode" value="admin">
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 hover:bg-sky-100 whitespace-nowrap">
+                    Switch to Admin
                     <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
-                </a>
-            </div>
-        @endif
+                </button>
+            </form>
+        </div>
+    @endif
 
+    <x-dashboard.shell :payload="$payload">
         {{-- Membership Status Card --}}
         @if($membership?->isActiveMember())
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
@@ -556,7 +492,7 @@
                 </div>
             </div>
         @endif
-    </div>
+    </x-dashboard.shell>
 
     <x-dev-switcher />
 </x-layouts.app>
