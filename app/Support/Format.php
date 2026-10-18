@@ -36,6 +36,27 @@ class Format
         return 'R'.$formatted;
     }
 
+    /**
+     * Signed money for delta lines (fees in/out). Near-zero always renders
+     * as plain R0.00 — never "-R0.00" or "+R0.00".
+     */
+    public static function moneyDelta(int|float|string|null $amount, bool $showCents = true): string
+    {
+        if ($amount === null || $amount === '') {
+            return '—';
+        }
+
+        $value = (float) $amount;
+
+        if (abs($value) < 0.005) {
+            return self::money(0.0, $showCents);
+        }
+
+        $sign = $value > 0 ? '+' : '-';
+
+        return $sign.self::money(abs($value), $showCents);
+    }
+
     public static function dateShort(CarbonInterface|string|null $date): string
     {
         if ($date === null || $date === '') {

@@ -208,11 +208,11 @@
                     @endphp
                     <div class="flex justify-between">
                         <dt class="text-stone-500">SAPRF Fees</dt>
-                        <dd class="text-emerald-600">+{{ money($summary['match_revenue']['saprf_fees']) }}</dd>
+                        <dd class="text-emerald-600">{{ money_delta($summary['match_revenue']['saprf_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Surcharges (to SAPRF)</dt>
-                        <dd class="text-emerald-600">+{{ money($summary['match_revenue']['surcharges']) }}</dd>
+                        <dd class="text-emerald-600">{{ money_delta($summary['match_revenue']['surcharges']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Platform Fees ({{ $platformFeeRateLabel }})</dt>
@@ -220,7 +220,7 @@
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Gateway Fees</dt>
-                        <dd class="text-red-600">-{{ money($summary['match_revenue']['gateway_fees']) }}</dd>
+                        <dd class="text-red-600">{{ money_delta(-1 * (float) $summary['match_revenue']['gateway_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-emerald-800">SAPRF from matches</dt>
@@ -247,11 +247,11 @@
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Platform Cost ({{ $settings['membership_platform_fee_pct'] ?? '2.5' }}%)</dt>
-                        <dd class="text-orange-600">-{{ money($summary['membership_revenue']['platform_cost']) }}</dd>
+                        <dd class="text-orange-600">{{ money_delta(-1 * (float) $summary['membership_revenue']['platform_cost']) }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Est. Gateway Fees</dt>
-                        <dd class="text-red-600">-{{ money($summary['membership_revenue']['gateway_fees']) }}</dd>
+                        <dd class="text-red-600">{{ money_delta(-1 * (float) $summary['membership_revenue']['gateway_fees']) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-stone-200 pt-2">
                         <dt class="font-semibold text-stone-700">Net to SAPRF</dt>

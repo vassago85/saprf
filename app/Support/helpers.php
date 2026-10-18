@@ -10,6 +10,13 @@ if (! function_exists('money')) {
     }
 }
 
+if (! function_exists('money_delta')) {
+    function money_delta(int|float|string|null $amount, bool $showCents = true): string
+    {
+        return Format::moneyDelta($amount, $showCents);
+    }
+}
+
 if (! function_exists('date_short')) {
     function date_short(CarbonInterface|string|null $date): string
     {

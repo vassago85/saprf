@@ -58,7 +58,6 @@
                 @endforeach
             </select>
         </div>
-        <button class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Filter</button>
     </x-filter-bar>
 
     @if ($status === \App\Models\EmailLog::STATUS_QUEUED && (int) ($counts[\App\Models\EmailLog::STATUS_QUEUED] ?? 0) > 0)

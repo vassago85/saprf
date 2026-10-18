@@ -70,6 +70,9 @@
                                 @case('completed')
                                     <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">Completed</span>
                                     @break
+                                @case('cancelled')
+                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Cancelled</span>
+                                    @break
                             @endswitch
                         </dd>
                     </div>

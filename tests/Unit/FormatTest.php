@@ -12,7 +12,12 @@ it('formats money with a thin space thousands separator', function () {
         ->and(money(null))->toBe('—')
         // -0.0 would otherwise come out as "-R0.00"; must clamp to R0.00.
         ->and(Format::money(-0.0))->toBe('R0.00')
-        ->and(Format::money(-0.001))->toBe('R0.00');
+        ->and(Format::money(-0.001))->toBe('R0.00')
+        // Signed deltas never prefix a zero amount.
+        ->and(Format::moneyDelta(0))->toBe('R0.00')
+        ->and(Format::moneyDelta(-0.0))->toBe('R0.00')
+        ->and(Format::moneyDelta(50))->toBe('+R50.00')
+        ->and(Format::moneyDelta(-12.5))->toBe('-R12.50');
 });
 
 it('formats short dates in Johannesburg time', function () {
