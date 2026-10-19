@@ -67,6 +67,43 @@ it('surfaces unpaid match entries on the shooter attention list with a Pay now C
         ->and($unpaid['body'])->toContain('portal');
 });
 
+it('does not flag an unpaid entry for a future match on the shooter dashboard', function () {
+    $future = MatchEvent::create([
+        'name' => 'Future National',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => (string) now()->year,
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::today()->addMonth()->toDateString(),
+        'status' => 'open',
+        'published' => true,
+        'created_by' => $this->shooter->id,
+        'active_member_fee' => 1100,
+        'non_member_fee' => 1100,
+        'lapsed_member_fee' => 1100,
+    ]);
+
+    MatchRegistration::create([
+        'match_id' => $future->id,
+        'user_id' => $this->shooter->id,
+        'shooter_name' => $this->shooter->name,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 1100,
+        'saprf_fee' => 50,
+        'platform_fee' => 20,
+        'gateway_fee' => 0,
+        'md_net_amount' => 1030,
+        'payment_status' => 'pending',
+        'registration_status' => 'pending',
+        'registered_at' => now(),
+    ]);
+
+    $items = app(AttentionBuilder::class)->build($this->shooter, ['PR22']);
+
+    expect(collect($items)->first(fn ($i) => str_contains($i['title'], 'Unpaid')))->toBeNull();
+});
+
 it('lists outstanding unpaid registrations on the invoices page with a pay link', function () {
     $registration = MatchRegistration::create([
         'match_id' => $this->match->id,

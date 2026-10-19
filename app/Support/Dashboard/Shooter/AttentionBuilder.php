@@ -57,6 +57,7 @@ final class AttentionBuilder
             ->whereIn('registration_status', ['pending', 'confirmed'])
             ->whereNotIn('payment_status', ['paid', 'waived'])
             ->where('fee_amount', '>', 0)
+            ->matchDateReached()
             ->count();
 
         if ($unpaidCount > 0) {

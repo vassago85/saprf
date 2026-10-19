@@ -13,11 +13,9 @@ use App\Models\User;
  *   whether the member is in the renewal window, count of linked family
  *   members, and the sum/count of outstanding match-entry fees.
  *
- * Payment status is derived from the same `hasOutstandingPayment()`
- * contract used by the registration list — a row is "unpaid" when
- * payment_status is not paid/waived AND fee_amount > 0. This keeps the
- * dashboard's "unpaid" count aligned with every other screen that uses
- * that method.
+ * A row counts as unpaid when payment_status is not paid/waived,
+ * fee_amount > 0, and the match date has already arrived. Unpaid
+ * entries for future matches stay payable but are not flagged here.
  */
 final class MembershipStripBuilder
 {
@@ -46,6 +44,7 @@ final class MembershipStripBuilder
             ->whereIn('registration_status', ['pending', 'confirmed'])
             ->whereNotIn('payment_status', ['paid', 'waived'])
             ->where('fee_amount', '>', 0)
+            ->matchDateReached()
             ->get(['id', 'fee_amount']);
 
         return [

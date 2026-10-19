@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\SettingsService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -166,8 +167,24 @@ class MatchRegistration extends Model
     }
 
     /**
-     * Oldest non-cancelled entry for this shooter that still needs payment.
-     * Portal entry for any other match is blocked until this is settled.
+     * Unpaid fee on a match that has already reached its match day.
+     * A future match stays payable, but it does not block other entries.
+     *
+     * @param  Builder<MatchRegistration>  $query
+     * @return Builder<MatchRegistration>
+     */
+    public function scopeMatchDateReached(Builder $query): Builder
+    {
+        return $query->whereHas('match', function (Builder $match) {
+            $match->whereDate('match_date', '<=', now()->toDateString());
+        });
+    }
+
+    /**
+     * Oldest non-cancelled entry for this shooter that still needs payment
+     * on a match whose date has arrived. Portal entry for any other match
+     * is blocked until that fee is settled. Unpaid entries for future
+     * matches are left alone.
      */
     public static function firstOutstandingForUser(int $userId): ?self
     {
@@ -176,6 +193,7 @@ class MatchRegistration extends Model
             ->where('registration_status', '!=', 'cancelled')
             ->where('fee_amount', '>', 0)
             ->whereNotIn('payment_status', ['paid', 'waived'])
+            ->matchDateReached()
             ->with('match:id,name,match_date')
             ->orderBy('registered_at')
             ->orderBy('id')

@@ -24,7 +24,7 @@ beforeEach(function () {
         ['name' => 'Open', 'is_active' => true, 'display_order' => 1],
     );
 
-    $this->makeMatch = function (string $name) use ($province): MatchEvent {
+    $this->makeMatch = function (string $name, ?Carbon $date = null) use ($province): MatchEvent {
         $match = MatchEvent::create([
             'name' => $name,
             'match_type' => 'PRS',
@@ -32,7 +32,7 @@ beforeEach(function () {
             'series' => 'PRS',
             'season' => '2026',
             'province_id' => $province->id,
-            'match_date' => Carbon::today()->addMonths(2),
+            'match_date' => $date ?? Carbon::today()->addMonths(2),
             'status' => 'open',
             'published' => true,
             'match_director' => 'Test Director',
@@ -72,8 +72,8 @@ function pendingFeeEntry(MatchEvent $match, User $shooter, array $overrides = []
     ], $overrides));
 }
 
-it('blocks the register form when the shooter has an unpaid entry elsewhere', function () {
-    $owed = ($this->makeMatch)('Owed Match');
+it('blocks the register form when the shooter has an unpaid entry for a match that has started', function () {
+    $owed = ($this->makeMatch)('Owed Match', Carbon::yesterday());
     $next = ($this->makeMatch)('Next Match');
 
     $shooter = User::factory()->create(['email_verified_at' => now()]);
@@ -86,8 +86,8 @@ it('blocks the register form when the shooter has an unpaid entry elsewhere', fu
         ->assertSessionHas('error');
 });
 
-it('blocks posting a new entry while an unpaid fee remains', function () {
-    $owed = ($this->makeMatch)('Owed Match');
+it('blocks posting a new entry while an unpaid fee remains on a match that has started', function () {
+    $owed = ($this->makeMatch)('Owed Match', Carbon::yesterday());
     $next = ($this->makeMatch)('Next Match');
 
     $shooter = User::factory()->create(['email_verified_at' => now()]);
@@ -119,7 +119,7 @@ it('allows a new entry after the outstanding fee is paid', function () {
 });
 
 it('points the event CTA at the unpaid entry instead of register', function () {
-    $owed = ($this->makeMatch)('Owed Match');
+    $owed = ($this->makeMatch)('Owed Match', Carbon::yesterday());
     $next = ($this->makeMatch)('Next Match');
 
     $shooter = User::factory()->create(['email_verified_at' => now()]);
@@ -132,6 +132,26 @@ it('points the event CTA at the unpaid entry instead of register', function () {
     expect($cta->label)->toBe('Pay Outstanding Entry')
         ->and($cta->url)->toBe(route('registrations.show', $outstanding))
         ->and($cta->disabled)->toBeFalse();
+});
+
+it('does not block a new entry when the unpaid match is still in the future', function () {
+    $owed = ($this->makeMatch)('Future Owed Match');
+    $next = ($this->makeMatch)('Next Match', Carbon::today()->addMonths(3));
+
+    $shooter = User::factory()->create(['email_verified_at' => now()]);
+    $shooter->assignRole('member');
+    pendingFeeEntry($owed, $shooter);
+
+    expect(MatchRegistration::firstOutstandingForUser($shooter->id))->toBeNull();
+
+    $this->actingAs($shooter)
+        ->get(url('/events/'.$next->id.'/register'))
+        ->assertOk();
+
+    Auth::login($shooter);
+    $cta = new EventRegistrationCta($next);
+
+    expect($cta->label)->toBe('Register Now');
 });
 
 it('does not treat a waived or free entry as outstanding', function () {

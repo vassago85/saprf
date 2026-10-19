@@ -1335,7 +1335,8 @@ class MatchController extends Controller
 
     /**
      * Portal entry is blocked while the shooter still owes an entry fee
-     * for another match (e.g. Impact / MD-collected rows left Pending).
+     * for a match whose date has already arrived. An unpaid entry for a
+     * future match does not block.
      */
     private function redirectIfOutstandingBlocksEntry(User $shooter, User $actor): ?RedirectResponse
     {
