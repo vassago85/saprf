@@ -12,17 +12,23 @@
             margin: 24px 32px;
         }
         h1, h2, h3 { margin: 0; }
+        /*
+         * DomPDF has only partial flexbox support, so the header is a
+         * single-row table with two cells (brand left, reference right).
+         * The bottom border on the wrapper div gives the same visual rule
+         * flex layout did without relying on `display: flex`.
+         */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
             border-bottom: 2px solid #065f46;
             padding-bottom: 10px;
             margin-bottom: 16px;
         }
+        .header table { width: 100%; border-collapse: collapse; margin: 0; }
+        .header td { padding: 0; vertical-align: bottom; border: 0; }
+        .header td.right { text-align: right; }
         .brand { font-size: 20px; font-weight: 800; color: #065f46; letter-spacing: 1px; }
         .brand-sub { font-size: 10px; color: #57534e; margin-top: 2px; }
-        .ref { font-size: 11px; color: #44403c; text-align: right; }
+        .ref { font-size: 11px; color: #44403c; }
         .ref strong { display: block; font-size: 14px; color: #0c0a09; }
         .match {
             background: #f5f5f4;
@@ -71,15 +77,21 @@
 <body>
 
     <div class="header">
-        <div>
-            <div class="brand">SAPRF</div>
-            <div class="brand-sub">South African Precision Rifle Federation</div>
-        </div>
-        <div class="ref">
-            Payout statement
-            <strong>{{ $payout->reference }}</strong>
-            Generated {{ $generatedAt->format('d M Y H:i') }} &middot; v{{ $payout->statement_version }}
-        </div>
+        <table>
+            <tr>
+                <td>
+                    <div class="brand">SAPRF</div>
+                    <div class="brand-sub">South African Precision Rifle Federation</div>
+                </td>
+                <td class="right">
+                    <div class="ref">
+                        Payout statement
+                        <strong>{{ $payout->reference }}</strong>
+                        Generated {{ $generatedAt->format('d M Y H:i') }} &middot; v{{ $payout->statement_version }}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <div class="match">

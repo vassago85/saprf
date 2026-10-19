@@ -17,7 +17,6 @@
         "livewire/volt": "^1.10",
         "minishlink/web-push": "^9.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
-        "spatie/browsershot": "^5.4",
         "spatie/laravel-backup": "^10.2",
         "spatie/laravel-pdf": "^2.14",
         "spatie/laravel-permission": "^7.2",

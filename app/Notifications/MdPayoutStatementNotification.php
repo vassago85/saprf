@@ -69,7 +69,7 @@ class MdPayoutStatementNotification extends Notification implements ShouldQueue
             ->action('Open my payouts', route('my-payouts.show', $payout))
             ->line('Statement is frozen at v'.$payout->statement_version.' — regenerating it is an explicit admin action and will show up in the audit log.');
 
-        // Attach PDF. Browsershot/Chromium failures must not swallow the email —
+        // Attach PDF. DomPDF render failures must not swallow the email —
         // worst case the MD still gets the summary with the download link.
         try {
             $pdfPath = app(PayoutStatementRenderer::class)->pdfToTempFile($payout);

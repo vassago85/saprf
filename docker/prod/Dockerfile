@@ -72,32 +72,13 @@ RUN apk add --no-cache \
     icu-libs \
     oniguruma \
     curl \
-    chromium \
-    nss \
-    harfbuzz \
     ca-certificates \
-    ttf-freefont \
-    nodejs \
-    npm \
     mariadb-client
 
-# Alpine packages expose `chromium`; some images also ship chromium-browser.
-ENV CHROME_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
-# Browsershot drives Puppeteer, which drives the system Chromium above.
-# Install puppeteer globally so laravel-pdf can `require('puppeteer')` without
-# a per-project `npm install`. PUPPETEER_SKIP_CHROMIUM_DOWNLOAD stops puppeteer
-# bundling its own copy — we already have one at /usr/bin/chromium.
-RUN npm install -g --omit=dev puppeteer@^23 \
-    && npm cache clean --force
-
-# spatie/laravel-pdf picks these up via config/laravel-pdf.php env() calls at
-# config:cache time (entrypoint runs the cache after boot, so any override
-# supplied via docker-compose env wins).
-ENV LARAVEL_PDF_CHROME_PATH=/usr/bin/chromium
-ENV LARAVEL_PDF_NO_SANDBOX=true
-ENV LARAVEL_PDF_NODE_MODULES_PATH=/usr/lib/node_modules
+# PDF generation runs through dompdf/dompdf (pure PHP) via spatie/laravel-pdf's
+# DomPDF driver — see config/laravel-pdf.php. No Node, Chromium or Puppeteer
+# needed in the runtime image; a previous attempt at Browsershot on Alpine kept
+# failing with `require('puppeteer')` MODULE_NOT_FOUND regardless of NODE_PATH.
 
 RUN apk add --no-cache --virtual .build-deps \
     libpng-dev \
