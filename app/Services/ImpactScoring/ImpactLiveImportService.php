@@ -454,14 +454,16 @@ class ImpactLiveImportService
     }
 
     /**
-     * Link an assign-later Impact score to a real match registration.
-     * Registration division always wins over the Impact division.
+     * Link an assign-later Impact score to a real match entry (registration).
+     * Works for members and non-members. Registration division always wins.
+     * Name-only entries (no user_id) keep the stub account so the score stays
+     * visible as non_member rather than becoming an orphan.
      */
     public function linkScoreToRegistration(Score $score, MatchRegistration $registration, User $actor): Score
     {
         $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
         if (empty($meta['impact']['needs_member_link'])) {
-            throw new RuntimeException('This score is not waiting for a member assignment.');
+            throw new RuntimeException('This score is not waiting to be linked to an entry.');
         }
 
         $score->loadMissing('match');
@@ -471,7 +473,7 @@ class ImpactLiveImportService
             $regMatch = $registration->match;
             $day1Id = $regMatch?->provincialDay1Match?->id;
             if ((int) $day1Id !== (int) $score->match_id) {
-                throw new RuntimeException('That registration belongs to a different match.');
+                throw new RuntimeException('That entry belongs to a different match.');
             }
         }
 
@@ -480,15 +482,26 @@ class ImpactLiveImportService
             ?: $registration->shooter_name
             ?: $score->shooter_name;
 
+        // Prefer the entry's user (member or non-member account). Name-only
+        // walk-ins have no user_id — keep the assign-later stub so the score
+        // remains visible on the match as a non-member result.
+        $linkedUserId = $registration->user_id ?: $stubUserId;
+        $keptStubForNameOnlyEntry = $registration->user_id === null && $stubUserId;
+
+        if ($keptStubForNameOnlyEntry && $stubUserId) {
+            User::query()->whereKey($stubUserId)->update(['name' => $shooterName]);
+        }
+
         $meta['impact']['needs_member_link'] = false;
         $meta['impact']['linked_at'] = now()->toIso8601String();
         $meta['impact']['linked_by'] = $actor->id;
         $meta['impact']['linked_registration_id'] = $registration->id;
         $meta['impact']['division_source'] = 'registration';
         $meta['impact']['previous_stub_user_id'] = $stubUserId;
+        $meta['impact']['linked_name_only_entry'] = (bool) $keptStubForNameOnlyEntry;
 
         $score->fill([
-            'user_id' => $registration->user_id,
+            'user_id' => $linkedUserId,
             'division_id' => $registration->division_id ?: $score->division_id,
             'shooter_name' => $shooterName,
             'raw_meta' => $meta,
@@ -513,18 +526,21 @@ class ImpactLiveImportService
 
         $this->audit->log(
             $actor,
-            'score.impact.link_member',
+            'score.impact.link_entry',
             'Score',
             $score->id,
             ['stub_user_id' => $stubUserId],
             [
-                'user_id' => $registration->user_id,
+                'user_id' => $linkedUserId,
                 'registration_id' => $registration->id,
                 'division_id' => $score->division_id,
+                'name_only_entry' => (bool) $keptStubForNameOnlyEntry,
             ]
         );
 
-        $this->maybeDeleteAssignLaterStub($stubUserId);
+        if (! $keptStubForNameOnlyEntry) {
+            $this->maybeDeleteAssignLaterStub($stubUserId);
+        }
 
         return $score->fresh(['user', 'division', 'match']);
     }

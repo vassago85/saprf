@@ -65,7 +65,8 @@ class ScorePolicy
     }
 
     /**
-     * Link an Impact "assign later" stub score to a real registration.
+     * Link an Impact "assign later" stub score to a match entry
+     * (member or non-member registration).
      */
     public function linkMember(User $user, Score $score): bool
     {

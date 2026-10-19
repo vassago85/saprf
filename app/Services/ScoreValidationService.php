@@ -49,12 +49,13 @@ class ScoreValidationService
         }
 
         // Impact "assign later" stubs: score is stored, but must not count for
-        // standings / season log until an MD links it to a real registration.
+        // standings / season log until an MD links it to a match entry
+        // (member or non-member registration).
         $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
         if (! empty($meta['impact']['needs_member_link'])) {
             $score->status = 'invalid';
             $score->is_member = false;
-            $score->validation_reason = 'Awaiting member assignment after Impact import.';
+            $score->validation_reason = 'Awaiting entry link after Impact import.';
             $score->save();
             $this->syncOfficialLog($score);
 

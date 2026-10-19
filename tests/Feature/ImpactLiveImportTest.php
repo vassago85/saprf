@@ -440,6 +440,125 @@ it('imports assign-later as an invalid stub until linked to a real registration'
         ->and($score->shooter_name)->toBe('Stephanus Janse van Rensburg');
 });
 
+it('links an assign-later score to a non-member entry and keeps them non-counting', function () {
+    Notification::fake();
+
+    $nonMember = User::factory()->create([
+        'name' => 'Jacobus Janse van Rensburg',
+        'email_verified_at' => now(),
+    ]);
+    // No membership row → non_member after link.
+    $reg = impactRegisterShooter($this->match, $nonMember, $this->junior, [
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 150,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'confirmed',
+    ]);
+
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        [
+            'id' => 27,
+            'name' => 'Jacobus J van Rensburg',
+            'rank' => 27,
+            'points' => 5300,
+            'divisionName' => 'Open',
+        ],
+    ];
+    fakeImpactApi($payload);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => ['27' => 'assign_later'],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $this->match->id)->first();
+    expect($score->raw_meta['impact']['needs_member_link'])->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->get(route('score-imports.show', ScoreImport::latest('id')->first()))
+        ->assertOk()
+        ->assertSee('Link to entry')
+        ->assertSee('Non-member');
+
+    $this->actingAs($this->admin)
+        ->post(route('scores.link-impact-member', $score), [
+            'registration_id' => $reg->id,
+        ])
+        ->assertRedirect();
+
+    $score->refresh();
+    expect($score->user_id)->toBe($nonMember->id)
+        ->and($score->division?->slug)->toBe('junior')
+        ->and($score->raw_meta['impact']['needs_member_link'])->toBeFalse()
+        ->and($score->status)->toBe('non_member')
+        ->and($score->is_member)->toBeFalse()
+        ->and($score->shooter_name)->toBe('Jacobus Janse van Rensburg');
+});
+
+it('links an assign-later score to a name-only non-member walk-in entry', function () {
+    Notification::fake();
+
+    $reg = MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => null,
+        'division_id' => $this->junior->id,
+        'shooter_name' => 'Kaden Watridge',
+        'email' => null,
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 150,
+        'saprf_fee' => 0,
+        'platform_fee' => 0,
+        'gateway_fee' => 0,
+        'md_net_amount' => 0,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        [
+            'id' => 40,
+            'name' => 'Kaden Watridge',
+            'rank' => 40,
+            'points' => 4000,
+            'divisionName' => 'Open',
+        ],
+    ];
+    fakeImpactApi($payload);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => ['40' => 'assign_later'],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $this->match->id)->first();
+    $stubId = $score->user_id;
+
+    $this->actingAs($this->admin)
+        ->post(route('scores.link-impact-member', $score), [
+            'registration_id' => $reg->id,
+        ])
+        ->assertRedirect();
+
+    $score->refresh();
+    expect($score->user_id)->toBe($stubId)
+        ->and($score->shooter_name)->toBe('Kaden Watridge')
+        ->and($score->division?->slug)->toBe('junior')
+        ->and($score->raw_meta['impact']['needs_member_link'])->toBeFalse()
+        ->and($score->raw_meta['impact']['linked_name_only_entry'])->toBeTrue()
+        ->and($score->status)->toBe('non_member');
+});
+
 it('exposes Impact import on the match page and shows the audit after import', function () {
     fakeImpactApi();
     Notification::fake();

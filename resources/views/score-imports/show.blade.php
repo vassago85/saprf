@@ -151,10 +151,13 @@
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
                 </div>
                 <div>
-                    <h2 class="font-heading text-lg font-bold text-violet-950">Link members</h2>
-                    <p class="mt-0.5 text-sm text-violet-900/80">These scores imported as stubs and do not count until you attach the real registration. Registration division wins (e.g. Senior over Impact Open).</p>
+                    <h2 class="font-heading text-lg font-bold text-violet-950">Link to entry</h2>
+                    <p class="mt-0.5 text-sm text-violet-900/80">These Impact scores imported as stubs and do not count until you attach the real <strong>match entry</strong> — members and non-members. Entry division wins (e.g. Senior / Junior over Impact Open).</p>
                 </div>
             </div>
+            @if ($linkRegistrations->isEmpty())
+                <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">No active entries on this match to link to. Add the shooter on the registrations list first (member or non-member walk-in), then return here.</p>
+            @endif
             <ul class="space-y-3">
                 @foreach ($pendingLinkScores as $pending)
                     <li class="rounded-xl border border-violet-200/80 bg-white px-4 py-3">
@@ -163,27 +166,33 @@
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-stone-900">{{ $pending->shooter_name }}</p>
                                 <p class="text-xs text-stone-500 mt-0.5">
-                                    {{ number_format((float) ($pending->raw_score ?? $pending->day1_raw_score ?? 0), 1) }} hits
-                                    · status {{ $pending->status }}
+                                    Impact name · {{ number_format((float) ($pending->raw_score ?? $pending->day1_raw_score ?? 0), 1) }} hits
+                                    · {{ $pending->status }}
                                 </p>
                             </div>
-                            <div class="w-full sm:w-72">
-                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Registration</label>
+                            <div class="w-full sm:w-80">
+                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Match entry</label>
                                 <select name="registration_id" required
                                         class="w-full rounded-lg border border-violet-300 text-sm py-2 focus:ring-violet-500 focus:border-violet-500">
-                                    <option value="">Select member…</option>
+                                    <option value="">Select entry…</option>
                                     @foreach ($linkRegistrations as $reg)
+                                        @php
+                                            $entryLabel = $reg->user?->name ?: $reg->shooter_name ?: 'Unnamed entry';
+                                            $cat = $reg->feeCategoryLabel();
+                                        @endphp
                                         <option value="{{ $reg->id }}">
-                                            {{ $reg->user?->name ?: $reg->shooter_name }}
+                                            {{ $entryLabel }}
+                                            · {{ $cat }}
                                             @if ($reg->division) · {{ $reg->division->name }} @endif
-                                            · {{ $reg->payment_status }}
+                                            · {{ $reg->payment_status ?? '—' }}
+                                            @if (! $reg->user_id) · name-only @endif
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
                             <button type="submit"
                                     class="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 transition">
-                                Link member
+                                Link to entry
                             </button>
                         </form>
                     </li>

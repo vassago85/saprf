@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ScoreImportController extends Controller
@@ -225,8 +226,8 @@ class ScoreImportController extends Controller
     }
 
     /**
-     * Attach an assign-later Impact score to a real registration.
-     * Registration division wins over Impact.
+     * Attach an assign-later Impact score to a match entry (member or non-member).
+     * Entry division wins over Impact.
      */
     public function linkImpactScore(
         Request $request,
@@ -249,11 +250,13 @@ class ScoreImportController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        $entryName = $registration->user?->name ?: $registration->shooter_name;
+        $category = $registration->feeCategoryLabel();
+
         return back()->with(
             'success',
-            'Linked '.$score->fresh()->shooter_name.' to '
-            .($registration->user?->name ?: $registration->shooter_name)
-            .' — registration division applied.'
+            'Linked Impact score to entry '.$entryName
+            .' ('.$category.') — entry division applied.'
         );
     }
 
@@ -291,6 +294,7 @@ class ScoreImportController extends Controller
             $linkMatchId = $parentNational->id;
         }
 
+        // All active entries — members and non-members (incl. name-only walk-ins).
         $linkRegistrations = MatchRegistration::query()
             ->with(['user:id,name', 'division:id,name,slug'])
             ->where('match_id', $linkMatchId)
@@ -298,8 +302,10 @@ class ScoreImportController extends Controller
                 $q->whereNull('registration_status')
                     ->orWhereNotIn('registration_status', ['cancelled']);
             })
-            ->orderBy('shooter_name')
-            ->get();
+            ->orderByRaw('COALESCE(shooter_name, "")')
+            ->get()
+            ->sortBy(fn (MatchRegistration $r) => Str::lower($r->user?->name ?: (string) $r->shooter_name))
+            ->values();
 
         // Zero-score rows are ambiguous — the shooter may have genuinely zeroed
         // the match, or been on the CSV by mistake and never turned up. Surface
