@@ -1,6 +1,70 @@
 <x-layouts.app :title="$match->name . ' — Scores'">
     @include('matches.workspace._chrome')
 
+    @php
+        $scoresFinalized = $match->scoresAreFinalized();
+        $notifiedAt = $match->scores_finalized_notified_at;
+    @endphp
+
+    @if($hasAnyScores)
+        <div class="mt-6 rounded-xl border p-4 {{ $scoresFinalized ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50' }}">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    @if($scoresFinalized)
+                        <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                            <flux:icon.check-badge class="size-5 text-emerald-700" />
+                            Scores marked complete
+                            @if($notifiedAt)
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                                    Shooters notified
+                                </span>
+                            @endif
+                        </div>
+                        <p class="mt-1 text-xs text-emerald-800">
+                            Finalised {{ $match->scores_finalized_at?->diffForHumans() }}
+                            @if($match->scoresFinalizer)
+                                by {{ $match->scoresFinalizer->name }}
+                            @endif.
+                            Shooters who opted in have been (or will shortly be) emailed and pushed.
+                        </p>
+                    @else
+                        <div class="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                            <flux:icon.bell-alert class="size-5 text-amber-700" />
+                            Scores imported — not yet marked complete
+                        </div>
+                        <p class="mt-1 text-xs text-amber-800">
+                            Results are already visible on the public page as provisional. Shooters
+                            will <strong>only</strong> be notified once you confirm the names and
+                            entries are checked.
+                        </p>
+                    @endif
+                </div>
+                <div class="shrink-0">
+                    @if($scoresFinalized)
+                        <form method="POST" action="{{ route('matches.scores.uncomplete', $match) }}">
+                            @csrf
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
+                                <flux:icon.arrow-uturn-left class="size-4" />
+                                Unmark
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('matches.scores.complete', $match) }}"
+                              onsubmit="return confirm('Mark these scores as complete and notify opted-in shooters? This fires emails and push notifications once.');">
+                            @csrf
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
+                                <flux:icon.check class="size-4" />
+                                Mark scores complete
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="mt-6 grid gap-4 lg:grid-cols-3">
         <div class="rounded-xl border border-stone-200 bg-white p-5 lg:col-span-2">
             <h3 class="text-sm font-semibold text-stone-900">Scores</h3>
@@ -89,6 +153,7 @@
                         'scores_imported' => 'Scores imported',
                         'all_shooters_matched' => 'All shooters matched',
                         'results_published' => 'Results published',
+                        'scores_finalized' => 'Scores marked complete (shooters notified)',
                     ];
                 @endphp
                 @foreach($items as $key => $label)

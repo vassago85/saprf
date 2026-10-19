@@ -334,6 +334,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::put('/profile/notification-preferences', [NotificationPreferencesController::class, 'update'])
         ->name('profile.notification-preferences.update');
+    // Save-only endpoint for the one-time post-login prompt. Lives
+    // inside the profile.complete group because by the time the banner
+    // can appear the user has already landed on an authed page — if
+    // they're on the force-password or SASCOC-complete flow the banner
+    // itself is hidden by the layout component.
+    Route::post('/profile/score-notification-prompt', [NotificationPreferencesController::class, 'savePrompt'])
+        ->name('profile.score-notification-prompt.save');
 
     // Family / Managed Junior Accounts
     Route::prefix('family')->name('family.')->group(function (): void {
@@ -606,6 +613,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/', [MatchWorkspaceController::class, 'overview'])->name('matches.overview');
             Route::get('/entries', [MatchWorkspaceController::class, 'entries'])->name('matches.entries');
             Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
+            // MD "scores are checked — send the notifications" gate. POST
+            // routes (not GET) so a prefetch / crawler can't accidentally
+            // mark a match complete.
+            Route::post('/scores/complete', [MatchWorkspaceController::class, 'completeScores'])
+                ->name('matches.scores.complete');
+            Route::post('/scores/uncomplete', [MatchWorkspaceController::class, 'uncompleteScores'])
+                ->name('matches.scores.uncomplete');
             Route::get('/finances', [MatchWorkspaceController::class, 'finances'])->name('matches.finances');
             Route::get('/messages', [MatchWorkspaceController::class, 'messages'])->name('matches.messages');
             Route::get('/settings', [MatchWorkspaceController::class, 'settings'])->name('matches.settings');

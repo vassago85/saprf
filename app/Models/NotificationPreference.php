@@ -12,6 +12,10 @@ class NotificationPreference extends Model
         'user_id',
         'muted_email_categories',
         'push_enabled',
+        'notify_own_match_scores',
+        'notify_all_prs_scores',
+        'notify_all_pr22_scores',
+        'score_prefs_configured_at',
     ];
 
     protected function casts(): array
@@ -19,7 +23,50 @@ class NotificationPreference extends Model
         return [
             'muted_email_categories' => 'array',
             'push_enabled' => 'boolean',
+            'notify_own_match_scores' => 'boolean',
+            'notify_all_prs_scores' => 'boolean',
+            'notify_all_pr22_scores' => 'boolean',
+            'score_prefs_configured_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Default DB-level values for the three score toggles. Mirrors the
+     * migration defaults so a brand-new row (or a user with no prefs
+     * row yet) behaves predictably: own-match on, series feeds off.
+     *
+     * Used by the one-time prompt + the audience resolver when a user
+     * has not yet configured prefs.
+     */
+    public const DEFAULT_SCORE_PREFS = [
+        'notify_own_match_scores' => true,
+        'notify_all_prs_scores' => false,
+        'notify_all_pr22_scores' => false,
+    ];
+
+    /**
+     * The post-login prompt fires once per user. We treat "never saved"
+     * (`score_prefs_configured_at` is null) as "ask me". Saving the
+     * profile prefs form also stamps the column — hitting Save with the
+     * defaults still counts as "I made a choice", so we never nag again.
+     */
+    public function hasConfiguredScorePrefs(): bool
+    {
+        return $this->score_prefs_configured_at !== null;
+    }
+
+    public function wantsOwnMatchScoreNotifications(): bool
+    {
+        return (bool) $this->notify_own_match_scores;
+    }
+
+    public function wantsSeriesScoreNotifications(string $matchType): bool
+    {
+        return match (strtoupper($matchType)) {
+            'PRS' => (bool) $this->notify_all_prs_scores,
+            'PR22' => (bool) $this->notify_all_pr22_scores,
+            default => false,
+        };
     }
 
     public function user(): BelongsTo

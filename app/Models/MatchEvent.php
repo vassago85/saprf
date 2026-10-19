@@ -41,6 +41,9 @@ class MatchEvent extends Model
         'registration_close_date',
         'registration_close_notified_at',
         'status',
+        'scores_finalized_at',
+        'scores_finalized_by',
+        'scores_finalized_notified_at',
         'created_by',
         'active_member_fee',
         'non_member_fee',
@@ -68,6 +71,8 @@ class MatchEvent extends Model
             'registration_open_date' => 'date',
             'registration_close_date' => 'date',
             'registration_close_notified_at' => 'datetime',
+            'scores_finalized_at' => 'datetime',
+            'scores_finalized_notified_at' => 'datetime',
             'active_member_fee' => 'decimal:2',
             'non_member_fee' => 'decimal:2',
             'lapsed_member_fee' => 'decimal:2',
@@ -208,6 +213,25 @@ class MatchEvent extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function scoresFinalizer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'scores_finalized_by');
+    }
+
+    // ── Score finalisation ──
+
+    /**
+     * Whether the MD has explicitly marked the scores for this match as
+     * complete (names checked, entries reconciled). Independent of
+     * `status === 'completed'` — the status flag can move automatically
+     * after a successful import or payout request without the MD
+     * confirming the scores are actually final.
+     */
+    public function scoresAreFinalized(): bool
+    {
+        return $this->scores_finalized_at !== null;
     }
 
     // ── Computed Accessors ──

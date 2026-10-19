@@ -3,9 +3,11 @@
 namespace App\Notifications\Channels;
 
 use App\Models\Announcement;
+use App\Models\MatchEvent;
 use App\Models\PushSubscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Throwable;
@@ -41,6 +43,25 @@ class WebPushChannel
         ];
 
         return $this->sendPayload($user, $payload);
+    }
+
+    /**
+     * Push payload for the "scores are complete" fan-out. Routes the
+     * tap-through back to the public results anchor so the shooter
+     * lands directly on the leaderboard.
+     *
+     * @return array{sent: int, pruned: int, failed: int, reason?: string}
+     */
+    public function sendScoresFinalized(User $user, MatchEvent $match): array
+    {
+        $seriesLabel = $match->match_type ?: ($match->series ?: 'Match');
+
+        return $this->sendPayload($user, [
+            'title' => sprintf('%s results are final', strtoupper((string) $seriesLabel)),
+            'body' => Str::limit($match->name . ' — tap to view the final leaderboard.', 140),
+            'url' => route('events.show', $match) . '#results',
+            'category' => 'scores_finalized',
+        ]);
     }
 
     /**

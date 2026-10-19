@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AnnouncementCategory;
 use App\Models\Announcement;
 use App\Models\AuditLog;
+use App\Jobs\NotifyScoresFinalizedJob;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
@@ -15,6 +16,7 @@ use App\Models\Venue;
 use App\Services\FinancialService;
 use App\Services\MatchFinanceService;
 use App\Services\SettingsService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -166,6 +168,7 @@ class MatchWorkspaceController extends Controller
                 ->whereNull('user_id')
                 ->doesntExist(),
             'results_published' => $hasAnyScores,
+            'scores_finalized' => $match->scoresAreFinalized(),
         ];
 
         return view('matches.workspace.scores', $this->workspaceData($match, 'scores', [
@@ -175,6 +178,67 @@ class MatchWorkspaceController extends Controller
             'counts' => $counts,
             'checklist' => $checklist,
         ]));
+    }
+
+    /**
+     * Mark the scores on this match as complete — this is the MD's explicit
+     * "yes, I have checked the names and provisional results, send the
+     * notifications now" button on the scores tab. Deliberately separate
+     * from `matches.status = completed` (which can flip automatically on
+     * import / payout) and from "results published" (which happens the
+     * moment any score row exists).
+     *
+     * We guard behind `update` (owning MD / staff). The notify job is only
+     * dispatched if we haven't already fanned out for this match — if the
+     * MD unmarks and re-marks (e.g. to fix a typo), re-finalising keeps
+     * the fresh timestamp but will NOT re-blast the audience.
+     */
+    public function completeScores(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        if (! $match->scores()->exists()) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Import or enter scores before marking the match complete.');
+        }
+
+        $wasFinalized = $match->scoresAreFinalized();
+
+        $match->forceFill([
+            'scores_finalized_at' => now(),
+            'scores_finalized_by' => $request->user()->id,
+        ])->save();
+
+        if (! $wasFinalized && $match->scores_finalized_notified_at === null) {
+            NotifyScoresFinalizedJob::dispatch($match->id);
+            $flash = 'Scores marked complete. Shooters who opted in will be notified.';
+        } else {
+            $flash = 'Scores marked complete. Notifications were already sent earlier — not re-sent.';
+        }
+
+        return redirect()
+            ->route('matches.scores', $match)
+            ->with('success', $flash);
+    }
+
+    /**
+     * Clears the finalized marker so the MD can keep editing. We leave
+     * `scores_finalized_notified_at` alone on purpose — see
+     * `completeScores()`.
+     */
+    public function uncompleteScores(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $match->forceFill([
+            'scores_finalized_at' => null,
+            'scores_finalized_by' => null,
+        ])->save();
+
+        return redirect()
+            ->route('matches.scores', $match)
+            ->with('success', 'Scores unmarked. Adjust and mark complete again when ready.');
     }
 
     // ── Finances ──

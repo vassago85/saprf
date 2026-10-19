@@ -211,6 +211,7 @@
     <flux:main id="main" class="bg-stone-50">
         <x-outstanding-acknowledgements />
         <x-push-nudge />
+        <x-score-notification-prefs-prompt />
         <x-account-credit-banner />
 
         @if (session('success'))

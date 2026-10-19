@@ -65,6 +65,12 @@ class ProfileController extends Controller
             'mutableCategories' => collect(\App\Enums\AnnouncementCategory::cases())
                 ->reject(fn ($c) => $c->isMandatory())
                 ->values(),
+            // Score-complete toggles. Defaults mirror the migration so a
+            // user who has not yet saved anything sees own-match ticked
+            // and the series feeds unticked, matching the one-time prompt.
+            'notifyOwnMatchScores' => $pref?->notify_own_match_scores ?? \App\Models\NotificationPreference::DEFAULT_SCORE_PREFS['notify_own_match_scores'],
+            'notifyAllPrsScores' => $pref?->notify_all_prs_scores ?? \App\Models\NotificationPreference::DEFAULT_SCORE_PREFS['notify_all_prs_scores'],
+            'notifyAllPr22Scores' => $pref?->notify_all_pr22_scores ?? \App\Models\NotificationPreference::DEFAULT_SCORE_PREFS['notify_all_pr22_scores'],
             // Public-profile visibility radio group. Same scope-quirk
             // sidestep — the `@php` block that used to sit inside the
             // fieldset was silently emptied when nested inside the
