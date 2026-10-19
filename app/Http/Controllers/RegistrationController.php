@@ -8,9 +8,11 @@ use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
+use App\Models\Payout;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\CreditRefundService;
+use App\Services\FinancialService;
 use App\Services\QualificationService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
@@ -279,6 +281,67 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', 'Division updated.');
+    }
+
+    /**
+     * MD/admin correction: fix a wrong shooter name on a registration. Common
+     * cases are a mis-typed walk-in ("Jhon" → "John") or an Impact import
+     * that mangled a name. For stub walk-in accounts (@saprf.walkin email),
+     * also rename the linked User so the display stays consistent across
+     * the entry list, score sheet, and standings. Real member accounts
+     * only get the registration-level `shooter_name` updated — we don't
+     * touch their canonical User.name from a per-match edit screen.
+     */
+    public function updateShooterName(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        $validated = $request->validate([
+            'shooter_name' => ['required', 'string', 'min:2', 'max:100'],
+        ], [
+            'shooter_name.required' => 'A shooter name is required.',
+            'shooter_name.min' => 'The shooter name must be at least 2 characters.',
+        ]);
+
+        $newName = trim($validated['shooter_name']);
+        $oldName = $registration->shooter_name;
+
+        if ($newName === $oldName) {
+            return back()->with('info', 'Shooter name is unchanged.');
+        }
+
+        $renamedWalkIn = false;
+        DB::transaction(function () use ($registration, $newName, &$renamedWalkIn) {
+            $registration->update(['shooter_name' => $newName]);
+
+            // Stub walk-in users are created with an `@saprf.walkin` email
+            // by {@see ImpactLiveImportService} and the walk-in flows. These
+            // aren't real people with their own accounts, so renaming the
+            // registration should also rename the underlying stub user —
+            // otherwise the match standings keep the old name and the fix
+            // only lands halfway. Real member accounts are left alone.
+            $user = $registration->user;
+            if ($user && str_contains((string) $user->email, '@saprf.walkin')) {
+                $user->update(['name' => $newName]);
+                $renamedWalkIn = true;
+            }
+        });
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.shooter_name.updated',
+            'MatchRegistration',
+            $registration->id,
+            ['shooter_name' => $oldName],
+            ['shooter_name' => $newName, 'walk_in_user_renamed' => $renamedWalkIn],
+        );
+
+        $message = 'Shooter name updated to '.$newName.'.';
+        if ($renamedWalkIn) {
+            $message .= ' Walk-in account renamed too — standings will reflect the new name.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse
@@ -649,6 +712,8 @@ class RegistrationController extends Controller
             ],
         );
 
+        $this->refreshPendingPayoutSnapshot($registration);
+
         $shooterLabel = $registration->user?->name ?? $registration->shooter_name ?? 'shooter';
 
         $message = 'Marked '.$shooterLabel.' as paid ('.$proofLabel.').';
@@ -732,6 +797,8 @@ class RegistrationController extends Controller
             ],
         );
 
+        $this->refreshPendingPayoutSnapshot($registration);
+
         $shooterLabel = $registration->user?->name ?? $registration->shooter_name ?? 'shooter';
         $message = 'Comped '.$shooterLabel.'.';
         $owed = abs($mdDeduction);
@@ -740,6 +807,37 @@ class RegistrationController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Refresh the frozen payout snapshot after a mid-flight correction
+     * (comp, mark-settled, etc.). If the match's MD has already raised
+     * a pending payout, the snapshot was taken at that moment and now
+     * reflects stale numbers; without this the user would have to find
+     * the Rebuild button themselves. Silently no-ops when the match
+     * has no pending payout (nothing to refresh) and swallows errors
+     * so a snapshot problem doesn't block the primary user action.
+     */
+    private function refreshPendingPayoutSnapshot(MatchRegistration $registration): void
+    {
+        $payout = Payout::query()
+            ->where('status', 'pending')
+            ->where('match_id', $registration->match_id)
+            ->first();
+
+        if (! $payout) {
+            return;
+        }
+
+        try {
+            app(FinancialService::class)->regenerateMatchPayoutStatement($payout);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to auto-regenerate payout statement after registration update', [
+                'payout_id' => $payout->id,
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

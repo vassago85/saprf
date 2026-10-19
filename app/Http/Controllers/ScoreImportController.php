@@ -275,12 +275,57 @@ class ScoreImportController extends Controller
             ->orderBy('placement')
             ->paginate(30);
 
-        $audit = is_array($scoreImport->raw_payload['audit'] ?? null)
+        // The audit snapshot stored on raw_payload is a point-in-time photo
+        // taken when the import ran. Rows that have since been settled (comp,
+        // mark-paid, cancellation) must drop out and dollar-figures must
+        // reflect the LIVE registration — otherwise the "Who needs attention"
+        // panel keeps telling the MD to chase R650 off a shooter they already
+        // comped five minutes ago. Overlay the live match_registration row
+        // onto each audit entry; filter out everything that's now resolved.
+        $rawAudit = is_array($scoreImport->raw_payload['audit'] ?? null)
             ? $scoreImport->raw_payload['audit']
             : [];
-        $auditSummary = is_array($scoreImport->raw_payload['audit_summary'] ?? null)
-            ? $scoreImport->raw_payload['audit_summary']
-            : [];
+
+        $registrationIds = collect($rawAudit)
+            ->pluck('registration_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $liveRegistrations = $registrationIds === []
+            ? collect()
+            : MatchRegistration::query()->whereIn('id', $registrationIds)->get()->keyBy('id');
+
+        $audit = [];
+        foreach ($rawAudit as $row) {
+            $regId = $row['registration_id'] ?? null;
+            if ($regId && ($live = $liveRegistrations->get($regId))) {
+                // Settled or cancelled since import → nothing to action.
+                if (in_array($live->payment_status, ['paid', 'waived', 'refunded'], true)
+                    || $live->registration_status === 'cancelled') {
+                    continue;
+                }
+                // Refresh moving pieces so the amber "Collect R…" chip is honest.
+                $row['payment_status'] = $live->payment_status;
+                $row['registration_status'] = $live->registration_status;
+                $row['fee_amount'] = (float) $live->fee_amount;
+                $row['saprf_fee'] = (float) $live->saprf_fee;
+            }
+            $audit[] = $row;
+        }
+
+        // Rebuild the summary from the filtered audit so the header chips
+        // stay honest (otherwise "Unpaid / pending · 1" lingers after the
+        // row has already been removed from the list below it).
+        $auditSummary = ['pending_unpaid' => 0, 'walk_in_member' => 0, 'assign_later' => 0,
+            'skipped_fuzzy' => 0, 'skipped' => 0, 'non_member_stub' => 0];
+        foreach ($audit as $row) {
+            $reason = (string) ($row['reason'] ?? '');
+            if (isset($auditSummary[$reason])) {
+                $auditSummary[$reason]++;
+            }
+        }
 
         $pendingLinkScores = Score::query()
             ->where('score_import_id', $scoreImport->id)

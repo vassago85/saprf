@@ -13,12 +13,17 @@
             <p class="mt-1 text-xs text-stone-400">Statement v{{ $payout->statement_version }} &middot; generated {{ $payout->statement_generated_at?->format('d M Y H:i') }}</p>
         </div>
 
-        {{-- Legacy-payout rescue banner. Payouts raised before the snapshot
-             system (commit 47c40d4) have no frozen items — the PDF renders
-             a blank body and the CSV has only headers. Expose a one-tap
-             rebuild for admins viewing the page; MDs just see an explainer. --}}
+        @php
+            // Admin-only rebuild shortcut. Block syntax avoids Blade's
+            // short-form `@php(...)` regex choking on the nullsafe `?->`
+            // operator (it compiles to `<?php(` with no space, breaking PHP).
+            $canRebuild = auth()->user()?->hasAnyRole(['developer', 'exco', 'owner', 'admin']);
+        @endphp
+
+        {{-- Loud rebuild prompt when the statement was never frozen (payout
+             raised before the snapshot system existed). Blocks the eye,
+             tells the reader why PDF/CSV look empty, and ships the button. --}}
         @if($payout->statement_generated_at === null)
-            @php($canRebuild = auth()->user()?->hasAnyRole(['developer', 'exco', 'owner', 'admin']))
             <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                 <p class="font-semibold">This statement has no frozen snapshot.</p>
                 <p class="mt-1 text-xs text-amber-800">
@@ -39,9 +44,26 @@
             </div>
         @endif
 
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap items-center gap-3">
             <a href="{{ route('my-payouts.pdf', $payout) }}" class="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Download PDF</a>
             <a href="{{ route('my-payouts.csv', $payout) }}" class="rounded-lg bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">Download CSV</a>
+
+            {{-- Admin-only Rebuild shortcut, available at all times (not just
+                 when the snapshot is missing). The MD may still be comping
+                 shooters or marking settlements after the first rebuild, so
+                 the previous "only show when NULL" rule left admins stuck
+                 looking at stale totals with no way to refresh from the UI. --}}
+            @if($canRebuild && $payout->match && $payout->status === 'pending' && $payout->statement_generated_at !== null)
+                <form method="POST" action="{{ route('financials.payouts.regenerate-statement', $payout) }}" class="ml-auto"
+                      onsubmit="return confirm('Rebuild this statement from the current match data? Picks up any new comps, mark-settled, or late entries since the last freeze.');">
+                    @csrf
+                    <button type="submit"
+                            class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                            title="Refresh from current registrations">
+                        Rebuild statement
+                    </button>
+                </form>
+            @endif
         </div>
 
         {{-- Banking details: the account the MD nominated when raising the
@@ -137,9 +159,25 @@
             </div>
         </div>
 
+        @php
+            // Split billable rows into "real paid" and "comps" for the title
+            // + totals wording. A comp carries payment_method=waived and a
+            // negative net; everything else is a normal paid row (card,
+            // manual, walk-in, EFT, etc.).
+            $compItems = $paidItems->where('payment_method', 'waived');
+            $realPaidCount = $paidItems->count() - $compItems->count();
+            $compCount = $compItems->count();
+        @endphp
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
             <div class="p-6 border-b border-stone-100">
-                <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Paid entries</h2>
+                <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">
+                    Billable entries
+                    @if($compCount > 0)
+                        <span class="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
+                            {{ $compCount }} {{ \Illuminate\Support\Str::plural('comp', $compCount) }} included
+                        </span>
+                    @endif
+                </h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -158,27 +196,47 @@
                     </thead>
                     <tbody>
                         @forelse($paidItems as $item)
-                            <tr class="border-b border-stone-100">
+                            @php $isComp = $item->payment_method === 'waived'; @endphp
+                            <tr class="border-b border-stone-100 {{ $isComp ? 'bg-sky-50/60' : '' }}">
                                 <td class="py-2 px-4 text-stone-700">{{ $item->shooter_name }}</td>
                                 <td class="py-2 px-4 text-stone-600">{{ ucfirst(str_replace('_', ' ', (string) $item->membership_fee_category)) }}</td>
-                                <td class="py-2 px-4 text-stone-600">{{ $item->methodLabel() }}</td>
-                                <td class="py-2 px-4 text-right">R{{ number_format((float) $item->gross_amount, 2) }}</td>
+                                <td class="py-2 px-4">
+                                    @if($isComp)
+                                        <span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">Comp</span>
+                                    @else
+                                        <span class="text-stone-600">{{ $item->methodLabel() }}</span>
+                                    @endif
+                                </td>
+                                <td class="py-2 px-4 text-right {{ $isComp ? 'text-sky-700' : '' }}">R{{ number_format((float) $item->gross_amount, 2) }}</td>
                                 <td class="py-2 px-4 text-right text-stone-500">R{{ number_format((float) $item->surcharge_amount, 2) }}</td>
                                 <td class="py-2 px-4 text-right text-stone-500">R{{ number_format((float) $item->saprf_fee, 2) }}</td>
                                 <td class="py-2 px-4 text-right text-stone-500">R{{ number_format((float) $item->platform_fee, 2) }}</td>
                                 <td class="py-2 px-4 text-right text-stone-500">R{{ number_format((float) $item->gateway_fee, 2) }}</td>
-                                <td class="py-2 px-4 text-right font-semibold">R{{ number_format((float) $item->net_amount, 2) }}</td>
+                                <td class="py-2 px-4 text-right font-semibold {{ $isComp && (float) $item->net_amount < 0 ? 'text-sky-700' : '' }}">
+                                    R{{ number_format((float) $item->net_amount, 2) }}
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="py-6 px-4 text-center text-sm text-stone-500">No paid entries on this statement.</td>
+                                <td colspan="9" class="py-6 px-4 text-center text-sm text-stone-500">No billable entries on this statement.</td>
                             </tr>
                         @endforelse
                     </tbody>
                     @if($paidItems->isNotEmpty())
                         <tfoot>
                             <tr class="bg-stone-50 font-semibold text-stone-800">
-                                <td class="py-3 px-4" colspan="3">Totals ({{ $paidItems->count() }} paid)</td>
+                                <td class="py-3 px-4" colspan="3">
+                                    @php
+                                        // Build the totals label in PHP. Doing this
+                                        // inline with directives attached to text
+                                        // breaks the Blade directive scanner.
+                                        $totalsLabel = $realPaidCount . ' paid';
+                                        if ($compCount > 0) {
+                                            $totalsLabel .= ' + ' . $compCount . ' ' . \Illuminate\Support\Str::plural('comp', $compCount);
+                                        }
+                                    @endphp
+                                    Totals ({{ $totalsLabel }})
+                                </td>
                                 <td class="py-3 px-4 text-right">R{{ number_format((float) ($summary['gross_revenue'] ?? 0), 2) }}</td>
                                 <td class="py-3 px-4 text-right">R{{ number_format((float) ($summary['surcharges'] ?? 0), 2) }}</td>
                                 <td class="py-3 px-4 text-right">R{{ number_format((float) ($summary['saprf_fees'] ?? 0), 2) }}</td>
@@ -196,6 +254,10 @@
             <div class="rounded-xl border border-amber-200 bg-amber-50/40 shadow-sm">
                 <div class="p-6 border-b border-amber-200">
                     <h2 class="text-sm font-semibold text-amber-800 uppercase tracking-wide">Not included in this payout</h2>
+                    <p class="mt-1 text-xs text-amber-800">
+                        Pending, failed, and refunded entries do not affect the payout. Comp'd entries
+                        <strong>are</strong> included above — they show up as negative-net rows in the Billable table.
+                    </p>
                 </div>
                 <ul class="divide-y divide-amber-100">
                     @foreach($excludedItems as $item)

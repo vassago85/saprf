@@ -168,7 +168,12 @@
     </table>
     @endif
 
-    <div class="section-title">Paid entries</div>
+    @php
+        // Count comp rows for a more accurate totals label on the PDF.
+        $pdfCompCount = $paidItems->where('payment_method', 'waived')->count();
+        $pdfRealPaidCount = $paidItems->count() - $pdfCompCount;
+    @endphp
+    <div class="section-title">Billable entries</div>
     <table>
         <thead>
             <tr>
@@ -197,10 +202,16 @@
                     <td class="num">R{{ number_format((float) $item->net_amount, 2) }}</td>
                 </tr>
             @empty
-                <tr><td colspan="9">No paid entries on this statement.</td></tr>
+                <tr><td colspan="9">No billable entries on this statement.</td></tr>
             @endforelse
+            @php
+                $pdfTotalsLabel = $pdfRealPaidCount . ' paid';
+                if ($pdfCompCount > 0) {
+                    $pdfTotalsLabel .= ' + ' . $pdfCompCount . ' ' . \Illuminate\Support\Str::plural('comp', $pdfCompCount);
+                }
+            @endphp
             <tr class="totals">
-                <td colspan="3">Totals ({{ $paidItems->count() }} paid)</td>
+                <td colspan="3">Totals ({{ $pdfTotalsLabel }})</td>
                 <td class="num">R{{ number_format((float) ($summary['gross_revenue'] ?? 0), 2) }}</td>
                 <td class="num">R{{ number_format((float) ($summary['surcharges'] ?? 0), 2) }}</td>
                 <td class="num">R{{ number_format((float) ($summary['saprf_fees'] ?? 0), 2) }}</td>
@@ -236,7 +247,9 @@
     <div class="foot">
         Gateway fees are the actual amount PayFast reports back on settlement — not a flat estimate.
         Non-member surcharges are retained by SAPRF and shown as a deduction from gross revenue.
-        Pending, failed, refunded, and waived entries do not contribute to this payout.
+        Pending, failed, and refunded entries do not contribute to this payout. Comp'd entries
+        are included above and reduce the net payout (the MD still owes the SAPRF and platform
+        fees on a comp).
     </div>
 
 </body>

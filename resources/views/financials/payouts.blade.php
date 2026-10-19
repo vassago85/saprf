@@ -127,19 +127,26 @@
                             </td>
                             <td class="py-3 px-5 text-right">
                                 <div class="inline-flex items-center gap-2">
-                                    {{-- Legacy payout rescue: payouts raised before the
-                                         snapshot system (commit 47c40d4) have no items
-                                         and an empty summary, so PDF/CSV come out blank.
-                                         Show a one-tap rebuild button on those rows
-                                         instead of forcing an SSH + tinker. --}}
-                                    @if($mdPayout->statement_generated_at === null && $mdPayout->match)
+                                    {{-- Rebuild is always available while a payout is
+                                         pending. The MD may still be settling cash,
+                                         comping shooters, or correcting rows post-raise;
+                                         admins need a one-tap way to refresh the frozen
+                                         snapshot without SSH or tinker. Amber styling
+                                         when there is no snapshot at all (first-time
+                                         rebuild), neutral styling once the snapshot
+                                         exists (just picking up newer changes). --}}
+                                    @if($mdPayout->match)
+                                        @php($noSnapshot = $mdPayout->statement_generated_at === null)
                                         <form method="POST"
                                               action="{{ route('financials.payouts.regenerate-statement', $mdPayout) }}"
                                               onsubmit="return confirm('Rebuild this statement from the live match data? Fees and totals will be refreshed from current registrations.');">
                                             @csrf
                                             <button type="submit"
-                                                    class="rounded-lg border border-amber-400 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition"
-                                                    title="This payout has no frozen statement — rebuild from live match data">
+                                                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition
+                                                           {{ $noSnapshot
+                                                              ? 'border border-amber-400 bg-amber-100 text-amber-900 hover:bg-amber-200'
+                                                              : 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' }}"
+                                                    title="{{ $noSnapshot ? 'No frozen statement yet — rebuild from live match data' : 'Refresh from current registrations (picks up new comps, mark-settled, late entries)' }}">
                                                 Rebuild statement
                                             </button>
                                         </form>

@@ -18,9 +18,54 @@
                         <a href="{{ route('events.show', $registration->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $registration->match->name }}</a>
                     </dd>
                 </div>
-                <div>
+                @php
+                    // Admins + MD of this match can rename the shooter on the
+                    // registration row (useful for walk-in typos or Impact
+                    // name mangling). Policy mirrors the other mutating
+                    // actions on this page (division, rifle, mark-settled).
+                    $canEditShooterName = auth()->user()?->can('update', $registration) ?? false;
+                    $displayName = $registration->shooter_name ?: ($registration->user?->name ?? '—');
+                @endphp
+                <div
+                    x-data="{ editing: false }"
+                    @class(['sm:col-span-2'])
+                >
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Shooter</dt>
-                    <dd class="mt-1 text-sm text-stone-900">{{ $registration->user->name }}</dd>
+                    <dd class="mt-1 flex flex-wrap items-center gap-2" x-show="!editing">
+                        <span class="text-sm text-stone-900">{{ $displayName }}</span>
+                        @if($canEditShooterName)
+                            <button type="button"
+                                    @click="editing = true"
+                                    class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                                    title="Fix a mis-typed walk-in or Impact-imported name">
+                                Edit name
+                            </button>
+                        @endif
+                    </dd>
+                    @if($canEditShooterName)
+                        <form x-show="editing" x-cloak method="POST" action="{{ route('registrations.update-shooter-name', $registration) }}" class="mt-1.5 flex flex-wrap items-center gap-2">
+                            @csrf
+                            @method('PUT')
+                            <input type="text"
+                                   name="shooter_name"
+                                   value="{{ old('shooter_name', $registration->shooter_name ?: $registration->user?->name) }}"
+                                   maxlength="100"
+                                   required
+                                   class="flex-1 min-w-0 rounded-md border-stone-300 text-sm shadow-sm focus:border-emerald-500 focus:ring-emerald-500" />
+                            <button type="submit"
+                                    class="inline-flex items-center rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                Save
+                            </button>
+                            <button type="button"
+                                    @click="editing = false"
+                                    class="inline-flex items-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                                Cancel
+                            </button>
+                        </form>
+                        @error('shooter_name')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    @endif
                 </div>
                 @php
                     $enteredBy = $registration->registeredBy;

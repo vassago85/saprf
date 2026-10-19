@@ -241,3 +241,40 @@ it('shows the Comp this entry card to the owning MD on an unpaid registration', 
         ->assertSee('R100.00')     // SAPRF + platform preview
         ->assertSee('come off your payout', false);
 });
+
+it('auto-refreshes the frozen payout snapshot when an entry is comped after the payout was raised', function () {
+    // One normal paid entry: R400 net to MD.
+    $normalShooter = User::factory()->create();
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $normalShooter->id,
+        'shooter_name' => $normalShooter->name,
+        'email' => $normalShooter->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500, 'surcharge_amount' => 0,
+        'saprf_fee' => 50, 'platform_fee' => 50, 'gateway_fee' => 0,
+        'md_net_amount' => 400, 'payment_status' => 'paid',
+        'registration_status' => 'confirmed', 'registered_at' => now()->subDays(5),
+    ]);
+
+    // MD raises the payout BEFORE comping the pending shooter. The frozen
+    // snapshot captures 1 billable entry at R400 net.
+    $payout = app(FinancialService::class)->createMdPayout($this->match->fresh(), $this->md);
+    expect($payout->items()->where('excluded', false)->count())->toBe(1)
+        ->and((float) $payout->net_amount)->toBe(400.00);
+
+    $firstVersion = $payout->statement_version;
+
+    // Now the MD comps the other shooter — this should transparently
+    // regenerate the snapshot so the statement isn't stale.
+    $comped = makePendingEntry($this->match, $this->shooter);
+    $this->actingAs($this->md)
+        ->post(route('registrations.comp', $comped), ['comp_note' => 'MD comped mid-payout'])
+        ->assertRedirect();
+
+    $payout->refresh();
+
+    expect($payout->statement_version)->toBe($firstVersion + 1)
+        ->and((float) $payout->net_amount)->toBe(300.00) // 400 - 100 comp
+        ->and($payout->items()->where('excluded', false)->count())->toBe(2);
+});
