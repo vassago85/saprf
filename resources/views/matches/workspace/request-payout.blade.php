@@ -7,6 +7,14 @@
         $projectedNet = (float) ($money['md_payout_projection'] ?? ($summary['md_net'] ?? 0));
         $settledNet = (float) ($summary['md_net'] ?? 0);
         $hasProjection = $projectedNet > $settledNet + 0.009;
+
+        // Projected entries = registrations the shooter hasn't paid for yet,
+        // but with worst-case fees applied so the MD can see what they'll be
+        // owed IF the person coughs up. Driving a dedicated warning off this
+        // list — not off the raw count — so an all-zero stub registration
+        // doesn't show up as "shooter owes you money".
+        $unpaid = ($money['projected_entries'] ?? collect())->values();
+        $unpaidOwedToMd = (float) $unpaid->sum('md_net_amount');
     @endphp
 
     <div class="mx-auto max-w-4xl space-y-6">
@@ -93,6 +101,71 @@
                 </div>
             </dl>
         </div>
+
+        {{-- Unpaid shooters warning. Shown ONLY when at least one shooter
+             still owes money. We want the MD to actively notice this before
+             they lock in the payout, because any money that lands after the
+             payout is raised sits in SAPRF's account and takes an admin to
+             release. --}}
+        @if($unpaid->isNotEmpty())
+            <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <flux:icon.exclamation-triangle class="mt-0.5 size-6 shrink-0 text-amber-600" />
+                    <div class="flex-1">
+                        <h2 class="font-heading text-lg font-semibold text-amber-900">
+                            {{ $unpaid->count() }}
+                            {{ \Illuminate\Support\Str::plural('shooter', $unpaid->count()) }}
+                            {{ $unpaid->count() === 1 ? 'still owes' : 'still owe' }}
+                            you money
+                        </h2>
+                        <p class="mt-1 text-sm text-amber-800">
+                            If you raise the payout now, the
+                            <strong class="tabular-nums">R {{ number_format($unpaidOwedToMd, 2) }}</strong>
+                            below is <strong>not</strong> included. Anything they pay afterwards sits with SAPRF
+                            until an admin releases a top-up — so if you're expecting these to settle, consider
+                            chasing them first.
+                        </p>
+
+                        <ul class="mt-4 divide-y divide-amber-200 rounded-lg border border-amber-200 bg-white/60">
+                            @foreach($unpaid as $reg)
+                                @php
+                                    $name = $reg->shooter_name ?: ($reg->user?->name ?? 'Unknown shooter');
+                                    $contact = $reg->email ?: $reg->user?->email;
+                                @endphp
+                                <li class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                                    <div class="min-w-0">
+                                        <p class="truncate font-medium text-stone-900">{{ $name }}</p>
+                                        @if($contact)
+                                            <p class="truncate text-xs text-stone-500">{{ $contact }}</p>
+                                        @endif
+                                    </div>
+                                    <p class="shrink-0 font-semibold tabular-nums text-stone-900">
+                                        R {{ number_format((float) $reg->md_net_amount, 2) }}
+                                    </p>
+                                </li>
+                            @endforeach
+                            <li class="flex items-center justify-between gap-3 bg-amber-100/70 px-4 py-2.5 text-sm">
+                                <p class="font-semibold text-amber-900">Total still outstanding</p>
+                                <p class="font-heading text-base font-bold tabular-nums text-amber-900">
+                                    R {{ number_format($unpaidOwedToMd, 2) }}
+                                </p>
+                            </li>
+                        </ul>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <a href="{{ route('matches.entries', $match) }}" wire:navigate
+                               class="inline-flex items-center gap-1.5 rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50">
+                                <flux:icon.users class="size-4" />
+                                Chase them in Entries
+                            </a>
+                            <span class="inline-flex items-center text-xs text-amber-800">
+                                or scroll down to raise the payout anyway.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{-- Banking form --}}
         <form method="POST" action="{{ route('matches.complete-and-request-payout', $match) }}"

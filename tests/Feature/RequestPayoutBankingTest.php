@@ -132,6 +132,59 @@ it('pre-fills the request-payout form from the MDs most recent payout banking de
         ->assertSee('Pre-filled from your last payout');
 });
 
+it('warns the MD by name when shooters still owe money on the match', function () {
+    // Two more entries on the same match — one still pending, one cancelled.
+    // Cancelled rows must NOT show up in the warning (they aren't going to pay).
+    $tiaan = User::factory()->create(['name' => 'Tiaan Scheepers']);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $tiaan->id,
+        'shooter_name' => 'Tiaan Scheepers',
+        'email' => 'tiaan@example.test',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 20,
+        'md_net_amount' => 380,
+        'payment_status' => 'pending',
+        'registration_status' => 'confirmed',
+        'registered_at' => now()->subDay(),
+    ]);
+    $withdrawn = User::factory()->create(['name' => 'Pulled Out Pieter']);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $withdrawn->id,
+        'shooter_name' => 'Pulled Out Pieter',
+        'email' => 'pieter@example.test',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'payment_status' => 'pending',
+        'registration_status' => 'cancelled',
+        'registered_at' => now()->subDay(),
+    ]);
+
+    $response = $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertSee('still owes')
+        ->assertSee('Tiaan Scheepers')
+        ->assertSee('tiaan@example.test')
+        // The withdrawn/cancelled entry must not be chased in the warning.
+        ->assertDontSee('Pulled Out Pieter');
+
+    // Total still outstanding should be the one pending entry's MD net.
+    $response->assertSeeInOrder(['Total still outstanding', 'R 380.00']);
+});
+
+it('does not show the unpaid warning when every entry is paid', function () {
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertDontSee('still owes you money')
+        ->assertDontSee('still owe you money');
+});
+
 it('bounces the MD to the existing statement when a payout is already raised', function () {
     $existing = Payout::create([
         'reference' => Payout::generateReference(),
