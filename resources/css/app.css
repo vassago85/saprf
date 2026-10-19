@@ -176,10 +176,13 @@ html {
         display: none !important;
     }
 
-    /* Expandable groups: always show children when the sidebar is collapsed. */
-    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-section > div[x-collapse] {
+    /* Expandable groups: always show children when the sidebar is collapsed
+       so icon-only links remain reachable. Class (not [x-collapse]) so the
+       rule still matches after we dropped the Collapse plugin directive. */
+    body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-group {
         display: block !important;
         height: auto !important;
+        overflow: visible !important;
     }
 
     body[data-sidebar-collapsed] [data-flux-sidebar] .sidebar-nav-list a,

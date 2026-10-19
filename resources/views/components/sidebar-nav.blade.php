@@ -113,7 +113,9 @@
         Alpine.data('sidebarNav', ({ viewMode, initial, activeKey, searchItems }) => ({
             viewMode,
             activeKey,
-            expanded: {},
+            // Seed from the server so x-show has real keys on first evaluate;
+            // init() then overlays localStorage (and forces the active group open).
+            expanded: { ...initial },
             searchItems,
             searchOpen: false,
             searchQuery: '',
@@ -124,12 +126,14 @@
                 // so the active group always wins over whatever the user had
                 // collapsed last session.
                 const persisted = this.loadPersisted();
+                const next = { ...initial };
                 for (const key of Object.keys(initial)) {
-                    this.expanded[key] = key in persisted ? persisted[key] : initial[key];
+                    next[key] = key in persisted ? persisted[key] : initial[key];
                 }
                 if (this.activeKey) {
-                    this.expanded[this.activeKey] = true;
+                    next[this.activeKey] = true;
                 }
+                this.expanded = next;
 
                 this.$nextTick(() => this.scrollActiveIntoView());
             },

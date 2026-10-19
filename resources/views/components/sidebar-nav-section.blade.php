@@ -28,20 +28,15 @@
             @endif
         </button>
 
-        {{-- Initial display matches PHP's $section['expanded']. Without this,
-             children render visible pre-hydration and Alpine animates them
-             CLOSED on first paint for any group localStorage had collapsed,
-             which produces a ~150ms layout flash and makes nav items appear
-             to slide away as the user is reaching to click them. With it,
-             collapsed groups start hidden; Alpine's x-collapse then only
-             animates OPEN for groups localStorage expanded (a pleasant
-             reveal, not a jarring hide). The active group always has
-             $section['expanded'] === true, so the current page's items
-             are never hidden. --}}
+        {{-- Avoid HTML style="display:none" here. Alpine's x-show often fails
+             to clear that attribute on later toggles, so groups looked stuck
+             closed until a full remount (e.g. Shooter → Admin). Use x-cloak
+             only on server-collapsed groups: hidden pre-hydration, then
+             Alpine owns visibility via x-show. Do not use x-collapse — the
+             Collapse plugin is not shipped with Flux Free. --}}
         <div x-show="isOpen('{{ $section['key'] }}')"
-             x-collapse.duration.150ms
-             @unless ($section['expanded']) style="display: none;" @endunless
-             class="mt-0.5 space-y-px">
+             @unless ($section['expanded']) x-cloak @endunless
+             class="sidebar-nav-group mt-0.5 space-y-px">
             {{ $slot }}
         </div>
     </div>
