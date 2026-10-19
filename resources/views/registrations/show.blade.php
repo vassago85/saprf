@@ -325,6 +325,44 @@
                         </button>
                     </form>
                 </div>
+
+                {{-- Comp this entry — alternative to Mark paid. Use when the
+                     MD is giving the shooter a free entry (travelling comp,
+                     prize comp, exco invite). Fee zeroed; MD covers the
+                     SAPRF + platform fees out of their own payout. --}}
+                @php
+                    $compSaprf = (float) $registration->saprf_fee;
+                    $compPlatform = (float) $registration->platform_fee;
+                    $compOwed = $compSaprf + $compPlatform;
+                @endphp
+                <div class="rounded-xl border border-sky-200 bg-sky-50/60 p-6 shadow-sm mt-4">
+                    <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">Comp this entry</h2>
+                    <p class="text-sm text-stone-600 mb-4">
+                        Use when you're giving this shooter a free entry. The shooter owes nothing;
+                        @if($compOwed > 0)
+                            <span class="font-semibold">R{{ number_format($compOwed, 2) }}</span>
+                            (SAPRF R{{ number_format($compSaprf, 2) }} + platform R{{ number_format($compPlatform, 2) }})
+                            comes off your payout for this match.
+                        @else
+                            no SAPRF or platform fee applies to this row.
+                        @endif
+                    </p>
+                    <form method="POST" action="{{ route('registrations.comp', $registration) }}" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label for="comp_note" class="block text-sm font-medium text-stone-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                            <textarea name="comp_note" id="comp_note" rows="2" required minlength="5" maxlength="500"
+                                      placeholder="e.g. Travelled from EC, MD covered. Prize comp from previous match."
+                                      class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-sky-500 focus:border-sky-500">{{ old('comp_note') }}</textarea>
+                            @error('comp_note') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <button type="submit"
+                                class="inline-flex items-center rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 transition"
+                                onclick="return confirm('Comp this entry? Shooter owes nothing. R{{ number_format($compOwed, 2) }} (SAPRF+platform) will come off your payout.');">
+                            Comp this entry
+                        </button>
+                    </form>
+                </div>
             @endif
         @endcan
 

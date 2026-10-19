@@ -661,6 +661,88 @@ class RegistrationController extends Controller
     }
 
     /**
+     * MD/admin comps an entry — the shooter pays nothing, but SAPRF and the
+     * platform still need their cut, so the MD covers it out of their own
+     * payout. Same accounting shape as a walk-in: fee_amount zeroed,
+     * gateway zeroed (no card), md_net_amount set to -(saprf+platform) so
+     * the row contributes a negative line to the MD's payout rollup.
+     *
+     * Deliberately a separate action from markPaymentSettled: that one says
+     * "shooter paid, keep most of the fee"; this one says "no one paid the
+     * shooter's side, I'll cover the federation levies myself".
+     */
+    public function compEntry(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        if (! $registration->hasOutstandingPayment()) {
+            return back()->with('error', 'This entry is already settled.');
+        }
+
+        $validated = $request->validate([
+            'comp_note' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'comp_note.required' => 'Add a short note explaining the comp (e.g. "Travelled from EC, MD covered").',
+        ]);
+
+        $saprf = (float) $registration->saprf_fee;
+        $platform = (float) $registration->platform_fee;
+        // MD owes SAPRF + platform on the shooter's behalf. Stored as a
+        // negative md_net so the payout rollup sums it into a deduction.
+        $mdDeduction = -1 * round($saprf + $platform, 2);
+
+        $old = $registration->only([
+            'payment_status', 'registration_status', 'fee_amount',
+            'surcharge_amount', 'gateway_fee', 'md_net_amount',
+            'fee_override_reason',
+        ]);
+
+        $note = trim(
+            ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '')
+            .'Comped by '.$request->user()->name.' ('.now()->toDateString().'): '.$validated['comp_note']
+        );
+
+        $registration->update([
+            'payment_status' => 'waived',
+            'registration_status' => $registration->registration_status === 'pending'
+                ? 'confirmed'
+                : $registration->registration_status,
+            // Shooter owes nothing — zero the fee, surcharge and gateway so
+            // the row doesn't look like money ever flowed through PayFast.
+            'fee_amount' => 0.00,
+            'surcharge_amount' => 0.00,
+            'gateway_fee' => 0.00,
+            'md_net_amount' => $mdDeduction,
+            'fee_override_reason' => $note,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.comped',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            [
+                'payment_status' => 'waived',
+                'registration_status' => $registration->registration_status,
+                'comp_note' => $validated['comp_note'],
+                'md_deduction' => $mdDeduction,
+                'saprf_fee' => $saprf,
+                'platform_fee' => $platform,
+            ],
+        );
+
+        $shooterLabel = $registration->user?->name ?? $registration->shooter_name ?? 'shooter';
+        $message = 'Comped '.$shooterLabel.'.';
+        $owed = abs($mdDeduction);
+        if ($owed > 0) {
+            $message .= ' R'.number_format($owed, 2).' SAPRF + platform will come off the MD payout.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
      * Legacy signed "I paid on the old site" landing — kept for emails
      * already in shooters' inboxes. New inquiries no longer link here.
      *

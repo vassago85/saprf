@@ -244,8 +244,27 @@ class FinancialService
             ->sortBy(fn ($r) => strtolower($r->shooter_name ?? $r->user?->name ?? ''))
             ->values();
 
-        $paid = $registrations->where('payment_status', 'paid')->values();
-        $excluded = $registrations->where('payment_status', '!=', 'paid')->values();
+        // Billable rows contribute to money totals: anything paid (normal
+        // online + MD-added-cash + walk-ins which carry payment_status=paid
+        // with a negative md_net) PLUS any waived row with a non-zero
+        // deduction (that's a comp — MD covers SAPRF+platform out of own
+        // pocket, stored as negative md_net). Legacy waived rows with
+        // md_net=0 (grace-period imports) stay excluded — summing them in
+        // would add nothing anyway but we filter explicitly so the
+        // excluded_entries bucket still shows them as "did not transact".
+        $billable = $registrations->filter(function ($reg) {
+            if ($reg->payment_status === 'paid') {
+                return true;
+            }
+            if ($reg->payment_status === 'waived' && (float) $reg->md_net_amount < 0) {
+                return true;
+            }
+            return false;
+        })->values();
+        $paid = $billable;
+        $excluded = $registrations->reject(function ($reg) use ($billable) {
+            return $billable->contains(fn ($b) => $b->id === $reg->id);
+        })->values();
 
         $expenses = $match->expenses;
         $estimatedShooters = $match->estimated_shooters ?: ($match->max_competitors ?: 0);
