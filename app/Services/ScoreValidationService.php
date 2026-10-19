@@ -22,13 +22,15 @@ class ScoreValidationService
      *
      * Status vocabulary:
      *   valid       — active + paid member on match date. Counts for season, shown in match.
-     *   pending     — HAD a membership record but not valid on match date, still
-     *                 within 7-day grace window. Shown in match; will retro-flip
-     *                 to 'valid' if they renew before grace expires.
-     *   lapsed      — HAD a membership record, past 7-day grace, still not valid.
+     *   pending     — Recently-lapsed member (within LAPSED_CUTOFF_DAYS of expiry
+     *                 on match date), still within 7-day post-match renewal grace.
+     *                 Shown in match; will retro-flip to 'valid' if they renew
+     *                 before grace expires.
+     *   lapsed      — Recently-lapsed member, past 7-day grace, still not valid.
      *                 Shown in match, does NOT count for season.
-     *   non_member  — NO membership record at all. Shown in match, no grace
-     *                 (they need to join, not renew), does NOT count for season.
+     *   non_member  — No membership, free registrant, OR long-expired past the
+     *                 same LAPSED_CUTOFF_DAYS used for entry pricing. Shown in
+     *                 match, no renewal grace, does NOT count for season.
      *   invalid     — No user linked at all (data-quality garbage). Hidden.
      *
      * Applies uniformly to PRS and PR22.
@@ -90,15 +92,24 @@ class ScoreValidationService
         $user = User::query()->with('membership')->find($score->user_id);
         $isValid = $this->membershipValidationService->isUserValidForOfficialPurposes($user, $matchDate);
         $isFreeRegistrant = ($user?->membership?->membership_type ?? null) === 'free';
+        $membership = $user?->membership;
+        // Same 90-day cutoff as classifyRegistrationCategory / entry pricing:
+        // once expiry is that far before the match, they are a walk-in
+        // non-member for scoring too — no 7-day post-match renewal grace.
+        $longExpiredAtMatch = $membership?->expiry_date
+            && $membership->expiry_date->lt(
+                $matchDate->copy()->startOfDay()->subDays(MembershipValidationService::LAPSED_CUTOFF_DAYS)
+            );
+        $shotAsNonMember = ! $membership || $isFreeRegistrant || $longExpiredAtMatch;
 
         if ($isValid) {
             $score->status = 'valid';
             $score->is_member = true;
             $score->validation_reason = 'Valid paid member.';
-        } elseif (! $user?->membership || $isFreeRegistrant) {
-            // No membership record, or a "free" registration (someone who was
-            // forced to register to shoot a single provincial). Either way they
-            // shot as a non-member: visible in the match, excluded from the log.
+        } elseif ($shotAsNonMember) {
+            // No membership, free registrant, or long-expired past the pricing
+            // cutoff on match day. Visible in the match, excluded from the log,
+            // no post-match renewal grace (they join fresh, not renew).
             $score->status = 'non_member';
             $score->is_member = false;
             $score->validation_reason = 'Shot as a non-member — score visible in match, excluded from season log.';

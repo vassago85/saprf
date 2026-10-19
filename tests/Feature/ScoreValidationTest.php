@@ -193,7 +193,9 @@ test('everyone_counts flag does not affect a normal match with the same shooter'
         'saprf_number' => 'SAPRF-EVERYONE-002',
         'status' => 'active',
         'payment_status' => 'unpaid',
-        'expiry_date' => $matchDate->copy()->subYear(),
+        // Recently lapsed (inside the 90-day pricing cutoff) so the normal
+        // path is still pending/lapsed grace — not non_member.
+        'expiry_date' => $matchDate->copy()->subDays(30),
     ]);
 
     $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
@@ -373,6 +375,33 @@ test('MembershipObserver leaves scores alone when the paid window is extended fo
     $mship->update(['expiry_date' => Carbon::today()->addYear()]);
 
     expect($score->fresh()->status)->toBe('non_member');
+});
+
+test('long-expired member (past lapsed cutoff) → status=non_member even inside match grace', function () {
+    // Pierre Niemandt scenario: Full membership expired ~11 months ago, so
+    // classifyRegistrationCategory returns non_member (past 90-day cutoff) and
+    // he paid the non-member entry fee. Score validation must agree — the
+    // 7-day post-match renewal grace is only for recently-lapsed members.
+    $matchDate = Carbon::today()->subDays(2);
+    $user = User::factory()->create(['name' => 'Pierre Niemandt Debug']);
+    Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => '1730',
+        'membership_type' => 'full',
+        'status' => 'expired',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(2),
+        'expiry_date' => Carbon::today()->subDays(\App\Services\MembershipValidationService::LAPSED_CUTOFF_DAYS + 200),
+    ]);
+    $user->refresh();
+
+    expect(app(\App\Services\MembershipValidationService::class)->classifyRegistrationCategory($user))
+        ->toBe('non_member');
+
+    $result = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', $matchDate));
+
+    expect($result->status)->toBe('non_member')
+        ->and($result->is_member)->toBeFalse();
 });
 
 test('non_member scores never get promoted, even inside grace window', function () {
