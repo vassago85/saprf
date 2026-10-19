@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2942d37d5353f810250ec2df26001eef",
+    "content-hash": "b10c4c68f6cb686a1dcd64946d16ca94",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -4773,6 +4773,101 @@
                 }
             ],
             "time": "2026-05-19T14:06:37+00:00"
+        },
+        {
+            "name": "spatie/laravel-pdf",
+            "version": "2.14.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/spatie/laravel-pdf.git",
+                "reference": "9581e64f96092cc3a0857b76d9ee180d6abdce78"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/spatie/laravel-pdf/zipball/9581e64f96092cc3a0857b76d9ee180d6abdce78",
+                "reference": "9581e64f96092cc3a0857b76d9ee180d6abdce78",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^11.0|^12.0|^13.0",
+                "php": "^8.2",
+                "spatie/laravel-package-tools": "^1.16.1",
+                "spatie/temporary-directory": "^2.2.1"
+            },
+            "require-dev": {
+                "chrome-php/chrome": "^1.0",
+                "dompdf/dompdf": "^3.0",
+                "ext-imagick": "*",
+                "larastan/larastan": "^2.7.0|^3.0",
+                "laravel/pint": "^1.13.7",
+                "nunomaduro/collision": "^8.0",
+                "orchestra/testbench": "^9.6|^10.0|^11.0",
+                "pestphp/pest": "^2.30|^3.7|^4.4",
+                "pestphp/pest-plugin-arch": "^2.5|^3.0|^4.0",
+                "pestphp/pest-plugin-laravel": "^2.2|^3.1|^4.1",
+                "phpstan/extension-installer": "^1.3.1",
+                "phpstan/phpstan-deprecation-rules": "^1.1.4|^2.0",
+                "phpstan/phpstan-phpunit": "^1.3.15|^2.0",
+                "pontedilana/php-weasyprint": "^2.4",
+                "spatie/image": "^3.3.2",
+                "spatie/invade": "^2.1",
+                "spatie/laravel-ray": "^1.33",
+                "spatie/pdf-to-image": "^2.2|^3.1",
+                "spatie/pdf-to-text": "^1.52.1",
+                "spatie/pest-expectations": "^1.5",
+                "spatie/pest-plugin-snapshots": "^2.1",
+                "spatie/pixelmatch-php": "^1.0",
+                "tecnickcom/tc-lib-pdf-encrypt": "^2.5",
+                "wnx/sidecar-browsershot": "^2.0"
+            },
+            "suggest": {
+                "chrome-php/chrome": "Required for the Chrome PHP driver (^1.0)",
+                "dompdf/dompdf": "Required for the DOMPDF driver (^3.0)",
+                "spatie/browsershot": "Required for the Browsershot driver (^4.0|^5.0)",
+                "tecnickcom/tc-lib-pdf-encrypt": "Required to password-protect PDFs with the default encrypter (^2.5)"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "LaravelPdf": "Pdf"
+                    },
+                    "providers": [
+                        "Spatie\\LaravelPdf\\PdfServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/Support/functions.php"
+                ],
+                "psr-4": {
+                    "Spatie\\LaravelPdf\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Freek Van der Herten",
+                    "email": "freek@spatie.be",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Create PDFs in Laravel apps",
+            "homepage": "https://github.com/spatie/laravel-pdf",
+            "keywords": [
+                "laravel",
+                "laravel-pdf",
+                "spatie"
+            ],
+            "support": {
+                "issues": "https://github.com/spatie/laravel-pdf/issues",
+                "source": "https://github.com/spatie/laravel-pdf/tree/2.14.0"
+            },
+            "time": "2026-10-05T08:48:41+00:00"
         },
         {
             "name": "spatie/laravel-permission",

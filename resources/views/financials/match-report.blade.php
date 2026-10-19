@@ -80,10 +80,12 @@
                         <dt class="text-stone-500">Gateway Fees</dt>
                         <dd class="text-red-600">-R{{ number_format($financials['gateway_fees'], 2) }}</dd>
                     </div>
+                    @if($financials['surcharges'] > 0)
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">Surcharges Collected</dt>
-                        <dd class="text-emerald-600">+R{{ number_format($financials['surcharges'], 2) }}</dd>
+                        <dt class="text-stone-500">Non-member surcharge (SAPRF)</dt>
+                        <dd class="text-red-600">-R{{ number_format($financials['surcharges'], 2) }}</dd>
                     </div>
+                    @endif
                     @if($financials['refunds'] > 0)
                     <div class="flex justify-between">
                         <dt class="text-stone-500">Refunds</dt>
@@ -151,10 +153,11 @@
         </div>
         @endif
 
-        {{-- Registration Details --}}
+        {{-- Paid Entries — money contributing to the MD payout --}}
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
-            <div class="p-6 border-b border-stone-100">
-                <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Registration Details</h2>
+            <div class="p-6 border-b border-stone-100 flex items-center justify-between gap-4">
+                <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Paid Entries</h2>
+                <span class="text-xs text-stone-500">{{ $financials['paid_entries']->count() }} paid &middot; sum of MD net matches the Net to MD above</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -162,8 +165,9 @@
                         <tr class="border-b border-stone-200 text-left text-xs uppercase text-stone-500">
                             <th class="py-3 px-4">Shooter</th>
                             <th class="py-3 px-4">Category</th>
-                            <th class="py-3 px-4">Payment</th>
+                            <th class="py-3 px-4">Method</th>
                             <th class="py-3 px-4 text-right">Fee</th>
+                            <th class="py-3 px-4 text-right">Surcharge</th>
                             <th class="py-3 px-4 text-right">SAPRF</th>
                             <th class="py-3 px-4 text-right">Platform</th>
                             <th class="py-3 px-4 text-right">Gateway</th>
@@ -171,7 +175,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($match->registrations->where('registration_status', '!=', 'cancelled') as $reg)
+                        @forelse($financials['paid_entries'] as $reg)
                         <tr class="border-b border-stone-100">
                             <td class="py-2 px-4 text-stone-700">{{ $reg->shooter_name ?? $reg->user?->name ?? '—' }}</td>
                             <td class="py-2 px-4">
@@ -182,23 +186,83 @@
                                     {{ $reg->feeCategoryLabel() }}
                                 </span>
                             </td>
-                            <td class="py-2 px-4">
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                    {{ $reg->payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
-                                    {{ ucfirst($reg->payment_status ?? 'pending') }}
-                                </span>
-                            </td>
+                            <td class="py-2 px-4 text-stone-600">{{ $reg->paymentMethodLabel() }}</td>
                             <td class="py-2 px-4 text-right">R{{ number_format($reg->fee_amount, 2) }}</td>
+                            <td class="py-2 px-4 text-right text-stone-500">R{{ number_format($reg->surcharge_amount, 2) }}</td>
                             <td class="py-2 px-4 text-right text-stone-500">R{{ number_format($reg->saprf_fee, 2) }}</td>
                             <td class="py-2 px-4 text-right text-stone-500">R{{ number_format($reg->platform_fee, 2) }}</td>
                             <td class="py-2 px-4 text-right text-stone-500">R{{ number_format($reg->gateway_fee, 2) }}</td>
                             <td class="py-2 px-4 text-right font-semibold">R{{ number_format($reg->md_net_amount, 2) }}</td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="9" class="py-6 px-4 text-center text-sm text-stone-500">No paid entries yet.</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                    @if($financials['paid_entries']->isNotEmpty())
+                    <tfoot>
+                        <tr class="bg-stone-50 font-semibold text-stone-800">
+                            <td class="py-3 px-4" colspan="3">Totals ({{ $financials['paid_entries']->count() }} paid)</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['gross_revenue'], 2) }}</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['surcharges'], 2) }}</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['saprf_fees'], 2) }}</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['platform_fees'], 2) }}</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['gateway_fees'], 2) }}</td>
+                            <td class="py-3 px-4 text-right">R{{ number_format($financials['md_net'], 2) }}</td>
+                        </tr>
+                    </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+
+        {{-- Not Included — unpaid / pending / failed / refunded / waived entries
+             show here with zero money columns so they never distort totals. --}}
+        @if($financials['excluded_entries']->isNotEmpty())
+        <div class="rounded-xl border border-amber-200 bg-amber-50/40 shadow-sm">
+            <div class="p-6 border-b border-amber-200 flex items-center justify-between gap-4">
+                <h2 class="text-sm font-semibold text-amber-800 uppercase tracking-wide">Not Included in Payout</h2>
+                <span class="text-xs text-amber-800/80">{{ $financials['excluded_entries']->count() }} entry/entries — no money moved yet</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-amber-200 text-left text-xs uppercase text-amber-800/80">
+                            <th class="py-3 px-4">Shooter</th>
+                            <th class="py-3 px-4">Category</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-4 text-right">Fee</th>
+                            <th class="py-3 px-4 text-right">Surcharge</th>
+                            <th class="py-3 px-4 text-right">SAPRF</th>
+                            <th class="py-3 px-4 text-right">Platform</th>
+                            <th class="py-3 px-4 text-right">Gateway</th>
+                            <th class="py-3 px-4 text-right">MD Net</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($financials['excluded_entries'] as $reg)
+                        <tr class="border-b border-amber-100">
+                            <td class="py-2 px-4 text-stone-700">{{ $reg->shooter_name ?? $reg->user?->name ?? '—' }}</td>
+                            <td class="py-2 px-4 text-stone-600">{{ $reg->feeCategoryLabel() }}</td>
+                            <td class="py-2 px-4">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                                    {{ ucfirst($reg->payment_status ?? 'pending') }}
+                                </span>
+                            </td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
+                            <td class="py-2 px-4 text-right text-stone-400">R0.00</td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
         </div>
+        @endif
 
         {{-- Action Bar --}}
         <div class="flex flex-wrap gap-3">
@@ -206,6 +270,17 @@
                class="inline-flex items-center gap-2 rounded-lg bg-stone-100 px-5 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">
                 View Full Match
             </a>
+            @isset($payout)
+                <a href="{{ route('financials.payouts.statement-pdf', $payout) }}"
+                   class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                    Download statement PDF
+                </a>
+                <a href="{{ route('financials.payouts.statement-csv', $payout) }}"
+                   class="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100 transition">
+                    Download CSV
+                </a>
+                <span class="inline-flex items-center text-xs text-stone-500">Payout {{ $payout->reference }} &middot; v{{ $payout->statement_version }}</span>
+            @endisset
         </div>
     </div>
 </x-layouts.app>

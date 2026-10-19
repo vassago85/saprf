@@ -131,13 +131,22 @@ final class SidebarMenu
                 'contexts' => [self::CONTEXT_ADMIN],
                 'expandable' => true,
                 'items' => [
+                    // Match directors see a *radically slimmer* Competition
+                    // group than other admin roles: just Matches and
+                    // My payouts, plus the shooter-mode nav for personal
+                    // things. Everything an MD does for a specific match
+                    // (registrations, score imports, scores, finances,
+                    // messages, settings) now lives inside the match
+                    // workspace — the global index pages were causing MDs
+                    // to filter across every match in the system when
+                    // they only cared about their own.
                     [
                         'id' => 'events-admin',
                         'label' => 'Events',
                         'route' => 'events.index',
                         'icon' => 'calendar-days',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => null,
+                        'roles' => ['developer', 'exco', 'chair', 'owner', 'admin', 'provincial_admin'],
                         'current_route_is' => ['events.*'],
                         'current_is' => 'events*',
                     ],
@@ -156,7 +165,11 @@ final class SidebarMenu
                         'route' => 'registrations.index',
                         'icon' => 'clipboard-document-list',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => ['developer', 'exco', 'owner', 'admin', 'match_director'],
+                        // MDs manage entries inside their own match workspace
+                        // (`/matches/{match}/entries`) — the global
+                        // Registrations index is strictly for admin / exco
+                        // oversight across every match.
+                        'roles' => ['developer', 'exco', 'owner', 'admin'],
                         'current_route_is' => ['registrations.*'],
                         'auto_switch' => false,
                     ],
@@ -166,10 +179,19 @@ final class SidebarMenu
                         'route' => 'score-imports.index',
                         'icon' => 'arrow-up-tray',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => ['developer', 'exco', 'owner', 'admin', 'match_director'],
+                        'roles' => ['developer', 'exco', 'owner', 'admin'],
                         'current_route_is' => ['score-imports.*'],
                         'badge' => 'score_imports_pending',
                         'badge_color' => 'amber',
+                    ],
+                    [
+                        'id' => 'my-payouts',
+                        'label' => 'My payouts',
+                        'route' => 'my-payouts.index',
+                        'icon' => 'banknotes',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'owner', 'admin', 'match_director'],
+                        'current_route_is' => ['my-payouts.*'],
                     ],
                     [
                         'id' => 'scores',
@@ -177,7 +199,7 @@ final class SidebarMenu
                         'route' => 'scores.index',
                         'icon' => 'document-chart-bar',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => ['developer', 'exco', 'owner', 'admin', 'match_director'],
+                        'roles' => ['developer', 'exco', 'owner', 'admin'],
                         'current_route_is' => ['scores.*'],
                     ],
                     [
@@ -186,7 +208,7 @@ final class SidebarMenu
                         'route' => 'standings.public',
                         'icon' => 'chart-bar',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => null,
+                        'roles' => ['developer', 'exco', 'chair', 'owner', 'admin', 'provincial_admin', 'iprf_selector'],
                         'current_route_is' => ['standings.*'],
                         'current_is' => 'standings*',
                     ],
@@ -196,7 +218,7 @@ final class SidebarMenu
                         'route' => 'venues.index',
                         'icon' => 'map-pin',
                         'contexts' => [self::CONTEXT_ADMIN],
-                        'roles' => ['developer', 'exco', 'owner', 'admin', 'match_director'],
+                        'roles' => ['developer', 'exco', 'owner', 'admin'],
                         'current_route_is' => ['venues.*'],
                     ],
                     [

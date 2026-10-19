@@ -24,6 +24,9 @@ class Payout extends Model
         'payment_reference',
         'notes',
         'created_by',
+        'statement_generated_at',
+        'statement_version',
+        'statement_snapshot',
     ];
 
     protected function casts(): array
@@ -36,7 +39,29 @@ class Payout extends Model
             'paid_at' => 'datetime',
             'period_start' => 'date',
             'period_end' => 'date',
+            'statement_generated_at' => 'datetime',
+            'statement_version' => 'integer',
+            'statement_snapshot' => 'array',
         ];
+    }
+
+    /**
+     * Payment history for this payout (installments the operator has made).
+     *
+     * Reads `financial_transactions` where the source is this payout but
+     * the type is `payment` — the `payout` type is the original raise,
+     * not a payment against it. markPaid() writes `type = payout` for
+     * each installment today; `paymentHistory()` includes both so the
+     * statement renders every money movement.
+     */
+    public function paymentHistory()
+    {
+        return FinancialTransaction::query()
+            ->where('source_type', 'payout')
+            ->where('source_id', $this->id)
+            ->where('description', 'like', 'Payment of %')
+            ->orderBy('created_at')
+            ->get();
     }
 
     public function payeeUser(): BelongsTo

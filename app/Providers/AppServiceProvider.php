@@ -13,6 +13,7 @@ use App\Models\LadderSession;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
+use App\Models\Payout;
 use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\SelectionAppeal;
@@ -35,6 +36,7 @@ use App\Policies\ExcoMeetingPolicy;
 use App\Policies\LadderSessionPolicy;
 use App\Policies\MatchPolicy;
 use App\Policies\MembershipPolicy;
+use App\Policies\PayoutPolicy;
 use App\Policies\QualificationRulePolicy;
 use App\Policies\RegistrationPolicy;
 use App\Policies\ScorePolicy;
@@ -110,6 +112,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AmmoString::class, AmmoStringPolicy::class);
         Gate::policy(ExcoMeeting::class, ExcoMeetingPolicy::class);
         Gate::policy(DisciplinaryCase::class, DisciplinaryCasePolicy::class);
+        Gate::policy(Payout::class, PayoutPolicy::class);
 
         Membership::observe(MembershipObserver::class);
 

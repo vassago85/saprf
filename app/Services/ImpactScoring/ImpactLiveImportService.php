@@ -310,7 +310,11 @@ class ImpactLiveImportService
                     $shooterName = $registration->user?->name ?: $registration->shooter_name ?: $row['impact_name'];
 
                     if ($this->needsFeeCollection($registration)) {
-                        $this->applyMdFeeDeduction($registration, $actor, 'Impact import — unpaid/pending entry; MD to collect from shooter.');
+                        // Unpaid/pending entry — track for the collection report but
+                        // do NOT rewrite md_net to a negative deduction. The row
+                        // keeps its normal priced breakdown (fee > 0, md_net > 0)
+                        // and the portal entry gate stops the shooter from
+                        // entering another match until they settle the fee.
                         $auditReason = 'pending_unpaid';
                         $auditRows[] = $this->auditRow($row, 'pending_unpaid', [
                             'registration_id' => $registration->id,
@@ -516,13 +520,9 @@ class ImpactLiveImportService
         ]);
         $score->save();
 
-        if ($this->needsFeeCollection($registration)) {
-            $this->applyMdFeeDeduction(
-                $registration,
-                $actor,
-                'Impact assign-later link — unpaid/pending entry; MD to collect from shooter.',
-            );
-        }
+        // Unpaid/pending link — do not mutate the entry's financial breakdown.
+        // The shooter still owes the normal priced fee and the portal entry
+        // gate blocks any further entries until they pay.
 
         $this->scoreValidation->evaluateScoreStatus($score->fresh());
 
@@ -725,43 +725,6 @@ class ImpactLiveImportService
 
         // Pending registration or unpaid payment
         return true;
-    }
-
-    private function applyMdFeeDeduction(MatchRegistration $registration, User $actor, string $note): void
-    {
-        $match = $registration->match;
-        $user = $registration->user;
-        if (! $match || ! $user) {
-            return;
-        }
-
-        $divisionSlug = $registration->division?->slug;
-        $breakdown = $this->pricing->calculateBreakdown(
-            $match,
-            $user,
-            $match->match_date ?? now(),
-            $divisionSlug,
-        );
-
-        $saprf = (float) $breakdown['saprf_fee'];
-        $platform = (float) $breakdown['platform_fee'];
-        $mdDeduction = -1 * round($saprf + $platform, 2);
-
-        // Keep fee_amount as what the MD should collect offline when it was
-        // already set; otherwise use the priced entry fee.
-        $collectAmount = (float) ($registration->fee_amount ?: $breakdown['total_fee']);
-
-        $registration->update([
-            'saprf_fee' => $saprf,
-            'platform_fee' => $platform,
-            'gateway_fee' => 0,
-            'md_net_amount' => $mdDeduction,
-            'fee_amount' => $collectAmount,
-            'walk_in_note' => trim(($registration->walk_in_note ? $registration->walk_in_note.' | ' : '').$note),
-            'registration_status' => $registration->registration_status === 'cancelled'
-                ? 'confirmed'
-                : ($registration->registration_status ?: 'confirmed'),
-        ]);
     }
 
     /**

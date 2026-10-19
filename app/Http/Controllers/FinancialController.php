@@ -11,6 +11,7 @@ use App\Models\Sponsor;
 use App\Services\AuditLogService;
 use App\Services\FinancialResetService;
 use App\Services\FinancialService;
+use App\Services\PayoutStatementRenderer;
 use App\Services\PlatformPayoutService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +30,22 @@ class FinancialController extends Controller
         private readonly SettingsService $settingsService,
         private readonly FinancialResetService $reset,
         private readonly PlatformPayoutService $platformPayouts,
+        private readonly PayoutStatementRenderer $statementRenderer,
     ) {}
+
+    public function downloadPayoutStatementPdf(Request $request, Payout $payout): Response
+    {
+        abort_unless($payout->payee_type === 'match_director', 404);
+
+        return $this->statementRenderer->pdfDownload($payout);
+    }
+
+    public function downloadPayoutStatementCsv(Request $request, Payout $payout): StreamedResponse
+    {
+        abort_unless($payout->payee_type === 'match_director', 404);
+
+        return $this->statementRenderer->csvDownload($payout);
+    }
 
     // ── Platform Dashboard ──
 
@@ -83,8 +99,17 @@ class FinancialController extends Controller
         // match.
         $viewerIsMatchDirector = $user->id === $match->created_by;
 
+        // Latest MD payout for this match (if any) — surfaces statement
+        // downloads on the match report so the MD doesn't have to hop
+        // through the Finance Payouts page just to grab their PDF.
+        $payout = Payout::query()
+            ->where('match_id', $match->id)
+            ->where('payee_type', 'match_director')
+            ->latest('id')
+            ->first();
+
         return view('financials.match-report', compact(
-            'match', 'financials', 'viewerIsMatchDirector',
+            'match', 'financials', 'viewerIsMatchDirector', 'payout',
         ));
     }
 
@@ -268,6 +293,43 @@ class FinancialController extends Controller
         }
     }
 
+    /**
+     * Admin-only: rebuild the frozen statement from live match data,
+     * bumping the version counter and writing an audit entry. Used when
+     * a refund, surcharge correction, or late payment lands after a
+     * payout was first raised and the operator wants the statement to
+     * reflect the updated totals.
+     */
+    public function regeneratePayoutStatement(Request $request, Payout $payout): RedirectResponse
+    {
+        abort_unless($payout->payee_type === 'match_director' && $payout->match, 404);
+
+        $old = [
+            'version' => (int) $payout->statement_version,
+            'gross_amount' => (float) $payout->gross_amount,
+            'fees_deducted' => (float) $payout->fees_deducted,
+            'net_amount' => (float) $payout->net_amount,
+        ];
+
+        $refreshed = $this->financials->regenerateMatchPayoutStatement($payout);
+
+        $this->audit->log(
+            $request->user(),
+            'payout.statement_regenerated',
+            'payout',
+            $refreshed->id,
+            $old,
+            [
+                'version' => (int) $refreshed->statement_version,
+                'gross_amount' => (float) $refreshed->gross_amount,
+                'fees_deducted' => (float) $refreshed->fees_deducted,
+                'net_amount' => (float) $refreshed->net_amount,
+            ],
+        );
+
+        return back()->with('success', "Statement regenerated for {$refreshed->reference} (v{$refreshed->statement_version}).");
+    }
+
     public function markPaid(Request $request, Payout $payout)
     {
         $validated = $request->validate([
@@ -280,6 +342,7 @@ class FinancialController extends Controller
 
         $newPaid = (float) $payout->paid_amount + (float) $validated['paid_amount'];
         $status = $newPaid >= (float) $payout->net_amount ? 'paid' : 'partial';
+        $wasPaidBefore = $payout->status === 'paid';
 
         $payout->update([
             'paid_amount' => $newPaid,
@@ -288,6 +351,23 @@ class FinancialController extends Controller
             'notes' => $validated['notes'] ?? $payout->notes,
             'status' => $status,
         ]);
+
+        // Fire the "paid" notification once, on the transition from
+        // pending/partial to paid. Partial payments stay quiet so MDs don't
+        // get a cascade of emails for a staggered settlement.
+        if ($status === 'paid' && ! $wasPaidBefore && $payout->payee_type === 'match_director') {
+            $recipient = $payout->payeeUser ?? $payout->match?->user;
+            if ($recipient) {
+                try {
+                    $recipient->notify(new \App\Notifications\MdPayoutStatementNotification($payout->fresh(), 'paid'));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to dispatch payout-paid notification', [
+                        'payout_id' => $payout->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         FinancialTransaction::create([
             'type' => 'payout',
@@ -622,18 +702,33 @@ class FinancialController extends Controller
         ]);
     }
 
+    /**
+     * Export the payouts list to CSV honouring the same `type` / `status`
+     * filters the index page uses, so operators can download exactly what
+     * the UI is showing. Column set includes outstanding and payment
+     * references so bank reconciliation runs off the download alone.
+     */
     public function exportPayoutsCsv(Request $request): StreamedResponse
     {
-        $payouts = Payout::with(['payeeUser', 'match'])->orderByDesc('created_at')->get();
+        $status = $request->input('status');
+        $type = $request->input('type');
 
-        $filename = 'SAPRF_Payouts_' . now()->format('Y-m-d') . '.csv';
+        $payouts = Payout::query()
+            ->with(['payeeUser', 'match'])
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($type, fn ($q) => $q->where('payee_type', $type))
+            ->orderByDesc('created_at')
+            ->get();
+
+        $suffix = collect([$type, $status])->filter()->implode('_');
+        $filename = 'SAPRF_Payouts_'.($suffix ? $suffix.'_' : '').now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($payouts) {
             $handle = fopen('php://output', 'w');
 
             fputcsv($handle, [
-                'Reference', 'Type', 'Payee', 'Match', 'Gross', 'Fees',
-                'Net', 'Paid', 'Outstanding', 'Status', 'Paid At',
+                'Reference', 'Type', 'Payee', 'Match', 'Match Date', 'Gross', 'Fees',
+                'Net', 'Paid', 'Outstanding', 'Status', 'Payment Reference', 'Paid At', 'Created At',
             ]);
 
             foreach ($payouts as $p) {
@@ -642,13 +737,16 @@ class FinancialController extends Controller
                     ucfirst(str_replace('_', ' ', $p->payee_type)),
                     $p->payeeUser?->name ?? 'SAPRF',
                     $p->match?->name ?? '-',
-                    $p->gross_amount,
-                    $p->fees_deducted,
-                    $p->net_amount,
-                    $p->paid_amount,
-                    $p->outstandingBalance(),
+                    $p->match?->match_date?->format('Y-m-d') ?? '-',
+                    number_format((float) $p->gross_amount, 2, '.', ''),
+                    number_format((float) $p->fees_deducted, 2, '.', ''),
+                    number_format((float) $p->net_amount, 2, '.', ''),
+                    number_format((float) $p->paid_amount, 2, '.', ''),
+                    number_format((float) $p->outstandingBalance(), 2, '.', ''),
                     ucfirst($p->status),
+                    $p->payment_reference ?? '-',
                     $p->paid_at?->format('Y-m-d H:i') ?? '-',
+                    $p->created_at->format('Y-m-d H:i'),
                 ]);
             }
 

@@ -37,6 +37,7 @@ use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\MailgunWebhookController;
 use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\MatchWorkspaceController;
 use App\Http\Controllers\MatchExpenseController;
 use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MemberLookupController;
@@ -585,12 +586,44 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::delete('/venues/{venue}', [VenueController::class, 'destroy'])->name('venues.destroy');
     });
 
-    // Match detail: members are redirected to the public event page; MDs/admins get the management view.
-    Route::get('/matches/{match}', [MatchController::class, 'show'])->name('matches.show')->whereNumber('match');
+    // ──────────────────────────────────────────────────────────────────
+    // Match workspace: one match, one URL per tab, one layout.
+    //
+    // Routes below replace the old "jump between matches.show +
+    // matches.edit + registrations?match_id= + score-imports?match_id=
+    // + financials.match-report + matches.announcements.create" dance.
+    // Every tab is a real deep-linkable URL rendered inside the shared
+    // workspace chrome (header + stage bar + next action + tabs).
+    //
+    // `matches.show` keeps its name as a legacy alias for anything in
+    // the codebase that still routes to it (notifications, old emails,
+    // audit logs); it now hands control to the overview tab.
+    // ──────────────────────────────────────────────────────────────────
+    Route::middleware(['role:developer|exco|owner|admin|match_director'])
+        ->prefix('matches/{match}')
+        ->whereNumber('match')
+        ->group(function (): void {
+            Route::get('/', [MatchWorkspaceController::class, 'overview'])->name('matches.overview');
+            Route::get('/entries', [MatchWorkspaceController::class, 'entries'])->name('matches.entries');
+            Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
+            Route::get('/finances', [MatchWorkspaceController::class, 'finances'])->name('matches.finances');
+            Route::get('/messages', [MatchWorkspaceController::class, 'messages'])->name('matches.messages');
+            Route::get('/settings', [MatchWorkspaceController::class, 'settings'])->name('matches.settings');
+        });
+
+    // Legacy aliases. The in-app code mostly uses `matches.show` and
+    // `matches.edit`; keep them pointing at the workspace so saved
+    // bookmarks, notifications, and audit entries land on the right
+    // tab instead of 404-ing.
+    Route::get('/matches/{match}', [MatchWorkspaceController::class, 'overview'])
+        ->name('matches.show')
+        ->whereNumber('match');
+    Route::redirect('/matches/{match}/edit', '/matches/{match}/settings', 301)
+        ->name('matches.edit');
 
     // Match Director + Admin + Owner (+ Developer)
     Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
-        Route::resource('matches', MatchController::class)->except(['destroy', 'show']);
+        Route::resource('matches', MatchController::class)->except(['destroy', 'show', 'edit']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
         Route::get('/matches/{match}/impact-import', [ScoreImportController::class, 'createForMatch'])
             ->name('matches.impact-import');
@@ -753,11 +786,24 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/contact-messages/{contactMessage}/reopen', [ContactController::class, 'reopen'])->name('contact-messages.reopen');
     });
 
-    // The per-match report is separately reachable by the match director who
-    // created it (so they can see their own P&L), in addition to the finance
-    // roles. Authorization is enforced inside the controller.
-    Route::get('/financials/match/{match}', [FinancialController::class, 'matchReport'])
+    // The per-match report has been folded into the match workspace's
+    // Finances tab. Keep the old URL and name wired as a 301 redirect so
+    // emailed statement links, bookmarks, and the odd notification keep
+    // landing in the right place.
+    Route::redirect('/financials/match/{match}', '/matches/{match}/finances', 301)
         ->name('financials.match-report');
+
+    // MD-facing payout portal — a match director sees only their own payouts;
+    // finance roles see every MD payout. Enforced by PayoutPolicy.
+    Route::middleware('role:developer|exco|owner|admin|match_director')
+        ->prefix('my-payouts')
+        ->name('my-payouts.')
+        ->group(function (): void {
+            Route::get('/', [App\Http\Controllers\MyPayoutController::class, 'index'])->name('index');
+            Route::get('/{payout}', [App\Http\Controllers\MyPayoutController::class, 'show'])->name('show');
+            Route::get('/{payout}/statement.pdf', [App\Http\Controllers\MyPayoutController::class, 'downloadPdf'])->name('pdf');
+            Route::get('/{payout}/statement.csv', [App\Http\Controllers\MyPayoutController::class, 'downloadCsv'])->name('csv');
+        });
 
     // Financials (Admin + Owner)
     Route::middleware(['role:developer|exco|owner|admin'])->prefix('financials')->name('financials.')->group(function (): void {
@@ -778,6 +824,9 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/payouts/platform/create', [FinancialController::class, 'createPlatformPayout'])->name('payouts.platform.create');
         Route::post('/payouts/platform', [FinancialController::class, 'storePlatformPayout'])->name('payouts.platform.store');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
+        Route::post('/payouts/{payout}/regenerate-statement', [FinancialController::class, 'regeneratePayoutStatement'])->name('payouts.regenerate-statement');
+        Route::get('/payouts/{payout}/statement.pdf', [FinancialController::class, 'downloadPayoutStatementPdf'])->name('payouts.statement-pdf');
+        Route::get('/payouts/{payout}/statement.csv', [FinancialController::class, 'downloadPayoutStatementCsv'])->name('payouts.statement-csv');
         Route::get('/transactions', [FinancialController::class, 'transactions'])->name('transactions');
 
         Route::get('/expenses', [FinancialController::class, 'expenses'])->name('expenses');

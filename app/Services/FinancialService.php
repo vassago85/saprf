@@ -11,9 +11,11 @@ use App\Models\Payout;
 use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
 use App\Models\User;
+use App\Notifications\MdPayoutStatementNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class FinancialService
 {
@@ -220,35 +222,62 @@ class FinancialService
 
     // ── Match-Level Financials ──
 
+    /**
+     * Reconciliation-grade match totals.
+     *
+     * Only `payment_status === 'paid'` rows contribute to money totals.
+     * Pending / failed / refunded / waived rows are tracked separately
+     * (`excluded_entries`) and show as zero in the report, so a sum of
+     * the MD net column always matches the payout net to the cent.
+     *
+     * The `surcharges` figure is cash SAPRF retains on behalf of
+     * non-/lapsed members — it is already included in `fee_amount` and
+     * already subtracted from `md_net_amount`. The view surfaces it as
+     * a *deduction* from gross revenue, never an addition.
+     */
     public function matchFinancials(MatchEvent $match): array
     {
         $registrations = $match->registrations()
+            ->with('payments')
             ->where('registration_status', '!=', 'cancelled')
-            ->get();
+            ->get()
+            ->sortBy(fn ($r) => strtolower($r->shooter_name ?? $r->user?->name ?? ''))
+            ->values();
 
-        $paid = $registrations->where('payment_status', 'paid');
-        $pending = $registrations->where('payment_status', '!=', 'paid');
+        $paid = $registrations->where('payment_status', 'paid')->values();
+        $excluded = $registrations->where('payment_status', '!=', 'paid')->values();
 
         $expenses = $match->expenses;
         $estimatedShooters = $match->estimated_shooters ?: ($match->max_competitors ?: 0);
         $totalExpenses = $expenses->sum(fn ($e) => $e->effectiveAmount($estimatedShooters));
 
+        $gross = round((float) $paid->sum('fee_amount'), 2);
+        $saprf = round((float) $paid->sum('saprf_fee'), 2);
+        $platform = round((float) $paid->sum('platform_fee'), 2);
+        $gateway = round((float) $paid->sum('gateway_fee'), 2);
+        $surcharges = round((float) $paid->sum('surcharge_amount'), 2);
+        $mdNet = round((float) $paid->sum('md_net_amount'), 2);
+
         return [
             'total_registrations' => $registrations->count(),
             'paid_registrations' => $paid->count(),
-            'pending_registrations' => $pending->count(),
+            'pending_registrations' => $excluded->count(),
             'member_entries' => $registrations->where('membership_fee_category', 'active_member')->count(),
             'lapsed_entries' => $registrations->where('membership_fee_category', 'lapsed_member')->count(),
             'non_member_entries' => $registrations->where('membership_fee_category', 'non_member')->count(),
-            'gross_revenue' => (float) $paid->sum('fee_amount'),
-            'saprf_fees' => (float) $paid->sum('saprf_fee'),
-            'platform_fees' => (float) $paid->sum('platform_fee'),
-            'gateway_fees' => (float) $paid->sum('gateway_fee'),
-            'surcharges' => (float) $paid->sum('surcharge_amount'),
-            'md_net' => (float) $paid->sum('md_net_amount'),
+            'gross_revenue' => $gross,
+            'saprf_fees' => $saprf,
+            'platform_fees' => $platform,
+            'gateway_fees' => $gateway,
+            // Surcharges are kept by SAPRF — view treats this as a deduction
+            // from gross revenue, never an addition.
+            'surcharges' => $surcharges,
+            'md_net' => $mdNet,
             'total_expenses' => $totalExpenses,
-            'profit_loss' => (float) $paid->sum('md_net_amount') - $totalExpenses,
+            'profit_loss' => $mdNet - $totalExpenses,
             'refunds' => (float) $registrations->sum('refund_amount'),
+            'paid_entries' => $paid,
+            'excluded_entries' => $excluded,
         ];
     }
 
@@ -273,12 +302,23 @@ class FinancialService
                 'payee_user_id' => $match->created_by,
                 'match_id' => $match->id,
                 'gross_amount' => $financials['gross_revenue'],
-                'fees_deducted' => $financials['platform_fees'] + $financials['saprf_fees'] + $financials['gateway_fees'],
+                // What SAPRF retains out of gross: SAPRF levy + platform fee
+                // + gateway fee + non-member surcharge. Identity check:
+                //   gross - fees_deducted == net_amount
+                'fees_deducted' => round(
+                    $financials['saprf_fees']
+                        + $financials['platform_fees']
+                        + $financials['gateway_fees']
+                        + $financials['surcharges'],
+                    2,
+                ),
                 'net_amount' => $financials['md_net'],
                 'status' => 'pending',
                 'notes' => $notes,
                 'created_by' => $creator->id,
             ]);
+
+            $this->snapshotMatchPayout($payout, $match, $financials);
 
             FinancialTransaction::create([
                 'type' => 'payout',
@@ -289,7 +329,126 @@ class FinancialService
                 'description' => "Payout {$payout->reference} created for match: {$match->name}",
             ]);
 
+            $fresh = $payout->fresh(['items']);
+
+            // Email the MD the frozen statement PDF, once per raise.
+            // Failure logged but never rolls the payout back.
+            $recipient = $match->user ?? User::find($match->created_by);
+            if ($recipient) {
+                try {
+                    $recipient->notify(new MdPayoutStatementNotification($fresh, 'raised'));
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to dispatch payout-raised notification', [
+                        'payout_id' => $fresh->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * Freeze the per-entry snapshot for an MD payout.
+     *
+     * Writes one `payout_items` row per non-cancelled registration — paid
+     * rows carry real money, excluded rows (unpaid/failed/refunded/waived)
+     * carry zeros and the reason — plus a summary snapshot on the payout
+     * itself. Called from both {@see createMdPayout()} (first freeze) and
+     * {@see regenerateMatchPayoutStatement()} (admin regenerate).
+     *
+     * The caller is responsible for the audit log entry around regenerates;
+     * this method is purely data.
+     *
+     * @param  array<string, mixed>  $financials  result of {@see matchFinancials()}
+     */
+    public function snapshotMatchPayout(Payout $payout, MatchEvent $match, array $financials): void
+    {
+        $payout->items()->delete();
+
+        $sort = 0;
+        foreach (['paid_entries', 'excluded_entries'] as $bucket) {
+            $excluded = $bucket === 'excluded_entries';
+            foreach ($financials[$bucket] as $reg) {
+                $payout->items()->create([
+                    'source_type' => 'match_registration',
+                    'source_id' => $reg->id,
+                    'match_registration_id' => $reg->id,
+                    'description' => $reg->shooter_name ?: ($reg->user?->name ?? 'Unknown shooter'),
+                    'shooter_name' => $reg->shooter_name ?: ($reg->user?->name ?? 'Unknown shooter'),
+                    'membership_fee_category' => $reg->membership_fee_category,
+                    'payment_status' => $reg->payment_status,
+                    'payment_method' => $reg->paymentMethodSlug(),
+                    'gross_amount' => $excluded ? 0 : (float) $reg->fee_amount,
+                    'surcharge_amount' => $excluded ? 0 : (float) $reg->surcharge_amount,
+                    'saprf_fee' => $excluded ? 0 : (float) $reg->saprf_fee,
+                    'platform_fee' => $excluded ? 0 : (float) $reg->platform_fee,
+                    'gateway_fee' => $excluded ? 0 : (float) $reg->gateway_fee,
+                    'net_amount' => $excluded ? 0 : (float) $reg->md_net_amount,
+                    'excluded' => $excluded,
+                    'excluded_reason' => $excluded ? ($reg->payment_status ?: 'pending') : null,
+                    'sort_order' => $sort++,
+                ]);
+            }
+        }
+
+        $payout->update([
+            'statement_generated_at' => now(),
+            'statement_snapshot' => [
+                'match' => [
+                    'id' => $match->id,
+                    'name' => $match->name,
+                    'match_date' => optional($match->match_date)->toDateString(),
+                    'match_type' => $match->match_type,
+                    'series_level' => $match->series_level,
+                    'md_name' => $match->user?->name,
+                ],
+                'summary' => [
+                    'paid_registrations' => $financials['paid_registrations'],
+                    'excluded_registrations' => $financials['pending_registrations'],
+                    'gross_revenue' => $financials['gross_revenue'],
+                    'saprf_fees' => $financials['saprf_fees'],
+                    'platform_fees' => $financials['platform_fees'],
+                    'gateway_fees' => $financials['gateway_fees'],
+                    'surcharges' => $financials['surcharges'],
+                    'md_net' => $financials['md_net'],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Rebuild the frozen statement from live match data, bumping version.
+     *
+     * Only exposed through the admin "Regenerate statement" action;
+     * the caller writes the audit entry (`payout.statement_regenerated`).
+     */
+    public function regenerateMatchPayoutStatement(Payout $payout): Payout
+    {
+        if (! $payout->match) {
             return $payout;
+        }
+
+        return DB::transaction(function () use ($payout) {
+            $financials = $this->matchFinancials($payout->match);
+
+            $payout->update([
+                'gross_amount' => $financials['gross_revenue'],
+                'fees_deducted' => round(
+                    $financials['saprf_fees']
+                        + $financials['platform_fees']
+                        + $financials['gateway_fees']
+                        + $financials['surcharges'],
+                    2,
+                ),
+                'net_amount' => $financials['md_net'],
+                'statement_version' => ((int) $payout->statement_version) + 1,
+            ]);
+
+            $this->snapshotMatchPayout($payout->fresh(), $payout->match, $financials);
+
+            return $payout->fresh(['items']);
         });
     }
 

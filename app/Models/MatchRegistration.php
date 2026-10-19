@@ -81,6 +81,71 @@ class MatchRegistration extends Model
         return $this->registration_source === 'walk_in';
     }
 
+    /**
+     * How did the money for this entry (if any) reach the platform?
+     *
+     * Returned slug powers the Payment column on the match financials
+     * report and payout statement so an R0 gateway row is explained
+     * (manual, waived, walk-in) and card rows show the actual gateway.
+     *
+     *   - `card`         PayFast credit card
+     *   - `instant_eft`  PayFast instant EFT
+     *   - `card_or_eft`  PayFast completed, method not recorded
+     *   - `manual`       Admin seeded, paid outside the gateway
+     *   - `waived`       Comped by exco/MD
+     *   - `walk_in`      Walk-in registered by MD on scoring day
+     *   - `pending`      Not yet paid (any of unpaid, pending, failed, refunded)
+     */
+    public function paymentMethodSlug(): string
+    {
+        if ($this->isWalkIn()) {
+            return 'walk_in';
+        }
+
+        if ($this->payment_status === 'waived') {
+            return 'waived';
+        }
+
+        if ($this->payment_status !== 'paid') {
+            return 'pending';
+        }
+
+        $payment = $this->payments()
+            ->where('status', 'completed')
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            // Paid but no gateway payment — admin-seeded entry.
+            return 'manual';
+        }
+
+        $raw = (array) ($payment->gateway_response ?? []);
+        $method = strtolower((string) ($raw['payment_method'] ?? $raw['payment_type'] ?? ''));
+
+        if (str_contains($method, 'cc') || str_contains($method, 'card')) {
+            return 'card';
+        }
+        if (str_contains($method, 'eft') || str_contains($method, 'ozow') || str_contains($method, 'instant')) {
+            return 'instant_eft';
+        }
+
+        return 'card_or_eft';
+    }
+
+    public function paymentMethodLabel(): string
+    {
+        return match ($this->paymentMethodSlug()) {
+            'card' => 'Card',
+            'instant_eft' => 'Instant EFT',
+            'card_or_eft' => 'Card / EFT',
+            'manual' => 'Manual',
+            'waived' => 'Comp',
+            'walk_in' => 'Walk-in',
+            default => 'Pending',
+        };
+    }
+
     public function walkInConfirmer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'walk_in_confirmed_by');

@@ -17,7 +17,7 @@
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     Platform Payout
                 </a>
-                <a href="{{ route('financials.export.payouts-csv') }}"
+                <a href="{{ route('financials.export.payouts-csv', ['status' => $status, 'type' => $type]) }}"
                    class="inline-flex items-center gap-2 rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 transition">
                     Export CSV
                 </a>
@@ -242,6 +242,12 @@
                             </td>
                             <td class="py-3 px-4 text-stone-500 text-xs">{{ $payout->created_at->format('d M Y') }}</td>
                             <td class="py-3 px-4 text-right">
+                                @if($payout->payee_type === 'match_director')
+                                    <a href="{{ route('financials.payouts.statement-pdf', $payout) }}"
+                                       class="text-stone-600 hover:text-stone-800 text-xs font-medium mr-3">PDF</a>
+                                    <a href="{{ route('financials.payouts.statement-csv', $payout) }}"
+                                       class="text-stone-600 hover:text-stone-800 text-xs font-medium mr-3">CSV</a>
+                                @endif
                                 @if(!$payout->isPaid())
                                 <button @click="open = !open"
                                         class="text-emerald-700 hover:text-emerald-800 text-xs font-medium">
