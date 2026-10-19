@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Payout;
-use Illuminate\Http\Response;
+use Illuminate\Contracts\Support\Responsable;
 use Spatie\LaravelPdf\Enums\Format;
 use Spatie\LaravelPdf\Facades\Pdf;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -21,10 +21,12 @@ class PayoutStatementRenderer
     /**
      * Render the statement to a downloadable PDF response.
      *
-     * `path($diskPath)` writes to disk and is used by email attachments;
-     * `name()` streams a download inline when called from a browser.
+     * Returns Responsable, not Illuminate\Http\Response: Spatie's PdfBuilder
+     * is chainable and only turns itself into a BinaryFileResponse inside
+     * `toResponse()` when the router unpacks it. A stricter return type
+     * crashes the request with a TypeError before any PDF bytes get built.
      */
-    public function pdfDownload(Payout $payout): Response
+    public function pdfDownload(Payout $payout): Responsable
     {
         return $this->pdf($payout)->download($this->filename($payout, 'pdf'));
     }

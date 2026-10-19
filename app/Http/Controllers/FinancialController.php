@@ -14,9 +14,9 @@ use App\Services\FinancialService;
 use App\Services\PayoutStatementRenderer;
 use App\Services\PlatformPayoutService;
 use App\Services\SettingsService;
+use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use RuntimeException;
@@ -33,7 +33,12 @@ class FinancialController extends Controller
         private readonly PayoutStatementRenderer $statementRenderer,
     ) {}
 
-    public function downloadPayoutStatementPdf(Request $request, Payout $payout): Response
+    // Returns Responsable (not Response) because the renderer hands back
+    // Spatie's PdfBuilder, which only becomes a BinaryFileResponse when
+    // Laravel's router calls toResponse(). See MyPayoutController for the
+    // same reasoning — a hard Response return type turns a working PDF
+    // download into a TypeError 500 before any bytes are generated.
+    public function downloadPayoutStatementPdf(Request $request, Payout $payout): Responsable
     {
         abort_unless($payout->payee_type === 'match_director', 404);
 

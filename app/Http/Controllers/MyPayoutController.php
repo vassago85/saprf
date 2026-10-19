@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Payout;
 use App\Services\PayoutStatementRenderer;
+use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -58,7 +58,12 @@ class MyPayoutController extends Controller
         ]);
     }
 
-    public function downloadPdf(Request $request, Payout $payout): Response
+    // Returns Responsable because Spatie\LaravelPdf\PdfBuilder (what the
+    // renderer hands back) is Responsable, not an Illuminate\Http\Response.
+    // Laravel's router calls toResponse($request) on it, which only then
+    // produces the PDF-bytes BinaryFileResponse. Typing this as Response
+    // would turn a working download into a 500 at the type boundary.
+    public function downloadPdf(Request $request, Payout $payout): Responsable
     {
         $this->authorize('view', $payout);
 
