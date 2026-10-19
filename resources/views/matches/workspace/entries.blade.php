@@ -72,6 +72,7 @@
                                 <th class="px-4 py-2.5 text-left font-semibold">Payment</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">Fee</th>
                                 <th class="px-4 py-2.5 text-right font-semibold">Entered</th>
+                                <th class="px-4 py-2.5 text-right font-semibold">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-100">
@@ -93,9 +94,16 @@
                                 @endphp
                                 <tr class="hover:bg-stone-50/60">
                                     <td class="px-4 py-2.5">
-                                        <div class="font-semibold text-stone-900">
+                                        {{-- Shooter name is the primary click target.
+                                             MD/admin lands on registrations.show which
+                                             has the full edit surface (division, rifle,
+                                             shots, mark-settled, withdraw) — all of
+                                             which the policies already allow after the
+                                             match is completed. --}}
+                                        <a href="{{ route('registrations.show', $reg) }}" wire:navigate
+                                           class="block font-semibold text-stone-900 hover:text-emerald-700">
                                             {{ $reg->shooter_name ?: $reg->user?->name ?: '—' }}
-                                        </div>
+                                        </a>
                                         @if($reg->email)
                                             <div class="text-xs text-stone-500">{{ $reg->email }}</div>
                                         @endif
@@ -117,6 +125,25 @@
                                     </td>
                                     <td class="px-4 py-2.5 text-right text-xs text-stone-500">
                                         {{ $reg->registered_at?->format('j M') }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right">
+                                        @if($reg->hasOutstandingPayment() && $reg->registration_status !== 'cancelled')
+                                            {{-- Fast path to the mark-settled form on the
+                                                 detail page. The #mark-settled anchor
+                                                 lives in registrations/show.blade.php so
+                                                 the MD scrolls straight to it. --}}
+                                            <a href="{{ route('registrations.show', $reg) }}#mark-settled"
+                                               wire:navigate
+                                               class="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700">
+                                                Mark paid
+                                            </a>
+                                        @else
+                                            <a href="{{ route('registrations.show', $reg) }}" wire:navigate
+                                               class="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                                               title="Open entry to edit division, rifle, shots, or withdraw">
+                                                Edit
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach

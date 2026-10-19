@@ -285,7 +285,10 @@
         {{-- MD/admin: mark settled after POP or PayFast screenshot --}}
         @can('update', $registration)
             @if($registration->hasOutstandingPayment() && $registration->registration_status !== 'cancelled')
-                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm">
+                {{-- id anchor so the workspace Entries → Mark paid deep link
+                     scrolls straight to this card instead of making the MD
+                     hunt for it on a long detail page. --}}
+                <div id="mark-settled" class="rounded-xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm">
                     <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">Mark payment settled</h2>
                     <p class="text-sm text-stone-600 mb-4">Use when the shooter replies with a POP or a PayFast confirmation screenshot. This marks the entry paid without a new PayFast charge.</p>
                     <form method="POST" action="{{ route('registrations.mark-settled', $registration) }}" class="space-y-4">
