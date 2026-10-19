@@ -127,6 +127,23 @@
                             </td>
                             <td class="py-3 px-5 text-right">
                                 <div class="inline-flex items-center gap-2">
+                                    {{-- Legacy payout rescue: payouts raised before the
+                                         snapshot system (commit 47c40d4) have no items
+                                         and an empty summary, so PDF/CSV come out blank.
+                                         Show a one-tap rebuild button on those rows
+                                         instead of forcing an SSH + tinker. --}}
+                                    @if($mdPayout->statement_generated_at === null && $mdPayout->match)
+                                        <form method="POST"
+                                              action="{{ route('financials.payouts.regenerate-statement', $mdPayout) }}"
+                                              onsubmit="return confirm('Rebuild this statement from the live match data? Fees and totals will be refreshed from current registrations.');">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="rounded-lg border border-amber-400 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition"
+                                                    title="This payout has no frozen statement — rebuild from live match data">
+                                                Rebuild statement
+                                            </button>
+                                        </form>
+                                    @endif
                                     {{-- Secondary action: open the full statement so
                                          the admin can confirm WHAT they're paying for
                                          (per-entry breakdown + any disputed rows)

@@ -224,6 +224,36 @@ it('regenerates the frozen statement, bumps version, and reflects live changes',
         ->and($payout->items()->where('excluded', false)->count())->toBe(2);
 });
 
+it('surfaces a rebuild banner and admin-only button when the statement has no snapshot', function () {
+    $shooter = User::factory()->create();
+    makePaidEntry($this->match, $shooter);
+    $payout = app(FinancialService::class)->createMdPayout($this->match->fresh(), $this->finance);
+
+    // Simulate a legacy payout: no frozen snapshot, no items. Mirrors the
+    // production state of payouts raised before commit 47c40d4.
+    $payout->items()->delete();
+    $payout->update(['statement_generated_at' => null, 'statement_snapshot' => null]);
+
+    // Admin sees the explainer AND the rebuild button pointing at the right route.
+    $this->actingAs($this->finance)
+        ->get(route('my-payouts.show', $payout))
+        ->assertOk()
+        ->assertSee('This statement has no frozen snapshot.')
+        ->assertSee('Rebuild statement from live data')
+        ->assertSee(route('financials.payouts.regenerate-statement', $payout));
+
+    // MD sees the explainer but NOT the button (nothing they can do about it).
+    $response = $this->actingAs($this->md)->get(route('my-payouts.show', $payout))->assertOk();
+    $response->assertSee('This statement has no frozen snapshot.');
+    expect($response->getContent())->not->toContain('Rebuild statement from live data');
+
+    // Pending-queue surfaces the inline rebuild button for the same payout.
+    $this->actingAs($this->finance)
+        ->get(route('financials.payouts'))
+        ->assertOk()
+        ->assertSee('Rebuild statement');
+});
+
 it('restricts my-payouts to the MD themselves and finance roles', function () {
     $shooter = User::factory()->create();
     makePaidEntry($this->match, $shooter);

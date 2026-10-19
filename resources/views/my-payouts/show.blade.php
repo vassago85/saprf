@@ -13,6 +13,32 @@
             <p class="mt-1 text-xs text-stone-400">Statement v{{ $payout->statement_version }} &middot; generated {{ $payout->statement_generated_at?->format('d M Y H:i') }}</p>
         </div>
 
+        {{-- Legacy-payout rescue banner. Payouts raised before the snapshot
+             system (commit 47c40d4) have no frozen items — the PDF renders
+             a blank body and the CSV has only headers. Expose a one-tap
+             rebuild for admins viewing the page; MDs just see an explainer. --}}
+        @if($payout->statement_generated_at === null)
+            @php($canRebuild = auth()->user()?->hasAnyRole(['developer', 'exco', 'owner', 'admin']))
+            <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p class="font-semibold">This statement has no frozen snapshot.</p>
+                <p class="mt-1 text-xs text-amber-800">
+                    The payout was raised before the statement system existed, so the PDF
+                    body and CSV detail rows will be blank until it is rebuilt from the
+                    live match data.
+                </p>
+                @if($canRebuild && $payout->match)
+                    <form method="POST" action="{{ route('financials.payouts.regenerate-statement', $payout) }}" class="mt-3"
+                          onsubmit="return confirm('Rebuild this statement from the live match data? Fees and totals will be refreshed from current registrations.');">
+                        @csrf
+                        <button type="submit"
+                                class="rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700">
+                            Rebuild statement from live data
+                        </button>
+                    </form>
+                @endif
+            </div>
+        @endif
+
         <div class="flex flex-wrap gap-3">
             <a href="{{ route('my-payouts.pdf', $payout) }}" class="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Download PDF</a>
             <a href="{{ route('my-payouts.csv', $payout) }}" class="rounded-lg bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">Download CSV</a>
