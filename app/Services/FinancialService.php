@@ -291,11 +291,28 @@ class FinancialService
      * payout" flow funnel through this method so amounts, references, and the
      * transaction log stay consistent regardless of who initiated the payout.
      */
-    public function createMdPayout(MatchEvent $match, User $creator, ?string $notes = null): Payout
-    {
+    /**
+     * Create a pending MD payout for a completed match.
+     *
+     * `$banking` carries the account the MD nominated at request time. The
+     * four keys (`account_holder`, `bank_name`, `account_number`,
+     * `branch_code`) are validated by the controller; we trust them here
+     * and persist them onto the payout record so admins can process the
+     * payment without chasing the MD by WhatsApp. `null` is accepted so
+     * legacy callers (jobs, tests that predate the banking-details flow)
+     * keep working — they just leave the columns blank.
+     *
+     * @param  array{account_holder: string, bank_name: string, account_number: string, branch_code: string}|null  $banking
+     */
+    public function createMdPayout(
+        MatchEvent $match,
+        User $creator,
+        ?string $notes = null,
+        ?array $banking = null,
+    ): Payout {
         $financials = $this->matchFinancials($match);
 
-        return DB::transaction(function () use ($match, $creator, $notes, $financials) {
+        return DB::transaction(function () use ($match, $creator, $notes, $financials, $banking) {
             $payout = Payout::create([
                 'reference' => Payout::generateReference(),
                 'payee_type' => 'match_director',
@@ -315,6 +332,10 @@ class FinancialService
                 'net_amount' => $financials['md_net'],
                 'status' => 'pending',
                 'notes' => $notes,
+                'account_holder' => $banking['account_holder'] ?? null,
+                'bank_name' => $banking['bank_name'] ?? null,
+                'account_number' => $banking['account_number'] ?? null,
+                'branch_code' => $banking['branch_code'] ?? null,
                 'created_by' => $creator->id,
             ]);
 

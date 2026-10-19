@@ -85,7 +85,39 @@
                             </td>
                         </tr>
                         <tr x-show="open" x-cloak class="bg-amber-100/40 border-b border-amber-100 last:border-b-0">
-                            <td colspan="6" class="px-5 py-4">
+                            <td colspan="6" class="px-5 py-4 space-y-4">
+                                {{-- Banking details captured when the MD raised
+                                     the payout. If the MD submitted via the old
+                                     one-click flow (pre banking-details columns)
+                                     these will be blank — fall back to a note. --}}
+                                @if($mdPayout->account_number)
+                                    <div class="rounded-lg border border-amber-200 bg-white/70 p-3 text-xs">
+                                        <p class="font-semibold uppercase tracking-wide text-amber-900">Pay to</p>
+                                        <dl class="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">
+                                            <div>
+                                                <dt class="text-amber-700">Account holder</dt>
+                                                <dd class="font-semibold text-stone-900">{{ $mdPayout->account_holder }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-amber-700">Bank</dt>
+                                                <dd class="font-semibold text-stone-900">{{ $mdPayout->bank_name }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-amber-700">Account number</dt>
+                                                <dd class="font-mono font-semibold text-stone-900">{{ $mdPayout->account_number }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-amber-700">Branch code</dt>
+                                                <dd class="font-mono font-semibold text-stone-900">{{ $mdPayout->branch_code }}</dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                @else
+                                    <div class="rounded-lg border border-dashed border-amber-300 bg-white/40 p-3 text-xs text-amber-800">
+                                        No banking details on file (payout raised before the banking-details form existed). Chase the MD for an account before transferring.
+                                    </div>
+                                @endif
+
                                 <form method="POST" action="{{ route('financials.payouts.mark-paid', $mdPayout) }}"
                                       class="flex flex-wrap items-end gap-4">
                                     @csrf

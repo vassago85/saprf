@@ -18,6 +18,34 @@
             <a href="{{ route('my-payouts.csv', $payout) }}" class="rounded-lg bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">Download CSV</a>
         </div>
 
+        {{-- Banking details: the account the MD nominated when raising the
+             payout. Shown so the MD can double-check what the finance team
+             will transfer against — and so an admin viewing the same page
+             doesn't have to open a separate screen to see it. --}}
+        @if($payout->account_number)
+            <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+                <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide mb-3">Pay to</h2>
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-stone-500">Account holder</dt>
+                        <dd class="font-semibold text-stone-900">{{ $payout->account_holder }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-stone-500">Bank</dt>
+                        <dd class="font-semibold text-stone-900">{{ $payout->bank_name }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-stone-500">Account number</dt>
+                        <dd class="font-mono font-semibold text-stone-900">{{ $payout->account_number }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-stone-500">Branch code</dt>
+                        <dd class="font-mono font-semibold text-stone-900">{{ $payout->branch_code }}</dd>
+                    </div>
+                </dl>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
                 <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide mb-4">Summary</h2>

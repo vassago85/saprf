@@ -323,14 +323,60 @@ class MatchController extends Controller
     }
 
     /**
-     * Marks a match as completed AND creates a pending match-director payout in
-     * one step. Triggered from the score-import success page so an MD who has
-     * just uploaded results can close out the match and file for payment in a
-     * single click, instead of chasing an admin.
+     * Show the "Request MD payout" form.
      *
-     * Guarded so the same match can't be double-requested: if the match is
-     * already completed or already has an MD payout row, we short-circuit with
-     * a soft warning rather than creating a duplicate.
+     * This is the GET half of the payout-request flow. The MD lands here from
+     * the workspace Finances tab or the score-import success page, sees the
+     * projected net amount (what the match will pay them), and fills in the
+     * banking details SAPRF needs to transfer the money. The form POSTs back
+     * to {@see completeAndRequestPayout()} below.
+     *
+     * If the match already has a payout we skip the form and bounce the MD
+     * straight to the existing statement — there is nothing to request a
+     * second time, and letting them re-submit would create a duplicate row.
+     */
+    public function showRequestPayout(
+        Request $request,
+        MatchEvent $match,
+        FinancialService $financials,
+    ): View|RedirectResponse {
+        $this->authorize('update', $match);
+
+        $existingPayout = $match->payouts()
+            ->where('payee_type', 'match_director')
+            ->latest('id')
+            ->first();
+
+        if ($existingPayout) {
+            return redirect()
+                ->route('my-payouts.show', $existingPayout)
+                ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
+        }
+
+        $summary = $financials->matchFinancials($match);
+        $banking = \App\Models\Payout::lastBankingDetailsForUser($match->created_by);
+
+        return view('matches.workspace.request-payout', [
+            'match' => $match,
+            'summary' => $summary,
+            'banking' => $banking,
+        ]);
+    }
+
+    /**
+     * Marks a match as completed AND creates a pending match-director payout in
+     * one step. Triggered from the "Request payout" form so an MD who has just
+     * uploaded results can close out the match and file for payment in one
+     * flow, instead of chasing an admin by WhatsApp.
+     *
+     * Banking details are required: an MD who doesn't tell us where to pay
+     * them is just asking an admin to interrupt them later. We validate the
+     * four fields on the way in and persist them onto the payout record so
+     * the admin can process the transfer without further back-and-forth.
+     *
+     * Guarded so the same match can't be double-requested: if the match
+     * already has an MD payout row, we short-circuit with a soft warning
+     * rather than creating a duplicate.
      */
     public function completeAndRequestPayout(
         Request $request,
@@ -349,6 +395,17 @@ class MatchController extends Controller
             return redirect($back)->with('success', 'A match director payout has already been requested for this match.');
         }
 
+        $banking = $request->validate([
+            'account_holder' => ['required', 'string', 'max:255'],
+            'bank_name' => ['required', 'string', 'max:100'],
+            // Account numbers vary by bank (6–11 digits for the big four,
+            // longer for a few business accounts). Keep it permissive but
+            // require at least six digits so a typo stays out of the queue.
+            'account_number' => ['required', 'string', 'min:6', 'max:30'],
+            // SA universal branch codes are always six digits.
+            'branch_code' => ['required', 'string', 'size:6'],
+        ]);
+
         $old = $match->only(['status', 'published']);
 
         if ($match->status !== 'completed') {
@@ -358,7 +415,8 @@ class MatchController extends Controller
         $payout = $financials->createMdPayout(
             $match,
             $request->user(),
-            'Requested by match director after score upload.',
+            'Requested by match director with banking details.',
+            $banking,
         );
 
         $this->auditLogService->log(
@@ -371,10 +429,14 @@ class MatchController extends Controller
                 'match_id' => $match->id,
                 'payout_reference' => $payout->reference,
                 'net_amount' => $payout->net_amount,
+                // Record that banking details were captured, but never log
+                // the actual account number — audit log entries are visible
+                // to admins and shouldn't double as a credential dump.
+                'banking_captured' => true,
             ],
         );
 
-        return redirect($back)->with(
+        return redirect()->route('my-payouts.show', $payout)->with(
             'success',
             "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.',
         );

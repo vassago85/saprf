@@ -22,6 +22,10 @@ class Payout extends Model
         'paid_amount',
         'paid_at',
         'payment_reference',
+        'account_holder',
+        'bank_name',
+        'account_number',
+        'branch_code',
         'notes',
         'created_by',
         'statement_generated_at',
@@ -97,5 +101,36 @@ class Payout extends Model
     public static function generateReference(): string
     {
         return 'PO-' . now()->format('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
+    }
+
+    /**
+     * The banking details this MD used most recently.
+     *
+     * Pre-fills the "Request payout" form so an MD who's been through the
+     * flow before doesn't have to retype their account every match. Returns
+     * `null` for an MD who has never requested a payout before (or whose
+     * historical payouts predate the banking-details columns).
+     *
+     * @return array{account_holder: string, bank_name: string, account_number: string, branch_code: string}|null
+     */
+    public static function lastBankingDetailsForUser(int $userId): ?array
+    {
+        $recent = static::query()
+            ->where('payee_type', 'match_director')
+            ->where('payee_user_id', $userId)
+            ->whereNotNull('account_number')
+            ->orderByDesc('created_at')
+            ->first(['account_holder', 'bank_name', 'account_number', 'branch_code']);
+
+        if (! $recent) {
+            return null;
+        }
+
+        return [
+            'account_holder' => (string) $recent->account_holder,
+            'bank_name' => (string) $recent->bank_name,
+            'account_number' => (string) $recent->account_number,
+            'branch_code' => (string) $recent->branch_code,
+        ];
     }
 }

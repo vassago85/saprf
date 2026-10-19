@@ -234,13 +234,13 @@
                         @endif
                     </p>
                     <div class="mt-4 flex flex-wrap items-center gap-3">
-                        <form method="POST" action="{{ route('matches.complete-and-request-payout', $scoreImport->match) }}">
-                            @csrf
-                            <button type="submit"
-                                class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                                {{ $alreadyCompleted ? 'Request match director payout' : 'Complete match & request payout' }}
-                            </button>
-                        </form>
+                        {{-- Payout flow is a two-step: this link opens the form
+                             where the MD enters their banking details, and the
+                             form POSTs to matches.complete-and-request-payout. --}}
+                        <a href="{{ route('matches.request-payout', $scoreImport->match) }}"
+                           class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                            {{ $alreadyCompleted ? 'Request match director payout' : 'Complete match & request payout' }}
+                        </a>
                         <button type="button" @click="dismissed = true"
                             class="text-sm font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2">
                             Not yet
