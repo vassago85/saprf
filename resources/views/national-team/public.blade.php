@@ -2,7 +2,7 @@
     $seoYear = $selectedYear ?? now()->year;
     $pageTitle = $selectedYear
         ? "Team South Africa {$selectedYear} — SAPRF"
-        : 'The Proteas — Team South Africa — SAPRF';
+        : 'Team South Africa — SAPRF';
     $pageDescription = $selectedYear
         ? "The South African team that represented the country at an IPRF World Precision Rifle Championship in {$selectedYear}."
         : 'Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.';
@@ -52,7 +52,7 @@
                         Team South Africa
                     </span>
                     <h1 class="mt-4 font-heading font-extrabold text-5xl sm:text-6xl lg:text-7xl leading-[0.95] text-white">
-                        The Proteas
+                        Team South Africa
                     </h1>
                     <p class="mt-3 text-base sm:text-lg text-stone-200 leading-relaxed">
                         Every SAPRF shooter who has represented South Africa at an IPRF World Precision Rifle Championship.
@@ -61,8 +61,8 @@
 
                 <dl class="flex flex-wrap gap-3">
                     <div class="rounded-xl bg-white/10 border border-white/15 backdrop-blur px-5 py-3 min-w-[110px]">
-                        <dt class="font-heading text-4xl font-extrabold tabular-nums">{{ $statUniqueProteas }}</dt>
-                        <dd class="mt-1 text-[11px] font-semibold tracking-[0.12em] uppercase text-stone-300">Proteas</dd>
+                        <dt class="font-heading text-4xl font-extrabold tabular-nums">{{ $statUniqueAthletes }}</dt>
+                        <dd class="mt-1 text-[11px] font-semibold tracking-[0.12em] uppercase text-stone-300">Athletes</dd>
                     </div>
                     <div class="rounded-xl bg-white/10 border border-white/15 backdrop-blur px-5 py-3 min-w-[110px]">
                         <dt class="font-heading text-4xl font-extrabold tabular-nums">{{ $statAppearances }}</dt>
@@ -324,7 +324,7 @@
                 <div class="flex flex-wrap items-end justify-between gap-6 mb-6">
                     <div>
                         <h2 class="font-heading font-extrabold text-3xl sm:text-4xl">Honour roll</h2>
-                        <p class="text-stone-300 mt-1">All Proteas, A to Z, with the years they represented South Africa.</p>
+                        <p class="text-stone-300 mt-1">Every Team South Africa athlete, A to Z, with the years they represented the country.</p>
                     </div>
                     <label class="flex flex-col gap-1.5 text-xs text-stone-300">
                         Find a shooter

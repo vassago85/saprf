@@ -22,7 +22,7 @@ The design reference is in `docs/mockups/saprf-sa-team/`: `sa-team.html`, `media
 ## 1. Public SA Team page (`/sa-team`, see `sa-team.html`)
 
 - Public layout, same header and footer as the homepage.
-- Hero: full-width team photo for the selected year (object-cover, dark bottom scrim), "Team South Africa" pill, heading "The Proteas", one-line intro, and three stat tiles computed from data: distinct Proteas, total appearances, colours awarded (all years).
+- Hero: full-width team photo for the selected year (object-cover, dark bottom scrim), "Team South Africa" pill, heading "Team South Africa", one-line intro, and three stat tiles computed from data: distinct athletes, total appearances, colours awarded (all years).
 - Year switcher: one button per team year, newest first, selected year in the URL (`/sa-team/{year}` or `?year=`), default latest. Use `wire:navigate` or a Livewire property bound to the URL; deep links must work.
 - Selected year header: year, event name, venue/city/country, dates, plus tiles for team captain, team manager and squad size (shooters only, excluding manager/officials).
 - Roster grouped by division in cards (Open, Factory, Limited, Ladies, Juniors, Seniors; use the division order already defined in the system if there is one). Each row: initials avatar (or member photo if one exists), name, province, "Captain" badge where applicable, "Colours" badge where awarded. Officials (manager etc.) appear in the header tiles, not in division cards.

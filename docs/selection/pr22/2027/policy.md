@@ -109,7 +109,7 @@ Athletes will, in the Qualifying Period be required to have:
     - 1 × SA Champs — 30%
     - Total accumulated points — 100%
 - Highest accumulated score of the divisional winners will be used to calculate your score in your respective division at the end of the season only.
-- This calculated score per division will be used for the selection of the SA Protea Team per division only.
+- This calculated score per division will be used for the selection of Team South Africa per division only.
 - Protea colours may be awarded to those athletes with an accumulated score of 85 % and above in their respective divisions. Shooters below 85% may be awarded Federation colours.
 
 ### Note regarding Federation and Protea colours

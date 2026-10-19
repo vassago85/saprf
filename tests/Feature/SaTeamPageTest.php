@@ -28,7 +28,7 @@ it('/sa-team returns 200 for guests and renders the public shell (no sidebar / u
     $response = $this->get('/sa-team');
 
     $response->assertOk();
-    $response->assertSee('The Proteas');
+    $response->assertSee('Team South Africa');
     // The public nav highlights the SA Team link …
     $response->assertSee('SA Team');
     // … but the authenticated app sidebar's "View as" switcher must NOT render.
@@ -86,7 +86,7 @@ it('deep-links to /sa-team/{year} render that year even when it is not the newes
     expect($html2024)->toContain('href="'.url('/sa-team/2026').'"');
 });
 
-it('hero stat tiles count distinct Proteas and total appearances, without a colours total', function () {
+it('hero stat tiles count distinct athletes and total appearances, without a colours total', function () {
     $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1, 'is_active' => true]);
 
     // 2 shooters, 3 appearances between them (one has two years), 2 colours.
@@ -127,7 +127,7 @@ it('hero stat tiles count distinct Proteas and total appearances, without a colo
     $response->assertOk();
     $html = $response->getContent();
 
-    expect($html)->toMatch('/>2<\/dt>\s*<dd[^>]*>\s*Proteas/is');
+    expect($html)->toMatch('/>2<\/dt>\s*<dd[^>]*>\s*Athletes/is');
     expect($html)->toMatch('/>3<\/dt>\s*<dd[^>]*>\s*Appearances/is');
     expect($html)->not->toContain('Colours awarded');
     expect($html)->not->toContain('>Colours<');

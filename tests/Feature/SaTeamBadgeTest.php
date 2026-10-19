@@ -155,7 +155,7 @@ it('lists the 2026 roster at /sa-team grouped by year with division labels', fun
     $response = $this->get('/sa-team');
 
     $response->assertOk();
-    $response->assertSee('The Proteas');          // hero heading
+    $response->assertSee('Team South Africa');    // hero heading
     $response->assertSee('2026');
     $response->assertSee('Roster Rachel');
     $response->assertSee('Ladies');               // division card header (styled uppercase via CSS)

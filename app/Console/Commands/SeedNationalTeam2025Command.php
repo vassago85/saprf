@@ -116,7 +116,7 @@ class SeedNationalTeam2025Command extends Command
         ['name' => 'Hanno Van Niekerk',     'division_slug' => 'factory', 'division_label' => 'Factory'],
 
         // Seniors division (3) — Greg Sykes removed per Exco: he was on
-        // the 2022 and 2024 Protea teams but did not travel in 2025.
+        // the 2022 and 2024 Team South Africa squads but did not travel in 2025.
         ['name' => 'Glen Clark',            'division_slug' => 'senior',  'division_label' => 'Seniors'],
         ['name' => 'Le Riche Coetzer',      'division_slug' => 'senior',  'division_label' => 'Seniors'],
         ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors'],

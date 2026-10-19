@@ -15,8 +15,8 @@ use Illuminate\Support\Carbon;
  * Produces, for each series the shooter is active in:
  *   • current overall rank + total ranked, points, "top X%"
  *   • distance to the national-squad cut (points to catch the shooter in
- *     the configured cut rank, 12 by default — the headline Protea squad
- *     size for both PRS and PR22)
+ *     the configured cut rank, 12 by default — the headline Team South Africa
+ *     squad size for both PRS and PR22)
  *   • a sparkline / area-chart series of match % per scored match, where
  *     "match %" is Score::normalized_score (raw / top raw × 100) — this is
  *     the standard PRS performance metric computed by the standings
@@ -28,7 +28,7 @@ use Illuminate\Support\Carbon;
  */
 final class HeroStandingBuilder
 {
-    /** Default top-N cut for both disciplines (Protea squad size). */
+    /** Default top-N cut for both disciplines (Team South Africa squad size). */
     private const DEFAULT_CUT_RANK = 12;
 
     public function __construct(

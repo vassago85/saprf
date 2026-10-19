@@ -113,7 +113,7 @@ class PublicNationalTeamController extends Controller
             'selectedHeroCover' => $selectedTeamForHero?->cover,
             'pastTeams' => $pastTeams,
             'honourRoll' => $this->honourRoll($allAppearances),
-            'statUniqueProteas' => $allAppearances
+            'statUniqueAthletes' => $allAppearances
                 ->whereIn('role', [
                     NationalTeamAppearance::ROLE_SHOOTER,
                     NationalTeamAppearance::ROLE_CAPTAIN,
