@@ -13,7 +13,7 @@
                 <a href="{{ route('matches.impact-import', $match) }}" wire:navigate
                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
                     <flux:icon.arrow-up-tray class="size-4" />
-                    Import from Impact (CSV)
+                    Import from Impact
                 </a>
                 <a href="{{ route('scores.entry', $match) }}" wire:navigate
                    class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
