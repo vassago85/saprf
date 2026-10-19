@@ -36,8 +36,11 @@ class PublicNationalTeamController extends Controller
         [$teams, $allAppearances] = $this->fetchDataset($viewer);
 
         // Pick the selected year — honour the URL, else default to the
-        // newest year we have appearances for.
-        $yearsAvailable = $allAppearances->pluck('year')
+        // newest year we have a team header or appearances for. Team
+        // headers alone (photo imported, roster still TBD) must still
+        // surface in the year switcher.
+        $yearsAvailable = $teams->pluck('year')
+            ->merge($allAppearances->pluck('year'))
             ->map(fn ($y) => (int) $y)
             ->unique()
             ->sortDesc()
@@ -85,6 +88,28 @@ class PublicNationalTeamController extends Controller
                 ];
             })
             ->values();
+
+        // Photo-only / roster-pending team years: a NationalTeam header
+        // with no appearances yet still needs a championship block so the
+        // view can render "Squad to be announced".
+        if ($selectedYear !== null) {
+            $covered = $selectedTeams->pluck('championship')->all();
+            foreach ($teams->where('year', $selectedYear) as $team) {
+                if (in_array($team->championship_name, $covered, true)) {
+                    continue;
+                }
+                $selectedTeams->push([
+                    'team' => $team,
+                    'championship' => $team->championship_name,
+                    'host_country_name' => $team->hostCountryName(),
+                    'captain' => null,
+                    'manager' => null,
+                    'squad_size' => 0,
+                    'divisions' => [],
+                    'reserves' => collect(),
+                ]);
+            }
+        }
 
         $selectedTeamForHero = $selectedYear !== null
             ? $teams->first(fn (NationalTeam $t) => $t->year === $selectedYear)

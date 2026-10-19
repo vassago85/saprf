@@ -205,3 +205,25 @@ it('captain and manager tiles render only when those roles exist on the team', f
     $response->assertDontSee('Team manager');
     $response->assertSee('Squad');
 });
+
+it('lists a NationalTeam year with no appearances yet and shows squad TBD', function () {
+    // Photo-only / roster-pending years (e.g. 2022) must still appear in
+    // the year switcher and deep-link, with the empty-roster placeholder.
+    NationalTeam::create([
+        'year' => 2022,
+        'championship_name' => '2022 IPRF World Championship (Centrefire)',
+        'discipline' => 'centrefire',
+    ]);
+
+    $html = $this->get('/sa-team')->assertOk()->getContent();
+    // Default selection is 2022 (only year present) — page title includes it.
+    expect($html)->toContain('Team South Africa 2022');
+    expect($html)->toContain('Squad to be announced');
+
+    $response = $this->get('/sa-team/2022');
+    $response->assertOk();
+    $response->assertSee('Team South Africa 2022', false);
+    $response->assertSee('2022 IPRF World Championship (Centrefire)');
+    $response->assertSee('Squad to be announced');
+    $response->assertSee('0 shooters');
+});
