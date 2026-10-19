@@ -598,12 +598,29 @@ class RegistrationController extends Controller
             default => 'Other proof',
         };
 
-        $old = $registration->only(['payment_status', 'registration_status', 'fee_override_reason']);
+        $old = $registration->only(['payment_status', 'registration_status', 'fee_override_reason', 'gateway_fee', 'md_net_amount']);
 
         $note = trim(
             ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '')
             .'Settled by '.$request->user()->name.' via '.$proofLabel.': '.$validated['settlement_note']
         );
+
+        // POP / "other" settlement means the money reached the MD outside
+        // PayFast (cash on the range, direct EFT, etc.) — so the gateway
+        // estimate booked at register-time is a phantom cost that silently
+        // shaves ~R20 off the MD's payout. Zero it out and credit the MD
+        // back the same amount so the payout matches what was actually
+        // collected. "payfast_screenshot" is the one proof type that
+        // retains the gateway fee: the money DID go through PayFast, we
+        // just never got the ITN that would have booked it automatically.
+        $gatewayRefund = 0.0;
+        $newGatewayFee = (float) $registration->gateway_fee;
+        $newMdNet = (float) $registration->md_net_amount;
+        if ($validated['settlement_proof'] !== 'payfast_screenshot' && $newGatewayFee > 0) {
+            $gatewayRefund = $newGatewayFee;
+            $newGatewayFee = 0.0;
+            $newMdNet = round($newMdNet + $gatewayRefund, 2);
+        }
 
         $registration->update([
             'payment_status' => 'paid',
@@ -611,6 +628,8 @@ class RegistrationController extends Controller
                 ? 'confirmed'
                 : $registration->registration_status,
             'fee_override_reason' => $note,
+            'gateway_fee' => $newGatewayFee,
+            'md_net_amount' => $newMdNet,
         ]);
 
         $this->auditLogService->log(
@@ -624,15 +643,21 @@ class RegistrationController extends Controller
                 'registration_status' => $registration->registration_status,
                 'settlement_proof' => $validated['settlement_proof'],
                 'settlement_note' => $validated['settlement_note'],
+                'gateway_fee' => $newGatewayFee,
+                'md_net_amount' => $newMdNet,
+                'gateway_refunded_to_md' => $gatewayRefund,
             ],
         );
 
         $shooterLabel = $registration->user?->name ?? $registration->shooter_name ?? 'shooter';
 
-        return back()->with(
-            'success',
-            'Marked '.$shooterLabel.' as paid ('.$proofLabel.').'
-        );
+        $message = 'Marked '.$shooterLabel.' as paid ('.$proofLabel.').';
+        if ($gatewayRefund > 0) {
+            $message .= ' Gateway fee of R'.number_format($gatewayRefund, 2)
+                .' credited back to the MD since no PayFast transaction occurred.';
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
