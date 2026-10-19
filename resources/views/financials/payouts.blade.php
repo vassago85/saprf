@@ -60,9 +60,33 @@
                     </thead>
                     <tbody>
                         @foreach($pendingMdPayouts as $mdPayout)
-                        <tr class="border-b border-amber-100 last:border-b-0 hover:bg-amber-100/40" x-data="{ open: false }">
+                        <tr class="border-b border-amber-100 last:border-b-0 hover:bg-amber-100/40 align-top" x-data="{ open: false }">
                             <td class="py-3 px-5 font-mono text-xs text-amber-900">{{ $mdPayout->reference }}</td>
-                            <td class="py-3 px-5 text-amber-900">{{ $mdPayout->payeeUser?->name ?? '—' }}</td>
+                            <td class="py-3 px-5 text-amber-900">
+                                <div class="font-semibold">{{ $mdPayout->payeeUser?->name ?? '—' }}</div>
+                                {{-- Banking details raised to always-visible: an admin
+                                     needs the account to make the transfer, so there's
+                                     no reason to hide it behind a "Mark Paid" expand. --}}
+                                @if($mdPayout->account_number)
+                                    <div class="mt-1 space-y-0.5 text-xs text-amber-800">
+                                        <div>
+                                            <span class="text-amber-700">To:</span>
+                                            <span class="font-semibold">{{ $mdPayout->account_holder }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-amber-700">{{ $mdPayout->bank_name }}</span>
+                                            <span class="mx-1 text-amber-500">·</span>
+                                            <span class="font-mono font-semibold">{{ $mdPayout->account_number }}</span>
+                                            <span class="mx-1 text-amber-500">·</span>
+                                            <span class="font-mono">br {{ $mdPayout->branch_code }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="mt-1 text-xs italic text-amber-700">
+                                        No banking on file — chase the MD before transferring.
+                                    </div>
+                                @endif
+                            </td>
                             <td class="py-3 px-5 text-amber-900">
                                 @if($mdPayout->match)
                                     <a href="{{ route('financials.match-report', $mdPayout->match) }}" class="hover:underline">
@@ -85,39 +109,7 @@
                             </td>
                         </tr>
                         <tr x-show="open" x-cloak class="bg-amber-100/40 border-b border-amber-100 last:border-b-0">
-                            <td colspan="6" class="px-5 py-4 space-y-4">
-                                {{-- Banking details captured when the MD raised
-                                     the payout. If the MD submitted via the old
-                                     one-click flow (pre banking-details columns)
-                                     these will be blank — fall back to a note. --}}
-                                @if($mdPayout->account_number)
-                                    <div class="rounded-lg border border-amber-200 bg-white/70 p-3 text-xs">
-                                        <p class="font-semibold uppercase tracking-wide text-amber-900">Pay to</p>
-                                        <dl class="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">
-                                            <div>
-                                                <dt class="text-amber-700">Account holder</dt>
-                                                <dd class="font-semibold text-stone-900">{{ $mdPayout->account_holder }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-amber-700">Bank</dt>
-                                                <dd class="font-semibold text-stone-900">{{ $mdPayout->bank_name }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-amber-700">Account number</dt>
-                                                <dd class="font-mono font-semibold text-stone-900">{{ $mdPayout->account_number }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-amber-700">Branch code</dt>
-                                                <dd class="font-mono font-semibold text-stone-900">{{ $mdPayout->branch_code }}</dd>
-                                            </div>
-                                        </dl>
-                                    </div>
-                                @else
-                                    <div class="rounded-lg border border-dashed border-amber-300 bg-white/40 p-3 text-xs text-amber-800">
-                                        No banking details on file (payout raised before the banking-details form existed). Chase the MD for an account before transferring.
-                                    </div>
-                                @endif
-
+                            <td colspan="6" class="px-5 py-4">
                                 <form method="POST" action="{{ route('financials.payouts.mark-paid', $mdPayout) }}"
                                       class="flex flex-wrap items-end gap-4">
                                     @csrf

@@ -4,6 +4,9 @@
             'paid' => (int) ($summary['paid_registrations'] ?? 0),
             'excluded' => (int) ($summary['pending_registrations'] ?? 0),
         ];
+        $projectedNet = (float) ($money['md_payout_projection'] ?? ($summary['md_net'] ?? 0));
+        $settledNet = (float) ($summary['md_net'] ?? 0);
+        $hasProjection = $projectedNet > $settledNet + 0.009;
     @endphp
 
     <div class="mx-auto max-w-4xl space-y-6">
@@ -26,18 +29,25 @@
             </p>
         </div>
 
-        {{-- Amount summary --}}
+        {{-- Amount summary. We show BOTH the settled payout (money collected
+             to date) and the projected payout (settled + worst-case gateway
+             on pending entries, because the MD will chase them). The payout
+             request is raised against the SETTLED number — SAPRF won't pay
+             out money that hasn't landed yet — but the projection is what
+             the MD will end up with once the stragglers settle. --}}
         <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500">You'll receive</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        {{ $hasProjection ? 'Payout now (settled entries)' : "You'll receive" }}
+                    </p>
                     <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-stone-900">
-                        R {{ number_format((float) ($summary['md_net'] ?? 0), 2) }}
+                        R {{ number_format($settledNet, 2) }}
                     </p>
                     <p class="mt-1 text-xs text-stone-500">
                         Based on {{ $counts['paid'] }} paid {{ \Illuminate\Support\Str::plural('entry', $counts['paid']) }}.
                         @if($counts['excluded'] > 0)
-                            {{ $counts['excluded'] }} unpaid {{ \Illuminate\Support\Str::plural('entry', $counts['excluded']) }} excluded.
+                            {{ $counts['excluded'] }} pending {{ \Illuminate\Support\Str::plural('entry', $counts['excluded']) }} not yet in your pocket.
                         @endif
                     </p>
                 </div>
@@ -47,6 +57,22 @@
                     See the breakdown
                 </a>
             </div>
+
+            @if($hasProjection)
+                <div class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">Projected total (incl. pending)</p>
+                        <p class="mt-0.5 text-xs text-amber-700">
+                            Worst-case gateway fee applied to the {{ $counts['excluded'] }} pending
+                            {{ \Illuminate\Support\Str::plural('entry', $counts['excluded']) }} — on the assumption
+                            you'll chase the shooter and collect the money.
+                        </p>
+                    </div>
+                    <p class="font-heading text-xl font-bold tabular-nums text-amber-900">
+                        R {{ number_format($projectedNet, 2) }}
+                    </p>
+                </div>
+            @endif
 
             <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-stone-100 pt-4 text-sm sm:grid-cols-4">
                 <div>

@@ -354,6 +354,7 @@ class MatchController extends Controller
         Request $request,
         MatchEvent $match,
         FinancialService $financials,
+        \App\Services\MatchFinanceService $workspaceMoney,
     ): View|RedirectResponse {
         $this->authorize('update', $match);
 
@@ -368,12 +369,19 @@ class MatchController extends Controller
                 ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
         }
 
+        // `matchFinancials` gives us the settled numbers; `matchMoney` adds
+        // the worst-case projection (pending entries treated as if the MD
+        // chases them for payment) which is what the form shows alongside
+        // the settled total so the MD can see what they'll realistically
+        // end up with.
         $summary = $financials->matchFinancials($match);
+        $money = $workspaceMoney->matchMoney($match);
         $banking = \App\Models\Payout::lastBankingDetailsForUser($match->created_by);
 
         return view('matches.workspace.request-payout', [
             'match' => $match,
             'summary' => $summary,
+            'money' => $money,
             'banking' => $banking,
         ]);
     }

@@ -147,11 +147,18 @@
         </div>
 
         {{-- Per-entry breakdown --}}
+        @php
+            $projectedEntries = collect($money['projected_entries'] ?? []);
+            $projectedTotals = $money['projected_totals'] ?? null;
+            $hasProjection = $projectedEntries->isNotEmpty();
+        @endphp
         <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
             <div class="border-b border-stone-100 px-5 py-3">
                 <h3 class="text-sm font-semibold text-stone-900">Per-entry breakdown</h3>
                 <p class="mt-0.5 text-xs text-stone-500">
-                    Only paid entries contribute to the payout. Pending rows are listed for reference and marked “not included”.
+                    Settled rows contribute to your payout today. Pending rows are shown as a
+                    <span class="font-semibold text-amber-700">projection</span> — worst-case gateway fee applied,
+                    on the assumption you'll chase the shooter and get paid eventually.
                 </p>
             </div>
             <div class="overflow-x-auto">
@@ -184,7 +191,7 @@
                             </tr>
                         @endforeach
                         <tr class="bg-stone-50">
-                            <td class="px-3 py-2 font-semibold" colspan="3">Total · {{ $counts['paid'] }} paid</td>
+                            <td class="px-3 py-2 font-semibold" colspan="3">Total settled · {{ $counts['paid'] }} paid</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['gross_revenue'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['surcharges'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['saprf_fees'], 2) }}</td>
@@ -192,14 +199,43 @@
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['gateway_fees'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-bold tabular-nums">{{ number_format((float) $money['md_net'], 2) }}</td>
                         </tr>
-                        @foreach($money['excluded_entries'] as $reg)
-                            <tr class="text-stone-500">
-                                <td class="px-3 py-2">{{ $reg->shooter_name ?: $reg->user?->name }}</td>
-                                <td class="px-3 py-2">{{ $reg->feeCategoryLabel() }}</td>
-                                <td class="px-3 py-2">{{ $reg->paymentMethodLabel() }}</td>
-                                <td class="px-3 py-2 text-right italic" colspan="6">Not included · {{ $reg->payment_status }}</td>
+                        {{-- Projected pending rows: same shape as the paid rows
+                             above, visually muted + flagged "projected" so an
+                             MD doesn't mistake them for money already in the
+                             bank. Fees come from MatchFinanceService's
+                             worst-case back-fill so a zero-fee stub still
+                             shows a realistic gateway cut. --}}
+                        @foreach($projectedEntries as $reg)
+                            <tr class="bg-amber-50/40">
+                                <td class="px-3 py-2 text-stone-800">{{ $reg->shooter_name ?: $reg->user?->name }}</td>
+                                <td class="px-3 py-2 text-stone-600">{{ $reg->feeCategoryLabel() }}</td>
+                                <td class="px-3 py-2 text-stone-600">
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                        <flux:icon.clock class="size-3" />
+                                        Projected · {{ $reg->payment_status }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-700">{{ number_format((float) $reg->fee_amount, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->surcharge_amount, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->saprf_fee, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->platform_fee, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->gateway_fee, 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums text-stone-800">{{ number_format((float) $reg->md_net_amount, 2) }}</td>
                             </tr>
                         @endforeach
+                        @if($hasProjection && $projectedTotals)
+                            <tr class="bg-amber-100/60">
+                                <td class="px-3 py-2 font-semibold text-stone-900" colspan="3">
+                                    Projected total · {{ $projectedTotals['entry_count'] }} entries (incl. {{ $projectedEntries->count() }} pending)
+                                </td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format($projectedTotals['fee_amount'], 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format($projectedTotals['surcharges'], 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format($projectedTotals['saprf_fees'], 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format($projectedTotals['platform_fees'], 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format($projectedTotals['gateway_fees'], 2) }}</td>
+                                <td class="px-3 py-2 text-right font-bold tabular-nums text-amber-900">{{ number_format($projectedTotals['md_net'], 2) }}</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

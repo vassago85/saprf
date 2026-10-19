@@ -219,3 +219,105 @@ it('surfaces banking details on the my-payouts statement after submission', func
         ->assertSee('1098765432')
         ->assertSee('198765');
 });
+
+// ─── Pending-entry projection ─────────────────────────────────────────
+//
+// Pending entries used to be hidden in a "not included" footer at the
+// bottom of the per-entry breakdown. The MD will almost always chase
+// the money from those shooters, so the Finances tab now treats them as
+// projected rows with the worst-case gateway fee applied, and the
+// request-payout page shows both the settled total (what SAPRF will pay
+// today) and the projected total (what the MD will end up with).
+
+it('projects a pending entry with worst-case gateway fee onto the finances breakdown', function () {
+    // Second entry: unpaid, stored fees at zero (common for walk-ins /
+    // import stubs). This is the worst case the back-fill must handle.
+    $pendingShooter = \App\Models\User::factory()->create(['name' => 'Tiaan Scheepers']);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $pendingShooter->id,
+        'shooter_name' => $pendingShooter->name,
+        'email' => $pendingShooter->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'saprf_fee' => 0,
+        'platform_fee' => 0,
+        'gateway_fee' => 0,
+        'surcharge_amount' => 0,
+        'md_net_amount' => 0,
+        'payment_status' => 'pending',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $money = app(\App\Services\MatchFinanceService::class)->matchMoney($this->match->fresh());
+    $projected = $money['projected_entries'];
+
+    expect($projected)->toHaveCount(1);
+
+    $tiaan = $projected->first();
+    expect((float) $tiaan->saprf_fee)->toBeGreaterThan(0, 'SAPRF fee back-filled from settings')
+        ->and((float) $tiaan->gateway_fee)->toBeGreaterThan(0, 'Gateway fee back-filled from worst-case rate')
+        ->and((float) $tiaan->md_net_amount)->toBeGreaterThan(0)
+        ->and((float) $tiaan->md_net_amount)->toBeLessThan((float) $tiaan->fee_amount, 'Net is less than gross after deductions');
+
+    // Projected totals = settled totals + the back-filled pending row.
+    expect((float) $money['md_payout_projection'])->toBeGreaterThan((float) $money['md_net'])
+        ->and($money['projected_totals']['entry_count'])->toBe(2);
+});
+
+it('shows pending rows inline on the finances tab flagged Projected', function () {
+    $tiaan = \App\Models\User::factory()->create(['name' => 'Tiaan Scheepers']);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $tiaan->id,
+        'shooter_name' => $tiaan->name,
+        'email' => $tiaan->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 19.50,
+        'surcharge_amount' => 0,
+        'md_net_amount' => 380.50,
+        'payment_status' => 'pending',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.finances', $this->match))
+        ->assertOk()
+        ->assertSee('Tiaan Scheepers')
+        ->assertSee('Projected')
+        ->assertSee('Projected total')
+        // Totals row still says "settled" so the MD can see what's actually
+        // in the bank right now vs. what they'll end up with.
+        ->assertSee('Total settled');
+});
+
+it('shows both settled and projected totals on the request-payout form when a pending entry exists', function () {
+    $tiaan = \App\Models\User::factory()->create(['name' => 'Tiaan Scheepers']);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $tiaan->id,
+        'shooter_name' => $tiaan->name,
+        'email' => $tiaan->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 19.50,
+        'surcharge_amount' => 0,
+        'md_net_amount' => 380.50,
+        'payment_status' => 'pending',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertSee('Payout now (settled entries)')
+        ->assertSee('Projected total');
+});
