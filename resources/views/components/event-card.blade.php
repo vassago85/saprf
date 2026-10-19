@@ -14,8 +14,8 @@
 
 <div {{ $attributes->merge(['class' => 'group bg-white rounded-2xl border border-stone-200 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.08)] hover:border-stone-300 transition-all duration-200 flex flex-col h-full overflow-hidden']) }}>
     @if($match->listingImageUrl())
-        {{-- Bias crop toward the top so flyer orange bars / footer copy fall out of frame;
-             soft fade blends the image into the white card body. Featured cards get a taller frame. --}}
+        {{-- Bias crop toward the top so flyer chrome falls out of frame.
+             Optional thin caption strip (not the flyer’s orange bar). --}}
         <a href="{{ url('/events/' . $match->id) }}"
            class="relative block overflow-hidden bg-stone-100 {{ $match->is_featured ? 'aspect-[16/9]' : 'aspect-[2.4/1]' }}"
            tabindex="-1" aria-hidden="true">
@@ -23,7 +23,15 @@
                  alt=""
                  class="h-full w-full object-cover object-[center_28%] transition duration-300 group-hover:scale-[1.02]"
                  loading="lazy">
-            <span class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/70 to-transparent" aria-hidden="true"></span>
+            @if($match->listingCaption())
+                <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-stone-950/50 px-3 py-1.5 backdrop-blur-[2px]">
+                    <span class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90">
+                        {{ $match->listingCaption() }}
+                    </span>
+                </span>
+            @else
+                <span class="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white/80 to-transparent" aria-hidden="true"></span>
+            @endif
         </a>
     @endif
     {{-- Card body --}}

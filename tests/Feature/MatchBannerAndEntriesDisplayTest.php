@@ -254,6 +254,26 @@ it('uses the listing banner on event cards and falls back to the poster', functi
         ->assertSee(asset('storage/'.$posterOnlyPath), false);
 });
 
+it('shows a quiet listing caption on national and championship cards with images', function () {
+    $path = UploadedFile::fake()->image('banner.jpg', 1200, 500)->store('match-banners', 'public');
+
+    $championship = makePublicMatch($this->md, $this->province, [
+        'name' => 'Rimfire PR22 GP Championship',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'final',
+        'match_date' => Carbon::today()->addMonths(2),
+        'match_end_date' => Carbon::today()->addMonths(2)->addDay(),
+        'banner_path' => $path,
+    ]);
+
+    expect($championship->listingCaption())->toBe('2-Day Championship');
+
+    $this->get(route('events.index'))
+        ->assertOk()
+        ->assertSee('2-Day Championship', false);
+});
+
 it('lets a match director replace and remove a poster on update', function () {
     $match = makePublicMatch($this->md, $this->province, [
         'poster_path' => UploadedFile::fake()->image('old-poster.jpg')->store('match-posters', 'public'),

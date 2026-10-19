@@ -460,6 +460,26 @@ class MatchEvent extends Model
         return $this->bannerUrl() ?? $this->posterUrl();
     }
 
+    /**
+     * Short label for a subtle strip on the listing image — e.g. "2-Day Championship".
+     * Returns null for ordinary club matches so the overlay stays rare.
+     */
+    public function listingCaption(): ?string
+    {
+        $level = match ($this->series_level) {
+            'final' => 'Championship',
+            'national' => 'National',
+            'international' => 'International',
+            default => null,
+        };
+
+        if ($level === null) {
+            return null;
+        }
+
+        return $this->isMultiDay() ? "2-Day {$level}" : $level;
+    }
+
     public function userRegistration(?User $user): ?MatchRegistration
     {
         if (! $user) {
