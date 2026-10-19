@@ -25,8 +25,15 @@
         </div>
 
         @if($pendingMdPayouts->isNotEmpty())
+        @php
+            // Oldest-waiting age — the stat admins care about most when
+            // triaging the queue (two-day-old requests are a problem, two-
+            // minute-old ones aren't). Falls back to "just now" when the
+            // query returned nothing with a timestamp.
+            $oldestPending = $pendingMdPayouts->min('created_at');
+        @endphp
         <div class="rounded-xl border-2 border-amber-300 bg-amber-50 shadow-sm">
-            <div class="px-5 py-4 border-b border-amber-200 flex flex-wrap items-center justify-between gap-3">
+            <div class="px-5 py-4 border-b border-amber-200 flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 class="text-base font-bold text-amber-900 flex items-center gap-2">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
@@ -39,11 +46,19 @@
                         Match directors are waiting on
                         <span class="font-semibold">R{{ number_format($pendingMdPayouts->sum('net_amount'), 2) }}</span>
                         across {{ $pendingMdPayouts->count() }} {{ Str::plural('payout', $pendingMdPayouts->count()) }}.
+                        @if($oldestPending)
+                            Oldest request: <span class="font-semibold">{{ $oldestPending->diffForHumans() }}</span>.
+                        @endif
                     </p>
                 </div>
-                <a href="{{ route('financials.payouts', ['type' => 'match_director', 'status' => 'pending']) }}"
-                   class="text-sm font-semibold text-amber-900 hover:text-amber-950 underline underline-offset-2">
-                    View filtered &rarr;
+                {{-- Was a "View filtered →" link into the same page. Pointless
+                     since every pending row is already on screen in this card.
+                     Replaced with the CSV export of the pending queue, which
+                     admins use to reconcile against bank statements. --}}
+                <a href="{{ route('financials.export.payouts-csv', ['status' => 'pending', 'type' => 'match_director']) }}"
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Export pending (CSV)
                 </a>
             </div>
             <div class="overflow-x-auto">
@@ -61,7 +76,16 @@
                     <tbody>
                         @foreach($pendingMdPayouts as $mdPayout)
                         <tr class="border-b border-amber-100 last:border-b-0 hover:bg-amber-100/40 align-top" x-data="{ open: false }">
-                            <td class="py-3 px-5 font-mono text-xs text-amber-900">{{ $mdPayout->reference }}</td>
+                            <td class="py-3 px-5 font-mono text-xs text-amber-900">
+                                {{-- Reference is the shortest route into the full
+                                     payout statement (per-entry breakdown, payment
+                                     history, banking). PayoutPolicy::view allows
+                                     any finance role, so no extra guard here. --}}
+                                <a href="{{ route('my-payouts.show', $mdPayout) }}"
+                                   class="hover:underline">
+                                    {{ $mdPayout->reference }}
+                                </a>
+                            </td>
                             <td class="py-3 px-5 text-amber-900">
                                 <div class="font-semibold">{{ $mdPayout->payeeUser?->name ?? '—' }}</div>
                                 {{-- Banking details raised to always-visible: an admin
@@ -102,10 +126,20 @@
                                 {{ $mdPayout->created_at->diffForHumans() }}
                             </td>
                             <td class="py-3 px-5 text-right">
-                                <button @click="open = !open"
-                                        class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">
-                                    Mark Paid
-                                </button>
+                                <div class="inline-flex items-center gap-2">
+                                    {{-- Secondary action: open the full statement so
+                                         the admin can confirm WHAT they're paying for
+                                         (per-entry breakdown + any disputed rows)
+                                         before they hit Mark Paid. --}}
+                                    <a href="{{ route('my-payouts.show', $mdPayout) }}"
+                                       class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition">
+                                        View breakdown
+                                    </a>
+                                    <button @click="open = !open"
+                                            class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition">
+                                        Mark Paid
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr x-show="open" x-cloak class="bg-amber-100/40 border-b border-amber-100 last:border-b-0">
