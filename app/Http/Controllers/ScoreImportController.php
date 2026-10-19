@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreImpactLiveImportRequest;
 use App\Http\Requests\StoreScoreImportRequest;
 use App\Jobs\ProcessScoreImportJob;
 use App\Models\MatchEvent;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\ShooterLog;
+use App\Services\ImpactScoring\ImpactLiveImportService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +120,72 @@ class ScoreImportController extends Controller
 
         return redirect()->route('score-imports.show', $import)
             ->with('success', $success);
+    }
+
+    /**
+     * Preview an Impact Scoring live pull against a SAPRF match (JSON for Alpine UI).
+     */
+    public function previewImpact(Request $request, ImpactLiveImportService $impact): JsonResponse
+    {
+        $this->authorize('create', Score::class);
+
+        $data = $request->validate([
+            'match_id' => ['required', 'exists:matches,id'],
+            'impact_ref' => ['required', 'string', 'max:500'],
+            'score_scope' => ['nullable', 'in:day1,overall'],
+            'day1_stage_ids' => ['nullable', 'array'],
+            'day1_stage_ids.*' => ['integer'],
+            'with_stages' => ['nullable', 'boolean'],
+        ]);
+
+        $match = MatchEvent::query()->findOrFail((int) $data['match_id']);
+
+        try {
+            $preview = $impact->preview(
+                $match,
+                $data['impact_ref'],
+                $data['score_scope'] ?? null,
+                array_map('intval', $data['day1_stage_ids'] ?? []),
+                includeStages: (bool) ($data['with_stages'] ?? false)
+                    || (($data['score_scope'] ?? null) === 'day1'),
+            );
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json(['ok' => true, 'preview' => $preview]);
+    }
+
+    /**
+     * Import scores directly from Impact Scoring (no CSV download).
+     */
+    public function storeImpact(
+        StoreImpactLiveImportRequest $request,
+        ImpactLiveImportService $impact,
+    ): RedirectResponse {
+        $match = MatchEvent::query()->findOrFail((int) $request->validated('match_id'));
+
+        try {
+            $import = $impact->import($match, $request->user(), [
+                'impact_ref' => $request->validated('impact_ref'),
+                'score_scope' => $request->validated('score_scope'),
+                'day1_stage_ids' => $request->validated('day1_stage_ids') ?? [],
+                'replace_existing' => $request->boolean('replace_existing', true),
+                'links' => $request->validated('links') ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('score-imports.create', ['match_id' => $match->id])
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('score-imports.show', $import)
+            ->with('success', 'Impact scores imported successfully.');
     }
 
     public function show(Request $request, ScoreImport $scoreImport): View

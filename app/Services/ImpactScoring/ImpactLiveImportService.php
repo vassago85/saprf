@@ -1,0 +1,592 @@
+<?php
+
+namespace App\Services\ImpactScoring;
+
+use App\Models\Division;
+use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
+use App\Models\Score;
+use App\Models\ScoreImport;
+use App\Models\ShooterLog;
+use App\Models\User;
+use App\Notifications\ImpactImportCollectionReportNotification;
+use App\Services\AuditLogService;
+use App\Services\MembershipValidationService;
+use App\Services\RegistrationPricingService;
+use App\Services\ScoreValidationService;
+use App\Services\StandingsCalculationService;
+use App\Services\WalkInRegistrationService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+class ImpactLiveImportService
+{
+    /** Impact division name → SAPRF slug (registration still wins when present). */
+    private const DIVISION_ALIASES = [
+        'production' => 'factory',
+        'factory' => 'factory',
+        'open' => 'open',
+        'limited' => 'limited',
+        'semi-auto' => 'open',
+        'semiauto' => 'open',
+        'airgun' => 'open',
+        'ladies' => 'ladies',
+        'lady' => 'ladies',
+        'junior' => 'junior',
+        'juniors' => 'junior',
+        'senior' => 'senior',
+        'seniors' => 'senior',
+    ];
+
+    public function __construct(
+        private readonly ImpactScoringClient $client,
+        private readonly ImpactNameMatcher $names,
+        private readonly WalkInRegistrationService $walkIns,
+        private readonly RegistrationPricingService $pricing,
+        private readonly MembershipValidationService $membership,
+        private readonly ScoreValidationService $scoreValidation,
+        private readonly StandingsCalculationService $standings,
+        private readonly AuditLogService $audit,
+    ) {}
+
+    /**
+     * Build a preview payload for the Impact live-pull UI.
+     *
+     * @param  list<int>  $day1StageIds
+     * @return array<string, mixed>
+     */
+    public function preview(
+        MatchEvent $match,
+        string $impactRef,
+        ?string $scoreScope = null,
+        array $day1StageIds = [],
+        bool $includeStages = true,
+    ): array {
+        $impactId = $this->client->parseMatchId($impactRef);
+        $live = $this->client->getLiveScores($impactId);
+        $impactMatch = $live['match'];
+        $stages = $live['stages'];
+
+        $registrations = $match->registrations()
+            ->with(['user:id,name,email', 'division:id,name,slug'])
+            ->where(function ($q) {
+                $q->whereNull('registration_status')
+                    ->orWhereNotIn('registration_status', ['cancelled']);
+            })
+            ->get();
+
+        $candidates = $registrations->map(fn (MatchRegistration $r) => [
+            'key' => 'reg:'.$r->id,
+            'name' => $r->user?->name ?: (string) $r->shooter_name,
+            'registration' => $r,
+        ])->all();
+
+        $candidateNameList = array_map(
+            fn ($c) => ['key' => $c['key'], 'name' => $c['name']],
+            $candidates
+        );
+
+        $needStages = $includeStages || $day1StageIds !== [];
+        $stagesByShooter = [];
+        if ($needStages) {
+            $ids = array_map(fn ($s) => (int) ($s['id'] ?? 0), $live['shooters']);
+            try {
+                $stagesByShooter = $this->client->getShooterStagesMany($impactId, $ids);
+            } catch (\Throwable) {
+                $stagesByShooter = [];
+            }
+        }
+
+        $rows = [];
+        foreach ($live['shooters'] as $shooter) {
+            $impactName = trim((string) ($shooter['name'] ?? ''));
+            $impacts = ((int) ($shooter['points'] ?? 0)) / 100;
+            $impactDivision = (string) ($shooter['divisionName'] ?? '');
+            $matchResult = $this->names->match($impactName, $candidateNameList);
+
+            $linkedReg = null;
+            if ($matchResult['status'] === 'exact' && $matchResult['key']) {
+                $linkedReg = $registrations->first(
+                    fn (MatchRegistration $r) => 'reg:'.$r->id === $matchResult['key']
+                );
+            }
+
+            $shooterId = (int) ($shooter['id'] ?? 0);
+            $stageDetail = $stagesByShooter[$shooterId] ?? [];
+
+            $day1Total = $this->sumStages($stageDetail, $day1StageIds);
+            $membershipKind = $this->classifyImpactShooter($impactName, $linkedReg);
+
+            $rows[] = [
+                'impact_shooter_id' => (int) ($shooter['id'] ?? 0),
+                'impact_name' => $impactName,
+                'impact_rank' => $shooter['rank'] ?? null,
+                'impact_division' => $impactDivision,
+                'impacts' => $impacts,
+                'day1_impacts' => $day1Total,
+                'stages' => $stageDetail,
+                'match_status' => $matchResult['status'],
+                'fuzzy_candidates' => $matchResult['candidates'],
+                'registration_id' => $linkedReg?->id,
+                'registration_name' => $linkedReg
+                    ? ($linkedReg->user?->name ?: $linkedReg->shooter_name)
+                    : null,
+                'registration_status' => $linkedReg?->registration_status,
+                'payment_status' => $linkedReg?->payment_status,
+                'division_slug' => $this->resolveDivisionSlug($linkedReg, $impactDivision),
+                'division_source' => $linkedReg?->division_id ? 'registration' : 'impact',
+                'membership_kind' => $membershipKind,
+                'action' => $this->previewAction($linkedReg, $membershipKind),
+            ];
+        }
+
+        $isTwoDayNational = $match->isTwoDayNational();
+
+        return [
+            'impact_match_id' => $impactId,
+            'impact_match_name' => $impactMatch['name'] ?? 'Impact match #'.$impactId,
+            'impact_match_ended' => (bool) ($impactMatch['matchEnded'] ?? false),
+            'impact_stages' => array_map(fn ($s) => [
+                'id' => (int) ($s['id'] ?? 0),
+                'name' => (string) ($s['name'] ?? 'Stage'),
+            ], $stages),
+            'saprf_match_id' => $match->id,
+            'saprf_match_name' => $match->name,
+            'is_two_day_national' => $isTwoDayNational,
+            'score_scope' => $scoreScope,
+            'day1_stage_ids' => array_values(array_map('intval', $day1StageIds)),
+            'shooters' => $rows,
+            'summary' => [
+                'total' => count($rows),
+                'exact' => count(array_filter($rows, fn ($r) => $r['match_status'] === 'exact')),
+                'fuzzy' => count(array_filter($rows, fn ($r) => $r['match_status'] === 'fuzzy')),
+                'unmatched' => count(array_filter($rows, fn ($r) => $r['match_status'] === 'unmatched')),
+                'pending_payment' => count(array_filter(
+                    $rows,
+                    fn ($r) => $r['registration_id']
+                        && ! in_array($r['payment_status'], ['paid', 'waived'], true)
+                )),
+            ],
+        ];
+    }
+
+    /**
+     * Commit an Impact live pull into ScoreImport + Score rows.
+     *
+     * @param  array{
+     *   impact_ref:string,
+     *   score_scope?:?string,
+     *   day1_stage_ids?:list<int>,
+     *   replace_existing?:bool,
+     *   links?:array<string,string>,
+     * }  $options
+     *   links map impact_shooter_id => "reg:{id}" | "skip" | "auto"
+     */
+    public function import(MatchEvent $selectedMatch, User $actor, array $options): ScoreImport
+    {
+        $impactRef = (string) ($options['impact_ref'] ?? '');
+        $scoreScope = $options['score_scope'] ?? null;
+        $day1StageIds = array_values(array_map('intval', $options['day1_stage_ids'] ?? []));
+        $replaceExisting = (bool) ($options['replace_existing'] ?? false);
+        /** @var array<string, string> $links */
+        $links = $options['links'] ?? [];
+
+        if ($selectedMatch->isTwoDayNational() && ! in_array($scoreScope, ['day1', 'overall'], true)) {
+            throw new RuntimeException('Choose Day 1 or Overall for a 2-day national.');
+        }
+
+        if ($selectedMatch->isTwoDayNational() && $scoreScope === 'day1' && $day1StageIds === []) {
+            throw new RuntimeException('Select which Impact stages count as Day 1 for the provincial score.');
+        }
+
+        $preview = $this->preview(
+            $selectedMatch,
+            $impactRef,
+            $scoreScope,
+            $day1StageIds,
+            includeStages: true,
+        );
+
+        $targetMatch = $selectedMatch;
+        $notes = ['Impact live pull #'.$preview['impact_match_id'].' ('.$preview['impact_match_name'].').'];
+
+        if ($selectedMatch->isTwoDayNational() && $scoreScope === 'day1') {
+            $targetMatch = $selectedMatch->findOrCreateProvincialDay1Sibling();
+            $notes[] = "Day 1 provincial sibling #{$targetMatch->id}; stages ".implode(',', $day1StageIds).'.';
+        } elseif ($selectedMatch->isTwoDayNational() && $scoreScope === 'overall') {
+            $notes[] = 'Overall scores on the national match.';
+        }
+
+        return DB::transaction(function () use (
+            $selectedMatch, $targetMatch, $actor, $preview, $scoreScope, $day1StageIds,
+            $replaceExisting, $links, $notes
+        ) {
+            if ($replaceExisting) {
+                $scoreIds = Score::where('match_id', $targetMatch->id)->pluck('id');
+                ShooterLog::whereIn('score_id', $scoreIds)->delete();
+                ShooterLog::where('match_id', $targetMatch->id)->delete();
+                Score::where('match_id', $targetMatch->id)->delete();
+                $notes[] = 'Existing scores cleared before import.';
+            }
+
+            $import = ScoreImport::query()->create([
+                'match_id' => $targetMatch->id,
+                'uploaded_by' => $actor->id,
+                'source_type' => 'impact_live',
+                'day' => null,
+                'original_filename' => 'impact:'.$preview['impact_match_id'],
+                'import_status' => 'processing',
+                'notes' => implode(' ', $notes),
+            ]);
+
+            $collectionRows = [];
+            $count = 0;
+
+            foreach ($preview['shooters'] as $row) {
+                $impactShooterId = (string) $row['impact_shooter_id'];
+                $link = $links[$impactShooterId] ?? ($links[(int) $impactShooterId] ?? null);
+
+                // Fuzzy without confirmation → skip
+                if ($row['match_status'] === 'fuzzy' && ($link === null || $link === '' || $link === 'auto')) {
+                    continue;
+                }
+                if ($link === 'skip') {
+                    continue;
+                }
+
+                $registration = null;
+                if (is_string($link) && str_starts_with($link, 'reg:')) {
+                    $registration = MatchRegistration::query()
+                        ->where('match_id', $selectedMatch->id)
+                        ->where('id', (int) substr($link, 4))
+                        ->first();
+                } elseif ($row['match_status'] === 'exact' && $row['registration_id']) {
+                    $registration = MatchRegistration::query()->find($row['registration_id']);
+                }
+
+                $rawScore = $scoreScope === 'day1'
+                    ? (float) $row['day1_impacts']
+                    : (float) $row['impacts'];
+
+                if ($registration) {
+                    $userId = $registration->user_id;
+                    $divisionId = $registration->division_id
+                        ?: $this->divisionIdFromSlug($row['division_slug']);
+                    $shooterName = $registration->user?->name ?: $registration->shooter_name ?: $row['impact_name'];
+
+                    if ($this->needsFeeCollection($registration)) {
+                        $this->applyMdFeeDeduction($registration, $actor, 'Impact import — unpaid/pending entry; MD to collect from shooter.');
+                        $collectionRows[] = [
+                            'name' => $shooterName,
+                            'reason' => 'pending_unpaid',
+                            'registration_status' => $registration->registration_status,
+                            'payment_status' => $registration->payment_status,
+                            'fee_amount' => (float) $registration->fee_amount,
+                            'saprf_fee' => (float) $registration->saprf_fee,
+                            'platform_fee' => (float) $registration->platform_fee,
+                        ];
+                    }
+                } else {
+                    // Unmatched: member walk-in vs non-member stub
+                    $resolved = $this->resolveUnmatchedShooter(
+                        $selectedMatch,
+                        $row,
+                        $actor,
+                    );
+                    $userId = $resolved['user_id'];
+                    $divisionId = $resolved['division_id'];
+                    $shooterName = $row['impact_name'];
+                    if ($resolved['collection'] ?? null) {
+                        $collectionRows[] = $resolved['collection'];
+                    }
+                }
+
+                $score = new Score();
+                $score->fill([
+                    'match_id' => $targetMatch->id,
+                    'score_import_id' => $import->id,
+                    'shooter_name' => $shooterName,
+                    'user_id' => $userId,
+                    'placement' => is_numeric($row['impact_rank'] ?? null) ? (int) $row['impact_rank'] : null,
+                    'division_id' => $divisionId,
+                    'status' => 'pending',
+                    'is_member' => false,
+                    'match_date' => $targetMatch->match_date,
+                    'day1_raw_score' => $rawScore,
+                    'raw_meta' => [
+                        'impact' => [
+                            'match_id' => $preview['impact_match_id'],
+                            'shooter_id' => $row['impact_shooter_id'],
+                            'impact_division' => $row['impact_division'],
+                            'division_source' => $row['division_source'],
+                            'score_scope' => $scoreScope,
+                            'day1_stage_ids' => $day1StageIds,
+                            'stages' => $row['stages'],
+                            'total_impacts' => $row['impacts'],
+                            'day1_impacts' => $row['day1_impacts'],
+                        ],
+                    ],
+                ]);
+                $score->save();
+                $this->scoreValidation->evaluateScoreStatus($score);
+                $count++;
+            }
+
+            $summary = "Imported {$count} shooters from Impact.";
+            if ($collectionRows !== []) {
+                $summary .= ' Collection report: '.count($collectionRows).' shooter(s) need MD follow-up.';
+            }
+
+            $import->update([
+                'import_status' => 'completed',
+                'notes' => trim(($import->notes ?? '').PHP_EOL.$summary),
+            ]);
+
+            try {
+                $this->standings->recalculateForMatch($targetMatch->fresh());
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            $this->autoCompleteMatch($targetMatch->fresh());
+
+            $this->audit->log(
+                $actor,
+                'score.import.impact_live',
+                'ScoreImport',
+                $import->id,
+                null,
+                [
+                    'impact_match_id' => $preview['impact_match_id'],
+                    'row_count' => $count,
+                    'collection_count' => count($collectionRows),
+                    'score_scope' => $scoreScope,
+                ]
+            );
+
+            if ($collectionRows !== []) {
+                $md = $selectedMatch->creator;
+                if ($md) {
+                    $md->notify(new ImpactImportCollectionReportNotification(
+                        $selectedMatch,
+                        $collectionRows,
+                        $actor,
+                    ));
+                }
+            }
+
+            return $import->fresh();
+        });
+    }
+
+    /**
+     * @param  list<array{id:int,hits:float}>  $stages
+     * @param  list<int>  $stageIds
+     */
+    public function sumStages(array $stages, array $stageIds): float
+    {
+        if ($stageIds === []) {
+            return 0.0;
+        }
+        $want = array_flip($stageIds);
+        $sum = 0.0;
+        foreach ($stages as $stage) {
+            if (isset($want[(int) ($stage['id'] ?? 0)])) {
+                $sum += (float) ($stage['hits'] ?? $stage['points'] ?? 0);
+            }
+        }
+
+        return $sum;
+    }
+
+    private function resolveDivisionSlug(?MatchRegistration $reg, string $impactDivision): string
+    {
+        if ($reg?->division?->slug) {
+            return $reg->division->slug;
+        }
+
+        $key = Str::lower(trim($impactDivision));
+
+        return self::DIVISION_ALIASES[$key] ?? 'open';
+    }
+
+    private function divisionIdFromSlug(string $slug): ?int
+    {
+        return Division::query()->where('slug', $slug)->value('id');
+    }
+
+    private function classifyImpactShooter(string $name, ?MatchRegistration $reg): string
+    {
+        if ($reg?->user) {
+            $cat = $this->membership->classifyRegistrationCategory(
+                $reg->user,
+                $reg->match?->match_date ?? now()
+            );
+
+            return $cat === 'active_member' ? 'member' : $cat;
+        }
+
+        $user = User::query()
+            ->whereRaw('LOWER(name) = ?', [Str::lower(trim($name))])
+            ->first();
+
+        if (! $user) {
+            return 'unknown';
+        }
+
+        $cat = $this->membership->classifyRegistrationCategory($user, now());
+
+        return $cat === 'active_member' ? 'member' : $cat;
+    }
+
+    private function previewAction(?MatchRegistration $reg, string $membershipKind): string
+    {
+        if ($reg) {
+            if (! in_array($reg->payment_status, ['paid', 'waived'], true)) {
+                return 'import_and_collect';
+            }
+
+            return 'import';
+        }
+
+        return match ($membershipKind) {
+            'member', 'active_member' => 'walk_in_member',
+            'lapsed_member' => 'walk_in_lapsed',
+            'non_member' => 'non_member_no_log',
+            default => 'non_member_no_log',
+        };
+    }
+
+    private function needsFeeCollection(MatchRegistration $registration): bool
+    {
+        if (in_array($registration->payment_status, ['paid', 'waived'], true)) {
+            return false;
+        }
+
+        // Pending registration or unpaid payment
+        return true;
+    }
+
+    private function applyMdFeeDeduction(MatchRegistration $registration, User $actor, string $note): void
+    {
+        $match = $registration->match;
+        $user = $registration->user;
+        if (! $match || ! $user) {
+            return;
+        }
+
+        $divisionSlug = $registration->division?->slug;
+        $breakdown = $this->pricing->calculateBreakdown(
+            $match,
+            $user,
+            $match->match_date ?? now(),
+            $divisionSlug,
+        );
+
+        $saprf = (float) $breakdown['saprf_fee'];
+        $platform = (float) $breakdown['platform_fee'];
+        $mdDeduction = -1 * round($saprf + $platform, 2);
+
+        // Keep fee_amount as what the MD should collect offline when it was
+        // already set; otherwise use the priced entry fee.
+        $collectAmount = (float) ($registration->fee_amount ?: $breakdown['total_fee']);
+
+        $registration->update([
+            'saprf_fee' => $saprf,
+            'platform_fee' => $platform,
+            'gateway_fee' => 0,
+            'md_net_amount' => $mdDeduction,
+            'fee_amount' => $collectAmount,
+            'walk_in_note' => trim(($registration->walk_in_note ? $registration->walk_in_note.' | ' : '').$note),
+            'registration_status' => $registration->registration_status === 'cancelled'
+                ? 'confirmed'
+                : ($registration->registration_status ?: 'confirmed'),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{user_id:?int,division_id:?int,collection?:array}
+     */
+    private function resolveUnmatchedShooter(MatchEvent $match, array $row, User $actor): array
+    {
+        $divisionSlug = $row['division_slug'] ?: 'open';
+        $divisionId = $this->divisionIdFromSlug($divisionSlug);
+        $name = $row['impact_name'];
+
+        $existingUser = User::query()
+            ->whereRaw('LOWER(name) = ?', [Str::lower($name)])
+            ->first();
+
+        $isMember = false;
+        if ($existingUser) {
+            $isMember = $this->membership->isUserValidForOfficialPurposes(
+                $existingUser,
+                $match->match_date ?? now()
+            );
+        }
+
+        if ($isMember && $existingUser) {
+            $reg = $this->walkIns->confirmWalkIn($match, [
+                'name' => $name,
+                'email' => $existingUser->email,
+                'division_slug' => $divisionSlug,
+                'membership_status' => 'active_member',
+                'note' => 'Impact live import — member not on entry list; SAPRF + platform deducted from MD payout.',
+            ], $actor);
+
+            return [
+                'user_id' => $reg->user_id,
+                'division_id' => $reg->division_id,
+                'collection' => [
+                    'name' => $name,
+                    'reason' => 'walk_in_member',
+                    'registration_status' => $reg->registration_status,
+                    'payment_status' => $reg->payment_status,
+                    'fee_amount' => (float) $reg->fee_amount,
+                    'saprf_fee' => (float) $reg->saprf_fee,
+                    'platform_fee' => (float) $reg->platform_fee,
+                ],
+            ];
+        }
+
+        // Non-member (or unknown): shadow user, no walk-in fees, score won't count to logs
+        $user = $existingUser;
+        if (! $user) {
+            $slug = Str::slug($name, '.') ?: 'shooter';
+            $user = User::create([
+                'name' => $name,
+                'email' => 'impact.'.$slug.'.'.Str::lower(Str::random(6)).'@saprf.walkin',
+                'password' => Hash::make(Str::random(40)),
+            ]);
+            if (method_exists($user, 'assignRole')) {
+                try {
+                    $user->assignRole('member');
+                } catch (\Throwable) {
+                    // role may not exist in partial test contexts
+                }
+            }
+        }
+
+        return [
+            'user_id' => $user->id,
+            'division_id' => $divisionId,
+        ];
+    }
+
+    private function autoCompleteMatch(MatchEvent $match): void
+    {
+        if (in_array($match->status, ['completed', 'cancelled'], true)) {
+            return;
+        }
+
+        $effectiveEnd = $match->match_end_date ?? $match->match_date;
+        if ($effectiveEnd === null || $effectiveEnd->isFuture()) {
+            return;
+        }
+
+        $match->update(['status' => 'completed']);
+    }
+}

@@ -614,6 +614,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/matches/{match}/complete-and-request-payout', [MatchController::class, 'completeAndRequestPayout'])
             ->name('matches.complete-and-request-payout');
         Route::get('/score-imports/template', [ScoreImportController::class, 'template'])->name('score-imports.template');
+        Route::post('/score-imports/impact/preview', [ScoreImportController::class, 'previewImpact'])
+            ->name('score-imports.impact.preview');
+        Route::post('/score-imports/impact', [ScoreImportController::class, 'storeImpact'])
+            ->name('score-imports.impact.store');
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');
