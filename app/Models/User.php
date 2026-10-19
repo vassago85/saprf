@@ -344,6 +344,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Oldest unpaid match entry, if any — blocks portal entry for other matches.
+     */
+    public function firstOutstandingMatchRegistration(): ?MatchRegistration
+    {
+        return MatchRegistration::firstOutstandingForUser($this->id);
+    }
+
+    /**
      * Entry-fee credit sitting on this account (cancelled matches, etc.).
      *
      * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, entries: Collection<int, AccountCredit>}

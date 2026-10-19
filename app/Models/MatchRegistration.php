@@ -101,6 +101,34 @@ class MatchRegistration extends Model
     }
 
     /**
+     * Oldest non-cancelled entry for this shooter that still needs payment.
+     * Portal entry for any other match is blocked until this is settled.
+     */
+    public static function firstOutstandingForUser(int $userId): ?self
+    {
+        return static::query()
+            ->where('user_id', $userId)
+            ->where('registration_status', '!=', 'cancelled')
+            ->where('fee_amount', '>', 0)
+            ->whereNotIn('payment_status', ['paid', 'waived'])
+            ->with('match:id,name,match_date')
+            ->orderBy('registered_at')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Flash copy when {@see firstOutstandingForUser()} blocks a new entry.
+     */
+    public function outstandingBlocksNewEntryMessage(bool $isSelf): string
+    {
+        $matchName = $this->match?->name ?? 'another match';
+        $who = $isSelf ? 'You still have' : ($this->shooter_name ?: 'This shooter').' still has';
+
+        return "{$who} an unpaid entry for {$matchName}. Pay that fee before entering another match.";
+    }
+
+    /**
      * Money for this entry came in through the platform (PayFast or account
      * credit). Cancelling such a row credits the payer's account.
      */

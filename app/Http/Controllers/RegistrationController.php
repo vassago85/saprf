@@ -115,6 +115,13 @@ class RegistrationController extends Controller
         $user = $request->user();
         $match = MatchEvent::query()->findOrFail($request->validated('match_id'));
 
+        $outstanding = MatchRegistration::firstOutstandingForUser($user->id);
+        if ($outstanding) {
+            return redirect()
+                ->route('registrations.show', $outstanding)
+                ->with('error', $outstanding->outstandingBlocksNewEntryMessage(true));
+        }
+
         $champsEntry = app(QualificationService::class)->championshipEntryStatus($user, $match);
         if (! $champsEntry['eligible']) {
             return back()->with('error', sprintf(

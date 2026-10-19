@@ -789,10 +789,10 @@ class MatchController extends Controller
             // family accounts, or an independent member the actor is sponsoring.
             $shooter = $this->resolveShooter($actor, $request->input('for_user'));
 
+            $isSelf = $shooter->id === $actor->id;
+
             $existing = $match->userRegistration($shooter);
             if ($existing) {
-                $isSelf = $shooter->id === $actor->id;
-
                 // Sponsor intent overrides the "already registered" bounce for
                 // the actor themselves — they're not trying to re-register, they
                 // want to enter someone else. Render the page with the sponsor
@@ -804,6 +804,15 @@ class MatchController extends Controller
                         ->with('info', $isSelf
                             ? 'You are already registered for this match.'
                             : $shooter->name.' is already registered for this match.');
+                }
+            }
+
+            // Unpaid fee on another match blocks new portal entries until paid.
+            // Opening the sponsor panel for someone else is fine even if the
+            // actor themselves still owes — the POST checks the target shooter.
+            if (! ($isSelf && $sponsorIntent)) {
+                if ($blocked = $this->redirectIfOutstandingBlocksEntry($shooter, $actor)) {
+                    return $blocked;
                 }
             }
         }
@@ -903,6 +912,10 @@ class MatchController extends Controller
                 ->with('info', $isSelf
                     ? 'You are already registered for this match.'
                     : $shooter->name.' is already registered for this match.');
+        }
+
+        if ($blocked = $this->redirectIfOutstandingBlocksEntry($shooter, $actor)) {
+            return $blocked;
         }
 
         if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
@@ -1234,6 +1247,26 @@ class MatchController extends Controller
     // ──────────────────────────────────────────────────────────────────────
     // Family / Managed Account helpers
     // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Portal entry is blocked while the shooter still owes an entry fee
+     * for another match (e.g. Impact / MD-collected rows left Pending).
+     */
+    private function redirectIfOutstandingBlocksEntry(User $shooter, User $actor): ?RedirectResponse
+    {
+        if (! $shooter->exists || ! $shooter->id) {
+            return null;
+        }
+
+        $outstanding = MatchRegistration::firstOutstandingForUser($shooter->id);
+        if (! $outstanding) {
+            return null;
+        }
+
+        return redirect()
+            ->route('registrations.show', $outstanding)
+            ->with('error', $outstanding->outstandingBlocksNewEntryMessage($shooter->id === $actor->id));
+    }
 
     /**
      * Resolve the shooter for a registration. Three cases:

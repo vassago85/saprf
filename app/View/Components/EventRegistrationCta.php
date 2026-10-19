@@ -29,6 +29,12 @@ class EventRegistrationCta extends Component
             $this->label = 'View My Entry';
             $this->url = route('registrations.show', $this->userRegistration);
             $this->disabled = false;
+        } elseif ($user && ($outstanding = $user->firstOutstandingMatchRegistration())) {
+            // Unpaid entry elsewhere — send them to Pay now instead of opening register.
+            $this->variant = 'waitlist';
+            $this->label = 'Pay Outstanding Entry';
+            $this->url = route('registrations.show', $outstanding);
+            $this->disabled = false;
         } elseif ($regStatus === 'open') {
             $this->variant = 'primary';
             $this->label = Auth::check() ? 'Register Now' : 'Login to Register';
