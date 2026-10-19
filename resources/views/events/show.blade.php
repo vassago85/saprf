@@ -13,9 +13,20 @@
     <div class="bg-stone-50 min-h-screen">
         {{-- Hero / Header --}}
         <div class="bg-white border-b border-stone-200">
-            @if($match->bannerUrl())
+            @if($match->posterUrl())
+                {{-- Full flyer: keep the vertical composition intact (logos, orange bar, venues). --}}
+                <div class="border-b border-stone-200 bg-gradient-to-b from-stone-100 to-stone-50">
+                    <div class="mx-auto flex max-w-6xl justify-center px-4 py-6 sm:px-6 sm:py-8">
+                        <img src="{{ $match->posterUrl() }}"
+                             alt="{{ $match->name }} promotional poster"
+                             class="w-full max-w-sm sm:max-w-md rounded-xl shadow-[0_8px_30px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5">
+                    </div>
+                </div>
+            @elseif($match->bannerUrl())
                 <div class="w-full max-h-64 sm:max-h-80 overflow-hidden bg-stone-100">
-                    <img src="{{ $match->bannerUrl() }}" alt="{{ $match->name }}" class="w-full h-full max-h-64 sm:max-h-80 object-cover">
+                    <img src="{{ $match->bannerUrl() }}"
+                         alt="{{ $match->name }}"
+                         class="h-full max-h-64 w-full object-cover object-[center_28%] sm:max-h-80">
                 </div>
             @endif
             <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">

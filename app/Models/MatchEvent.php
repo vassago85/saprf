@@ -34,6 +34,7 @@ class MatchEvent extends Model
         'whatsapp_invite_url',
         'description',
         'banner_path',
+        'poster_path',
         'match_date',
         'match_end_date',
         'registration_open_date',
@@ -411,6 +412,28 @@ class MatchEvent extends Model
         }
 
         return asset('storage/'.$this->banner_path);
+    }
+
+    /**
+     * Full vertical flyer for the match page. Prefer this over the wide
+     * listing banner when presenting the complete promotional graphic.
+     */
+    public function posterUrl(): ?string
+    {
+        if (! $this->poster_path) {
+            return null;
+        }
+
+        return asset('storage/'.$this->poster_path);
+    }
+
+    /**
+     * Image used on public event cards / wide heroes. Falls back to the
+     * poster only when no dedicated listing crop was uploaded.
+     */
+    public function listingImageUrl(): ?string
+    {
+        return $this->bannerUrl() ?? $this->posterUrl();
     }
 
     public function userRegistration(?User $user): ?MatchRegistration

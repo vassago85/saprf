@@ -77,7 +77,7 @@ class MatchController extends Controller
     {
         $validated = $request->validated();
         $divisionIds = $validated['divisions'] ?? [];
-        unset($validated['divisions'], $validated['banner'], $validated['remove_banner']);
+        unset($validated['divisions'], $validated['banner'], $validated['remove_banner'], $validated['poster'], $validated['remove_poster']);
         $baseFee = (float) ($validated['active_member_fee'] ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
         $lapsedSurcharge = (float) $this->settingsService->get('lapsed_member_surcharge', 0);
@@ -97,6 +97,10 @@ class MatchController extends Controller
 
         if ($request->hasFile('banner')) {
             $validated['banner_path'] = $request->file('banner')->store('match-banners', 'public');
+        }
+
+        if ($request->hasFile('poster')) {
+            $validated['poster_path'] = $request->file('poster')->store('match-posters', 'public');
         }
 
         $match = MatchEvent::query()->create($validated);
@@ -213,7 +217,8 @@ class MatchController extends Controller
         $validated = $request->validated();
         $divisionIds = $validated['divisions'] ?? [];
         $removeBanner = (bool) ($validated['remove_banner'] ?? false);
-        unset($validated['divisions'], $validated['banner'], $validated['remove_banner']);
+        $removePoster = (bool) ($validated['remove_poster'] ?? false);
+        unset($validated['divisions'], $validated['banner'], $validated['remove_banner'], $validated['poster'], $validated['remove_poster']);
 
         $baseFee = (float) ($validated['active_member_fee'] ?? $match->active_member_fee ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);
@@ -256,6 +261,16 @@ class MatchController extends Controller
         } elseif ($removeBanner && $match->banner_path) {
             Storage::disk('public')->delete($match->banner_path);
             $validated['banner_path'] = null;
+        }
+
+        if ($request->hasFile('poster')) {
+            if ($match->poster_path) {
+                Storage::disk('public')->delete($match->poster_path);
+            }
+            $validated['poster_path'] = $request->file('poster')->store('match-posters', 'public');
+        } elseif ($removePoster && $match->poster_path) {
+            Storage::disk('public')->delete($match->poster_path);
+            $validated['poster_path'] = null;
         }
 
         $everyoneCountsChanged = array_key_exists('everyone_counts', $validated)

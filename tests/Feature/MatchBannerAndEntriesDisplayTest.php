@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Match directors can upload a promotional banner from match setup.
+ * Match directors can upload a listing banner and/or full poster from match setup.
  * Public event cards always show confirmed + pending entry counts,
  * with a capacity progress bar only when max_competitors is set.
  */
@@ -192,4 +192,103 @@ it('renders the match banner on the public event page when set', function () {
     $this->get(route('events.show', $match))
         ->assertOk()
         ->assertSee(asset('storage/'.$path), false);
+});
+
+it('lets a match director upload a poster when creating a match', function () {
+    $poster = UploadedFile::fake()->image('flyer.png', 800, 1400);
+
+    $this->actingAs($this->md)
+        ->post(route('matches.store'), bannerMatchFormPayload([
+            'name' => 'Poster Setup Match',
+            'poster' => $poster,
+        ]))
+        ->assertRedirect();
+
+    $match = MatchEvent::query()->where('name', 'Poster Setup Match')->first();
+
+    expect($match)->not->toBeNull()
+        ->and($match->poster_path)->not->toBeNull()
+        ->and($match->posterUrl())->toContain('storage/');
+
+    Storage::disk('public')->assertExists($match->poster_path);
+});
+
+it('prefers the full poster over the listing banner on the public event page', function () {
+    $bannerPath = UploadedFile::fake()->image('banner.jpg', 1200, 500)->store('match-banners', 'public');
+    $posterPath = UploadedFile::fake()->image('poster.png', 800, 1400)->store('match-posters', 'public');
+
+    $match = makePublicMatch($this->md, $this->province, [
+        'name' => 'Poster Preferred Match',
+        'banner_path' => $bannerPath,
+        'poster_path' => $posterPath,
+    ]);
+
+    $this->get(route('events.show', $match))
+        ->assertOk()
+        ->assertSee(asset('storage/'.$posterPath), false)
+        ->assertSee('promotional poster', false)
+        ->assertDontSee(asset('storage/'.$bannerPath), false);
+});
+
+it('uses the listing banner on event cards and falls back to the poster', function () {
+    $bannerPath = UploadedFile::fake()->image('card.jpg', 1200, 500)->store('match-banners', 'public');
+    $posterOnlyPath = UploadedFile::fake()->image('only-poster.png', 800, 1400)->store('match-posters', 'public');
+
+    $withBanner = makePublicMatch($this->md, $this->province, [
+        'name' => 'Card Banner Match',
+        'banner_path' => $bannerPath,
+        'poster_path' => UploadedFile::fake()->image('ignored.png', 800, 1400)->store('match-posters', 'public'),
+    ]);
+
+    $posterOnly = makePublicMatch($this->md, $this->province, [
+        'name' => 'Poster Fallback Match',
+        'poster_path' => $posterOnlyPath,
+    ]);
+
+    expect($withBanner->listingImageUrl())->toBe(asset('storage/'.$bannerPath))
+        ->and($posterOnly->listingImageUrl())->toBe(asset('storage/'.$posterOnlyPath));
+
+    $this->get(route('events.index'))
+        ->assertOk()
+        ->assertSee(asset('storage/'.$bannerPath), false)
+        ->assertSee(asset('storage/'.$posterOnlyPath), false);
+});
+
+it('lets a match director replace and remove a poster on update', function () {
+    $match = makePublicMatch($this->md, $this->province, [
+        'poster_path' => UploadedFile::fake()->image('old-poster.jpg')->store('match-posters', 'public'),
+    ]);
+    $oldPath = $match->poster_path;
+
+    $replacement = UploadedFile::fake()->image('new-poster.png', 800, 1400);
+
+    $this->actingAs($this->md)
+        ->put(route('matches.update', $match), bannerMatchFormPayload([
+            'name' => $match->name,
+            'poster' => $replacement,
+        ]))
+        ->assertRedirect(route('matches.show', $match));
+
+    $match->refresh();
+
+    expect($match->poster_path)->not->toBe($oldPath)
+        ->and($match->poster_path)->not->toBeNull();
+
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists($match->poster_path);
+
+    $this->actingAs($this->md)
+        ->put(route('matches.update', $match), bannerMatchFormPayload([
+            'name' => $match->name,
+            'remove_poster' => '1',
+        ]))
+        ->assertRedirect(route('matches.show', $match));
+
+    $pathAfterRemove = $match->poster_path;
+    $match->refresh();
+
+    expect($match->poster_path)->toBeNull()
+        ->and($match->posterUrl())->toBeNull();
+
+    Storage::disk('public')->assertMissing($pathAfterRemove);
 });

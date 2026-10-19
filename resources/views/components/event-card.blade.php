@@ -13,9 +13,17 @@
 @endphp
 
 <div {{ $attributes->merge(['class' => 'group bg-white rounded-2xl border border-stone-200 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.08)] hover:border-stone-300 transition-all duration-200 flex flex-col h-full overflow-hidden']) }}>
-    @if($match->bannerUrl())
-        <a href="{{ url('/events/' . $match->id) }}" class="block aspect-[2.4/1] overflow-hidden bg-stone-100" tabindex="-1" aria-hidden="true">
-            <img src="{{ $match->bannerUrl() }}" alt="" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" loading="lazy">
+    @if($match->listingImageUrl())
+        {{-- Bias crop toward the top so flyer orange bars / footer copy fall out of frame;
+             soft fade blends the image into the white card body. Featured cards get a taller frame. --}}
+        <a href="{{ url('/events/' . $match->id) }}"
+           class="relative block overflow-hidden bg-stone-100 {{ $match->is_featured ? 'aspect-[16/9]' : 'aspect-[2.4/1]' }}"
+           tabindex="-1" aria-hidden="true">
+            <img src="{{ $match->listingImageUrl() }}"
+                 alt=""
+                 class="h-full w-full object-cover object-[center_28%] transition duration-300 group-hover:scale-[1.02]"
+                 loading="lazy">
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/70 to-transparent" aria-hidden="true"></span>
         </a>
     @endif
     {{-- Card body --}}

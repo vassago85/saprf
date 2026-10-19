@@ -31,6 +31,8 @@ class UpdateMatchRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_banner' => ['sometimes', 'boolean'],
+            'poster' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:6144'],
+            'remove_poster' => ['sometimes', 'boolean'],
             'registration_open_date' => ['nullable', 'date'],
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['nullable', 'numeric', 'min:0'],

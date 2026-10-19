@@ -113,21 +113,7 @@
                     <textarea name="description" id="description" rows="3" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">{{ old('description', $match->description) }}</textarea>
                 </div>
 
-                <div class="sm:col-span-2">
-                    <label for="banner" class="block text-sm font-medium text-stone-700 mb-1">Match banner <span class="text-stone-400">(optional)</span></label>
-                    @if ($match->bannerUrl())
-                        <div class="mb-3 overflow-hidden rounded-lg border border-stone-200">
-                            <img src="{{ $match->bannerUrl() }}" alt="Current banner for {{ $match->name }}" class="h-32 w-full object-cover">
-                        </div>
-                        <label class="mb-3 inline-flex items-center gap-2 text-sm text-stone-600">
-                            <input type="checkbox" name="remove_banner" value="1" class="rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                            Remove current banner
-                        </label>
-                    @endif
-                    <input type="file" name="banner" id="banner" accept="image/jpeg,image/png,image/webp" class="block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" />
-                    <p class="mt-1 text-xs text-stone-400">Wide image shown on the events listing and match page. JPG, PNG or WebP, max 4&nbsp;MB. Leave empty to keep the current banner.</p>
-                    @error('banner') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                </div>
+                @include('matches._media-fields', ['match' => $match])
 
                 <div>
                     <label for="registration_open_date" class="block text-sm font-medium text-stone-700 mb-1">Registration Opens</label>
