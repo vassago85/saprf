@@ -14,9 +14,7 @@ use Illuminate\Support\Carbon;
  *
  * Produces, for each series the shooter is active in:
  *   • current overall rank + total ranked, points, "top X%"
- *   • distance to the national-squad cut (points to catch the shooter in
- *     the configured cut rank, 12 by default — the headline Team South Africa
- *     squad size for both PRS and PR22)
+ *   • distance to the points held by the shooter currently at rank 10
  *   • a sparkline / area-chart series of match % per scored match, where
  *     "match %" is Score::normalized_score (raw / top raw × 100) — this is
  *     the standard PRS performance metric computed by the standings
@@ -28,8 +26,8 @@ use Illuminate\Support\Carbon;
  */
 final class HeroStandingBuilder
 {
-    /** Default top-N cut for both disciplines (Team South Africa squad size). */
-    private const DEFAULT_CUT_RANK = 12;
+    /** Compare the shooter's points with whoever currently sits at this rank. */
+    private const DEFAULT_CUT_RANK = 10;
 
     public function __construct(
         private readonly ShooterStandingsSummaryService $summary,
@@ -155,14 +153,14 @@ final class HeroStandingBuilder
         }
 
         $pointsToCut = $inCut ? 0.0 : max(0.0, round($cutPoints - $points, 1));
-        $pct = $cutPoints > 0 ? min(100, max(5, (int) round(($points / $cutPoints) * 92))) : 0;
+        $pct = $cutPoints > 0 ? min(100, max(5, (int) round(($points / $cutPoints) * 100))) : 0;
 
         return [
             'target_rank' => $targetRank,
             'target_points' => round($cutPoints, 1),
             'points_to_cut' => $pointsToCut,
             'pct_filled' => $inCut ? 100 : $pct,
-            'mark_pct' => 92,
+            'mark_pct' => 100,
             'in_cut' => $inCut,
             'has_data' => true,
         ];

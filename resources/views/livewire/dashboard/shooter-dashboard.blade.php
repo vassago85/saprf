@@ -244,9 +244,9 @@
                         @if ($hero['cut']['has_data'])
                             <div class="mt-4">
                                 <div class="flex items-center justify-between text-xs">
-                                    <span class="text-stone-300">National squad cut (top {{ $hero['cut']['target_rank'] }})</span>
+                                    <span class="text-stone-300">Points to top {{ $hero['cut']['target_rank'] }}</span>
                                     @if ($hero['cut']['in_cut'])
-                                        <span class="font-semibold text-emerald-300">You're in the squad</span>
+                                        <span class="font-semibold text-emerald-300">Inside the top {{ $hero['cut']['target_rank'] }}</span>
                                     @else
                                         <span class="font-semibold text-white">{{ number_format((float) $hero['cut']['points_to_cut'], 1) }} pts to go</span>
                                     @endif
@@ -255,11 +255,6 @@
                                     <div class="absolute inset-y-0 left-0 rounded-full"
                                          style="width: {{ $hero['cut']['pct_filled'] }}%;
                                                 background: linear-gradient(90deg, #059669, #34d399);"></div>
-                                    @unless ($hero['cut']['in_cut'])
-                                        <div class="absolute -top-1 h-4 w-0.5 bg-amber-300"
-                                             style="left: {{ $hero['cut']['mark_pct'] }}%;"
-                                             title="Top {{ $hero['cut']['target_rank'] }} at {{ number_format((float) $hero['cut']['target_points'], 1) }} pts"></div>
-                                    @endunless
                                 </div>
                                 <div class="mt-1.5 flex justify-between text-xs text-stone-300">
                                     <span>You {{ $hero['points'] !== null ? number_format((float) $hero['points'], 1) : '—' }}</span>
