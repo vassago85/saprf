@@ -478,9 +478,15 @@ class ImpactLiveImportService
         }
 
         $stubUserId = $score->user_id;
-        $shooterName = $registration->user?->name
+
+        // Keep the Impact / scoreboard name as-is (e.g. Kaden), even when the
+        // linked entry was booked under a different label (e.g. Karen).
+        $impactName = trim((string) ($meta['impact']['impact_name'] ?? ''))
+            ?: trim((string) $score->shooter_name)
+            ?: ($registration->user?->name ?: $registration->shooter_name);
+        $entryName = $registration->user?->name
             ?: $registration->shooter_name
-            ?: $score->shooter_name;
+            ?: $impactName;
 
         // Prefer the entry's user (member or non-member account). Name-only
         // walk-ins have no user_id — keep the assign-later stub so the score
@@ -489,7 +495,7 @@ class ImpactLiveImportService
         $keptStubForNameOnlyEntry = $registration->user_id === null && $stubUserId;
 
         if ($keptStubForNameOnlyEntry && $stubUserId) {
-            User::query()->whereKey($stubUserId)->update(['name' => $shooterName]);
+            User::query()->whereKey($stubUserId)->update(['name' => $impactName]);
         }
 
         $meta['impact']['needs_member_link'] = false;
@@ -499,11 +505,13 @@ class ImpactLiveImportService
         $meta['impact']['division_source'] = 'registration';
         $meta['impact']['previous_stub_user_id'] = $stubUserId;
         $meta['impact']['linked_name_only_entry'] = (bool) $keptStubForNameOnlyEntry;
+        $meta['impact']['linked_entry_name'] = $entryName;
+        $meta['impact']['kept_impact_name'] = $impactName !== $entryName;
 
         $score->fill([
             'user_id' => $linkedUserId,
             'division_id' => $registration->division_id ?: $score->division_id,
-            'shooter_name' => $shooterName,
+            'shooter_name' => $impactName,
             'raw_meta' => $meta,
         ]);
         $score->save();

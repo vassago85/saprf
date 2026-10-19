@@ -252,11 +252,17 @@ class ScoreImportController extends Controller
 
         $entryName = $registration->user?->name ?: $registration->shooter_name;
         $category = $registration->feeCategoryLabel();
+        $scoreName = $score->fresh()->shooter_name;
+
+        $note = $scoreName !== $entryName
+            ? " Scoreboard name kept as {$scoreName}."
+            : '';
 
         return back()->with(
             'success',
             'Linked Impact score to entry '.$entryName
             .' ('.$category.') — entry division applied.'
+            .$note
         );
     }
 

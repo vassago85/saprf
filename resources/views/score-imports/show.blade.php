@@ -152,7 +152,7 @@
                 </div>
                 <div>
                     <h2 class="font-heading text-lg font-bold text-violet-950">Link to entry</h2>
-                    <p class="mt-0.5 text-sm text-violet-900/80">These Impact scores imported as stubs and do not count until you attach the real <strong>match entry</strong> — members and non-members. Entry division wins (e.g. Senior / Junior over Impact Open).</p>
+                    <p class="mt-0.5 text-sm text-violet-900/80">Attach the real <strong>match entry</strong> (member or non-member). Entry <em>division</em> wins; the Impact <em>name stays as shown</em> (e.g. Kaden linked to a Karen entry still displays as Kaden).</p>
                 </div>
             </div>
             @if ($linkRegistrations->isEmpty())

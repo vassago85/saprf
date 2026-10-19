@@ -437,7 +437,54 @@ it('imports assign-later as an invalid stub until linked to a real registration'
         ->and($score->raw_meta['impact']['needs_member_link'])->toBeFalse()
         ->and($score->status)->toBe('valid')
         ->and($score->is_member)->toBeTrue()
-        ->and($score->shooter_name)->toBe('Stephanus Janse van Rensburg');
+        // Impact display name is kept even though the entry is Stephanus.
+        ->and($score->shooter_name)->toBe('Steven van Rensburg')
+        ->and($score->raw_meta['impact']['linked_entry_name'])->toBe('Stephanus Janse van Rensburg')
+        ->and($score->raw_meta['impact']['kept_impact_name'])->toBeTrue();
+});
+
+it('keeps the Impact name when linking Kaden to a Karen entry', function () {
+    Notification::fake();
+
+    $karen = impactMakeMember('Karen Watridge');
+    $reg = impactRegisterShooter($this->match, $karen, $this->junior);
+
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        [
+            'id' => 41,
+            'name' => 'Kaden Watridge',
+            'rank' => 41,
+            'points' => 3800,
+            'divisionName' => 'Open',
+        ],
+    ];
+    fakeImpactApi($payload);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => ['41' => 'assign_later'],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $this->match->id)->first();
+
+    $this->actingAs($this->admin)
+        ->post(route('scores.link-impact-member', $score), [
+            'registration_id' => $reg->id,
+        ])
+        ->assertRedirect();
+
+    $score->refresh();
+    expect($score->user_id)->toBe($karen->id)
+        ->and($score->shooter_name)->toBe('Kaden Watridge')
+        ->and($score->division?->slug)->toBe('junior')
+        ->and($score->raw_meta['impact']['linked_entry_name'])->toBe('Karen Watridge')
+        ->and($score->raw_meta['impact']['kept_impact_name'])->toBeTrue()
+        ->and($score->status)->toBe('valid');
 });
 
 it('links an assign-later score to a non-member entry and keeps them non-counting', function () {
@@ -497,7 +544,8 @@ it('links an assign-later score to a non-member entry and keeps them non-countin
         ->and($score->raw_meta['impact']['needs_member_link'])->toBeFalse()
         ->and($score->status)->toBe('non_member')
         ->and($score->is_member)->toBeFalse()
-        ->and($score->shooter_name)->toBe('Jacobus Janse van Rensburg');
+        // Keep Impact spelling/name; entry was the longer registration name.
+        ->and($score->shooter_name)->toBe('Jacobus J van Rensburg');
 });
 
 it('links an assign-later score to a name-only non-member walk-in entry', function () {
