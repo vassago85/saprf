@@ -282,6 +282,49 @@
             @endif
         @endif
 
+        {{-- MD/admin: mark settled after POP or PayFast screenshot --}}
+        @can('update', $registration)
+            @if($registration->hasOutstandingPayment() && $registration->registration_status !== 'cancelled')
+                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm">
+                    <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">Mark payment settled</h2>
+                    <p class="text-sm text-stone-600 mb-4">Use when the shooter replies with a POP or a PayFast confirmation screenshot. This marks the entry paid without a new PayFast charge.</p>
+                    <form method="POST" action="{{ route('registrations.mark-settled', $registration) }}" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-sm font-medium text-stone-700 mb-2">Proof received</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <label class="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:ring-1 has-[:checked]:ring-emerald-500">
+                                    <input type="radio" name="settlement_proof" value="pop" class="text-emerald-600" @checked(old('settlement_proof') === 'pop') required>
+                                    POP / EFT
+                                </label>
+                                <label class="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:ring-1 has-[:checked]:ring-emerald-500">
+                                    <input type="radio" name="settlement_proof" value="payfast_screenshot" class="text-emerald-600" @checked(old('settlement_proof') === 'payfast_screenshot')>
+                                    PayFast screenshot
+                                </label>
+                                <label class="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:ring-1 has-[:checked]:ring-emerald-500">
+                                    <input type="radio" name="settlement_proof" value="other" class="text-emerald-600" @checked(old('settlement_proof') === 'other')>
+                                    Other
+                                </label>
+                            </div>
+                            @error('settlement_proof') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="settlement_note" class="block text-sm font-medium text-stone-700 mb-1">Note <span class="text-red-500">*</span></label>
+                            <textarea name="settlement_note" id="settlement_note" rows="2" required minlength="5" maxlength="500"
+                                      placeholder="e.g. POP received 19 Oct — EFT to range bank account"
+                                      class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">{{ old('settlement_note') }}</textarea>
+                            @error('settlement_note') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <button type="submit"
+                                class="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition"
+                                onclick="return confirm('Mark this entry as paid based on the proof you received?');">
+                            Mark as paid
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
+
         {{-- Cancellation details (if cancelled) --}}
         @if($registration->registration_status === 'cancelled' && $registration->cancelled_at)
             @php

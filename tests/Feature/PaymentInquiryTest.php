@@ -87,6 +87,66 @@ it('lets the match director send a payment inquiry email to an unpaid shooter', 
     expect($registration->payment_inquiry_sent_at)->not()->toBeNull();
 });
 
+it('payment inquiry email offers Pay now plus POP / PayFast screenshot reply — not old-site confirm', function () {
+    $registration = makeUnpaidRegistration($this->match->id, $this->shooter->id);
+    $mail = (new PaymentInquiryNotification($registration, $this->md))->toMail($this->shooter);
+    $rendered = implode("\n", array_map(
+        fn ($line) => is_string($line) ? $line : (string) $line,
+        array_merge($mail->introLines ?? [], $mail->outroLines ?? [])
+    ));
+
+    expect($mail->actionText)->toBe('Pay now')
+        ->and($rendered)->toContain('proof of payment')
+        ->and($rendered)->toContain('PayFast confirmation')
+        ->and($rendered)->not->toContain('old site')
+        ->and($rendered)->not->toContain('previous SAPRF site');
+});
+
+it('lets the MD mark an outstanding entry settled after receiving POP', function () {
+    $registration = makeUnpaidRegistration($this->match->id, $this->shooter->id);
+
+    $this->actingAs($this->md)
+        ->post(route('registrations.mark-settled', $registration), [
+            'settlement_proof' => 'pop',
+            'settlement_note' => 'POP received 19 Oct — EFT to range',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $registration->refresh();
+    expect($registration->payment_status)->toBe('paid')
+        ->and($registration->registration_status)->toBe('confirmed')
+        ->and($registration->fee_override_reason)->toContain('POP')
+        ->and($registration->fee_override_reason)->toContain('EFT to range');
+});
+
+it('lets admin mark settled with a PayFast confirmation screenshot', function () {
+    $registration = makeUnpaidRegistration($this->match->id, $this->shooter->id);
+
+    $this->actingAs($this->admin)
+        ->post(route('registrations.mark-settled', $registration), [
+            'settlement_proof' => 'payfast_screenshot',
+            'settlement_note' => 'Screenshot of PayFast success email attached in reply',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($registration->fresh()->payment_status)->toBe('paid');
+});
+
+it('forbids an unrelated MD from marking payment settled', function () {
+    $registration = makeUnpaidRegistration($this->match->id, $this->shooter->id);
+
+    $this->actingAs($this->otherMd)
+        ->post(route('registrations.mark-settled', $registration), [
+            'settlement_proof' => 'pop',
+            'settlement_note' => 'Should not work',
+        ])
+        ->assertForbidden();
+
+    expect($registration->fresh()->payment_status)->toBe('pending');
+});
+
 it('lets admins send an inquiry on any match, not only ones they created', function () {
     Notification::fake();
 

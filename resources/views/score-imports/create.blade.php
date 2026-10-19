@@ -47,6 +47,7 @@
                             <li>Copy the URL (or just the match id, e.g. <code class="rounded bg-white/80 px-1 text-xs">11086</code>).</li>
                             <li>Select this SAPRF match, paste the URL, preview, confirm any fuzzy name matches, then import.</li>
                             <li>Registration divisions win (Ladies / Junior / Senior / Factory). Impact “Production” maps to Factory.</li>
+                            <li>Wrong Impact total? Edit the hits on the preview table before import — it’s stored as “adjusted from Impact”.</li>
                         </ol>
                     </div>
                 </div>
@@ -59,6 +60,13 @@
                 </template>
                 <template x-for="sid in day1StageIds" :key="'d1-'+sid">
                     <input type="hidden" name="day1_stage_ids[]" :value="sid">
+                </template>
+                <template x-for="row in (preview?.shooters || [])" :key="'ov-'+row.impact_shooter_id">
+                    <div>
+                        <input type="hidden" :name="'score_overrides['+row.impact_shooter_id+'][impacts]'" :value="overrideImpacts(row)">
+                        <input type="hidden" :name="'score_overrides['+row.impact_shooter_id+'][day1_impacts]'" :value="overrideDay1(row)">
+                        <input type="hidden" x-show="isAdjusted(row)" :name="'score_overrides['+row.impact_shooter_id+'][note]'" value="adjusted from Impact">
+                    </div>
                 </template>
 
                 <div class="rounded-2xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
@@ -177,8 +185,8 @@
                                         <th class="px-4 py-2.5 font-semibold">#</th>
                                         <th class="px-4 py-2.5 font-semibold">Impact shooter</th>
                                         <th class="px-4 py-2.5 font-semibold">Division</th>
-                                        <th class="px-4 py-2.5 font-semibold text-right">Hits</th>
-                                        <th class="px-4 py-2.5 font-semibold" x-show="scoreScope === 'day1'">Day 1</th>
+                                        <th class="px-4 py-2.5 font-semibold text-right">Hits <span class="font-normal normal-case text-stone-400">(editable)</span></th>
+                                        <th class="px-4 py-2.5 font-semibold text-right" x-show="scoreScope === 'day1'">Day 1</th>
                                         <th class="px-4 py-2.5 font-semibold">Link</th>
                                         <th class="px-4 py-2.5 font-semibold">Action</th>
                                     </tr>
@@ -210,8 +218,26 @@
                                                 <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium capitalize text-stone-800" x-text="row.division_slug"></span>
                                                 <span class="block text-[10px] text-stone-400 mt-0.5" x-text="row.division_source === 'registration' ? 'from entry' : 'from Impact'"></span>
                                             </td>
-                                            <td class="px-4 py-3 text-right tabular-nums font-medium text-stone-900" x-text="row.impacts"></td>
-                                            <td class="px-4 py-3 text-right tabular-nums text-blue-800" x-show="scoreScope === 'day1'" x-text="row.day1_impacts"></td>
+                                            <td class="px-4 py-3 text-right">
+                                                <input type="number" min="0" max="9999" step="1"
+                                                       class="w-20 rounded-lg border text-right text-sm tabular-nums py-1 px-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                       :class="isAdjusted(row) ? 'border-amber-400 bg-amber-50 font-semibold text-amber-900' : 'border-stone-200 text-stone-900'"
+                                                       :value="overrideImpacts(row)"
+                                                       @input="setOverride(row.impact_shooter_id, 'impacts', $event.target.value, row.impacts)">
+                                                <p class="text-[10px] text-amber-700 mt-0.5" x-show="Number(overrideImpacts(row)) !== Number(row.impacts)">
+                                                    Impact: <span x-text="row.impacts"></span> · adjusted
+                                                </p>
+                                            </td>
+                                            <td class="px-4 py-3 text-right" x-show="scoreScope === 'day1'">
+                                                <input type="number" min="0" max="9999" step="1"
+                                                       class="w-20 rounded-lg border text-right text-sm tabular-nums py-1 px-2 focus:ring-blue-500 focus:border-blue-500"
+                                                       :class="Number(overrideDay1(row)) !== Number(row.day1_impacts) ? 'border-blue-400 bg-blue-50 font-semibold text-blue-900' : 'border-stone-200 text-blue-800'"
+                                                       :value="overrideDay1(row)"
+                                                       @input="setOverride(row.impact_shooter_id, 'day1_impacts', $event.target.value, row.day1_impacts)">
+                                                <p class="text-[10px] text-blue-700 mt-0.5" x-show="Number(overrideDay1(row)) !== Number(row.day1_impacts)">
+                                                    Impact Day 1: <span x-text="row.day1_impacts"></span>
+                                                </p>
+                                            </td>
                                             <td class="px-4 py-3 min-w-[12rem]">
                                                 <template x-if="row.match_status === 'exact'">
                                                     <span class="text-xs text-emerald-700 font-medium" x-text="'✓ '+row.registration_name"></span>
@@ -370,6 +396,7 @@
                 previewLoading: false,
                 previewError: '',
                 links: {},
+                scoreOverrides: {},
                 expanded: {},
                 get isTwoDayNational() {
                     return this.matchId && this.matchMeta[this.matchId]?.is_two_day_national;
@@ -389,8 +416,37 @@
                     this.preview = null;
                     this.previewError = '';
                     this.links = {};
+                    this.scoreOverrides = {};
                     this.day1StageIds = [];
                     this.expanded = {};
+                },
+                overrideImpacts(row) {
+                    const o = this.scoreOverrides[row.impact_shooter_id];
+                    return (o && o.impacts !== undefined && o.impacts !== '') ? o.impacts : row.impacts;
+                },
+                overrideDay1(row) {
+                    const o = this.scoreOverrides[row.impact_shooter_id];
+                    return (o && o.day1_impacts !== undefined && o.day1_impacts !== '') ? o.day1_impacts : row.day1_impacts;
+                },
+                isAdjusted(row) {
+                    return Number(this.overrideImpacts(row)) !== Number(row.impacts)
+                        || Number(this.overrideDay1(row)) !== Number(row.day1_impacts);
+                },
+                setOverride(sid, field, value, original) {
+                    const next = { ...(this.scoreOverrides[sid] || {}) };
+                    if (value === '' || Number(value) === Number(original)) {
+                        delete next[field];
+                    } else {
+                        next[field] = value;
+                    }
+                    if (!next.impacts && next.impacts !== 0 && !next.day1_impacts && next.day1_impacts !== 0) {
+                        const copy = { ...this.scoreOverrides };
+                        delete copy[sid];
+                        this.scoreOverrides = copy;
+                        return;
+                    }
+                    next.note = 'adjusted from Impact';
+                    this.scoreOverrides = { ...this.scoreOverrides, [sid]: next };
                 },
                 onScopeChange() {
                     if (this.scoreScope !== 'day1') this.day1StageIds = [];

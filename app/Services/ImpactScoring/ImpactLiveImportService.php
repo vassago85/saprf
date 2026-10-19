@@ -181,8 +181,10 @@ class ImpactLiveImportService
      *   day1_stage_ids?:list<int>,
      *   replace_existing?:bool,
      *   links?:array<string,string>,
+     *   score_overrides?:array<string,array{impacts?:float|int|string,day1_impacts?:float|int|string,note?:string}>,
      * }  $options
      *   links map impact_shooter_id => "reg:{id}" | "skip" | "auto"
+     *   score_overrides map impact_shooter_id => adjusted totals (MD override of Impact)
      */
     public function import(MatchEvent $selectedMatch, User $actor, array $options): ScoreImport
     {
@@ -192,6 +194,8 @@ class ImpactLiveImportService
         $replaceExisting = (bool) ($options['replace_existing'] ?? false);
         /** @var array<string, string> $links */
         $links = $options['links'] ?? [];
+        /** @var array<string, array{impacts?:mixed,day1_impacts?:mixed,note?:string}> $scoreOverrides */
+        $scoreOverrides = $options['score_overrides'] ?? [];
 
         if ($selectedMatch->isTwoDayNational() && ! in_array($scoreScope, ['day1', 'overall'], true)) {
             throw new RuntimeException('Choose Day 1 or Overall for a 2-day national.');
@@ -221,7 +225,7 @@ class ImpactLiveImportService
 
         return DB::transaction(function () use (
             $selectedMatch, $targetMatch, $actor, $preview, $scoreScope, $day1StageIds,
-            $replaceExisting, $links, $notes
+            $replaceExisting, $links, $scoreOverrides, $notes
         ) {
             if ($replaceExisting) {
                 $scoreIds = Score::where('match_id', $targetMatch->id)->pluck('id');
@@ -266,9 +270,25 @@ class ImpactLiveImportService
                     $registration = MatchRegistration::query()->find($row['registration_id']);
                 }
 
-                $rawScore = $scoreScope === 'day1'
-                    ? (float) $row['day1_impacts']
-                    : (float) $row['impacts'];
+                $override = $scoreOverrides[$impactShooterId]
+                    ?? $scoreOverrides[(string) (int) $impactShooterId]
+                    ?? [];
+                $impactTotal = (float) $row['impacts'];
+                $impactDay1 = (float) $row['day1_impacts'];
+                $adjustedTotal = array_key_exists('impacts', $override) && is_numeric($override['impacts'])
+                    ? (float) $override['impacts']
+                    : $impactTotal;
+                $adjustedDay1 = array_key_exists('day1_impacts', $override) && is_numeric($override['day1_impacts'])
+                    ? (float) $override['day1_impacts']
+                    : $impactDay1;
+                $wasAdjusted = abs($adjustedTotal - $impactTotal) > 0.0001
+                    || abs($adjustedDay1 - $impactDay1) > 0.0001;
+                $adjustNote = trim((string) ($override['note'] ?? ''));
+                if ($wasAdjusted && $adjustNote === '') {
+                    $adjustNote = 'adjusted from Impact';
+                }
+
+                $rawScore = $scoreScope === 'day1' ? $adjustedDay1 : $adjustedTotal;
 
                 if ($registration) {
                     $userId = $registration->user_id;
@@ -324,8 +344,12 @@ class ImpactLiveImportService
                             'score_scope' => $scoreScope,
                             'day1_stage_ids' => $day1StageIds,
                             'stages' => $row['stages'],
-                            'total_impacts' => $row['impacts'],
-                            'day1_impacts' => $row['day1_impacts'],
+                            'total_impacts' => $impactTotal,
+                            'day1_impacts' => $impactDay1,
+                            'adjusted' => $wasAdjusted,
+                            'adjusted_total_impacts' => $adjustedTotal,
+                            'adjusted_day1_impacts' => $adjustedDay1,
+                            'adjustment_note' => $wasAdjusted ? $adjustNote : null,
                         ],
                     ],
                 ]);

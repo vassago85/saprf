@@ -322,6 +322,38 @@ it('builds a Day 1 provincial score from selected Impact stages on a 2-day natio
         ->and($score->raw_meta['impact']['day1_stage_ids'])->toBe([28438]);
 });
 
+it('accepts an MD override of Impact hits before import and records the adjustment', function () {
+    fakeImpactApi();
+    Notification::fake();
+
+    $kevin = impactMakeMember('Kevin Goncalves');
+    impactRegisterShooter($this->match, $kevin, $this->open);
+
+    // Impact has 87; shooter claims 88 — MD adjusts on preview before confirm.
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => [],
+            'score_overrides' => [
+                '1' => [
+                    'impacts' => 88,
+                    'note' => 'adjusted from Impact',
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $this->match->id)->where('user_id', $kevin->id)->first();
+    expect($score)->not->toBeNull()
+        ->and((float) $score->raw_score)->toBe(88.0)
+        ->and((float) $score->raw_meta['impact']['total_impacts'])->toBe(87.0)
+        ->and($score->raw_meta['impact']['adjusted'])->toBeTrue()
+        ->and((float) $score->raw_meta['impact']['adjusted_total_impacts'])->toBe(88.0)
+        ->and($score->raw_meta['impact']['adjustment_note'])->toBe('adjusted from Impact');
+});
+
 it('skips unconfirmed fuzzy matches on import', function () {
     fakeImpactApi();
     Notification::fake();

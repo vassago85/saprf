@@ -26,6 +26,11 @@ class StoreImpactLiveImportRequest extends FormRequest
             'replace_existing' => ['nullable', 'boolean'],
             'links' => ['nullable', 'array'],
             'links.*' => ['nullable', 'string', 'max:64'],
+            // Optional per-shooter overrides of Impact totals before import.
+            'score_overrides' => ['nullable', 'array'],
+            'score_overrides.*.impacts' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'score_overrides.*.day1_impacts' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'score_overrides.*.note' => ['nullable', 'string', 'max:255'],
         ];
     }
 

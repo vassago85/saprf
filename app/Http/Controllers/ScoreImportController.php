@@ -175,6 +175,7 @@ class ScoreImportController extends Controller
                 'day1_stage_ids' => $request->validated('day1_stage_ids') ?? [],
                 'replace_existing' => $request->boolean('replace_existing', true),
                 'links' => $request->validated('links') ?? [],
+                'score_overrides' => $request->validated('score_overrides') ?? [],
             ]);
         } catch (\Throwable $e) {
             return redirect()

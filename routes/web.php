@@ -521,6 +521,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::put('/registrations/{registration}/rifle', [RegistrationController::class, 'updateRifle'])->name('registrations.update-rifle');
     Route::put('/registrations/{registration}/shots', [RegistrationController::class, 'updateShotCount'])->name('registrations.update-shots');
     Route::post('/registrations/{registration}/payment-inquiry', [RegistrationController::class, 'sendPaymentInquiry'])->name('registrations.payment-inquiry');
+    Route::post('/registrations/{registration}/mark-settled', [RegistrationController::class, 'markPaymentSettled'])->name('registrations.mark-settled');
 
     // Rifle Configurations — any authenticated user
     Route::resource('rifle-configurations', RifleConfigurationController::class)

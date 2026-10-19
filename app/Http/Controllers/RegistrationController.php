@@ -501,9 +501,8 @@ class RegistrationController extends Controller
 
     /**
      * MD/admin action: email the shooter about an outstanding entry fee.
-     * The mail lets them either self-confirm they paid via the previous
-     * SAPRF site (signed URL — see the two `confirm-old-site-payment`
-     * routes below) or click through to the normal payment flow.
+     * The mail offers PayFast "Pay now", or a reply with POP / PayFast
+     * confirmation screenshot so staff can mark the row settled.
      *
      * We refuse to nudge:
      *   - Already-settled rows (paid / waived) — nothing to chase.
@@ -566,15 +565,75 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Landing page reached when the shooter clicks the signed "I paid on
-     * the old site" link in the inquiry email. Deliberately a two-step
-     * flow — a bare GET must not mutate anything so that link previews,
-     * inbox pre-fetchers, or a forwarded email can't self-confirm the
-     * payment without a human clicking through.
+     * MD/admin marks an outstanding entry as settled after receiving POP
+     * or a PayFast confirmation screenshot by email. Does not create a
+     * PayFast Payment row — money was collected off this ITN path.
+     */
+    public function markPaymentSettled(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        if (! $registration->hasOutstandingPayment()) {
+            return back()->with('error', 'This entry is already settled.');
+        }
+
+        $validated = $request->validate([
+            'settlement_proof' => ['required', 'in:pop,payfast_screenshot,other'],
+            'settlement_note' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'settlement_proof.required' => 'Choose how payment was proven (POP, PayFast screenshot, or other).',
+            'settlement_note.required' => 'Add a short note (e.g. “POP received 19 Oct — EFT to range”).',
+        ]);
+
+        $proofLabel = match ($validated['settlement_proof']) {
+            'pop' => 'POP',
+            'payfast_screenshot' => 'PayFast confirmation screenshot',
+            default => 'Other proof',
+        };
+
+        $old = $registration->only(['payment_status', 'registration_status', 'fee_override_reason']);
+
+        $note = trim(
+            ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '')
+            .'Settled by '.$request->user()->name.' via '.$proofLabel.': '.$validated['settlement_note']
+        );
+
+        $registration->update([
+            'payment_status' => 'paid',
+            'registration_status' => $registration->registration_status === 'pending'
+                ? 'confirmed'
+                : $registration->registration_status,
+            'fee_override_reason' => $note,
+        ]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.payment.manually_settled',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            [
+                'payment_status' => 'paid',
+                'registration_status' => $registration->registration_status,
+                'settlement_proof' => $validated['settlement_proof'],
+                'settlement_note' => $validated['settlement_note'],
+            ],
+        );
+
+        $shooterLabel = $registration->user?->name ?? $registration->shooter_name ?? 'shooter';
+
+        return back()->with(
+            'success',
+            'Marked '.$shooterLabel.' as paid ('.$proofLabel.').'
+        );
+    }
+
+    /**
+     * Legacy signed "I paid on the old site" landing — kept for emails
+     * already in shooters' inboxes. New inquiries no longer link here.
      *
-     * The signed-URL middleware guards both the GET and the POST, so
-     * the identity check is the same in both places even though no
-     * session is required.
+     * Deliberately a two-step flow — a bare GET must not mutate anything
+     * so that link previews / inbox pre-fetchers can't self-confirm.
      */
     public function showOldSitePaymentConfirmation(MatchRegistration $registration): View|RedirectResponse
     {
