@@ -895,11 +895,11 @@
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-stone-500">Invoices</dt>
+                    <dt class="text-xs text-stone-500">Payments</dt>
                     <dd class="mt-0.5 font-semibold">
                         @if ($strip['unpaid_count'] > 0)
                             <a href="{{ route('invoices.index') }}" class="text-red-700 hover:underline">
-                                {{ $strip['unpaid_count'] }} unpaid · R{{ number_format((float) $strip['unpaid_total'], 2) }} →
+                                {{ $strip['unpaid_count'] }} outstanding · R{{ number_format((float) $strip['unpaid_total'], 2) }} — Pay now →
                             </a>
                         @else
                             <a href="{{ route('invoices.index') }}" class="text-stone-600 hover:text-emerald-700 hover:underline">All settled →</a>

@@ -72,7 +72,19 @@ class PaymentController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('invoices.index', compact('payments'));
+        // Outstanding match entries (registered / shot but never settled on
+        // the platform). Shown above the invoice archive so the dashboard
+        // "Pay now" CTA lands somewhere the shooter can actually pay.
+        $outstandingRegistrations = MatchRegistration::query()
+            ->with(['match:id,name,match_date', 'division:id,name'])
+            ->whereIn('user_id', $accountIds)
+            ->whereIn('registration_status', ['pending', 'confirmed'])
+            ->whereNotIn('payment_status', ['paid', 'waived'])
+            ->where('fee_amount', '>', 0)
+            ->orderByDesc('registered_at')
+            ->get();
+
+        return view('invoices.index', compact('payments', 'outstandingRegistrations'));
     }
 
     /**

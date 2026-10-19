@@ -65,9 +65,9 @@ final class AttentionBuilder
                 'pill_tone' => 'red',
                 'pill_count' => (string) $unpaidCount,
                 'title' => $unpaidCount === 1 ? 'Unpaid match entry' : "{$unpaidCount} unpaid match entries",
-                'body' => 'Entries without payment can be released from the match before the registration deadline.',
+                'body' => 'Payment is outstanding. Pay securely through the portal with PayFast, or reply to your match director with a POP / PayFast confirmation screenshot.',
                 'href' => route('invoices.index'),
-                'href_label' => 'Review invoices',
+                'href_label' => 'Pay now',
             ];
         }
 
