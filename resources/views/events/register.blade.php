@@ -505,6 +505,23 @@
                         </div>
                     @endif
 
+                    {{-- Terms notice (implied consent — no checkbox).
+                         Placed above the submit button so the statement is in
+                         the shooter's eye at the moment of commitment. Worded
+                         so it applies to the ENTRY (not just the clicker) so
+                         sponsored entries — where the person tapping the
+                         button isn't the shooter — are covered by the same
+                         line without a per-flow variant. SAPRF's terms page
+                         is `/terms` (LegalController@terms). Opens in a new
+                         tab so a mid-registration tap doesn't dump the form. --}}
+                    <p class="text-xs text-stone-500">
+                        Entering a match is subject to SAPRF's
+                        <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener"
+                           class="font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">
+                            terms and conditions</a>.
+                        By continuing you confirm the shooter accepts them.
+                    </p>
+
                     {{-- Submit --}}
                     <div class="flex items-center justify-between pt-2">
                         <a href="{{ url('/events/' . $match->id) }}" class="text-sm text-stone-500 hover:text-stone-700 transition">Cancel</a>
