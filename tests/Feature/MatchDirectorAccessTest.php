@@ -64,7 +64,7 @@ it('refuses to let a match director edit someone else\'s match', function () {
     expect($mdB->can('update', $match))->toBeFalse();
 });
 
-it('returns 403 when a match director hits the edit URL for another MD\'s match', function () {
+it('returns 403 when a match director hits the settings URL for another MD\'s match', function () {
     $mdA = User::factory()->create();
     $mdA->assignRole('match_director');
 
@@ -73,12 +73,28 @@ it('returns 403 when a match director hits the edit URL for another MD\'s match'
 
     $match = makeMatchOwnedBy($mdA, $this->province);
 
+    // matches.edit is kept as a 301 alias → matches.settings. Follow it so
+    // we're asserting the authorization behaviour on the actual target
+    // route, not the redirect wrapper.
     $this->actingAs($mdB)
+        ->followingRedirects()
         ->get(route('matches.edit', $match))
         ->assertForbidden();
 });
 
-it('lets a match director see the edit page for their own match', function () {
+it('lets a match director see the settings page for their own match', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+
+    $match = makeMatchOwnedBy($md, $this->province);
+
+    $this->actingAs($md)
+        ->followingRedirects()
+        ->get(route('matches.edit', $match))
+        ->assertOk();
+});
+
+it('redirects the legacy /matches/{id}/edit URL into the settings tab', function () {
     $md = User::factory()->create();
     $md->assignRole('match_director');
 
@@ -86,7 +102,7 @@ it('lets a match director see the edit page for their own match', function () {
 
     $this->actingAs($md)
         ->get(route('matches.edit', $match))
-        ->assertOk();
+        ->assertRedirect(route('matches.settings', $match));
 });
 
 it('scopes the match list so a pure match director only sees their own matches', function () {

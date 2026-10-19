@@ -116,12 +116,17 @@ it('ignores a half-set override so global rate is never blended with a match val
 
 // ── UI + authorization ───────────────────────────────────────────────
 
+// NOTE: the fee-override block now lives inside the Settings tab of the
+// match workspace. `matches.edit` is kept as a 301 alias to
+// `matches.settings`; we hit the settings route directly so these tests
+// assert the rendered form, not the redirect wrapper.
+
 it('shows editable fee overrides to a developer editing the match', function () {
     $dev = User::factory()->create();
     $dev->assignRole('developer');
 
     $this->actingAs($dev)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Fee Overrides')
         ->assertSee('Exco / Developer');
@@ -136,7 +141,7 @@ it('shows editable fee overrides to an exco member editing the match', function 
     $exco->assignRole('admin');
 
     $this->actingAs($exco)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Fee Overrides')
         ->assertSee('Exco / Developer');
@@ -148,7 +153,7 @@ it('shows read-only fee overrides to owner and admin', function () {
         $user->assignRole($role);
 
         $response = $this->actingAs($user)
-            ->get(route('matches.edit', $this->match))
+            ->get(route('matches.settings', $this->match))
             ->assertOk();
 
         $response->assertSee('Fee Overrides');
@@ -158,7 +163,7 @@ it('shows read-only fee overrides to owner and admin', function () {
 
 it('hides the fee overrides block entirely from the match director', function () {
     $this->actingAs($this->md)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertDontSee('Fee Overrides');
 });

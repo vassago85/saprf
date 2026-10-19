@@ -332,8 +332,11 @@ it('writes an audit log entry for every seeded row', function () {
 });
 
 it('shows the Add-a-Shooter panel on the match edit page for the MD', function () {
+    // The Add-a-Shooter panel now lives on the Settings tab of the
+    // match workspace; `matches.edit` is kept as a 301 alias so the
+    // old URL still resolves.
     $this->actingAs($this->md)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Add a Shooter')
         ->assertSee(route('matches.entries.store', $this->match), escape: false)
@@ -439,8 +442,10 @@ it('rejects a new-shooter POST with a name shorter than 2 characters', function 
 });
 
 it('lets the MD add themselves with one click from the edit page', function () {
+    // The one-click "Add me" tile now lives on the Settings tab of the
+    // match workspace; `matches.edit` remains as a 301 alias.
     $this->actingAs($this->md)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Shooting this match yourself?')
         ->assertSee('Add me');
@@ -458,7 +463,7 @@ it('lets the MD add themselves with one click from the edit page', function () {
         ->and($entry->division_id)->toBe($this->open->id);
 
     $this->actingAs($this->md)
-        ->get(route('matches.edit', $this->match))
+        ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee("You're entered in this match", false)
         ->assertDontSee('Shooting this match yourself?');

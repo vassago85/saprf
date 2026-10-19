@@ -149,10 +149,13 @@ it('shows unpaid rows as excluded with zeros', function () {
     expect($financials['excluded_entries']->pluck('id'))->toContain($unpaid->id)
         ->and($financials['md_net'])->toBeGreaterThan(0);
 
+    // The old `financials.match-report` route is now a 301 alias into the
+    // workspace Finances tab, which rebrands "Not Included in Payout" as
+    // the per-entry breakdown row flagged "Not included".
     $this->actingAs($this->finance)
-        ->get(route('financials.match-report', $this->match))
+        ->get(route('matches.finances', $this->match))
         ->assertOk()
-        ->assertSee('Not Included in Payout')
+        ->assertSee('Not included')
         ->assertSee('Still Pending');
 });
 

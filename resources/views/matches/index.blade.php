@@ -48,14 +48,21 @@
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">MD</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
                     <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
-                    <th class="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Actions</th>
                 </tr>
             </thead>
             <tbody>
+                {{-- Each row is a single link into the match workspace.
+                     Dropped the eye + pencil icon buttons on the right: the
+                     workspace tabs are the one place to view AND edit, so
+                     the duplicate affordances just created confusion. --}}
                 @forelse ($matches as $match)
-                    <tr class="border-b border-stone-100 hover:bg-stone-50 transition">
+                    <tr class="cursor-pointer border-b border-stone-100 transition hover:bg-stone-50"
+                        onclick="window.location.assign('{{ route('matches.overview', $match) }}')">
                         <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-stone-900">
-                            <a href="{{ route('matches.show', $match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $match->name }}</a>
+                            <a href="{{ route('matches.overview', $match) }}"
+                               wire:navigate
+                               onclick="event.stopPropagation()"
+                               class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $match->name }}</a>
                         </td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm">
                             @if ($match->match_type === 'PRS')
@@ -93,18 +100,10 @@
                                     @break
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-right text-sm">
-                            <div class="flex items-center justify-end gap-2">
-                                <flux:button href="{{ route('matches.show', $match) }}" variant="ghost" size="sm" icon="eye" />
-                                @can('update', $match)
-                                    <flux:button href="{{ route('matches.edit', $match) }}" variant="ghost" size="sm" icon="pencil-square" />
-                                @endcan
-                            </div>
-                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-5 py-12 text-center text-sm text-stone-500">No matches found.</td>
+                        <td colspan="8" class="px-5 py-12 text-center text-sm text-stone-500">No matches found.</td>
                     </tr>
                 @endforelse
             </tbody>

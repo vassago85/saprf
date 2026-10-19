@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MatchStage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -557,5 +558,201 @@ class MatchEvent extends Model
                 ->orWhere('venue_location', 'like', "%{$term}%")
                 ->orWhere('city', 'like', "%{$term}%");
         });
+    }
+
+    // ── Workspace stage + next-action ──
+
+    /**
+     * Current lifecycle stage of the match, derived from existing columns
+     * (no new persisted status). Signals used:
+     *
+     *   - Draft:          status === 'draft' or hasRequiredSetup() === false
+     *   - EntriesOpen:    published and (status === 'open' or registration
+     *                     not yet closed) and no score import exists
+     *   - EntriesClosed:  entries closed by date/status, no score import yet
+     *   - Scores:         at least one score import on the match
+     *   - Results:        a non-pending score import exists AND the match
+     *                     has scores (results visible to public)
+     *   - Payout:         match status === 'completed' or an MD payout row
+     *                     exists for this match
+     */
+    public function currentStage(): MatchStage
+    {
+        if ($this->status === 'completed' || $this->payouts()->where('payee_type', 'match_director')->exists()) {
+            return MatchStage::Payout;
+        }
+
+        $hasAnyScore = $this->scores()->exists();
+        $hasImport = $this->scoreImports()->exists();
+
+        if ($hasAnyScore) {
+            return MatchStage::Results;
+        }
+
+        if ($hasImport) {
+            return MatchStage::Scores;
+        }
+
+        if ($this->status === 'draft' || ! $this->hasRequiredSetup()) {
+            return MatchStage::Draft;
+        }
+
+        if ($this->status === 'cancelled') {
+            // Cancelled matches never reach payout; treat as closed for
+            // workspace purposes. The MatchStage enum does not model
+            // cancellation separately — status badge in the header
+            // conveys that detail.
+            return MatchStage::EntriesClosed;
+        }
+
+        $closed = $this->status === 'closed'
+            || ($this->registration_close_date && $this->registration_close_date->isPast())
+            || ($this->match_date && $this->match_date->isPast());
+
+        if ($closed) {
+            return MatchStage::EntriesClosed;
+        }
+
+        return MatchStage::EntriesOpen;
+    }
+
+    /**
+     * Describes the current stage, the full stepper, and the single
+     * recommended next action for the match workspace chrome.
+     *
+     * @return array{
+     *     stage: MatchStage,
+     *     steps: list<array{stage: MatchStage, label: string, detail: ?string, done: bool, current: bool}>,
+     *     next: ?array{label: string, detail: ?string, route: ?string, params: array<string, mixed>, variant: string}
+     * }
+     */
+    public function stageContext(): array
+    {
+        $current = $this->currentStage();
+        $currentOrder = $current->order();
+
+        $steps = [];
+        foreach (MatchStage::orderedSteps() as $stage) {
+            $steps[] = [
+                'stage' => $stage,
+                'label' => $stage->label(),
+                'detail' => $this->stageDetailLine($stage),
+                'done' => $stage->order() < $currentOrder,
+                'current' => $stage === $current,
+            ];
+        }
+
+        return [
+            'stage' => $current,
+            'steps' => $steps,
+            'next' => $this->nextActionFor($current),
+        ];
+    }
+
+    /**
+     * Short caption shown under each step name in the workspace stepper.
+     * Intentionally terse — the step label does the talking.
+     */
+    private function stageDetailLine(MatchStage $stage): ?string
+    {
+        return match ($stage) {
+            MatchStage::Draft => $this->hasRequiredSetup() ? 'Ready to publish' : 'Set up',
+            MatchStage::EntriesOpen => $this->registration_close_date
+                ? 'Closes '.$this->registration_close_date->format('j M')
+                : 'Taking entries',
+            MatchStage::EntriesClosed => $this->registration_close_date
+                ? 'Closed '.$this->registration_close_date->format('j M')
+                : 'Closed',
+            MatchStage::Scores => 'Imported '.optional($this->scoreImports()->latest('created_at')->value('created_at'))->format('j M'),
+            MatchStage::Results => 'Published',
+            MatchStage::Payout => $this->payoutStatusLine(),
+        };
+    }
+
+    private function payoutStatusLine(): string
+    {
+        $payout = $this->payouts()->where('payee_type', 'match_director')->latest('id')->first();
+        if (! $payout) {
+            return 'Awaiting request';
+        }
+
+        return match ($payout->status) {
+            'paid' => 'Paid R '.number_format((float) $payout->paid_amount, 2),
+            'partial' => 'Partially paid',
+            default => 'Pending R '.number_format((float) $payout->net_amount, 2),
+        };
+    }
+
+    /**
+     * Single-primary-action banner for the current stage. Returns null when
+     * nothing is actionable (e.g. the payout has been paid and no further MD
+     * step exists).
+     */
+    private function nextActionFor(MatchStage $stage): ?array
+    {
+        $payout = $this->payouts()->where('payee_type', 'match_director')->latest('id')->first();
+
+        return match ($stage) {
+            MatchStage::Draft => $this->hasRequiredSetup()
+                ? [
+                    'label' => 'Publish and open entries',
+                    'detail' => 'Fees are set. Flip the match status to Open from Settings.',
+                    'route' => 'matches.settings',
+                    'params' => ['match' => $this->id],
+                    'variant' => 'primary',
+                ]
+                : [
+                    'label' => 'Finish match setup',
+                    'detail' => 'Add a match director and entry fee before entries can open.',
+                    'route' => 'matches.settings',
+                    'params' => ['match' => $this->id],
+                    'variant' => 'primary',
+                ],
+            MatchStage::EntriesOpen => [
+                'label' => 'Close entries',
+                'detail' => 'Switch status to Closed when registrations are done. You can still edit entries from the Entries tab.',
+                'route' => 'matches.settings',
+                'params' => ['match' => $this->id],
+                'variant' => 'primary',
+            ],
+            MatchStage::EntriesClosed => [
+                'label' => 'Export entries for Impact',
+                'detail' => 'Download the CSV, score the match in Impact, then import results.',
+                'route' => 'matches.export-impact-scoring',
+                'params' => ['match' => $this->id],
+                'variant' => 'primary',
+            ],
+            MatchStage::Scores => [
+                'label' => 'Import scores from Impact',
+                'detail' => 'Upload the Impact export to publish results and finalise the payout.',
+                'route' => 'matches.scores',
+                'params' => ['match' => $this->id],
+                'variant' => 'primary',
+            ],
+            MatchStage::Results => $payout
+                ? [
+                    'label' => 'View payout statement',
+                    'detail' => 'Payout '.$payout->reference.' already requested.',
+                    'route' => 'matches.finances',
+                    'params' => ['match' => $this->id],
+                    'variant' => 'primary',
+                ]
+                : [
+                    'label' => 'Request MD payout',
+                    'detail' => 'Fill in your banking details and raise the payout statement.',
+                    'route' => 'matches.request-payout',
+                    'params' => ['match' => $this->id],
+                    'variant' => 'primary',
+                ],
+            MatchStage::Payout => $payout
+                ? [
+                    'label' => 'View payout statement',
+                    'detail' => $this->payoutStatusLine().' · '.$payout->reference,
+                    'route' => 'matches.finances',
+                    'params' => ['match' => $this->id],
+                    'variant' => $payout->status === 'paid' ? 'ghost' : 'primary',
+                ]
+                : null,
+        };
     }
 }

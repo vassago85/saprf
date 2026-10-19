@@ -611,13 +611,19 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/settings', [MatchWorkspaceController::class, 'settings'])->name('matches.settings');
         });
 
-    // Legacy aliases. The in-app code mostly uses `matches.show` and
-    // `matches.edit`; keep them pointing at the workspace so saved
-    // bookmarks, notifications, and audit entries land on the right
-    // tab instead of 404-ing.
-    Route::get('/matches/{match}', [MatchWorkspaceController::class, 'overview'])
-        ->name('matches.show')
-        ->whereNumber('match');
+    // Legacy name alias. `matches.show` is referenced from a lot of
+    // places (notifications, audit entries, bookmarks, test suite). To
+    // keep every `route('matches.show', $match)` call pointing at the
+    // workspace overview, we re-expose the same URL under a second
+    // name — Laravel deduplicates routes by URL+method, so we point
+    // the alias at a sibling path (`/matches/{match}/`) and let the
+    // 301 redirect carry the viewer home.
+    //
+    // `matches.edit` is likewise kept as a 301 alias so bookmarks and
+    // the "Edit match details" item in the sidebar overflow menu
+    // land in the settings tab.
+    Route::redirect('/matches/{match}/show', '/matches/{match}', 301)
+        ->name('matches.show');
     Route::redirect('/matches/{match}/edit', '/matches/{match}/settings', 301)
         ->name('matches.edit');
 
@@ -644,9 +650,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/matches/{match}/expenses', [MatchExpenseController::class, 'store'])->name('match-expenses.store');
         Route::put('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'update'])->name('match-expenses.update');
         Route::delete('/matches/{match}/expenses/{expense}', [MatchExpenseController::class, 'destroy'])->name('match-expenses.destroy');
-        // Score-upload success page offers "complete match & request MD payout"
-        // in a single click. Authorization is re-checked in the controller via
-        // MatchPolicy::update so an MD can only complete their own match.
+        // "Request MD payout" flow: GET renders the form so the MD can enter
+        // banking details and confirm the net amount, POST completes the match
+        // + creates the pending payout record. Authorization is re-checked in
+        // the controller via MatchPolicy::update so an MD can only complete
+        // their own match.
+        Route::get('/matches/{match}/request-payout', [MatchController::class, 'showRequestPayout'])
+            ->name('matches.request-payout');
         Route::post('/matches/{match}/complete-and-request-payout', [MatchController::class, 'completeAndRequestPayout'])
             ->name('matches.complete-and-request-payout');
         Route::get('/score-imports/template', [ScoreImportController::class, 'template'])->name('score-imports.template');

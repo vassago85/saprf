@@ -624,8 +624,10 @@ it('exposes Impact import on the match page and shows the audit after import', f
         ->assertSee('Import from Impact')
         ->assertSee('Assign later');
 
+    // The "Import from Impact" entry point moved from the old show page
+    // onto the new Scores tab of the match workspace.
     $this->actingAs($this->admin)
-        ->get(route('matches.show', $this->match))
+        ->get(route('matches.scores', $this->match))
         ->assertOk()
         ->assertSee('Import from Impact');
 

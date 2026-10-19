@@ -1,0 +1,313 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\AnnouncementCategory;
+use App\Models\Announcement;
+use App\Models\AuditLog;
+use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
+use App\Models\Payout;
+use App\Models\Province;
+use App\Models\Score;
+use App\Models\ScoreImport;
+use App\Models\Venue;
+use App\Services\FinancialService;
+use App\Services\MatchFinanceService;
+use App\Services\SettingsService;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+/**
+ * One match. One URL per tab. One controller.
+ *
+ * This replaces the pattern where "manage a match" meant hopping between
+ * `matches.show`, `matches.edit`, `registrations.index?match_id=…`,
+ * `score-imports.index?match_id=…`, `scores.index`, `financials.match-report`
+ * and `matches.announcements.create`. Everything the MD does for a single
+ * match now lives on one of six tabs inside this workspace.
+ *
+ * Every tab shares the same chrome partial — header + stage bar + next
+ * action banner + tab list — so navigation feels like a single page even
+ * though each tab is a real deep-linkable route.
+ */
+class MatchWorkspaceController extends Controller
+{
+    public function __construct(
+        private readonly MatchFinanceService $matchFinance,
+        private readonly FinancialService $financials,
+        private readonly SettingsService $settings,
+    ) {}
+
+    // ── Overview ──
+
+    public function overview(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('view', $match);
+
+        $match->load(['province', 'creator']);
+
+        $counts = $this->matchFinance->entryCounts($match);
+        $money = $this->matchFinance->matchMoney($match);
+        $resultsPublished = $match->scores()->exists();
+        $scoresCount = $match->scores()->count();
+        $payout = $match->payouts()->where('payee_type', 'match_director')->latest('id')->first();
+
+        $recentActivity = AuditLog::query()
+            ->where(function ($query) use ($match) {
+                $query->where(function ($q) use ($match) {
+                    $q->where('entity_type', 'MatchEvent')
+                        ->where('entity_id', $match->id);
+                })->orWhere(function ($q) use ($match) {
+                    $q->where('entity_type', 'match')
+                        ->where('entity_id', $match->id);
+                })->orWhere(function ($q) use ($match) {
+                    $q->where('entity_type', 'MatchAnnouncement')
+                        ->whereIn('entity_id', $match->announcements()->pluck('id'));
+                })->orWhere(function ($q) use ($match) {
+                    $q->where('entity_type', 'payout')
+                        ->whereIn('entity_id', $match->payouts()->pluck('id'));
+                });
+            })
+            ->with('user:id,name')
+            ->latest('created_at')
+            ->limit(6)
+            ->get();
+
+        return view('matches.workspace.overview', $this->workspaceData($match, 'overview', [
+            'counts' => $counts,
+            'money' => $money,
+            'resultsPublished' => $resultsPublished,
+            'scoresCount' => $scoresCount,
+            'payout' => $payout,
+            'recentActivity' => $recentActivity,
+        ]));
+    }
+
+    // ── Entries ──
+
+    public function entries(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('view', $match);
+
+        $counts = $this->matchFinance->entryCounts($match);
+
+        $query = MatchRegistration::query()
+            ->with(['user:id,name,email', 'division:id,name'])
+            ->where('match_id', $match->id)
+            ->orderByRaw('CASE registration_status
+                WHEN "pending" THEN 1
+                WHEN "confirmed" THEN 2
+                WHEN "waitlisted" THEN 3
+                WHEN "cancelled" THEN 4
+                ELSE 5 END')
+            ->orderBy('registered_at');
+
+        if ($status = $request->input('status')) {
+            if ($status === 'paid') {
+                $query->where('payment_status', 'paid');
+            } elseif ($status === 'pending') {
+                $query->whereNotIn('payment_status', ['paid', 'waived'])
+                    ->where('fee_amount', '>', 0);
+            } elseif ($status === 'waitlist') {
+                $query->where('registration_status', 'waitlisted');
+            } elseif ($status === 'cancelled') {
+                $query->where('registration_status', 'cancelled');
+            }
+        }
+
+        if ($category = $request->input('category')) {
+            $query->where('membership_fee_category', $category);
+        }
+
+        if ($search = trim((string) $request->input('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('shooter_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $entries = $query->paginate(30)->withQueryString();
+
+        return view('matches.workspace.entries', $this->workspaceData($match, 'entries', [
+            'entries' => $entries,
+            'counts' => $counts,
+            'filters' => [
+                'status' => $request->input('status'),
+                'category' => $request->input('category'),
+                'search' => $request->input('search'),
+            ],
+        ]));
+    }
+
+    // ── Scores ──
+
+    public function scores(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('view', $match);
+
+        $imports = ScoreImport::query()
+            ->where('match_id', $match->id)
+            ->with('uploader:id,name')
+            ->withCount('scores')
+            ->latest('created_at')
+            ->get();
+
+        $scoresCount = Score::query()->where('match_id', $match->id)->count();
+        $hasAnyScores = $scoresCount > 0;
+
+        $counts = $this->matchFinance->entryCounts($match);
+
+        $checklist = [
+            'entries_exported' => $counts['counted'] > 0,
+            'scores_imported' => $imports->isNotEmpty(),
+            'all_shooters_matched' => $hasAnyScores && Score::query()
+                ->where('match_id', $match->id)
+                ->whereNull('user_id')
+                ->doesntExist(),
+            'results_published' => $hasAnyScores,
+        ];
+
+        return view('matches.workspace.scores', $this->workspaceData($match, 'scores', [
+            'imports' => $imports,
+            'scoresCount' => $scoresCount,
+            'hasAnyScores' => $hasAnyScores,
+            'counts' => $counts,
+            'checklist' => $checklist,
+        ]));
+    }
+
+    // ── Finances ──
+
+    public function finances(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('view', $match);
+
+        $user = $request->user();
+        $viewerIsMatchDirector = $user->id === $match->created_by;
+
+        $match->load(['registrations.user:id,name', 'registrations.division:id,name', 'expenses.creator:id,name', 'user:id,name']);
+
+        $money = $this->matchFinance->matchMoney($match);
+        $counts = $this->matchFinance->entryCounts($match);
+
+        $payout = Payout::query()
+            ->where('match_id', $match->id)
+            ->where('payee_type', 'match_director')
+            ->latest('id')
+            ->first();
+
+        $surchargePerShooter = (float) $this->settings->get('non_member_surcharge', 0);
+        $surchargedEntryCount = $money['paid_entries']
+            ->where('membership_fee_category', 'non_member')
+            ->count();
+
+        return view('matches.workspace.finances', $this->workspaceData($match, 'finances', [
+            'money' => $money,
+            'counts' => $counts,
+            'payout' => $payout,
+            'viewerIsMatchDirector' => $viewerIsMatchDirector,
+            'expenses' => $match->expenses->sortByDesc('created_at'),
+            'surchargePerShooter' => $surchargePerShooter,
+            'surchargedEntryCount' => $surchargedEntryCount,
+        ]));
+    }
+
+    // ── Messages ──
+
+    public function messages(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('view', $match);
+
+        $counts = $this->matchFinance->entryCounts($match);
+
+        // Match bulletins now live in the unified `announcements` table
+        // (see MatchAnnouncementController). The legacy
+        // `MatchEvent::announcements()` relation still points at the
+        // older `match_announcements` table — we deliberately bypass
+        // it here so recent sends from the current composer surface.
+        $announcements = Announcement::query()
+            ->with('creator:id,name')
+            ->where('match_id', $match->id)
+            ->where('category', AnnouncementCategory::MatchBulletin->value)
+            ->orderByDesc('sent_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('matches.workspace.messages', $this->workspaceData($match, 'messages', [
+            'counts' => $counts,
+            'announcements' => $announcements,
+        ]));
+    }
+
+    // ── Settings ──
+
+    public function settings(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('update', $match);
+
+        $match->load(['divisions', 'province', 'creator']);
+
+        $counts = $this->matchFinance->entryCounts($match);
+
+        $provinces = Province::query()->orderBy('name')->get();
+        $venues = Venue::query()->active()->with('province')->orderBy('name')->get();
+        $settings = $this->settings->all();
+
+        $selfEntry = $match->userRegistration($request->user());
+        $availableDivisionIds = $match->availableDivisions()->pluck('id');
+        $selfDefaultDivisionId = $request->user()->matchRegistrations()
+            ->whereIn('division_id', $availableDivisionIds)
+            ->latest('registered_at')
+            ->value('division_id') ?? $availableDivisionIds->first();
+
+        return view('matches.workspace.settings', $this->workspaceData($match, 'settings', [
+            'counts' => $counts,
+            'lockedByPaidEntries' => $counts['paid'] > 0,
+            'provinces' => $provinces,
+            'venues' => $venues,
+            'settings' => $settings,
+            'selfEntry' => $selfEntry,
+            'selfDefaultDivisionId' => $selfDefaultDivisionId,
+        ]));
+    }
+
+    // ── Shared workspace data for the chrome partial ──
+
+    /**
+     * Common view data every tab needs: the match itself, which tab is
+     * active, counts (so the tab bar can show "Entries 43"), and the
+     * stage context (steps + next-action banner).
+     *
+     * @param  array<string, mixed>  $extra  tab-specific view data
+     * @return array<string, mixed>
+     */
+    private function workspaceData(MatchEvent $match, string $activeTab, array $extra = []): array
+    {
+        $counts = $extra['counts'] ?? $this->matchFinance->entryCounts($match);
+
+        return array_merge([
+            'match' => $match,
+            'activeTab' => $activeTab,
+            'stageContext' => $match->stageContext(),
+            'counts' => $counts,
+            'tabs' => $this->tabsFor($match, $counts),
+        ], $extra);
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @return list<array{key: string, label: string, route: string, count: ?int}>
+     */
+    private function tabsFor(MatchEvent $match, array $counts): array
+    {
+        return [
+            ['key' => 'overview', 'label' => 'Overview', 'route' => 'matches.overview', 'count' => null],
+            ['key' => 'entries', 'label' => 'Entries', 'route' => 'matches.entries', 'count' => $counts['counted'] ?? null],
+            ['key' => 'scores', 'label' => 'Scores', 'route' => 'matches.scores', 'count' => null],
+            ['key' => 'finances', 'label' => 'Finances', 'route' => 'matches.finances', 'count' => null],
+            ['key' => 'messages', 'label' => 'Messages', 'route' => 'matches.messages', 'count' => null],
+            ['key' => 'settings', 'label' => 'Settings', 'route' => 'matches.settings', 'count' => null],
+        ];
+    }
+}

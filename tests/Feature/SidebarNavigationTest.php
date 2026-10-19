@@ -374,8 +374,19 @@ it('keeps match-director admin items limited to match management', function () {
 
     $labels = sidebarLabels($director, 'admin');
 
+    // Match directors run the match workspace from inside each match; they
+    // do not need the cross-match staff lists (Registrations, Score imports,
+    // Scores, Venues, Standings, Events) that admins/exco use for the whole
+    // federation. Keep the item we DO expect (`Matches`, `My payouts`) and
+    // explicitly assert the removed ones stay off their sidebar.
     expect($labels)->toContain('Matches')
-        ->and($labels)->toContain('Score imports')
+        ->and($labels)->toContain('My payouts')
+        ->and($labels)->not->toContain('Score imports')
+        ->and($labels)->not->toContain('Registrations')
+        ->and($labels)->not->toContain('Scores')
+        ->and($labels)->not->toContain('Venues')
+        ->and($labels)->not->toContain('Standings')
+        ->and($labels)->not->toContain('Events')
         ->and($labels)->not->toContain('Memberships')
         ->and($labels)->not->toContain('Users')
         ->and($labels)->not->toContain('My rifles');
