@@ -340,7 +340,7 @@
                 <tbody>
                     @foreach ($scores as $score)
                         <tr class="border-b border-stone-100 hover:bg-stone-50 transition">
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->user->name ?? $score->shooter_name ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->display_name }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $score->division?->name ?? '—' }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-sm text-right text-stone-900 font-mono font-medium">{{ $score->raw_score }}</td>
                             <td class="whitespace-nowrap px-5 py-4 text-sm text-right text-stone-700">{{ $score->placement ?? '—' }}</td>

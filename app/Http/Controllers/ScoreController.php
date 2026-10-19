@@ -232,6 +232,41 @@ class ScoreController extends Controller
             ->with('success', "Saved {$touched} score entry".($touched === 1 ? '' : 'ies').".");
     }
 
+    /**
+     * Change the name shown on the scoreboard without changing who the
+     * entry is linked to (e.g. Kaden on results, still linked to Karen's entry).
+     */
+    public function updateDisplayName(Request $request, Score $score): RedirectResponse
+    {
+        $this->authorize('confirmParticipation', $score);
+
+        $validated = $request->validate([
+            'shooter_name' => ['required', 'string', 'min:2', 'max:100'],
+        ]);
+
+        $name = trim($validated['shooter_name']);
+        $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
+        $entryName = $score->user?->name;
+        $meta['impact'] = array_merge($meta['impact'] ?? [], [
+            'impact_name' => $name,
+            'kept_impact_name' => $entryName !== null && $entryName !== $name,
+            'linked_entry_name' => $entryName ?? ($meta['impact']['linked_entry_name'] ?? null),
+            'display_name_corrected_at' => now()->toIso8601String(),
+            'display_name_corrected_by' => $request->user()->id,
+        ]);
+
+        $score->update([
+            'shooter_name' => $name,
+            'raw_meta' => $meta,
+        ]);
+
+        return back()->with(
+            'success',
+            'Scoreboard name updated to '.$name
+            .($entryName && $entryName !== $name ? ' (still linked to entry '.$entryName.').' : '.')
+        );
+    }
+
     public function override(Request $request, Score $score): RedirectResponse
     {
         $this->authorize('override', $score);

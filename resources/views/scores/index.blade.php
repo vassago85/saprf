@@ -47,7 +47,7 @@
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">
                             <a href="{{ route('matches.show', $score->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $score->match->name }}</a>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->user->name ?? $score->shooter_name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->display_name }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $score->division?->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-right font-mono font-medium text-stone-900">{{ impacts($score->raw_score) }}</td>
                         <td class="whitespace-nowrap px-5 py-4 text-sm text-right text-stone-700">{{ $score->placement ?? '—' }}</td>

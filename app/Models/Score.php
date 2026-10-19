@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -88,6 +89,23 @@ class Score extends Model
                     $score->provincial_raw_score = $day1;
                 }
             }
+        });
+    }
+
+    /**
+     * Name shown on the scoreboard / results. Prefers shooter_name so an
+     * Impact spelling (e.g. Kaden) can stay even when linked to an entry
+     * booked under a different label (e.g. Karen).
+     */
+    protected function displayName(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $scoreboard = trim((string) ($this->shooter_name ?? ''));
+            if ($scoreboard !== '') {
+                return $scoreboard;
+            }
+
+            return $this->user?->name ?? '—';
         });
     }
 

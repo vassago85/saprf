@@ -637,6 +637,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             ->name('score-imports.scores.mark-absent');
         Route::get('/scores', [ScoreController::class, 'index'])->name('scores.index');
         Route::get('/scores/{score}', [ScoreController::class, 'show'])->name('scores.show');
+        Route::patch('/scores/{score}/display-name', [ScoreController::class, 'updateDisplayName'])
+            ->name('scores.display-name');
         Route::get('/matches/{match}/scores/entry', [ScoreController::class, 'entry'])->name('scores.entry');
         Route::post('/matches/{match}/scores/entry', [ScoreController::class, 'storeEntry'])->name('scores.entry.store');
         // Inline "remove this zero-score shooter" action used from the public

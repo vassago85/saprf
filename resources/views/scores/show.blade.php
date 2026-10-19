@@ -18,8 +18,11 @@
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</dt>
-                    <dd class="mt-1.5 text-sm text-stone-900">{{ $score->user->name ?? $score->shooter_name ?? '—' }}</dd>
+                    <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Scoreboard name</dt>
+                    <dd class="mt-1.5 text-sm font-semibold text-stone-900">{{ $score->display_name }}</dd>
+                    @if ($score->user && $score->user->name !== $score->display_name)
+                        <p class="mt-1 text-xs text-stone-500">Linked entry account: {{ $score->user->name }}</p>
+                    @endif
                 </div>
                 <div>
                     <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</dt>
@@ -60,6 +63,26 @@
                 @endif
             </dl>
         </div>
+
+        @can('confirmParticipation', $score)
+            <div class="rounded-xl border border-violet-200 bg-violet-50/40 shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-stone-900 mb-1">Correct scoreboard name</h2>
+                <p class="text-sm text-stone-600 mb-4">Use this when Impact had the right spelling (e.g. Kaden) but the entry was booked under another name (e.g. Karen). The entry link and division stay the same — only the name on results changes.</p>
+                <form method="POST" action="{{ route('scores.display-name', $score) }}" class="flex flex-wrap items-end gap-3">
+                    @csrf
+                    @method('PATCH')
+                    <div class="min-w-[14rem] flex-1">
+                        <label for="shooter_name" class="block text-sm font-medium text-stone-700 mb-1">Name on results</label>
+                        <input type="text" name="shooter_name" id="shooter_name" required minlength="2" maxlength="100"
+                               value="{{ old('shooter_name', $score->shooter_name) }}"
+                               class="block w-full rounded-lg border border-violet-300 text-sm focus:ring-violet-500 focus:border-violet-500">
+                    </div>
+                    <button type="submit" class="inline-flex items-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 transition">
+                        Save name
+                    </button>
+                </form>
+            </div>
+        @endcan
 
         @role('owner|admin')
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
