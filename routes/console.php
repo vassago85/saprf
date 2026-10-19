@@ -4,6 +4,7 @@ use App\Jobs\AutoCompletePastMatchesJob;
 use App\Jobs\DispatchScheduledAnnouncementsJob;
 use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
+use App\Jobs\NotifyRegistrationClosedPendingJob;
 use App\Jobs\ResolvePendingScoresJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -20,6 +21,10 @@ Schedule::job(new ExpireMembershipsJob)->dailyAt('02:00');
 // so a lapsed member's status is settled before their last match's scores are
 // finalised (affects the counts_for_season flag on shooter logs).
 Schedule::job(new AutoCompletePastMatchesJob)->dailyAt('02:15');
+
+// After registration_close_date has passed: email MD the pending/unpaid
+// list and each of those shooters with pay-or-withdraw options.
+Schedule::job(new NotifyRegistrationClosedPendingJob)->dailyAt('06:00');
 
 // Pick up any announcements the composer scheduled for a future time
 // and push them into the resolve/dispatch pipeline. Cheap query, so we

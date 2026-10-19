@@ -63,4 +63,12 @@ class ScorePolicy
 
         return $score->import?->uploaded_by === $user->id;
     }
+
+    /**
+     * Link an Impact "assign later" stub score to a real registration.
+     */
+    public function linkMember(User $user, Score $score): bool
+    {
+        return $this->confirmParticipation($user, $score);
+    }
 }

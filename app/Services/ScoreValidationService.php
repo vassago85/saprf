@@ -48,6 +48,19 @@ class ScoreValidationService
             return $score;
         }
 
+        // Impact "assign later" stubs: score is stored, but must not count for
+        // standings / season log until an MD links it to a real registration.
+        $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
+        if (! empty($meta['impact']['needs_member_link'])) {
+            $score->status = 'invalid';
+            $score->is_member = false;
+            $score->validation_reason = 'Awaiting member assignment after Impact import.';
+            $score->save();
+            $this->syncOfficialLog($score);
+
+            return $score;
+        }
+
         // Match-level opt-out from the membership check. Used for imported
         // Day-1 provincial extracts and similar events where the organiser
         // ruled that every shooter counts regardless of membership state on

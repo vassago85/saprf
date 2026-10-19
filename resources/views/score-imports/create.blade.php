@@ -10,16 +10,23 @@
          x-cloak>
 
         <div>
-            <a href="{{ route('score-imports.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; All Imports</a>
-            <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">Upload Scores</h1>
-            <p class="mt-1 text-sm text-stone-500">Pull live from Impact Scoring, or upload a CSV. Standings recalculate automatically.</p>
+            @if ($lockedMatch ?? null)
+                <a href="{{ route('matches.show', $lockedMatch) }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; {{ $lockedMatch->name }}</a>
+                <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">Import from Impact</h1>
+                <p class="mt-1 text-sm text-stone-500">Live pull for this match. Confirm fuzzy names, or choose <span class="font-medium text-stone-700">Assign later</span> when you need to check first.</p>
+            @else
+                <a href="{{ route('score-imports.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; All Imports</a>
+                <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">Upload Scores</h1>
+                <p class="mt-1 text-sm text-stone-500">Pull live from Impact Scoring, or upload a CSV. Standings recalculate automatically.</p>
+            @endif
         </div>
 
         @if (session('error'))
             <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
         @endif
 
-        {{-- Mode tabs --}}
+        {{-- Mode tabs (CSV hidden when launched from a match Impact button) --}}
+        @unless ($lockedMatch ?? null)
         <div class="flex gap-1 rounded-2xl border border-stone-200 bg-stone-100/80 p-1">
             <button type="button" @click="mode = 'impact'"
                     :class="mode === 'impact' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'"
@@ -32,6 +39,7 @@
                 CSV upload
             </button>
         </div>
+        @endunless
 
         {{-- ═══════════════ IMPACT LIVE ═══════════════ --}}
         <div x-show="mode === 'impact'" class="space-y-5">
@@ -46,8 +54,10 @@
                             <li>Open the match on <a href="https://www.impactscoring.net/matches" target="_blank" class="font-medium text-emerald-700 hover:underline">impactscoring.net</a> → Results.</li>
                             <li>Copy the URL (or just the match id, e.g. <code class="rounded bg-white/80 px-1 text-xs">11086</code>).</li>
                             <li>Select this SAPRF match, paste the URL, preview, confirm any fuzzy name matches, then import.</li>
+                            <li>Not sure who someone is? Choose <strong>Assign later</strong> — the score imports as a stub (doesn’t count) until you link a member.</li>
                             <li>Registration divisions win (Ladies / Junior / Senior / Factory). Impact “Production” maps to Factory.</li>
                             <li>Wrong Impact total? Edit the hits on the preview table before import — it’s stored as “adjusted from Impact”.</li>
+                            <li>After import you’ll get a full audit: unpaid, walk-ins, assign-later, skipped, non-members.</li>
                         </ol>
                     </div>
                 </div>
@@ -72,15 +82,23 @@
                 <div class="rounded-2xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">SAPRF match <span class="text-red-500">*</span></label>
-                        <select name="match_id" required x-model="matchId" @change="resetPreview()"
-                                class="block w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
-                            <option value="">Select match…</option>
-                            @foreach ($matches as $match)
-                                <option value="{{ $match->id }}">
-                                    {{ $match->name }} ({{ $match->match_date->format('d M Y') }}{{ $match->isMultiDay() ? ' – 2-day' : '' }})
-                                </option>
-                            @endforeach
-                        </select>
+                        @if ($lockedMatch ?? null)
+                            <input type="hidden" name="match_id" value="{{ $lockedMatch->id }}">
+                            <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+                                <p class="font-semibold text-stone-900">{{ $lockedMatch->name }}</p>
+                                <p class="text-xs text-stone-500 mt-0.5">{{ $lockedMatch->match_date?->format('d M Y') }}{{ $lockedMatch->isMultiDay() ? ' · 2-day' : '' }}</p>
+                            </div>
+                        @else
+                            <select name="match_id" required x-model="matchId" @change="resetPreview()"
+                                    class="block w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                                <option value="">Select match…</option>
+                                @foreach ($matches as $match)
+                                    <option value="{{ $match->id }}">
+                                        {{ $match->name }} ({{ $match->match_date->format('d M Y') }}{{ $match->isMultiDay() ? ' – 2-day' : '' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
 
                     <div>
@@ -250,22 +268,31 @@
                                                         <template x-for="c in row.fuzzy_candidates" :key="c.key">
                                                             <option :value="c.key" x-text="c.name+' ('+c.score+'%)'"></option>
                                                         </template>
+                                                        <option value="assign_later">Assign later (import stub)</option>
                                                         <option value="skip">Skip this shooter</option>
                                                     </select>
                                                 </template>
                                                 <template x-if="row.match_status === 'unmatched'">
-                                                    <span class="text-xs text-stone-500" x-text="row.action === 'walk_in_member' ? 'Member walk-in' : 'Non-member (no log)'"></span>
+                                                    <select class="w-full rounded-lg border border-violet-200 bg-violet-50 text-xs py-1.5"
+                                                            :value="links[row.impact_shooter_id] || 'auto'"
+                                                            @change="links[row.impact_shooter_id] = $event.target.value">
+                                                        <option value="auto" x-text="row.action === 'walk_in_member' ? 'Auto: member walk-in' : 'Auto: non-member stub'"></option>
+                                                        <option value="assign_later">Assign later (import stub)</option>
+                                                        <option value="skip">Skip this shooter</option>
+                                                    </select>
                                                 </template>
                                             </td>
                                             <td class="px-4 py-3">
                                                 <span class="text-[11px] font-medium rounded-full px-2 py-0.5"
                                                       :class="{
-                                                        'bg-emerald-100 text-emerald-800': row.action === 'import',
-                                                        'bg-amber-100 text-amber-900': row.action === 'import_and_collect',
-                                                        'bg-sky-100 text-sky-900': row.action === 'walk_in_member' || row.action === 'walk_in_lapsed',
-                                                        'bg-stone-100 text-stone-600': row.action === 'non_member_no_log',
+                                                        'bg-emerald-100 text-emerald-800': row.action === 'import' && links[row.impact_shooter_id] !== 'assign_later',
+                                                        'bg-amber-100 text-amber-900': row.action === 'import_and_collect' && links[row.impact_shooter_id] !== 'assign_later',
+                                                        'bg-sky-100 text-sky-900': (row.action === 'walk_in_member' || row.action === 'walk_in_lapsed') && links[row.impact_shooter_id] !== 'assign_later' && links[row.impact_shooter_id] !== 'skip',
+                                                        'bg-stone-100 text-stone-600': row.action === 'non_member_no_log' && links[row.impact_shooter_id] !== 'assign_later' && links[row.impact_shooter_id] !== 'skip',
+                                                        'bg-violet-100 text-violet-900': links[row.impact_shooter_id] === 'assign_later',
+                                                        'bg-stone-200 text-stone-500': links[row.impact_shooter_id] === 'skip',
                                                       }"
-                                                      x-text="actionLabel(row.action)"></span>
+                                                      x-text="links[row.impact_shooter_id] === 'assign_later' ? 'Assign later' : (links[row.impact_shooter_id] === 'skip' ? 'Skip' : actionLabel(row.action))"></span>
                                             </td>
                                         </tr>
                                     </template>
@@ -404,7 +431,8 @@
                 get unconfirmedFuzzy() {
                     if (!this.preview?.shooters) return 0;
                     return this.preview.shooters.filter(r =>
-                        r.match_status === 'fuzzy' && !this.links[r.impact_shooter_id]
+                        r.match_status === 'fuzzy'
+                        && !this.links[r.impact_shooter_id]
                     ).length;
                 },
                 get canImport() {

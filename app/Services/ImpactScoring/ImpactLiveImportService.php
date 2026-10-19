@@ -183,7 +183,7 @@ class ImpactLiveImportService
      *   links?:array<string,string>,
      *   score_overrides?:array<string,array{impacts?:float|int|string,day1_impacts?:float|int|string,note?:string}>,
      * }  $options
-     *   links map impact_shooter_id => "reg:{id}" | "skip" | "auto"
+     *   links map impact_shooter_id => "reg:{id}" | "skip" | "assign_later" | "auto"
      *   score_overrides map impact_shooter_id => adjusted totals (MD override of Impact)
      */
     public function import(MatchEvent $selectedMatch, User $actor, array $options): ScoreImport
@@ -245,28 +245,32 @@ class ImpactLiveImportService
                 'notes' => implode(' ', $notes),
             ]);
 
-            $collectionRows = [];
+            $auditRows = [];
             $count = 0;
 
             foreach ($preview['shooters'] as $row) {
                 $impactShooterId = (string) $row['impact_shooter_id'];
                 $link = $links[$impactShooterId] ?? ($links[(int) $impactShooterId] ?? null);
 
-                // Fuzzy without confirmation → skip
+                // Fuzzy without confirmation → skip (audit)
                 if ($row['match_status'] === 'fuzzy' && ($link === null || $link === '' || $link === 'auto')) {
+                    $auditRows[] = $this->auditRow($row, 'skipped_fuzzy');
                     continue;
                 }
                 if ($link === 'skip') {
+                    $auditRows[] = $this->auditRow($row, 'skipped');
                     continue;
                 }
 
+                $assignLater = $link === 'assign_later';
+
                 $registration = null;
-                if (is_string($link) && str_starts_with($link, 'reg:')) {
+                if (! $assignLater && is_string($link) && str_starts_with($link, 'reg:')) {
                     $registration = MatchRegistration::query()
                         ->where('match_id', $selectedMatch->id)
                         ->where('id', (int) substr($link, 4))
                         ->first();
-                } elseif ($row['match_status'] === 'exact' && $row['registration_id']) {
+                } elseif (! $assignLater && $row['match_status'] === 'exact' && $row['registration_id']) {
                     $registration = MatchRegistration::query()->find($row['registration_id']);
                 }
 
@@ -289,8 +293,17 @@ class ImpactLiveImportService
                 }
 
                 $rawScore = $scoreScope === 'day1' ? $adjustedDay1 : $adjustedTotal;
+                $needsMemberLink = false;
+                $auditReason = null;
 
-                if ($registration) {
+                if ($assignLater) {
+                    $stub = $this->createAssignLaterStub($row['impact_name']);
+                    $userId = $stub->id;
+                    $divisionId = $this->divisionIdFromSlug($row['division_slug'] ?: 'open');
+                    $shooterName = $row['impact_name'];
+                    $needsMemberLink = true;
+                    $auditReason = 'assign_later';
+                } elseif ($registration) {
                     $userId = $registration->user_id;
                     $divisionId = $registration->division_id
                         ?: $this->divisionIdFromSlug($row['division_slug']);
@@ -298,15 +311,16 @@ class ImpactLiveImportService
 
                     if ($this->needsFeeCollection($registration)) {
                         $this->applyMdFeeDeduction($registration, $actor, 'Impact import — unpaid/pending entry; MD to collect from shooter.');
-                        $collectionRows[] = [
-                            'name' => $shooterName,
-                            'reason' => 'pending_unpaid',
+                        $auditReason = 'pending_unpaid';
+                        $auditRows[] = $this->auditRow($row, 'pending_unpaid', [
+                            'registration_id' => $registration->id,
                             'registration_status' => $registration->registration_status,
                             'payment_status' => $registration->payment_status,
                             'fee_amount' => (float) $registration->fee_amount,
                             'saprf_fee' => (float) $registration->saprf_fee,
                             'platform_fee' => (float) $registration->platform_fee,
-                        ];
+                            'linked_name' => $shooterName,
+                        ]);
                     }
                 } else {
                     // Unmatched: member walk-in vs non-member stub
@@ -319,8 +333,23 @@ class ImpactLiveImportService
                     $divisionId = $resolved['division_id'];
                     $shooterName = $row['impact_name'];
                     if ($resolved['collection'] ?? null) {
-                        $collectionRows[] = $resolved['collection'];
+                        $auditReason = 'walk_in_member';
+                        $auditRows[] = array_merge(
+                            $this->auditRow($row, 'walk_in_member'),
+                            $resolved['collection'],
+                        );
+                    } else {
+                        $auditReason = 'non_member_stub';
+                        $auditRows[] = $this->auditRow($row, 'non_member_stub', [
+                            'user_id' => $userId,
+                        ]);
                     }
+                }
+
+                if ($assignLater) {
+                    $auditRows[] = $this->auditRow($row, 'assign_later', [
+                        'user_id' => $userId,
+                    ]);
                 }
 
                 $score = new Score();
@@ -339,6 +368,7 @@ class ImpactLiveImportService
                         'impact' => [
                             'match_id' => $preview['impact_match_id'],
                             'shooter_id' => $row['impact_shooter_id'],
+                            'impact_name' => $row['impact_name'],
                             'impact_division' => $row['impact_division'],
                             'division_source' => $row['division_source'],
                             'score_scope' => $scoreScope,
@@ -350,6 +380,8 @@ class ImpactLiveImportService
                             'adjusted_total_impacts' => $adjustedTotal,
                             'adjusted_day1_impacts' => $adjustedDay1,
                             'adjustment_note' => $wasAdjusted ? $adjustNote : null,
+                            'needs_member_link' => $needsMemberLink,
+                            'audit_reason' => $auditReason,
                         ],
                     ],
                 ]);
@@ -358,14 +390,29 @@ class ImpactLiveImportService
                 $count++;
             }
 
+            $auditSummary = $this->summarizeAudit($auditRows);
             $summary = "Imported {$count} shooters from Impact.";
-            if ($collectionRows !== []) {
-                $summary .= ' Collection report: '.count($collectionRows).' shooter(s) need MD follow-up.';
+            if ($auditRows !== []) {
+                $summary .= ' Audit: '.count($auditRows).' follow-up row(s)'
+                    .' (unpaid '.$auditSummary['pending_unpaid']
+                    .', walk-ins '.$auditSummary['walk_in_member']
+                    .', assign-later '.$auditSummary['assign_later']
+                    .', skipped '.($auditSummary['skipped_fuzzy'] + $auditSummary['skipped'])
+                    .', non-members '.$auditSummary['non_member_stub'].').';
             }
 
             $import->update([
                 'import_status' => 'completed',
                 'notes' => trim(($import->notes ?? '').PHP_EOL.$summary),
+                'raw_payload' => [
+                    'impact_match_id' => $preview['impact_match_id'],
+                    'impact_match_name' => $preview['impact_match_name'],
+                    'score_scope' => $scoreScope,
+                    'day1_stage_ids' => $day1StageIds,
+                    'imported_count' => $count,
+                    'audit' => $auditRows,
+                    'audit_summary' => $auditSummary,
+                ],
             ]);
 
             try {
@@ -385,24 +432,187 @@ class ImpactLiveImportService
                 [
                     'impact_match_id' => $preview['impact_match_id'],
                     'row_count' => $count,
-                    'collection_count' => count($collectionRows),
+                    'audit_count' => count($auditRows),
                     'score_scope' => $scoreScope,
                 ]
             );
 
-            if ($collectionRows !== []) {
+            if ($auditRows !== []) {
                 $md = $selectedMatch->creator;
                 if ($md) {
                     $md->notify(new ImpactImportCollectionReportNotification(
                         $selectedMatch,
-                        $collectionRows,
+                        $auditRows,
                         $actor,
+                        $import,
                     ));
                 }
             }
 
             return $import->fresh();
         });
+    }
+
+    /**
+     * Link an assign-later Impact score to a real match registration.
+     * Registration division always wins over the Impact division.
+     */
+    public function linkScoreToRegistration(Score $score, MatchRegistration $registration, User $actor): Score
+    {
+        $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
+        if (empty($meta['impact']['needs_member_link'])) {
+            throw new RuntimeException('This score is not waiting for a member assignment.');
+        }
+
+        $score->loadMissing('match');
+        $registration->loadMissing(['user', 'division', 'match']);
+
+        if ((int) $registration->match_id !== (int) $score->match_id) {
+            $regMatch = $registration->match;
+            $day1Id = $regMatch?->provincialDay1Match?->id;
+            if ((int) $day1Id !== (int) $score->match_id) {
+                throw new RuntimeException('That registration belongs to a different match.');
+            }
+        }
+
+        $stubUserId = $score->user_id;
+        $shooterName = $registration->user?->name
+            ?: $registration->shooter_name
+            ?: $score->shooter_name;
+
+        $meta['impact']['needs_member_link'] = false;
+        $meta['impact']['linked_at'] = now()->toIso8601String();
+        $meta['impact']['linked_by'] = $actor->id;
+        $meta['impact']['linked_registration_id'] = $registration->id;
+        $meta['impact']['division_source'] = 'registration';
+        $meta['impact']['previous_stub_user_id'] = $stubUserId;
+
+        $score->fill([
+            'user_id' => $registration->user_id,
+            'division_id' => $registration->division_id ?: $score->division_id,
+            'shooter_name' => $shooterName,
+            'raw_meta' => $meta,
+        ]);
+        $score->save();
+
+        if ($this->needsFeeCollection($registration)) {
+            $this->applyMdFeeDeduction(
+                $registration,
+                $actor,
+                'Impact assign-later link — unpaid/pending entry; MD to collect from shooter.',
+            );
+        }
+
+        $this->scoreValidation->evaluateScoreStatus($score->fresh());
+
+        try {
+            $this->standings->recalculateForMatch($score->match->fresh());
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $this->audit->log(
+            $actor,
+            'score.impact.link_member',
+            'Score',
+            $score->id,
+            ['stub_user_id' => $stubUserId],
+            [
+                'user_id' => $registration->user_id,
+                'registration_id' => $registration->id,
+                'division_id' => $score->division_id,
+            ]
+        );
+
+        $this->maybeDeleteAssignLaterStub($stubUserId);
+
+        return $score->fresh(['user', 'division', 'match']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function auditRow(array $row, string $reason, array $extra = []): array
+    {
+        return array_merge([
+            'name' => $row['impact_name'] ?? 'Shooter',
+            'impact_shooter_id' => $row['impact_shooter_id'] ?? null,
+            'impact_division' => $row['impact_division'] ?? null,
+            'impacts' => $row['impacts'] ?? null,
+            'match_status' => $row['match_status'] ?? null,
+            'reason' => $reason,
+            'registration_status' => $extra['registration_status'] ?? ($row['registration_status'] ?? null),
+            'payment_status' => $extra['payment_status'] ?? ($row['payment_status'] ?? null),
+            'fee_amount' => $extra['fee_amount'] ?? 0,
+            'saprf_fee' => $extra['saprf_fee'] ?? 0,
+            'platform_fee' => $extra['platform_fee'] ?? 0,
+        ], $extra);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{pending_unpaid:int,walk_in_member:int,assign_later:int,skipped_fuzzy:int,skipped:int,non_member_stub:int}
+     */
+    private function summarizeAudit(array $rows): array
+    {
+        $keys = [
+            'pending_unpaid', 'walk_in_member', 'assign_later',
+            'skipped_fuzzy', 'skipped', 'non_member_stub',
+        ];
+        $out = array_fill_keys($keys, 0);
+        foreach ($rows as $row) {
+            $reason = (string) ($row['reason'] ?? '');
+            if (isset($out[$reason])) {
+                $out[$reason]++;
+            }
+        }
+
+        return $out;
+    }
+
+    private function createAssignLaterStub(string $name): User
+    {
+        $slug = Str::slug($name, '.') ?: 'shooter';
+        $user = User::create([
+            'name' => $name,
+            'email' => 'impact.assignlater.'.$slug.'.'.Str::lower(Str::random(6)).'@saprf.walkin',
+            'password' => Hash::make(Str::random(40)),
+        ]);
+        if (method_exists($user, 'assignRole')) {
+            try {
+                $user->assignRole('member');
+            } catch (\Throwable) {
+                // role may not exist in partial test contexts
+            }
+        }
+
+        return $user;
+    }
+
+    private function maybeDeleteAssignLaterStub(?int $userId): void
+    {
+        if (! $userId) {
+            return;
+        }
+
+        $user = User::query()->find($userId);
+        if (! $user || ! str_contains((string) $user->email, '@saprf.walkin')) {
+            return;
+        }
+        if (! str_contains((string) $user->email, 'impact.assignlater.')) {
+            return;
+        }
+        if (Score::query()->where('user_id', $userId)->exists()) {
+            return;
+        }
+
+        try {
+            $user->delete();
+        } catch (\Throwable) {
+            // leave orphan stub if FK prevents delete
+        }
     }
 
     /**

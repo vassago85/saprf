@@ -375,4 +375,107 @@ it('skips unconfirmed fuzzy matches on import', function () {
 
     expect(Score::where('match_id', $this->match->id)->where('user_id', $chris->id)->exists())->toBeFalse()
         ->and(Score::where('match_id', $this->match->id)->where('user_id', $kevin->id)->exists())->toBeTrue();
+
+    $import = ScoreImport::where('source_type', 'impact_live')->latest('id')->first();
+    $reasons = collect($import->raw_payload['audit'] ?? [])->pluck('reason');
+    expect($reasons)->toContain('skipped_fuzzy');
+});
+
+it('imports assign-later as an invalid stub until linked to a real registration', function () {
+    Notification::fake();
+
+    $stephanus = impactMakeMember('Stephanus Janse van Rensburg');
+    $senior = Division::where('slug', 'senior')->first();
+    $reg = impactRegisterShooter($this->match, $stephanus, $senior);
+
+    // Single Impact shooter — different display name from the registration.
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        [
+            'id' => 28,
+            'name' => 'Steven van Rensburg',
+            'rank' => 28,
+            'points' => 5200,
+            'divisionName' => 'Open',
+        ],
+    ];
+    fakeImpactApi($payload);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => [
+                '28' => 'assign_later',
+            ],
+        ])
+        ->assertRedirect(route('score-imports.show', ScoreImport::latest('id')->first()));
+
+    $score = Score::where('match_id', $this->match->id)->first();
+    expect($score)->not->toBeNull()
+        ->and($score->shooter_name)->toBe('Steven van Rensburg')
+        ->and($score->status)->toBe('invalid')
+        ->and($score->is_member)->toBeFalse()
+        ->and($score->raw_meta['impact']['needs_member_link'])->toBeTrue()
+        ->and((float) $score->raw_score)->toBe(52.0);
+
+    $import = ScoreImport::where('source_type', 'impact_live')->latest('id')->first();
+    expect(collect($import->raw_payload['audit'])->pluck('reason'))->toContain('assign_later');
+
+    Notification::assertSentTo($this->admin, ImpactImportCollectionReportNotification::class);
+
+    $this->actingAs($this->admin)
+        ->post(route('scores.link-impact-member', $score), [
+            'registration_id' => $reg->id,
+        ])
+        ->assertRedirect();
+
+    $score->refresh();
+    expect($score->user_id)->toBe($stephanus->id)
+        ->and($score->division?->slug)->toBe('senior')
+        ->and($score->raw_meta['impact']['needs_member_link'])->toBeFalse()
+        ->and($score->status)->toBe('valid')
+        ->and($score->is_member)->toBeTrue()
+        ->and($score->shooter_name)->toBe('Stephanus Janse van Rensburg');
+});
+
+it('exposes Impact import on the match page and shows the audit after import', function () {
+    fakeImpactApi();
+    Notification::fake();
+
+    $kevin = impactMakeMember('Kevin Goncalves');
+    impactRegisterShooter($this->match, $kevin, $this->open, [
+        'payment_status' => 'unpaid',
+        'registration_status' => 'pending',
+        'fee_amount' => 100,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.impact-import', $this->match))
+        ->assertOk()
+        ->assertSee('Import from Impact')
+        ->assertSee('Assign later');
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.show', $this->match))
+        ->assertOk()
+        ->assertSee('Import from Impact');
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11086',
+            'replace_existing' => 1,
+            'links' => [],
+        ]);
+
+    $import = ScoreImport::where('source_type', 'impact_live')->latest('id')->first();
+    $response->assertRedirect(route('score-imports.show', $import));
+
+    $this->actingAs($this->admin)
+        ->get(route('score-imports.show', $import))
+        ->assertOk()
+        ->assertSee('Post-import audit')
+        ->assertSee('Unpaid / pending');
 });

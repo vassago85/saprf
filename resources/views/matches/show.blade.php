@@ -479,6 +479,13 @@
                         Registrations
                         <span class="ml-auto inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">{{ $match->registrations_count ?? $match->registrations->count() }}</span>
                     </a>
+                    @can('create', App\Models\Score::class)
+                        <a href="{{ route('matches.impact-import', $match) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 shadow-sm transition">
+                            <flux:icon.arrow-up-tray class="size-5 text-emerald-100" />
+                            Import from Impact
+                            <span class="ml-auto text-[10px] font-semibold uppercase tracking-wide text-emerald-100/90">Live</span>
+                        </a>
+                    @endcan
                     <a href="{{ route('matches.export-impact-scoring', $match) }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition">
                         <flux:icon.arrow-down-tray class="size-5 text-stone-400" />
                         Export for Impact Scoring

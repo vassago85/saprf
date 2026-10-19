@@ -592,6 +592,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::middleware(['role:developer|exco|owner|admin|match_director'])->group(function (): void {
         Route::resource('matches', MatchController::class)->except(['destroy', 'show']);
         Route::get('/matches/{match}/export-impact-scoring', [MatchController::class, 'exportImpactScoringCsv'])->name('matches.export-impact-scoring');
+        Route::get('/matches/{match}/impact-import', [ScoreImportController::class, 'createForMatch'])
+            ->name('matches.impact-import');
         // MD-side "add shooter" action from the match edit page. Seeds a
         // confirmed + paid entry without touching PayFast; used when the
         // fee was collected off-platform (cash, EFT, comp'd).
@@ -622,6 +624,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::resource('score-imports', ScoreImportController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->names('score-imports');
+        Route::post('/scores/{score}/link-impact-member', [ScoreImportController::class, 'linkImpactScore'])
+            ->name('scores.link-impact-member');
         // Zero-score confirmation: MD (or uploader) resolves whether a shooter
         // with a 0 raw_score actually participated (confirm) or was on the CSV
         // by mistake (mark absent → deletes the score row).

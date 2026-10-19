@@ -6,6 +6,7 @@ use App\Http\Requests\StoreImpactLiveImportRequest;
 use App\Http\Requests\StoreScoreImportRequest;
 use App\Jobs\ProcessScoreImportJob;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\ShooterLog;
@@ -56,6 +57,36 @@ class ScoreImportController extends Controller
             'matches' => $matches,
             'matchMeta' => $matchMeta,
             'preselectedMatchId' => $request->integer('match_id') ?: null,
+            'lockedMatch' => null,
+        ]);
+    }
+
+    /**
+     * Impact live import launched from the match page (match locked).
+     */
+    public function createForMatch(Request $request, MatchEvent $match): View
+    {
+        $this->authorize('create', Score::class);
+
+        $user = $request->user();
+        if ($user->hasRole('match_director') && ! $user->hasAnyRole(['developer', 'owner', 'admin'])) {
+            abort_unless((int) $match->created_by === (int) $user->id, 403);
+        }
+
+        $matches = collect([$match]);
+        $matchMeta = [
+            $match->id => [
+                'is_two_day' => $match->isMultiDay(),
+                'is_two_day_national' => $match->isTwoDayNational(),
+                'end' => $match->match_end_date?->toDateString(),
+            ],
+        ];
+
+        return view('score-imports.create', [
+            'matches' => $matches,
+            'matchMeta' => $matchMeta,
+            'preselectedMatchId' => $match->id,
+            'lockedMatch' => $match,
         ]);
     }
 
@@ -178,15 +209,52 @@ class ScoreImportController extends Controller
                 'score_overrides' => $request->validated('score_overrides') ?? [],
             ]);
         } catch (\Throwable $e) {
-            return redirect()
-                ->route('score-imports.create', ['match_id' => $match->id])
+            $fallback = $request->headers->get('referer')
+                && str_contains((string) $request->headers->get('referer'), '/impact-import')
+                ? route('matches.impact-import', $match)
+                : route('score-imports.create', ['match_id' => $match->id]);
+
+            return redirect($fallback)
                 ->withInput()
                 ->with('error', $e->getMessage());
         }
 
         return redirect()
             ->route('score-imports.show', $import)
-            ->with('success', 'Impact scores imported successfully.');
+            ->with('success', 'Impact scores imported — review the audit report below.');
+    }
+
+    /**
+     * Attach an assign-later Impact score to a real registration.
+     * Registration division wins over Impact.
+     */
+    public function linkImpactScore(
+        Request $request,
+        Score $score,
+        ImpactLiveImportService $impact,
+    ): RedirectResponse {
+        $this->authorize('linkMember', $score);
+
+        $data = $request->validate([
+            'registration_id' => ['required', 'exists:match_registrations,id'],
+        ]);
+
+        $registration = MatchRegistration::query()
+            ->with(['user', 'division', 'match'])
+            ->findOrFail((int) $data['registration_id']);
+
+        try {
+            $impact->linkScoreToRegistration($score, $registration, $request->user());
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with(
+            'success',
+            'Linked '.$score->fresh()->shooter_name.' to '
+            .($registration->user?->name ?: $registration->shooter_name)
+            .' — registration division applied.'
+        );
     }
 
     public function show(Request $request, ScoreImport $scoreImport): View
@@ -194,9 +262,44 @@ class ScoreImportController extends Controller
         $scoreImport->load(['match', 'uploader']);
 
         $scores = Score::where('score_import_id', $scoreImport->id)
-            ->with('user')
+            ->with(['user', 'division'])
             ->orderBy('placement')
             ->paginate(30);
+
+        $audit = is_array($scoreImport->raw_payload['audit'] ?? null)
+            ? $scoreImport->raw_payload['audit']
+            : [];
+        $auditSummary = is_array($scoreImport->raw_payload['audit_summary'] ?? null)
+            ? $scoreImport->raw_payload['audit_summary']
+            : [];
+
+        $pendingLinkScores = Score::query()
+            ->where('score_import_id', $scoreImport->id)
+            ->with(['user:id,name', 'division:id,name'])
+            ->orderBy('shooter_name')
+            ->get()
+            ->filter(fn (Score $s) => ! empty(($s->raw_meta['impact']['needs_member_link'] ?? false)))
+            ->values();
+
+        // Candidates for linking: non-cancelled registrations on the SAPRF match
+        // (or the national parent when scores landed on a Day-1 sibling).
+        $linkMatchId = $scoreImport->match_id;
+        $parentNational = MatchEvent::query()
+            ->whereHas('provincialDay1Match', fn ($q) => $q->where('id', $scoreImport->match_id))
+            ->first();
+        if ($parentNational) {
+            $linkMatchId = $parentNational->id;
+        }
+
+        $linkRegistrations = MatchRegistration::query()
+            ->with(['user:id,name', 'division:id,name,slug'])
+            ->where('match_id', $linkMatchId)
+            ->where(function ($q) {
+                $q->whereNull('registration_status')
+                    ->orWhereNotIn('registration_status', ['cancelled']);
+            })
+            ->orderBy('shooter_name')
+            ->get();
 
         // Zero-score rows are ambiguous — the shooter may have genuinely zeroed
         // the match, or been on the CSV by mistake and never turned up. Surface
@@ -236,7 +339,14 @@ class ScoreImportController extends Controller
             && ! $match->payouts()->where('payee_type', 'match_director')->exists();
 
         return view('score-imports.show', compact(
-            'scoreImport', 'scores', 'canRequestMdPayout', 'unconfirmedZeroScores',
+            'scoreImport',
+            'scores',
+            'canRequestMdPayout',
+            'unconfirmedZeroScores',
+            'audit',
+            'auditSummary',
+            'pendingLinkScores',
+            'linkRegistrations',
         ));
     }
 
