@@ -17,6 +17,7 @@ use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
 use App\Models\AnnouncementRecipient;
 use App\Models\User;
+use App\Notifications\FederationAnnouncementNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -242,4 +243,111 @@ it('exports outstanding acknowledgements as CSV', function () {
     expect($body)->toContain('SAPRF #');
     expect($body)->toContain($outstandingMember->email);
     expect($body)->not->toContain($ackedMember->email);
+});
+
+// ── Email attachments ──────────────────────────────────────────────────────
+
+it('attaches announcement files to the notification email', function () {
+    $member = attMember('mail');
+
+    $announcement = Announcement::create([
+        'title' => 'With file',
+        'body' => 'See attached',
+        'category' => AnnouncementCategory::Announcement,
+        'priority' => 'normal',
+        'status' => AnnouncementStatus::Sending,
+        'created_by' => attExco()->id,
+    ]);
+
+    Storage::disk('announcements')->put("{$announcement->id}/policy.pdf", 'pdf-bytes');
+    Storage::disk('announcements')->put("{$announcement->id}/notes.txt", 'notes');
+
+    AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/policy.pdf",
+        'filename' => "policy.pdf\r\nBcc: evil@example.test",
+        'mime' => 'application/pdf',
+        'size' => 9,
+    ]);
+    AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/notes.txt",
+        'filename' => 'notes.txt',
+        'mime' => 'text/plain',
+        'size' => 5,
+    ]);
+
+    $mail = (new FederationAnnouncementNotification($announcement))->toMail($member);
+
+    expect($mail->attachments)->toHaveCount(2)
+        ->and($mail->attachments[0]['options']['as'])->toBe('policy.pdf')
+        ->and($mail->attachments[0]['options']['mime'])->toBe('application/pdf')
+        ->and($mail->attachments[1]['options']['as'])->toBe('notes.txt')
+        ->and($mail->introLines)->toContain('The files for this notice are attached to this email.');
+});
+
+it('leaves oversized announcement files as a portal download', function () {
+    config(['mail.announcement_attachment_budget' => 8]);
+
+    $member = attMember('budget');
+
+    $announcement = Announcement::create([
+        'title' => 'Too big',
+        'body' => 'See portal',
+        'category' => AnnouncementCategory::Announcement,
+        'priority' => 'normal',
+        'status' => AnnouncementStatus::Sending,
+        'created_by' => attExco()->id,
+    ]);
+
+    Storage::disk('announcements')->put("{$announcement->id}/big.pdf", str_repeat('x', 20));
+    Storage::disk('announcements')->put("{$announcement->id}/ok.txt", 'short');
+
+    AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/big.pdf",
+        'filename' => 'big.pdf',
+        'mime' => 'application/pdf',
+        'size' => 20,
+    ]);
+    AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/ok.txt",
+        'filename' => 'ok.txt',
+        'mime' => 'text/plain',
+        'size' => 5,
+    ]);
+
+    $mail = (new FederationAnnouncementNotification($announcement))->toMail($member);
+
+    expect($mail->attachments)->toHaveCount(1)
+        ->and($mail->attachments[0]['options']['as'])->toBe('ok.txt')
+        ->and($mail->introLines)->toContain('The file for this notice is attached to this email.')
+        ->and($mail->introLines)->toContain('One or more files were too large to attach. Open the notice in the portal to download them.');
+});
+
+it('still builds the notification email when an attachment file is missing', function () {
+    $member = attMember('missing');
+
+    $announcement = Announcement::create([
+        'title' => 'Missing file',
+        'body' => 'Body',
+        'category' => AnnouncementCategory::Announcement,
+        'priority' => 'normal',
+        'status' => AnnouncementStatus::Sending,
+        'created_by' => attExco()->id,
+    ]);
+
+    AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/gone.pdf",
+        'filename' => 'gone.pdf',
+        'mime' => 'application/pdf',
+        'size' => 4,
+    ]);
+
+    $mail = (new FederationAnnouncementNotification($announcement))->toMail($member);
+
+    expect($mail->attachments)->toBeEmpty()
+        ->and($mail->subject)->toBe($announcement->display_title);
 });

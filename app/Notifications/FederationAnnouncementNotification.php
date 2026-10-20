@@ -12,6 +12,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\HtmlString;
 use Symfony\Component\Mime\Email;
@@ -22,6 +23,10 @@ use Throwable;
  * the standard Laravel MailMessage (SAPRF-branded via the published
  * mail vendor views) and routes back to the member's /communications/{id}
  * page so they can acknowledge / view attachments.
+ *
+ * Files uploaded on the announcement are attached to this email when
+ * they fit the mail size budget. Larger sets stay download-only in
+ * the portal so a 100 MB notice cannot fail the whole send.
  *
  * ShouldQueue + RateLimited('mail') (50/hour) keeps a broadcast from
  * tripping Mailgun's probation cap. Auth mail skips this limiter.
@@ -41,6 +46,15 @@ use Throwable;
 class FederationAnnouncementNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    /**
+     * Mailgun rejects a message once the whole MIME payload exceeds
+     * 25 MB. Base64 encoding adds about a third, and the HTML body
+     * needs room too, so raw attachment bytes stay under 18 MB.
+     * Override with `mail.announcement_attachment_budget` when a
+     * transport has a tighter cap.
+     */
+    private const ATTACHMENT_BUDGET_BYTES = 18 * 1024 * 1024;
 
     /**
      * Give the queued send a comfortable retry budget. Every
@@ -95,17 +109,29 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
         $greetingName = $notifiable->name ?? 'shooter';
 
         $body = AnnouncementBodyRenderer::toHtml((string) $announcement->body);
+        $message = new MailMessage;
+        $attachmentSummary = $this->attachAnnouncementFiles($message, $announcement);
 
         $unsubscribeUrl = URL::signedRoute('email.unsubscribe', [
             'user' => $notifiable->id,
             'category' => $announcement->category->value,
         ]);
 
-        $message = (new MailMessage)
+        $message
             ->subject($announcement->display_title)
             ->greeting('Hi ' . $greetingName . ',')
             ->line('From SAPRF — ' . $announcement->category->label() . ':')
             ->line($body);
+
+        if ($attachmentSummary['attached'] === 1) {
+            $message->line('The file for this notice is attached to this email.');
+        } elseif ($attachmentSummary['attached'] > 1) {
+            $message->line('The files for this notice are attached to this email.');
+        }
+
+        if ($attachmentSummary['skipped_for_size'] > 0) {
+            $message->line('One or more files were too large to attach. Open the notice in the portal to download them.');
+        }
 
         if ($announcement->requires_acknowledgement) {
             $message->line('This is a policy-critical notice. Please open it in the portal and click "I acknowledge" so we have your receipt on file.');
@@ -156,6 +182,88 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
         });
 
         return $message;
+    }
+
+    /**
+     * Attach announcement files that fit the mail budget. Missing files
+     * are skipped so one bad path cannot fail the send. Files that would
+     * push the message over the budget stay in the portal.
+     *
+     * @return array{attached: int, skipped_for_size: int}
+     */
+    private function attachAnnouncementFiles(MailMessage $message, Announcement $announcement): array
+    {
+        $announcement->loadMissing('attachments');
+
+        $attached = 0;
+        $skippedForSize = 0;
+        $used = 0;
+        $budget = $this->attachmentBudget();
+        $disk = Storage::disk('announcements');
+
+        foreach ($announcement->attachments as $attachment) {
+            try {
+                if (! $disk->exists($attachment->path)) {
+                    Log::warning('Announcement attachment missing at send time', [
+                        'announcement_id' => $announcement->id,
+                        'attachment_id' => $attachment->id,
+                        'path' => $attachment->path,
+                    ]);
+
+                    continue;
+                }
+
+                $bytes = $disk->size($attachment->path);
+            } catch (Throwable $e) {
+                Log::warning('Announcement attachment could not be read at send time', [
+                    'announcement_id' => $announcement->id,
+                    'attachment_id' => $attachment->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                continue;
+            }
+
+            if (! is_int($bytes) || $bytes < 0 || $used + $bytes > $budget) {
+                $skippedForSize++;
+
+                continue;
+            }
+
+            $message->attach($disk->path($attachment->path), [
+                'as' => $this->safeAttachmentName($attachment->filename),
+                'mime' => $attachment->mime ?: 'application/octet-stream',
+            ]);
+
+            $used += $bytes;
+            $attached++;
+        }
+
+        return [
+            'attached' => $attached,
+            'skipped_for_size' => $skippedForSize,
+        ];
+    }
+
+    private function attachmentBudget(): int
+    {
+        $configured = config('mail.announcement_attachment_budget');
+
+        if (is_numeric($configured) && (int) $configured > 0) {
+            return (int) $configured;
+        }
+
+        return self::ATTACHMENT_BUDGET_BYTES;
+    }
+
+    private function safeAttachmentName(?string $filename): string
+    {
+        $firstLine = preg_split('/[\r\n]+/', (string) $filename)[0] ?? '';
+        $name = str_replace("\0", '', $firstLine);
+        $name = basename(str_replace('\\', '/', $name));
+        $name = trim($name);
+
+        return $name !== '' ? $name : 'attachment';
     }
 
     /**
