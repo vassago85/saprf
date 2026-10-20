@@ -39,7 +39,9 @@ it('renders the admin dashboard shell with operational KPIs', function () {
         ->assertSee('Pending scores')
         ->assertSee('MD payouts pending')
         ->assertDontSee('Admin Dashboard')
-        ->assertDontSee('Pricing & rules');
+        ->assertDontSee('Pricing & rules')
+        ->assertSee("Alpine.data('sidebarNav'", false)
+        ->assertSee('if (window.Alpine)', false);
 });
 
 it('renders the match director dashboard shell', function () {

@@ -109,7 +109,11 @@
 @once
 @push('scripts')
 <script>
-    document.addEventListener('alpine:init', () => {
+(() => {
+    // Login redirects with Livewire navigate, so Alpine has already started
+    // on the guest page and `alpine:init` will not fire again. Register
+    // immediately when Alpine is present; otherwise wait for the first boot.
+    const registerSidebarNav = () => {
         Alpine.data('sidebarNav', ({ viewMode, initial, activeKey, searchItems }) => ({
             viewMode,
             activeKey,
@@ -207,7 +211,12 @@
                 if (target) window.location.assign(target.href);
             },
         }));
-    });
+    };
+    document.addEventListener('alpine:init', registerSidebarNav);
+    if (window.Alpine) {
+        registerSidebarNav();
+    }
+})();
 </script>
 @endpush
 @endonce
