@@ -15,6 +15,8 @@ use App\Models\MatchRegistration;
 use App\Models\Payout;
 use App\Models\Province;
 use App\Models\User;
+use App\Notifications\TreasurerPayoutRequestNotification;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -251,6 +253,77 @@ it('saves banking details onto the payout, marks the match completed, and redire
         ->and($payout->payee_user_id)->toBe($this->md->id);
 
     expect($this->match->fresh()->status)->toBe('completed');
+});
+
+it('emails the treasurer two hours after an MD requests a payout', function () {
+    Notification::fake();
+
+    $treasurer = User::factory()->create([
+        'name' => 'Exco Treasurer',
+        'exco_position' => 'Treasurer',
+    ]);
+    $secretary = User::factory()->create([
+        'name' => 'Exco Secretary',
+        'exco_position' => 'Secretary',
+    ]);
+
+    $this->actingAs($this->md)
+        ->post(route('matches.complete-and-request-payout', $this->match), [
+            'account_holder' => 'Marco Director',
+            'bank_name' => 'Standard Bank',
+            'account_number' => '0123456789',
+            'branch_code' => '051001',
+        ])
+        ->assertRedirect();
+
+    Notification::assertSentTo(
+        $treasurer,
+        TreasurerPayoutRequestNotification::class,
+        function (TreasurerPayoutRequestNotification $notification) {
+            $delay = $notification->delay;
+
+            return $delay instanceof DateTimeInterface
+                && abs($delay->getTimestamp() - now()->addHours(2)->getTimestamp()) < 5;
+        },
+    );
+    Notification::assertNotSentTo($secretary, TreasurerPayoutRequestNotification::class);
+    Notification::assertNotSentTo($this->md, TreasurerPayoutRequestNotification::class);
+});
+
+it('still completes the payout request when no treasurer is on file', function () {
+    Notification::fake();
+
+    $this->actingAs($this->md)
+        ->post(route('matches.complete-and-request-payout', $this->match), [
+            'account_holder' => 'Marco Director',
+            'bank_name' => 'Standard Bank',
+            'account_number' => '0123456789',
+            'branch_code' => '051001',
+        ])
+        ->assertRedirect();
+
+    expect(Payout::where('match_id', $this->match->id)->count())->toBe(1);
+    Notification::assertNothingSentTo(User::factory()->create());
+    Notification::assertNotSentTo($this->md, TreasurerPayoutRequestNotification::class);
+});
+
+it('does not email the treasurer once the payout is no longer pending', function () {
+    $treasurer = User::factory()->create(['exco_position' => 'Treasurer']);
+    $payout = Payout::create([
+        'reference' => 'PAY-TEST-1',
+        'payee_type' => 'match_director',
+        'payee_user_id' => $this->md->id,
+        'match_id' => $this->match->id,
+        'gross_amount' => 500,
+        'fees_deducted' => 120,
+        'net_amount' => 380,
+        'status' => 'paid',
+        'created_by' => $this->md->id,
+    ]);
+
+    $channels = (new TreasurerPayoutRequestNotification($payout))->via($treasurer);
+
+    expect($channels)->toBe([]);
 });
 
 it('surfaces banking details on the my-payouts statement after submission', function () {

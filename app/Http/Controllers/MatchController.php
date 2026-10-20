@@ -10,11 +10,13 @@ use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\NationalTeamAppearance;
 use App\Models\Payment;
+use App\Models\Payout;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\User;
 use App\Models\Venue;
 use App\Notifications\MatchRegistrationConfirmedNotification;
+use App\Notifications\TreasurerPayoutRequestNotification;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
@@ -31,6 +33,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -459,9 +462,36 @@ class MatchController extends Controller
             ],
         );
 
+        $this->notifyTreasurerOfPayoutRequest($payout);
+
         return redirect()->route('my-payouts.show', $payout)->with(
             'success',
             "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.',
+        );
+    }
+
+    /**
+     * Queue a reminder to every user whose Exco portfolio is Treasurer.
+     * Two hours later, and only if the payout is still pending when the
+     * mail is built. Missing a treasurer must not fail the MD's request.
+     */
+    private function notifyTreasurerOfPayoutRequest(Payout $payout): void
+    {
+        $treasurers = User::query()
+            ->whereRaw('LOWER(exco_position) = ?', ['treasurer'])
+            ->get();
+
+        if ($treasurers->isEmpty()) {
+            Log::warning('MD payout requested but no treasurer is on file', [
+                'payout_id' => $payout->id,
+            ]);
+
+            return;
+        }
+
+        Notification::send(
+            $treasurers,
+            (new TreasurerPayoutRequestNotification($payout))->delay(now()->addHours(2)),
         );
     }
 
