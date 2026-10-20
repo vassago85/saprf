@@ -183,6 +183,46 @@
             @endif
         </div>
 
+        <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Charsley Digital</h2>
+                    <p class="mt-1 text-xs text-stone-500">
+                        {{ $charsleyPreview['label'] }}: paid match entries, invoiced on the 1st of the following month.
+                        @if($from && $to && $from->format('Y-m') === $to->format('Y-m'))
+                            This follows the month in the date filter.
+                        @else
+                            Showing the previous month. Filter to one calendar month to inspect another.
+                        @endif
+                    </p>
+                </div>
+                @role('developer')
+                <a href="{{ route('site-settings.index') }}" class="shrink-0 text-xs font-semibold text-emerald-700 hover:text-emerald-800">Invoice Ninja setup</a>
+                @endrole
+            </div>
+            <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
+                    <dt class="text-xs uppercase text-stone-500">Paid entries</dt>
+                    <dd class="mt-1 text-xl font-bold text-stone-900">{{ number_format($charsleyPreview['entries']) }}</dd>
+                </div>
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
+                    <dt class="text-xs uppercase text-stone-500">Per entry</dt>
+                    <dd class="mt-1 text-xl font-bold text-stone-900">{{ money($charsleyPreview['entry_fee']) }}</dd>
+                </div>
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                    <dt class="text-xs uppercase text-emerald-700">Invoice total</dt>
+                    <dd class="mt-1 text-xl font-bold text-emerald-900">{{ money($charsleyPreview['total']) }}</dd>
+                    <dd class="text-xs text-emerald-700">
+                        @if($charsleyInvoice)
+                            {{ ucfirst($charsleyInvoice->status) }}{{ $charsleyInvoice->invoice_number ? ' · '.$charsleyInvoice->invoice_number : '' }}
+                        @else
+                            Not invoiced yet
+                        @endif
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
         {{-- Revenue Breakdown --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">

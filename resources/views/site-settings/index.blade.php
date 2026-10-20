@@ -581,5 +581,94 @@
                 </button>
             </form>
         </div>
+
+        @role('developer')
+        <div class="rounded-xl border border-violet-200 bg-white p-6 shadow-sm space-y-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="font-heading text-lg font-semibold text-stone-900">
+                        Invoice Ninja
+                        <span class="ml-1 inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">Developer</span>
+                    </h2>
+                    <p class="mt-1 text-sm text-stone-500">Charsley Digital bills SAPRF on the 1st at 07:00 for every paid match entry in the previous month. Create a SAPRF client in Invoice Ninja first. Invoicing stays off until you turn it on.</p>
+                </div>
+            </div>
+
+            @if (session('invoice_ninja_success'))
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    {{ session('invoice_ninja_success') }}
+                </div>
+            @endif
+            @if (session('invoice_ninja_error'))
+                <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {{ session('invoice_ninja_error') }}
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('site-settings.invoice-ninja.update') }}" class="space-y-4">
+                @csrf
+                @method('PUT')
+
+                <label class="flex items-start gap-3">
+                    <input type="hidden" name="invoice_ninja_enabled" value="0">
+                    <input type="checkbox" name="invoice_ninja_enabled" value="1"
+                           @checked(old('invoice_ninja_enabled', $settings['invoice_ninja_enabled'] ?? '0') == '1')
+                           class="mt-1 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                    <span>
+                        <span class="block text-sm font-medium text-stone-800">Send the monthly invoice</span>
+                        <span class="mt-1 block text-xs text-stone-500">Off until you turn this on. The scheduled run then invoices the previous month and does nothing while this stays off.</span>
+                    </span>
+                </label>
+
+                <div>
+                    <label for="invoice_ninja_api_url" class="block text-sm font-medium text-stone-700">API URL</label>
+                    <input type="url" name="invoice_ninja_api_url" id="invoice_ninja_api_url" required
+                           value="{{ old('invoice_ninja_api_url', $settings['invoice_ninja_api_url'] ?? 'https://invoice.charsley.co.za') }}"
+                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('invoice_ninja_api_url') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="invoice_ninja_api_token" class="block text-sm font-medium text-stone-700">API token</label>
+                    <input type="password" name="invoice_ninja_api_token" id="invoice_ninja_api_token" autocomplete="off"
+                           placeholder="{{ $invoiceNinjaTokenConfigured ? 'Saved. Leave blank to keep it.' : 'Paste the Invoice Ninja API token' }}"
+                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    @error('invoice_ninja_api_token') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="invoice_ninja_client_id" class="block text-sm font-medium text-stone-700">SAPRF client id</label>
+                    <input type="text" name="invoice_ninja_client_id" id="invoice_ninja_client_id" required maxlength="64"
+                           value="{{ old('invoice_ninja_client_id', $settings['invoice_ninja_client_id'] ?? '') }}"
+                           placeholder="Client id from Invoice Ninja"
+                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Use the client you create for SAPRF. The National Rifle and Pistol Association client is not this account.</p>
+                    @error('invoice_ninja_client_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="invoice_ninja_entry_fee" class="block text-sm font-medium text-stone-700">Fee per paid entry (ZAR)</label>
+                    <input type="number" name="invoice_ninja_entry_fee" id="invoice_ninja_entry_fee" required step="0.01" min="0" max="99999.99"
+                           value="{{ old('invoice_ninja_entry_fee', $settings['invoice_ninja_entry_fee'] ?? '50') }}"
+                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <p class="mt-1 text-xs text-stone-400">Charged once for each match entry paid during the month. Default is R50.</p>
+                    @error('invoice_ninja_entry_fee') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800">Save Invoice Ninja</button>
+            </form>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <form method="POST" action="{{ route('site-settings.invoice-ninja.test') }}">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">Test connection</button>
+                </form>
+                <form method="POST" action="{{ route('site-settings.invoice-ninja.issue') }}" onsubmit="return confirm('Create and email last month\'s SAPRF invoice in Invoice Ninja?')">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-stone-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-stone-900">Invoice previous month</button>
+                </form>
+            </div>
+        </div>
+        @endrole
     </div>
 </x-layouts.app>

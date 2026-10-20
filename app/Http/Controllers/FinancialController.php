@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CharsleyInvoice;
 use App\Models\FinancialTransaction;
 use App\Models\MatchEvent;
 use App\Models\Payout;
 use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
 use App\Models\Sponsor;
+use App\Notifications\MdPayoutStatementNotification;
 use App\Services\AuditLogService;
 use App\Services\FinancialResetService;
 use App\Services\FinancialService;
+use App\Services\InvoiceNinja\IssueCharsleyInvoice;
 use App\Services\PayoutStatementRenderer;
 use App\Services\PlatformPayoutService;
 use App\Services\SettingsService;
@@ -18,6 +21,7 @@ use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -71,9 +75,14 @@ class FinancialController extends Controller
         $unsettledMonths = $this->platformPayouts->unsettledMonths();
         $platformOperatorConfigured = $mtdPreview['operator_user_id'] !== null;
 
+        $charsleyAt = $this->charsleyMonth($request, $from, $to);
+        $charsleyPreview = app(IssueCharsleyInvoice::class)->preview($charsleyAt->year, $charsleyAt->month);
+        $charsleyInvoice = CharsleyInvoice::query()->where('period', $charsleyPreview['period'])->first();
+
         return view('financials.dashboard', compact(
             'summary', 'matchBreakdown', 'monthlyTrend', 'seasons', 'from', 'to', 'settings',
             'mtdPreview', 'unsettledMonths', 'platformOperatorConfigured',
+            'charsleyPreview', 'charsleyInvoice',
         ));
     }
 
@@ -224,7 +233,7 @@ class FinancialController extends Controller
         );
 
         return redirect()->route('financials.payouts')
-            ->with('success', "Payout {$payout->reference} created for R" . number_format($payout->net_amount, 2));
+            ->with('success', "Payout {$payout->reference} created for R".number_format($payout->net_amount, 2));
     }
 
     // ── Platform Operator Payouts ──
@@ -282,7 +291,7 @@ class FinancialController extends Controller
         );
 
         return redirect()->route('financials.payouts')
-            ->with('success', "Platform payout {$payout->reference} created for {$month->format('F Y')} (R" . number_format($payout->net_amount, 2) . ').');
+            ->with('success', "Platform payout {$payout->reference} created for {$month->format('F Y')} (R".number_format($payout->net_amount, 2).').');
     }
 
     private function parseMonth(?string $value): ?Carbon
@@ -292,7 +301,7 @@ class FinancialController extends Controller
         }
 
         try {
-            return Carbon::createFromFormat('Y-m-d', $value . '-01')->startOfMonth();
+            return Carbon::createFromFormat('Y-m-d', $value.'-01')->startOfMonth();
         } catch (\Throwable) {
             return null;
         }
@@ -364,9 +373,9 @@ class FinancialController extends Controller
             $recipient = $payout->payeeUser ?? $payout->match?->user;
             if ($recipient) {
                 try {
-                    $recipient->notify(new \App\Notifications\MdPayoutStatementNotification($payout->fresh(), 'paid'));
+                    $recipient->notify(new MdPayoutStatementNotification($payout->fresh(), 'paid'));
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to dispatch payout-paid notification', [
+                    Log::warning('Failed to dispatch payout-paid notification', [
                         'payout_id' => $payout->id,
                         'error' => $e->getMessage(),
                     ]);
@@ -380,7 +389,7 @@ class FinancialController extends Controller
             'source_id' => $payout->id,
             'user_id' => $request->user()->id,
             'amount' => $validated['paid_amount'],
-            'description' => "Payment of R" . number_format($validated['paid_amount'], 2) . " on {$payout->reference}",
+            'description' => 'Payment of R'.number_format($validated['paid_amount'], 2)." on {$payout->reference}",
             'meta' => ['payment_reference' => $validated['payment_reference'] ?? null],
         ]);
 
@@ -429,7 +438,7 @@ class FinancialController extends Controller
     public function storeExpense(Request $request)
     {
         $validated = $request->validate([
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformExpense::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformExpense::CATEGORIES))],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'expense_date' => ['required', 'date'],
@@ -463,7 +472,7 @@ class FinancialController extends Controller
         );
 
         return redirect()->route('financials.expenses')
-            ->with('success', "Expense recorded: {$expense->description} — R" . number_format($expense->amount, 2));
+            ->with('success', "Expense recorded: {$expense->description} — R".number_format($expense->amount, 2));
     }
 
     public function editExpense(PlatformExpense $expense): View
@@ -476,7 +485,7 @@ class FinancialController extends Controller
     public function updateExpense(Request $request, PlatformExpense $expense)
     {
         $validated = $request->validate([
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformExpense::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformExpense::CATEGORIES))],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'expense_date' => ['required', 'date'],
@@ -553,7 +562,7 @@ class FinancialController extends Controller
     public function storeIncome(Request $request)
     {
         $validated = $request->validate([
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformIncome::CATEGORIES))],
             'sponsor_id' => ['nullable', 'exists:sponsors,id'],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -585,7 +594,7 @@ class FinancialController extends Controller
         $this->audit->log($request->user(), 'platform_income_created', 'platform_income', $income->id, null, $income->toArray());
 
         return redirect()->route('financials.income')
-            ->with('success', "Income recorded: {$income->description} — R" . number_format($income->amount, 2));
+            ->with('success', "Income recorded: {$income->description} — R".number_format($income->amount, 2));
     }
 
     public function editIncome(PlatformIncome $income): View
@@ -599,7 +608,7 @@ class FinancialController extends Controller
     public function updateIncome(Request $request, PlatformIncome $income)
     {
         $validated = $request->validate([
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PlatformIncome::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformIncome::CATEGORIES))],
             'sponsor_id' => ['nullable', 'exists:sponsors,id'],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -655,7 +664,7 @@ class FinancialController extends Controller
         [$from, $to] = $this->parseDateRange($request);
         $summary = $this->financials->platformSummary($from, $to);
 
-        $filename = 'SAPRF_Financial_Summary_' . now()->format('Y-m-d') . '.csv';
+        $filename = 'SAPRF_Financial_Summary_'.now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($summary) {
             $handle = fopen('php://output', 'w');
@@ -683,7 +692,7 @@ class FinancialController extends Controller
         [$from, $to] = $this->parseDateRange($request);
         $matches = $this->financials->revenueByMatch($from, $to);
 
-        $filename = 'SAPRF_Match_Revenue_' . now()->format('Y-m-d') . '.csv';
+        $filename = 'SAPRF_Match_Revenue_'.now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($matches) {
             $handle = fopen('php://output', 'w');
@@ -772,7 +781,7 @@ class FinancialController extends Controller
         $pdf->loadView('financials.pdf.dashboard', compact('summary', 'matchBreakdown', 'from', 'to'));
         $pdf->setPaper('a4', 'landscape');
 
-        return $pdf->download('SAPRF_Financial_Report_' . now()->format('Y-m-d') . '.pdf');
+        return $pdf->download('SAPRF_Financial_Report_'.now()->format('Y-m-d').'.pdf');
     }
 
     // ── Helpers ──
@@ -811,5 +820,22 @@ class FinancialController extends Controller
         }
 
         return [$from, $to];
+    }
+
+    /**
+     * The finance filter is a single calendar month when From and To share
+     * one. Otherwise show the previous month — the one the 1st invoices.
+     */
+    private function charsleyMonth(Request $request, ?Carbon $from, ?Carbon $to): Carbon
+    {
+        if ($from && $to && $from->format('Y-m') === $to->format('Y-m')) {
+            return $from->copy()->timezone('Africa/Johannesburg')->startOfMonth();
+        }
+
+        if ($request->input('period') === 'month') {
+            return now()->timezone('Africa/Johannesburg')->startOfMonth();
+        }
+
+        return now()->timezone('Africa/Johannesburg')->subMonth()->startOfMonth();
     }
 }

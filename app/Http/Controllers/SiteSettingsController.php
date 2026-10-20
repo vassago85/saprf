@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\MatchEvent;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\InvoiceNinja\CharsleyInvoiceSettings;
+use App\Services\InvoiceNinja\InvoiceNinjaClient;
+use App\Services\InvoiceNinja\InvoiceNinjaException;
+use App\Services\InvoiceNinja\IssueCharsleyInvoice;
 use App\Services\SettingsService;
 use App\Support\BackupNotificationAddress;
 use Illuminate\Http\RedirectResponse;
@@ -30,8 +34,10 @@ class SiteSettingsController extends Controller
         $mailgunSecretConfigured = filled($settings['mailgun_secret'] ?? '');
         $mailgunWebhookSigningConfigured = filled($settings['mailgun_webhook_signing_key'] ?? '')
             || filled(config('services.mailgun.webhook_signing_key'));
+        $invoiceNinjaTokenConfigured = filled($settings['invoice_ninja_api_token'] ?? '');
         $settings['mailgun_secret'] = '';
         $settings['mailgun_webhook_signing_key'] = '';
+        $settings['invoice_ninja_api_token'] = '';
 
         // Owner + developer are the only people who could reasonably receive
         // the platform-fee payout — restrict the picker so we don't offer
@@ -45,6 +51,7 @@ class SiteSettingsController extends Controller
             'platformOperatorCandidates',
             'mailgunSecretConfigured',
             'mailgunWebhookSigningConfigured',
+            'invoiceNinjaTokenConfigured',
         ));
     }
 
@@ -265,5 +272,109 @@ class SiteSettingsController extends Controller
 
         return redirect()->route('site-settings.index')
             ->with('test_email_success', "Test email sent to {$to}. Check the inbox (and spam folder).");
+    }
+
+    public function updateInvoiceNinja(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'invoice_ninja_enabled' => ['required', 'boolean'],
+            'invoice_ninja_api_url' => ['required', 'url', 'max:255'],
+            'invoice_ninja_api_token' => ['nullable', 'string', 'max:255'],
+            'invoice_ninja_client_id' => ['required', 'string', 'max:64', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (trim((string) $value) === CharsleyInvoiceSettings::NRAPA_CLIENT_ID) {
+                    $fail('That client is National Rifle and Pistol Association. Create a SAPRF client in Invoice Ninja and use its id.');
+                }
+            }],
+            'invoice_ninja_entry_fee' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+        ]);
+
+        $this->settingsService->set(
+            'invoice_ninja_enabled',
+            $request->boolean('invoice_ninja_enabled') ? '1' : '0',
+            'Invoice SAPRF through Invoice Ninja on the 1st for the previous month (1=yes, 0=no)',
+        );
+        $this->settingsService->set(
+            'invoice_ninja_api_url',
+            rtrim($validated['invoice_ninja_api_url'], '/'),
+            'Invoice Ninja base URL',
+        );
+        $this->settingsService->set(
+            'invoice_ninja_client_id',
+            trim($validated['invoice_ninja_client_id']),
+            'Invoice Ninja client id for SAPRF',
+        );
+        $this->settingsService->set(
+            'invoice_ninja_entry_fee',
+            $validated['invoice_ninja_entry_fee'],
+            'Rand amount Charsley Digital charges SAPRF per paid match entry',
+        );
+
+        if (filled($validated['invoice_ninja_api_token'] ?? null)) {
+            $this->settingsService->set(
+                'invoice_ninja_api_token',
+                trim($validated['invoice_ninja_api_token']),
+                'Invoice Ninja API token',
+            );
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'settings_updated',
+            'Setting',
+            null,
+            null,
+            [
+                'invoice_ninja_enabled' => $request->boolean('invoice_ninja_enabled') ? '1' : '0',
+                'invoice_ninja_api_url' => rtrim($validated['invoice_ninja_api_url'], '/'),
+                'invoice_ninja_client_id' => trim($validated['invoice_ninja_client_id']),
+                'invoice_ninja_entry_fee' => $validated['invoice_ninja_entry_fee'],
+                'invoice_ninja_api_token' => filled($validated['invoice_ninja_api_token'] ?? null) ? '[updated]' : '[kept]',
+            ],
+            'Invoice Ninja settings updated by developer',
+        );
+
+        return redirect()->route('site-settings.index')
+            ->with('success', 'Invoice Ninja settings saved.');
+    }
+
+    public function testInvoiceNinja(InvoiceNinjaClient $client, CharsleyInvoiceSettings $settings): RedirectResponse
+    {
+        if (! $settings->isConfigured()) {
+            return redirect()->route('site-settings.index')
+                ->with('invoice_ninja_error', 'Save the API URL, token, and SAPRF client id before testing the connection.');
+        }
+
+        try {
+            $remote = $client->client($settings->clientId());
+            $name = $remote['display_name'] ?? $remote['name'] ?? 'the client';
+        } catch (InvoiceNinjaException $e) {
+            return redirect()->route('site-settings.index')
+                ->with('invoice_ninja_error', $e->getMessage());
+        }
+
+        return redirect()->route('site-settings.index')
+            ->with('invoice_ninja_success', 'Connected. Invoices will be billed to '.$name.'.');
+    }
+
+    public function invoicePreviousMonth(IssueCharsleyInvoice $issuer): RedirectResponse
+    {
+        $previous = now()->timezone('Africa/Johannesburg')->subMonth();
+
+        try {
+            $invoice = $issuer->issue($previous->year, $previous->month);
+        } catch (InvoiceNinjaException $e) {
+            return redirect()->route('site-settings.index')
+                ->with('invoice_ninja_error', $e->getMessage());
+        }
+
+        if ($invoice === null) {
+            return redirect()->route('site-settings.index')
+                ->with('invoice_ninja_success', 'No paid entries in '.$previous->format('F Y').'. Nothing was sent.');
+        }
+
+        $number = $invoice->invoice_number ?: $invoice->invoice_ninja_id;
+
+        return redirect()->route('site-settings.index')
+            ->with('invoice_ninja_success', 'Invoice '.$number.' for '.$previous->format('F Y').' is '.$invoice->status.'.');
     }
 }

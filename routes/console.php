@@ -33,3 +33,10 @@ Schedule::job(new DispatchScheduledAnnouncementsJob)->everyMinute();
 
 Schedule::command('backup:clean')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();
+
+// Invoice SAPRF for the previous month's paid entries. Stays quiet until a
+// developer turns it on in Site Settings.
+Schedule::command('saprf:invoice-charsley')
+    ->monthlyOn(1, '07:00')
+    ->timezone('Africa/Johannesburg')
+    ->withoutOverlapping();

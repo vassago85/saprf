@@ -37,21 +37,23 @@ use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\MailgunWebhookController;
 use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
-use App\Http\Controllers\MatchWorkspaceController;
 use App\Http\Controllers\MatchExpenseController;
-use App\Http\Controllers\MemberSearchController;
+use App\Http\Controllers\MatchWorkspaceController;
+use App\Http\Controllers\MediaAlbumController;
 use App\Http\Controllers\MemberLookupController;
+use App\Http\Controllers\MemberSearchController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MembershipFeeTierController;
+use App\Http\Controllers\MyPayoutController;
 use App\Http\Controllers\NationalTeamAppearanceController;
 use App\Http\Controllers\NationalTeamController;
-use App\Http\Controllers\PublicMediaController;
-use App\Http\Controllers\PublicNationalTeamController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProvincialCommitteeController;
 use App\Http\Controllers\ProvincialMembersController;
+use App\Http\Controllers\PublicMediaController;
+use App\Http\Controllers\PublicNationalTeamController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\QualificationRuleController;
 use App\Http\Controllers\RegistrationController;
@@ -786,7 +788,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Media library: albums + photos, with homepage-feature toggle.
         // Mounted under /admin/… so the admin URLs can't collide with the
         // public /media/{album:slug} album page.
-        Route::resource('admin/media/albums', \App\Http\Controllers\MediaAlbumController::class)
+        Route::resource('admin/media/albums', MediaAlbumController::class)
             ->parameters(['albums' => 'album'])
             ->names('media.albums');
         Volt::route('/admin/media/albums/{album}/items', 'admin.media.album-manager')
@@ -825,10 +827,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         ->prefix('my-payouts')
         ->name('my-payouts.')
         ->group(function (): void {
-            Route::get('/', [App\Http\Controllers\MyPayoutController::class, 'index'])->name('index');
-            Route::get('/{payout}', [App\Http\Controllers\MyPayoutController::class, 'show'])->name('show');
-            Route::get('/{payout}/statement.pdf', [App\Http\Controllers\MyPayoutController::class, 'downloadPdf'])->name('pdf');
-            Route::get('/{payout}/statement.csv', [App\Http\Controllers\MyPayoutController::class, 'downloadCsv'])->name('csv');
+            Route::get('/', [MyPayoutController::class, 'index'])->name('index');
+            Route::get('/{payout}', [MyPayoutController::class, 'show'])->name('show');
+            Route::get('/{payout}/statement.pdf', [MyPayoutController::class, 'downloadPdf'])->name('pdf');
+            Route::get('/{payout}/statement.csv', [MyPayoutController::class, 'downloadCsv'])->name('csv');
         });
 
     // Financials (Admin + Owner)
@@ -880,6 +882,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/site-settings', [SiteSettingsController::class, 'index'])->name('site-settings.index');
         Route::put('/site-settings', [SiteSettingsController::class, 'update'])->name('site-settings.update');
         Route::post('/site-settings/test-email', [SiteSettingsController::class, 'sendTestEmail'])->name('site-settings.test-email');
+
+        Route::middleware('role:developer')->group(function (): void {
+            Route::put('/site-settings/invoice-ninja', [SiteSettingsController::class, 'updateInvoiceNinja'])->name('site-settings.invoice-ninja.update');
+            Route::post('/site-settings/invoice-ninja/test', [SiteSettingsController::class, 'testInvoiceNinja'])->name('site-settings.invoice-ninja.test');
+            Route::post('/site-settings/invoice-ninja/issue', [SiteSettingsController::class, 'invoicePreviousMonth'])->name('site-settings.invoice-ninja.issue');
+        });
 
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
         Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
