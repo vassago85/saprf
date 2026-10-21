@@ -326,6 +326,50 @@ it('leaves oversized announcement files as a portal download', function () {
         ->and($mail->introLines)->toContain('One or more files were too large to attach. Open the notice in the portal to download them.');
 });
 
+it('embeds image attachments in the announcement email', function () {
+    $member = attMember('inline-image');
+
+    $announcement = Announcement::create([
+        'title' => 'Worlds poster',
+        'body' => 'South Africa hosts the championship.',
+        'category' => AnnouncementCategory::Announcement,
+        'priority' => 'normal',
+        'status' => AnnouncementStatus::Sending,
+        'created_by' => attExco()->id,
+    ]);
+
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+    Storage::disk('announcements')->put("{$announcement->id}/poster.png", $png);
+
+    $attachment = AnnouncementAttachment::create([
+        'announcement_id' => $announcement->id,
+        'path' => "{$announcement->id}/poster.png",
+        'filename' => 'Rondavels.png',
+        'mime' => 'image/png',
+        'size' => strlen($png),
+    ]);
+
+    $member->notifyNow(new FederationAnnouncementNotification($announcement));
+
+    $sent = app('mail.manager')->mailer()->getSymfonyTransport()->messages();
+    expect($sent)->toHaveCount(1);
+
+    $email = $sent->first()->getOriginalMessage();
+    $html = $email->getHtmlBody();
+    $cid = 'saprf-'.$attachment->id.'.png';
+
+    expect($html)->toContain('src="cid:'.$cid.'"')
+        ->and($html)->toContain('alt="Rondavels"');
+
+    $inline = collect($email->getAttachments())->first(
+        fn ($part) => $part->getDisposition() === 'inline',
+    );
+
+    expect($inline)->not->toBeNull()
+        ->and($inline->getFilename())->toBe($cid)
+        ->and($email->getTextBody())->not->toContain('<img');
+});
+
 it('still builds the notification email when an attachment file is missing', function () {
     $member = attMember('missing');
 

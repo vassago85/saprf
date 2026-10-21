@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Announcement;
+use App\Models\AnnouncementAttachment;
 use App\Models\AnnouncementDelivery;
 use App\Models\User;
 use App\Support\AnnouncementBodyRenderer;
@@ -25,8 +26,11 @@ use Throwable;
  * page so they can acknowledge / view attachments.
  *
  * Files uploaded on the announcement are attached to this email when
- * they fit the mail size budget. Larger sets stay download-only in
- * the portal so a 100 MB notice cannot fail the whole send.
+ * they fit the mail size budget. JPG, PNG and WebP pictures in that
+ * budget are embedded in the HTML instead, so the image shows even
+ * when the inbox blocks remote pictures. Larger sets stay
+ * download-only in the portal so a 100 MB notice cannot fail the
+ * whole send.
  *
  * ShouldQueue + RateLimited('mail') (50/hour) keeps a broadcast from
  * tripping Mailgun's probation cap. Auth mail skips this limiter.
@@ -185,9 +189,11 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
     }
 
     /**
-     * Attach announcement files that fit the mail budget. Missing files
-     * are skipped so one bad path cannot fail the send. Files that would
-     * push the message over the budget stay in the portal.
+     * Attach announcement files that fit the mail budget. Pictures are
+     * embedded inline (cid) so Gmail and Outlook show them without
+     * fetching a remote URL. Missing files are skipped so one bad path
+     * cannot fail the send. Files that would push the message over the
+     * budget stay in the portal.
      *
      * @return array{attached: int, skipped_for_size: int}
      */
@@ -200,6 +206,7 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
         $used = 0;
         $budget = $this->attachmentBudget();
         $disk = Storage::disk('announcements');
+        $embeds = [];
 
         foreach ($announcement->attachments as $attachment) {
             try {
@@ -230,6 +237,18 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
                 continue;
             }
 
+            if ($this->isInlineImage($attachment->mime)) {
+                $embeds[] = [
+                    'path' => $disk->path($attachment->path),
+                    'cid' => $this->inlineCid($attachment),
+                    'mime' => $attachment->mime,
+                    'alt' => $this->imageAlt((string) $attachment->filename),
+                ];
+                $used += $bytes;
+
+                continue;
+            }
+
             $message->attach($disk->path($attachment->path), [
                 'as' => $this->safeAttachmentName($attachment->filename),
                 'mime' => $attachment->mime ?: 'application/octet-stream',
@@ -239,10 +258,80 @@ class FederationAnnouncementNotification extends Notification implements ShouldQ
             $attached++;
         }
 
+        if ($embeds !== []) {
+            $message->withSymfonyMessage(function (Email $email) use ($embeds) {
+                $this->embedImages($email, $embeds);
+            });
+        }
+
         return [
             'attached' => $attached,
             'skipped_for_size' => $skippedForSize,
         ];
+    }
+
+    /**
+     * Mailgun's API shows an inline picture only when the HTML uses
+     * cid:{filename} and the MIME part is Content-Disposition: inline
+     * with that same filename. The cid is generated here, not taken
+     * from the upload name, so two "poster.jpg" files cannot collide
+     * and a crafted filename cannot break the header.
+     *
+     * @param  list<array{path: string, cid: string, mime: string, alt: string}>  $embeds
+     */
+    private function embedImages(Email $email, array $embeds): void
+    {
+        $html = $email->getHtmlBody();
+
+        if (is_resource($html)) {
+            $html = stream_get_contents($html) ?: '';
+        }
+
+        if (is_string($html) && $html !== '') {
+            $tags = '';
+
+            foreach ($embeds as $embed) {
+                $tags .= sprintf(
+                    '<img src="cid:%s" alt="%s" width="570" style="max-width:100%%;height:auto;display:block;margin:0 0 16px 0;border:0;">',
+                    $embed['cid'],
+                    e($embed['alt']),
+                );
+            }
+
+            $updated = preg_replace('/<\/h1>/i', '</h1>'.$tags, $html, 1);
+            $email->html(is_string($updated) && str_contains($updated, 'cid:'.$embeds[0]['cid'])
+                ? $updated
+                : $tags.$html);
+        }
+
+        foreach ($embeds as $embed) {
+            $email->embedFromPath($embed['path'], $embed['cid'], $embed['mime']);
+        }
+    }
+
+    private function isInlineImage(?string $mime): bool
+    {
+        return in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true);
+    }
+
+    private function inlineCid(AnnouncementAttachment $attachment): string
+    {
+        $extension = match ($attachment->mime) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => 'img',
+        };
+
+        return 'saprf-'.$attachment->id.'.'.$extension;
+    }
+
+    private function imageAlt(string $filename): string
+    {
+        $name = pathinfo($this->safeAttachmentName($filename), PATHINFO_FILENAME);
+        $name = trim((string) (preg_replace('/\s+/u', ' ', $name) ?? ''));
+
+        return $name !== '' ? $name : 'Image';
     }
 
     private function attachmentBudget(): int

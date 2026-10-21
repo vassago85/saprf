@@ -213,7 +213,7 @@
                     <input type="file" name="attachments[]" multiple
                         accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.doc,.xlsx,.xls,.txt"
                         class="mt-1 block w-full text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
-                    <p class="mt-1 text-xs text-stone-400">Up to 10 files, 10 MB each. Files that fit the mail size limit (about 18 MB combined) are attached to the notification email. Larger sets stay on the private disk — recipients and Exco download them from Communications.</p>
+                    <p class="mt-1 text-xs text-stone-400">Up to 10 files, 10 MB each. JPG, PNG and WebP pictures that fit the mail size limit are shown inside the email. Other files that fit (about 18 MB combined) are attached. Larger files stay in Communications for download.</p>
                 </div>
             </div>
 
