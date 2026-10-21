@@ -4,6 +4,7 @@ use App\Models\Division;
 use App\Models\Province;
 use App\Models\Standing;
 use App\Models\User;
+use App\Services\SeasonStandingsBoard;
 
 beforeEach(function () {
     $this->gp = Province::create(['name' => 'Gauteng', 'abbreviation' => 'GP']);
@@ -41,15 +42,16 @@ beforeEach(function () {
 
 function fetchProvincialStandings(array $extra = []): \Illuminate\Support\Collection
 {
-    $params = array_merge([
-        'season' => '2026',
-        'series' => 'PR22',
-        'level' => 'provincial',
-    ], $extra);
-    $response = test()->get('/standings?'.http_build_query($params));
-    $response->assertOk();
-
-    return collect($response->viewData('standings'))->values();
+    return app(SeasonStandingsBoard::class)->load(
+        '2026',
+        'PR22',
+        'provincial',
+        isset($extra['division_id']) ? (int) $extra['division_id'] : null,
+        isset($extra['province_id']) ? (int) $extra['province_id'] : null,
+        $extra['sort'] ?? null,
+        $extra['direction'] ?? null,
+        null,
+    )->standings->values();
 }
 
 it('defaults to points desc when no division/province filter is applied', function () {
@@ -103,33 +105,27 @@ it('sorts by province ascending on provincial view', function () {
     ]);
 });
 
-it('sorts by rank asc — mostly cosmetic here but confirms the option works', function () {
-    // All three rows are rank 1, so the stable id tie-breaker orders them
-    // by creation order (alice, bob, cara).
+it('sorts by the recomputed rank rather than the stored per-province rank', function () {
     $standings = fetchProvincialStandings(['sort' => 'rank', 'direction' => 'asc']);
 
     expect($standings->pluck('user_id')->all())->toBe([
-        $this->alice->id,
-        $this->bob->id,
-        $this->cara->id,
-    ]);
+        $this->bob->id,   // 300.0
+        $this->cara->id,  // 225.0
+        $this->alice->id, // 150.0
+    ])->and($standings->pluck('rank')->all())->toBe([1, 2, 3]);
 });
 
-it('exposes the resolved sort/direction to the view', function () {
-    $response = $this->get('/standings?'.http_build_query([
-        'season' => '2026',
-        'series' => 'PR22',
-        'level' => 'provincial',
-    ]));
-    $response->assertOk();
+it('defaults the table to points descending', function () {
+    [$sort, $direction] = app(SeasonStandingsBoard::class)->normalizeSort(null, null);
 
-    expect($response->viewData('sort'))->toBe('points')
-        ->and($response->viewData('direction'))->toBe('desc');
+    expect($sort)->toBe('points')->and($direction)->toBe('desc');
+
+    $this->get('/standings?season=2026&series=PR22&level=provincial')
+        ->assertOk()
+        ->assertSee('↓');
 });
 
-it('defaults to rank asc when a full single-scope filter is applied', function () {
-    // Provincial + specific province + specific division = one ranking scope,
-    // so "rank" is meaningful and remains the natural default.
+it('ranks a filtered province by points even when the stored rank says otherwise', function () {
     Standing::create([
         'user_id' => $this->alice->id, 'series' => 'PR22', 'season' => '2026',
         'province_id' => $this->gp->id, 'division_id' => $this->open->id,
@@ -138,38 +134,29 @@ it('defaults to rank asc when a full single-scope filter is applied', function (
     Standing::create([
         'user_id' => $this->bob->id, 'series' => 'PR22', 'season' => '2026',
         'province_id' => $this->gp->id, 'division_id' => $this->open->id,
-        'points' => 100.0, 'rank' => 1, // deliberately inverted vs points, to prove the sort key used
+        'points' => 100.0, 'rank' => 1,
     ]);
 
-    $response = $this->get('/standings?'.http_build_query([
-        'season' => '2026',
-        'series' => 'PR22',
-        'level' => 'provincial',
+    $standings = fetchProvincialStandings([
         'division_id' => $this->open->id,
         'province_id' => $this->gp->id,
-    ]));
-    $response->assertOk();
+    ]);
 
-    expect($response->viewData('sort'))->toBe('rank')
-        ->and($response->viewData('direction'))->toBe('asc')
-        ->and(collect($response->viewData('standings'))->pluck('user_id')->all())->toBe([
-            $this->bob->id,   // rank 1
-            $this->alice->id, // rank 2
-        ]);
+    expect($standings->pluck('user_id')->all())->toBe([
+        $this->alice->id,
+        $this->bob->id,
+    ])->and($standings->pluck('rank_label')->all())->toBe(['1', '2']);
 });
 
-it('ignores an unknown sort value and falls back to the default', function () {
-    $response = $this->get('/standings?'.http_build_query([
+it('ignores an unknown sort value and falls back to points descending', function () {
+    $this->get('/standings?'.http_build_query([
         'season' => '2026',
         'series' => 'PR22',
         'level' => 'provincial',
         'sort' => 'not-a-column',
         'direction' => 'sideways',
-    ]));
-    $response->assertOk();
-
-    expect($response->viewData('sort'))->toBe('points')
-        ->and($response->viewData('direction'))->toBe('desc');
+    ]))->assertOk()
+        ->assertSeeInOrder(['Bob Alpha', 'Cara Mid', 'Alice Zulu']);
 });
 
 it('renders clickable sort links in the header with active-column indicator', function () {

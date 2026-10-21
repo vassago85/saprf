@@ -71,6 +71,7 @@
                     <tr class="border-b-2 border-stone-200 bg-stone-50/50">
                         <th class="px-4 sm:px-5 py-3.5 text-center w-16">
                             <a href="{{ $sortLink('rank') }}"
+                               wire:click.prevent="sortBy('rank')"
                                aria-label="{{ $sortAriaLabel('rank', 'rank') }}"
                                class="{{ $headerBase }} {{ $sort === 'rank' ? 'text-stone-900' : 'text-stone-400' }}">
                                 Rank {!! $sortArrow('rank') !!}
@@ -78,6 +79,7 @@
                         </th>
                         <th class="px-4 sm:px-5 py-3.5 text-left">
                             <a href="{{ $sortLink('shooter') }}"
+                               wire:click.prevent="sortBy('shooter')"
                                aria-label="{{ $sortAriaLabel('shooter', 'shooter name') }}"
                                class="{{ $headerBase }} {{ $sort === 'shooter' ? 'text-stone-900' : 'text-stone-400' }}">
                                 Shooter {!! $sortArrow('shooter') !!}
@@ -86,6 +88,7 @@
                         @if($showDivision)
                             <th class="px-4 sm:px-5 py-3.5 text-left hidden sm:table-cell">
                                 <a href="{{ $sortLink('division') }}"
+                                   wire:click.prevent="sortBy('division')"
                                    aria-label="{{ $sortAriaLabel('division', 'division') }}"
                                    class="{{ $headerBase }} {{ $sort === 'division' ? 'text-stone-900' : 'text-stone-400' }}">
                                     Division {!! $sortArrow('division') !!}
@@ -95,6 +98,7 @@
                         @if($showProvince)
                             <th class="px-4 sm:px-5 py-3.5 text-left hidden sm:table-cell">
                                 <a href="{{ $sortLink('province') }}"
+                                   wire:click.prevent="sortBy('province')"
                                    aria-label="{{ $sortAriaLabel('province', 'province') }}"
                                    class="{{ $headerBase }} {{ $sort === 'province' ? 'text-stone-900' : 'text-stone-400' }}">
                                     Province {!! $sortArrow('province') !!}
@@ -103,6 +107,7 @@
                         @endif
                         <th class="px-4 sm:px-5 py-3.5 text-right">
                             <a href="{{ $sortLink('points') }}"
+                               wire:click.prevent="sortBy('points')"
                                aria-label="{{ $sortAriaLabel('points', 'points') }}"
                                class="{{ $headerBase }} {{ $sort === 'points' ? 'text-stone-900' : 'text-stone-400' }}">
                                 Points {!! $sortArrow('points') !!}
@@ -115,17 +120,19 @@
                     @foreach($standings as $standing)
                         @php
                             $userDiv = $standing->user?->division;
+                            $rankNumber = (int) $standing->rank;
+                            $rankLabel = $standing->rank_label ?? (string) $rankNumber;
                         @endphp
-                        <tr class="border-b border-stone-100 transition hover:bg-stone-50/50 {{ $standing->rank <= 3 ? 'bg-emerald-50/30' : '' }}">
-                            <td class="px-4 sm:px-5 py-4 text-center">
-                                @if($standing->rank === 1)
-                                    <span class="inline-flex items-center justify-center size-8 rounded-full bg-amber-100 text-amber-700 text-sm font-bold shadow-sm">1</span>
-                                @elseif($standing->rank === 2)
-                                    <span class="inline-flex items-center justify-center size-8 rounded-full bg-stone-200 text-stone-600 text-sm font-bold">2</span>
-                                @elseif($standing->rank === 3)
-                                    <span class="inline-flex items-center justify-center size-8 rounded-full bg-amber-50 text-amber-600 text-sm font-bold">3</span>
+                        <tr wire:key="standing-{{ $standing->id }}" class="border-b border-stone-100 transition hover:bg-stone-50/50 {{ $rankNumber <= 3 ? 'bg-emerald-50/30' : '' }}">
+                            <td class="px-4 sm:px-5 py-4 text-center" data-rank-label="{{ $rankLabel }}">
+                                @if($rankNumber === 1)
+                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-amber-100 text-amber-700 text-sm font-bold shadow-sm">{{ $rankLabel }}</span>
+                                @elseif($rankNumber === 2)
+                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-stone-200 text-stone-600 text-sm font-bold">{{ $rankLabel }}</span>
+                                @elseif($rankNumber === 3)
+                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-amber-50 text-amber-600 text-sm font-bold">{{ $rankLabel }}</span>
                                 @else
-                                    <span class="text-sm font-medium text-stone-400">{{ $standing->rank }}</span>
+                                    <span class="text-sm font-medium text-stone-400">{{ $rankLabel }}</span>
                                 @endif
                             </td>
                             <td class="px-4 sm:px-5 py-4">
@@ -168,7 +175,12 @@
                                 @endif
                                 @if($showProvince)
                                     @php $prov = $standing->province ?? $standing->user?->province; @endphp
-                                    <span class="sm:hidden block text-xs text-stone-400 mt-0.5">{{ $prov->abbreviation ?? $prov->name ?? '—' }}</span>
+                                    <span class="sm:hidden block text-xs text-stone-400 mt-0.5">
+                                        {{ $prov->abbreviation ?? $prov->name ?? '—' }}
+                                        @if($standing->province_rank_label)
+                                            <span data-province-rank="{{ $standing->province_rank_label }}">{{ $standing->province_rank_label }}</span>
+                                        @endif
+                                    </span>
                                 @endif
                             </td>
                             @if($showDivision)
@@ -181,8 +193,11 @@
                             @if($showProvince)
                                 @php $prov = $standing->province ?? $standing->user?->province; @endphp
                                 <td class="px-4 sm:px-5 py-4 hidden sm:table-cell">
-                                    <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">
+                                    <span class="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">
                                         {{ $prov->abbreviation ?? $prov->name ?? '—' }}
+                                        @if($standing->province_rank_label)
+                                            <span class="font-semibold text-stone-500" data-province-rank="{{ $standing->province_rank_label }}">{{ $standing->province_rank_label }}</span>
+                                        @endif
                                     </span>
                                 </td>
                             @endif
