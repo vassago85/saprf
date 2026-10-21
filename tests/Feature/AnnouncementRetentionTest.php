@@ -18,6 +18,7 @@ use App\Models\AnnouncementRecipient;
 use App\Models\MatchEvent;
 use App\Models\Province;
 use App\Models\User;
+use Carbon\Carbon;
 
 beforeEach(function () {
     seedRoles();
@@ -39,7 +40,7 @@ function makeAnnouncementFor(User $creator, array $overrides = []): Announcement
     ], $overrides));
 }
 
-function makeMatchFor(User $creator, string $status = 'open'): MatchEvent
+function retentionMatch(User $creator, string $status = 'open'): MatchEvent
 {
     $province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
 
@@ -50,7 +51,7 @@ function makeMatchFor(User $creator, string $status = 'open'): MatchEvent
         'series' => 'PRS',
         'season' => '2026',
         'province_id' => $province->id,
-        'match_date' => \Carbon\Carbon::today()->addWeek(),
+        'match_date' => Carbon::today()->addWeek(),
         'status' => $status,
         'published' => true,
         'active_member_fee' => 550.00,
@@ -117,9 +118,9 @@ it('drops an expires_on_date announcement out of Inbox after its expiry but keep
 it('hides a match-scoped bulletin from Inbox AND Archive the instant the match completes', function () {
     $creator = User::factory()->create(['email_verified_at' => now()]);
 
-    $liveMatch = makeMatchFor($creator, 'open');
-    $doneMatch = makeMatchFor($creator, 'completed');
-    $cancelledMatch = makeMatchFor($creator, 'cancelled');
+    $liveMatch = retentionMatch($creator, 'open');
+    $doneMatch = retentionMatch($creator, 'completed');
+    $cancelledMatch = retentionMatch($creator, 'cancelled');
 
     $live = makeAnnouncementFor($creator, [
         'title' => 'Live bulletin',
@@ -154,7 +155,7 @@ it('hides a match-scoped bulletin from Inbox AND Archive the instant the match c
 
 it('vanishes an in-flight match bulletin from the member view when the match flips to completed', function () {
     $creator = User::factory()->create(['email_verified_at' => now()]);
-    $match = makeMatchFor($creator, 'open');
+    $match = retentionMatch($creator, 'open');
 
     $bulletin = makeAnnouncementFor($creator, [
         'title' => 'Weather update',
@@ -235,7 +236,7 @@ it('unread badge counts only Inbox items, not the whole Archive', function () {
     $me = User::factory()->create(['email_verified_at' => now()]);
     $me->assignRole('member');
 
-    $doneMatch = makeMatchFor($creator, 'completed');
+    $doneMatch = retentionMatch($creator, 'completed');
 
     // One inbox-eligible item.
     $inboxItem = makeAnnouncementFor($creator, [

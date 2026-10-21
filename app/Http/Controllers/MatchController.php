@@ -21,6 +21,7 @@ use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
+use App\Services\MatchFinanceService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
 use App\Services\QualificationService;
@@ -357,7 +358,7 @@ class MatchController extends Controller
         Request $request,
         MatchEvent $match,
         FinancialService $financials,
-        \App\Services\MatchFinanceService $workspaceMoney,
+        MatchFinanceService $workspaceMoney,
     ): View|RedirectResponse {
         $this->authorize('update', $match);
 
@@ -379,7 +380,7 @@ class MatchController extends Controller
         // end up with.
         $summary = $financials->matchFinancials($match);
         $money = $workspaceMoney->matchMoney($match);
-        $banking = \App\Models\Payout::lastBankingDetailsForUser($match->created_by);
+        $banking = Payout::lastBankingDetailsForUser($match->created_by);
 
         return view('matches.workspace.request-payout', [
             'match' => $match,
@@ -604,28 +605,54 @@ class MatchController extends Controller
                 'Phone',
                 'Squad',
                 'Division',
+                'Categories',
                 'Member Number',
             ]);
 
-            // Leave the Squad column blank on every row: Impact Scoring
-            // creates one squad per unique value on import, so any per-shooter
-            // number (1, 2, 3, …) would produce a squad-of-one for every
-            // shooter. Emitting empty lands everyone in the unassigned pool
-            // and the MD squads them up inside Impact Scoring.
+            // Column contract is Impact's shooter CSV guide
+            // (impactscoring.net/match/view-shooters-csv-format):
+            // Email is required and must be unique; Name is the full name
+            // (do not also send First Name / Last Name); Squad is left blank
+            // because Impact creates one squad per distinct value.
             //
-            // The Division column carries the shooter's actual competition
-            // division (Open, Ladies, Senior, …) from the registration — not
-            // the match series (PR22/PRS), which is what this used to emit.
-            // Blank when the registration has no division set yet.
+            // Impact keeps equipment class and demographics apart. On SAPRF
+            // matches there, divisions are Open / Production / … and
+            // Lady / Junior / Senior are categories. SAPRF stores both in
+            // one division field, so Ladies/Junior/Senior are written to
+            // Categories (Lady, not Ladies) and the Division cell is left
+            // blank. Equipment divisions stay in Division.
+            $categoryBySlug = [
+                'ladies' => 'Lady',
+                'junior' => 'Junior',
+                'senior' => 'Senior',
+            ];
+
+            $seenEmails = [];
+
             foreach ($registrations as $reg) {
                 $user = $reg->user;
+                $email = trim((string) ($reg->email ?: $user?->email ?: ''));
+                if ($email === '') {
+                    continue;
+                }
+
+                $emailKey = strtolower($email);
+                if (isset($seenEmails[$emailKey])) {
+                    continue;
+                }
+                $seenEmails[$emailKey] = true;
+
+                $slug = $reg->division?->slug;
+                $category = $slug !== null ? ($categoryBySlug[$slug] ?? '') : '';
+                $division = $category !== '' ? '' : ($reg->division?->name ?: '');
 
                 fputcsv($out, [
-                    $reg->email ?: $user?->email ?: '',
+                    $email,
                     $reg->shooter_name ?: $user?->name ?: '',
                     $reg->phone ?: $user?->phone ?: '',
                     '',
-                    $reg->division?->name ?: '',
+                    $division,
+                    $category,
                     $user?->membership?->saprf_number ?: '',
                 ]);
             }

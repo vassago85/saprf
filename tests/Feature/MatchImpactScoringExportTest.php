@@ -53,7 +53,7 @@ function seedImpactRegistration(MatchEvent $match, string $name, string $saprf, 
 {
     $user = User::factory()->create([
         'name' => $name,
-        'email' => str($name)->slug('.') . '@example.test',
+        'email' => str($name)->slug('.').'@example.test',
         'phone' => '0821234567',
         'email_verified_at' => now(),
     ]);
@@ -97,25 +97,27 @@ it('emits an empty Squad column on every row so Impact Scoring does not create o
 
     // Header + three shooters.
     expect($rows)->toHaveCount(4);
-    expect($rows[0])->toBe('Email,Name,Phone,Squad,Division,"Member Number"');
+    expect($rows[0])->toBe('Email,Name,Phone,Squad,Division,Categories,"Member Number"');
 
     // Every data row's Squad column (index 3) must be blank. If someone
     // reintroduces a per-shooter counter, one of these will read "1", "2",
     // or "3" and the assertion fails.
     foreach (array_slice($rows, 1) as $row) {
         $cols = str_getcsv($row);
-        expect($cols)->toHaveCount(6);
+        expect($cols)->toHaveCount(7);
         expect($cols[3])->toBe('');
     }
 });
 
-it('carries each shooter\'s division into the Division column (blank when the registration has no division yet)', function () {
-    // First shooter: registered under the Open division.
-    // Second shooter: no division_id set on the registration yet.
-    // Old bug: the exporter hard-coded the match's series (PR22/PRS) into
-    //          the Division column for every row.
+it('puts equipment classes in Division and demographic classes in Categories', function () {
+    // Impact's shooter CSV treats Open/Factory/Limited/Production as
+    // divisions, and Lady/Junior/Senior as categories. SAPRF stores both
+    // in one division field. The old export wrote "Ladies" into Division,
+    // which does not match a division on a SAPRF Impact match.
     seedImpactRegistration($this->match, 'Open Shooter', '900', 1, 'open');
-    seedImpactRegistration($this->match, 'Undecided Shooter', '901', 2);
+    seedImpactRegistration($this->match, 'Ladies Shooter', '901', 2, 'ladies');
+    seedImpactRegistration($this->match, 'Senior Shooter', '902', 3, 'senior');
+    seedImpactRegistration($this->match, 'Undecided Shooter', '903', 4);
 
     $response = $this->actingAs($this->md)
         ->get(route('matches.export-impact-scoring', $this->match))
@@ -125,14 +127,51 @@ it('carries each shooter\'s division into the Division column (blank when the re
     $byName = [];
     foreach (array_slice($rows, 1) as $row) {
         $cols = str_getcsv($row);
-        $byName[$cols[1]] = $cols[4];
+        $byName[$cols[1]] = ['division' => $cols[4], 'categories' => $cols[5]];
     }
 
-    expect($byName['Open Shooter'])->toBe('Open');
-    expect($byName['Undecided Shooter'])->toBe('');
+    expect($byName['Open Shooter'])->toBe(['division' => 'Open', 'categories' => '']);
+    expect($byName['Ladies Shooter'])->toBe(['division' => '', 'categories' => 'Lady']);
+    expect($byName['Senior Shooter'])->toBe(['division' => '', 'categories' => 'Senior']);
+    expect($byName['Undecided Shooter'])->toBe(['division' => '', 'categories' => '']);
 
-    // Belt & braces: no row still leaks the match series into the column.
-    expect($byName)->not->toContain('PR22');
+    expect(collect($byName)->pluck('division')->all())->not->toContain('PR22');
+});
+
+it('drops rows Impact would reject: blank emails and a second row with the same email', function () {
+    seedImpactRegistration($this->match, 'First Shooter', '910', 1, 'open');
+    seedImpactRegistration($this->match, 'Duplicate Shooter', '911', 2, 'factory');
+
+    MatchRegistration::where('shooter_name', 'Duplicate Shooter')
+        ->update(['email' => 'first.shooter@example.test']);
+
+    $noEmail = User::factory()->create([
+        'name' => 'No Email Shooter',
+        'email' => 'no.email.shooter@example.test',
+        'email_verified_at' => now(),
+    ]);
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $noEmail->id,
+        'shooter_name' => 'No Email Shooter',
+        'email' => '',
+        'phone' => '0820000000',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 550,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now()->addSeconds(3),
+    ]);
+    $noEmail->update(['email' => '']);
+
+    $response = $this->actingAs($this->md)
+        ->get(route('matches.export-impact-scoring', $this->match))
+        ->assertOk();
+
+    $csv = $response->streamedContent();
+    expect($csv)->toContain('First Shooter')
+        ->not->toContain('Duplicate Shooter')
+        ->not->toContain('No Email Shooter');
 });
 
 it('excludes cancelled registrations from the export', function () {
