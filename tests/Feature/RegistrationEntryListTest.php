@@ -103,7 +103,7 @@ it('hides fee and payment details from ordinary members on the entry list', func
         ->get(route('registrations.index', ['match_id' => $this->match->id]))
         ->assertOk()
         ->assertSee('Jane Marksman')
-        ->assertDontSee('1,500.00');
+        ->assertDontSee(money(1500));
 });
 
 it('shows fee details to organisers on the entry list', function () {
@@ -115,7 +115,7 @@ it('shows fee details to organisers on the entry list', function () {
     $this->actingAs($admin)
         ->get(route('registrations.index', ['match_id' => $this->match->id]))
         ->assertOk()
-        ->assertSee('1,500.00');
+        ->assertSee(money(1500));
 });
 
 it('excludes cancelled registrations from the entry list', function () {

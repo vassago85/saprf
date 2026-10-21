@@ -4,6 +4,7 @@ use App\Models\ContactMessage;
 use App\Models\User;
 use App\Notifications\ContactMessageReceivedNotification;
 use App\Notifications\ContactMessageReplyNotification;
+use App\Services\SettingsService;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -33,15 +34,14 @@ test('the contact form is publicly reachable', function () {
         ->assertSee('Message');
 });
 
-test('a valid submission is stored and notifies admin recipients', function () {
+test('a valid submission is stored and notifies the secretary inbox', function () {
     Notification::fake();
 
-    $admin = User::factory()->create();
-    $admin->assignRole('admin');
-    $owner = User::factory()->create();
-    $owner->assignRole('owner');
     $member = User::factory()->create();
     $member->assignRole('member');
+
+    $secretary = app(SettingsService::class)->secretaryEmail();
+    expect($secretary)->not->toBeEmpty();
 
     $this->post(route('contact.store'), validSubmission())
         ->assertRedirect(route('contact.thanks'));
@@ -52,7 +52,12 @@ test('a valid submission is stored and notifies admin recipients', function () {
         ->and($message->email)->toBe('alice@example.com')
         ->and($message->subject)->toBe('Question about SAPRF membership');
 
-    Notification::assertSentTo([$admin, $owner], ContactMessageReceivedNotification::class);
+    Notification::assertSentOnDemand(
+        ContactMessageReceivedNotification::class,
+        function ($notification, $channels, $notifiable) use ($secretary) {
+            return ($notifiable->routes['mail'] ?? null) === $secretary;
+        },
+    );
     Notification::assertNotSentTo([$member], ContactMessageReceivedNotification::class);
 });
 

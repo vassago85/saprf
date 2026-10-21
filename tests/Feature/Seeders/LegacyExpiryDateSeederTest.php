@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     seedRoles();
+
+    // The bundled CSV has fixed expiry dates. The seeder skips rows that
+    // have already lapsed, so pin "today" before those dates or the
+    // assertions rot as the calendar passes them.
+    $this->travelTo('2026-08-01');
 });
 
 it('updates start and expiry dates for an unambiguous paid membership match', function () {

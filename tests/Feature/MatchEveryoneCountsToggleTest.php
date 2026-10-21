@@ -53,7 +53,9 @@ beforeEach(function () {
         'saprf_number' => 'SAPRF-TOGGLE-001',
         'status' => 'active',
         'payment_status' => 'unpaid',
-        'expiry_date' => $matchDate->copy()->subYear(),
+        // Inside the 90-day lapsed window on match day, and the match itself
+        // is 14 days ago so the 7-day renewal grace has already closed.
+        'expiry_date' => $matchDate->copy()->subDays(30),
     ]);
 
     $this->paidShooter = User::factory()->create(['name' => 'Paid Penny']);

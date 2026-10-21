@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Club;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Membership;
@@ -159,14 +160,28 @@ it('produces a PDF for a completed account-credit payment', function () {
 });
 
 it('produces a PDF for a membership payment', function () {
-    $tier = MembershipFeeTier::create([
-        'slug' => 'adult',
-        'name' => 'Adult',
-        'price' => 850.00,
-        'duration_months' => 12,
+    $tier = MembershipFeeTier::where('slug', 'adult')->firstOrFail();
+
+    // An active paid membership trips EnsureProfileComplete. Fill the
+    // SASCOC fields so the invoice download is not bounced to the profile page.
+    $province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    $club = Club::create([
+        'name' => 'Invoice Test Club',
+        'slug' => 'invoice-test-club-'.uniqid(),
+        'abbreviation' => 'ITC',
+        'province_id' => $province->id,
         'is_active' => true,
-        'min_age' => 18,
-        'max_age' => null,
+    ]);
+    $this->member->update([
+        'province_id' => $province->id,
+        'club_id' => $club->id,
+        'date_of_birth' => now()->subYears(30)->toDateString(),
+        'gender' => 'male',
+        'ethnicity' => 'white',
+        'country_of_residence' => 'ZA',
+        'sa_id_number' => '9001015800085',
+        'sa_citizen' => true,
+        'previously_disadvantaged' => false,
     ]);
 
     $membership = Membership::create([

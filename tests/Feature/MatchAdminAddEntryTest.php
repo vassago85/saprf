@@ -84,7 +84,9 @@ beforeEach(function () {
         'expiry_date' => Carbon::today()->addMonths(6),
     ]);
 
-    // A lapsed shooter (expired 6 months ago).
+    // A lapsed shooter: expired recently, still inside the 90-day lapsed
+    // window. Past that cutoff they price as a non-member and the waive
+    // toggle is ignored.
     $this->lapsedMember = User::factory()->create(['email_verified_at' => now()]);
     Membership::create([
         'user_id' => $this->lapsedMember->id,
@@ -93,7 +95,7 @@ beforeEach(function () {
         'status' => 'expired',
         'payment_status' => 'paid',
         'start_date' => Carbon::today()->subYears(2),
-        'expiry_date' => Carbon::today()->subMonths(6),
+        'expiry_date' => Carbon::today()->subDays(30),
     ]);
 });
 

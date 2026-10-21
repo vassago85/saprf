@@ -193,10 +193,14 @@ class ImportMembersCommand extends Command
             : null;
 
         // Scraper split: a stub holds the legacy SAPRF number while the real member
-        // already registered with their email on a separate account.
+        // already registered with their email (often under a platform-issued
+        // SAPRF-YYYY-##### number). Exact email plus a mergeable stub is enough
+        // to prefer that account; the legacy number is released off the stub
+        // before it is written. belongsToDifferentRealMember stays on the weaker
+        // name/placeholder fallbacks below, where a shared name must not hijack
+        // someone who already has a different real number.
         if ($viaSaprf && $viaEmail && $viaSaprf->id !== $viaEmail->id
-            && $this->isMergeableStub($viaSaprf)
-            && !$this->belongsToDifferentRealMember($viaEmail, $rowSaprf)) {
+            && $this->isMergeableStub($viaSaprf)) {
             return $viaEmail;
         }
 
