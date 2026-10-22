@@ -16,7 +16,44 @@
                     <label for="user_management_search" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Search</label>
                     <input type="text" id="user_management_search" name="search" placeholder="Name, email or SAPRF number…" value="{{ $search ?? '' }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
-                @if($search)
+
+                {{-- Bot-sweep filters. Only shown on the active-users view;
+                     the trashed view has no email/login signal to filter on. --}}
+                @if(! $showTrashed)
+                    <div class="min-w-[160px]">
+                        <label for="user_management_email_status" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Email</label>
+                        <select id="user_management_email_status" name="email_status" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="all"       @selected(($filters['email_status'] ?? 'all') === 'all')>Any</option>
+                            <option value="ok"        @selected(($filters['email_status'] ?? 'all') === 'ok')>Deliverable</option>
+                            <option value="bouncing"  @selected(($filters['email_status'] ?? 'all') === 'bouncing')>Hard-bouncing</option>
+                            <option value="complained" @selected(($filters['email_status'] ?? 'all') === 'complained')>Marked as spam</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[160px]">
+                        <label for="user_management_verified" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Verified</label>
+                        <select id="user_management_verified" name="verified" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="all" @selected(($filters['verified'] ?? 'all') === 'all')>Any</option>
+                            <option value="yes" @selected(($filters['verified'] ?? 'all') === 'yes')>Verified</option>
+                            <option value="no"  @selected(($filters['verified'] ?? 'all') === 'no')>Unverified</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[180px]">
+                        <label for="user_management_login_history" class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Login history</label>
+                        <select id="user_management_login_history" name="login_history" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="all"       @selected(($filters['login_history'] ?? 'all') === 'all')>Any</option>
+                            <option value="logged_in" @selected(($filters['login_history'] ?? 'all') === 'logged_in')>Has signed in</option>
+                            <option value="never"     @selected(($filters['login_history'] ?? 'all') === 'never')>Never signed in</option>
+                        </select>
+                    </div>
+                @endif
+
+                @php
+                    $hasActiveFilter = $search
+                        || (($filters['email_status'] ?? 'all') !== 'all')
+                        || (($filters['verified'] ?? 'all') !== 'all')
+                        || (($filters['login_history'] ?? 'all') !== 'all');
+                @endphp
+                @if($hasActiveFilter)
                     <a href="{{ route('user-management.index', $showTrashed ? ['trashed' => 1] : []) }}" class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</a>
                 @endif
             </x-filter-bar>
@@ -45,10 +82,32 @@
         @endif
 
         <h2 class="sr-only">Users list</h2>
+
+        {{-- Bulk-delete form wraps the table on the active-users view only.
+             Trashed users already have per-row Restore / Permanent-delete
+             actions; a bulk soft-delete there wouldn't make sense. --}}
+        @if(! $showTrashed)
+            <form id="user-management-bulk" method="POST" action="{{ route('user-management.bulk-destroy') }}"
+                  onsubmit="return confirmBulkDelete(this)">
+                @csrf
+                <input type="hidden" name="search" value="{{ $search ?? '' }}">
+                <input type="hidden" name="email_status" value="{{ $filters['email_status'] ?? 'all' }}">
+                <input type="hidden" name="verified" value="{{ $filters['verified'] ?? 'all' }}">
+                <input type="hidden" name="login_history" value="{{ $filters['login_history'] ?? 'all' }}">
+        @endif
+
         <x-admin-table class="mt-0">
             <table class="min-w-full">
                 <thead>
                     <tr class="border-b-2 border-stone-200 bg-stone-50">
+                        @if(! $showTrashed)
+                            <th class="w-8 px-3 py-3.5 text-left">
+                                <label class="sr-only" for="user-management-select-all">Select all users on this page</label>
+                                <input type="checkbox" id="user-management-select-all"
+                                       onclick="document.querySelectorAll('.user-management-row-check').forEach(c => c.checked = this.checked)"
+                                       class="h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                            </th>
+                        @endif
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Name</th>
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Email</th>
                         <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Roles</th>
@@ -63,7 +122,30 @@
                 <tbody class="divide-y divide-stone-100">
                     @forelse ($users as $user)
                         <tr class="hover:bg-stone-50 transition-colors">
-                            <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">{{ $user->name }}</td>
+                            @if(! $showTrashed)
+                                <td class="w-8 px-3 py-3.5">
+                                    @if(! $user->hasRole('owner') && $user->id !== auth()->id())
+                                        <label class="sr-only" for="user-check-{{ $user->id }}">Select {{ $user->name }} for bulk delete</label>
+                                        <input type="checkbox" form="user-management-bulk" name="user_ids[]" value="{{ $user->id }}"
+                                               id="user-check-{{ $user->id }}"
+                                               class="user-management-row-check h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                                    @else
+                                        <span class="text-xs text-stone-300" title="Owners and your own account can't be bulk-deleted">—</span>
+                                    @endif
+                                </td>
+                            @endif
+                            <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
+                                {{ $user->name }}
+                                @if(! $showTrashed && $user->email_bounced_at)
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20" title="Hard bounce recorded {{ date_short($user->email_bounced_at) }}">Bouncing</span>
+                                @endif
+                                @if(! $showTrashed && $user->email_complained_at)
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20" title="Recipient marked a previous email as spam {{ date_short($user->email_complained_at) }}">Spam complaint</span>
+                                @endif
+                                @if(! $showTrashed && ! $user->email_verified_at)
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20" title="This account's email address has never been verified">Unverified</span>
+                                @endif
+                            </td>
                             <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->email }}</td>
                             <td class="px-5 py-3.5 text-sm">
                                 <div class="flex flex-wrap gap-1">
@@ -146,7 +228,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-5 py-12 text-center text-sm text-stone-400">
+                            <td colspan="{{ $showTrashed ? 5 : 6 }}" class="px-5 py-12 text-center text-sm text-stone-400">
                                 {{ $showTrashed ? 'No deleted users.' : 'No users found.' }}
                             </td>
                         </tr>
@@ -154,6 +236,33 @@
                 </tbody>
             </table>
         </x-admin-table>
+
+        @if(! $showTrashed)
+                <div class="flex items-center justify-between gap-3 pt-3">
+                    <p class="text-xs text-stone-500">
+                        Owners and your own account are always skipped. Soft-deleted users land in the Deleted list and can be restored.
+                    </p>
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition disabled:opacity-50">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                        Delete selected
+                    </button>
+                </div>
+            </form>
+
+            <script>
+                function confirmBulkDelete(form) {
+                    const picked = form.querySelectorAll('input[name="user_ids[]"]:checked').length;
+                    if (picked === 0) {
+                        alert('Pick at least one user to delete.');
+                        return false;
+                    }
+                    return confirm('⚠  Soft-delete ' + picked + ' user' + (picked === 1 ? '' : 's') + '?\n\n' +
+                        'They will be moved to the Deleted list and can be restored from there. ' +
+                        'Owner accounts and your own account are always skipped automatically.');
+                }
+            </script>
+        @endif
 
         <div>
             {{ $users->links() }}

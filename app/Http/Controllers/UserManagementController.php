@@ -10,6 +10,7 @@ use App\Services\ScoreValidationService;
 use App\Services\StandingsCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -52,10 +53,60 @@ class UserManagementController extends Controller
             });
         }
 
+        // ── Bot-sweep filters ───────────────────────────────────────
+        // These three filters let an owner reduce the member list to
+        // "accounts that look like bots" (hard-bounced email + never
+        // verified + never signed in) in two clicks, so a quarterly
+        // cleanup is a bulk-select + delete rather than a one-by-one
+        // scroll through hundreds of rows.
+        $emailStatus = $request->input('email_status', 'all');
+        if ($emailStatus === 'bouncing') {
+            $query->whereNotNull('email_bounced_at');
+        } elseif ($emailStatus === 'complained') {
+            $query->whereNotNull('email_complained_at');
+        } elseif ($emailStatus === 'ok') {
+            $query->whereNull('email_bounced_at')->whereNull('email_complained_at');
+        }
+
+        $verified = $request->input('verified', 'all');
+        if ($verified === 'yes') {
+            $query->whereNotNull('email_verified_at');
+        } elseif ($verified === 'no') {
+            $query->whereNull('email_verified_at');
+        }
+
+        // "Zero logins" is derived from audit_logs rather than a
+        // last_login_at column (we don't have one). The query uses the
+        // (user_id, action_type) index added by the create-audit-logs
+        // migration, so even on a prod-sized table this stays sub-100ms.
+        $loginHistory = $request->input('login_history', 'all');
+        if ($loginHistory === 'never') {
+            $query->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('audit_logs')
+                    ->whereColumn('audit_logs.user_id', 'users.id')
+                    ->where('audit_logs.action_type', 'user.login');
+            });
+        } elseif ($loginHistory === 'logged_in') {
+            $query->whereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('audit_logs')
+                    ->whereColumn('audit_logs.user_id', 'users.id')
+                    ->where('audit_logs.action_type', 'user.login');
+            });
+        }
+
         $users = $query->orderBy('name')->paginate(20)->withQueryString();
         $trashedCount = User::onlyTrashed()->count();
 
-        return view('user-management.index', compact('users', 'search', 'showTrashed', 'trashedCount'));
+        $filters = [
+            'search' => $search,
+            'email_status' => $emailStatus,
+            'verified' => $verified,
+            'login_history' => $loginHistory,
+        ];
+
+        return view('user-management.index', compact('users', 'search', 'showTrashed', 'trashedCount', 'filters'));
     }
 
     public function edit(Request $request, User $user): View
@@ -307,6 +358,72 @@ class UserManagementController extends Controller
 
         return redirect()->route('user-management.index')
             ->with('success', "{$name} has been deleted. You can restore them from the deleted users list.");
+    }
+
+    /**
+     * Soft-delete every selected user in one shot. Owners and the acting
+     * user are always skipped — their deletions can only happen via the
+     * single-row destroy path which has the same guards and lets the
+     * operator confirm each one individually.
+     *
+     * Each deletion is still written to the audit log the same way as
+     * the single-row destroy so a bulk sweep leaves the same paper trail
+     * as a hundred individual clicks.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $actor = $request->user();
+
+        $validated = $request->validate([
+            'user_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'user_ids.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        $users = User::with('roles')->whereIn('id', $validated['user_ids'])->get();
+
+        $deleted = 0;
+        $skippedOwners = 0;
+        $skippedSelf = 0;
+
+        foreach ($users as $user) {
+            if ($user->hasRole('owner')) {
+                $skippedOwners++;
+                continue;
+            }
+            if ($user->id === $actor->id) {
+                $skippedSelf++;
+                continue;
+            }
+
+            $this->auditLogService->log(
+                $actor,
+                'user.soft_deleted',
+                'User',
+                $user->id,
+                ['name' => $user->name, 'email' => $user->email],
+                null,
+                'Bulk soft-delete from User Management',
+            );
+
+            $user->delete();
+            $deleted++;
+        }
+
+        $summary = "Soft-deleted {$deleted} user" . ($deleted === 1 ? '' : 's') . '.';
+        if ($skippedOwners > 0) {
+            $summary .= " Skipped {$skippedOwners} owner" . ($skippedOwners === 1 ? '' : 's') . '.';
+        }
+        if ($skippedSelf > 0) {
+            $summary .= ' Skipped your own account.';
+        }
+
+        $flashKey = $deleted > 0 ? 'success' : 'error';
+        if ($deleted === 0 && $skippedOwners === 0 && $skippedSelf === 0) {
+            $summary = 'No users were deleted.';
+        }
+
+        return redirect()->route('user-management.index', $request->only(['search', 'email_status', 'verified', 'login_history', 'trashed']))
+            ->with($flashKey, $summary);
     }
 
     public function restore(Request $request, int $id): RedirectResponse

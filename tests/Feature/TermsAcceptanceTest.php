@@ -81,6 +81,11 @@ test('registration is blocked when the terms checkbox is not ticked', function (
         ->set('password', 'SuperSecret123')
         ->set('password_confirmation', 'SuperSecret123')
         ->set('terms_accepted', false)
+        // Pretend the form was opened five minutes ago so the honeypot
+        // min-fill-time check (added by the anti-bot hardening) doesn't
+        // short-circuit validation — we're testing a real validation
+        // path here, not the bot trap.
+        ->set('hp_started_at', now()->subMinutes(5)->getTimestamp())
         ->call('register')
         ->assertHasErrors(['terms_accepted' => 'accepted']);
 
@@ -99,6 +104,8 @@ test('registration succeeds when the terms checkbox is ticked', function () {
         ->set('password', 'SuperSecret123')
         ->set('password_confirmation', 'SuperSecret123')
         ->set('terms_accepted', true)
+        // See the previous test for why hp_started_at is backdated.
+        ->set('hp_started_at', now()->subMinutes(5)->getTimestamp())
         ->call('register')
         ->assertHasNoErrors();
 

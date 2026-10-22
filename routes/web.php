@@ -895,6 +895,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::put('/user-management/{user}/membership', [UserManagementController::class, 'updateMembership'])->name('user-management.update-membership');
         Route::put('/user-management/{user}/guardian', [UserManagementController::class, 'updateGuardian'])->name('user-management.update-guardian');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
+        Route::post('/user-management/bulk-destroy', [UserManagementController::class, 'bulkDestroy'])->name('user-management.bulk-destroy');
         Route::post('/user-management/{id}/restore', [UserManagementController::class, 'restore'])->name('user-management.restore');
         Route::get('/user-management/{id}/confirm-delete', [UserManagementController::class, 'confirmForceDelete'])->name('user-management.confirm-force-delete');
         Route::delete('/user-management/{id}/force-delete', [UserManagementController::class, 'forceDelete'])->name('user-management.force-delete');

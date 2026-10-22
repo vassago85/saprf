@@ -6,11 +6,23 @@ use App\Notifications\EmailOtpNotification;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] class extends Component {
+    /**
+     * Anti-bot sizing. Values match the ContactController honeypot
+     * (3-second min fill, 5 attempts / 10 min per IP) so the public forms
+     * behave consistently from the operator's point of view.
+     */
+    private const MIN_FILL_SECONDS = 3;
+    private const RATE_LIMIT_MAX_ATTEMPTS = 5;
+    private const RATE_LIMIT_DECAY_SECONDS = 600;
+
     public string $name = '';
     public string $email = '';
     public string $phone = '';
@@ -26,6 +38,25 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
     public string $password = '';
     public string $password_confirmation = '';
     public bool $terms_accepted = false;
+
+    /**
+     * CSS-hidden honeypot input. Real users never see or fill it; bots that
+     * parse the form and populate every text input trip it and get a silent
+     * "success" redirect without a user ever being persisted.
+     */
+    public string $hp_field = '';
+
+    /**
+     * Unix timestamp captured at mount(). Submissions faster than
+     * MIN_FILL_SECONDS look bot-like and get the same silent-success
+     * treatment as a honeypot hit.
+     */
+    public int $hp_started_at = 0;
+
+    public function mount(): void
+    {
+        $this->hp_started_at = now()->getTimestamp();
+    }
 
     /**
      * Suggest a default for previously_disadvantaged_choice from ethnicity so
@@ -48,6 +79,26 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
 
     public function register(): void
     {
+        // Bot-trap short-circuits run BEFORE validation so the DB never
+        // sees a bot's row and the bot never learns its trick failed —
+        // we redirect to the same "please verify your email" screen a
+        // real sign-up lands on. Mirrors ContactController's spam logic.
+        if ($this->looksLikeBot()) {
+            Log::info('Registration honeypot/min-fill triggered; silent success', [
+                'ip' => request()->ip(),
+                'hp_field_filled' => $this->hp_field !== '',
+                'fill_seconds' => $this->hp_started_at > 0
+                    ? now()->getTimestamp() - $this->hp_started_at
+                    : null,
+            ]);
+            $this->redirect(route('verification.notice'), navigate: true);
+            return;
+        }
+
+        if ($this->isRateLimited()) {
+            return;
+        }
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -65,6 +116,8 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
         ], [
             'terms_accepted.accepted' => 'You must accept the Terms & Conditions to create an account.',
         ]);
+
+        RateLimiter::hit($this->throttleKey(), self::RATE_LIMIT_DECAY_SECONDS);
 
         $previouslyDisadvantaged = match ($validated['previously_disadvantaged_choice'] ?? '') {
             'yes' => true,
@@ -111,6 +164,52 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
             'ethnicityOptions' => User::ETHNICITY_OPTIONS,
         ];
     }
+
+    /**
+     * True when the submission trips either the honeypot (hidden input was
+     * filled) or the min-fill-time check (form was submitted faster than a
+     * real human can type). Either signal is treated the same way: silent
+     * success, no user row, no feedback that would help a bot adapt.
+     */
+    private function looksLikeBot(): bool
+    {
+        if ($this->hp_field !== '') {
+            return true;
+        }
+
+        if ($this->hp_started_at > 0
+            && (now()->getTimestamp() - $this->hp_started_at) < self::MIN_FILL_SECONDS) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isRateLimited(): bool
+    {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), self::RATE_LIMIT_MAX_ATTEMPTS)) {
+            return false;
+        }
+
+        event(new Lockout(request()));
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $this->addError('email', 'Too many sign-up attempts from this network. Please try again in '
+            . max($seconds, 1) . ' seconds.');
+
+        return true;
+    }
+
+    /**
+     * Keyed on IP only — the email is user-controlled and a bot farm would
+     * just rotate addresses to defeat an email-keyed limiter. 5 real human
+     * signups per 10 minutes from a single IP is more than any legitimate
+     * home / club network needs.
+     */
+    private function throttleKey(): string
+    {
+        return 'register:' . request()->ip();
+    }
 }
 
 ?>
@@ -128,6 +227,16 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
             <p class="text-sm text-stone-500 mb-6">Join SAPRF. Fields marked <span class="text-red-600">*</span> are required.</p>
 
             <form wire:submit="register" class="space-y-6">
+                {{-- Anti-bot honeypot. Hidden off-screen (not display:none,
+                     because some bots skip display:none fields). Real users
+                     never see or fill it; bots that parse the form and
+                     populate every text input trip it. Pairs with the
+                     hp_started_at min-fill-time check in the Volt class. --}}
+                <div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+                    <label for="hp_field">Do not fill this in.</label>
+                    <input wire:model="hp_field" type="text" name="hp_field" id="hp_field" tabindex="-1" autocomplete="off">
+                </div>
+
                 {{-- Section: contact --}}
                 <fieldset class="space-y-4">
                     <legend class="text-sm font-semibold uppercase tracking-wide text-stone-500">Contact</legend>
