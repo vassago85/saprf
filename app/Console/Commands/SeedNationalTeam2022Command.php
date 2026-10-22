@@ -16,37 +16,28 @@ use Illuminate\Support\Facades\DB;
  * into the national_team_appearances table.
  *
  * Championship context — the first-ever IPRF World Championship, hosted
- * by France in Bitche, 6–12 August 2022. 21 team members: 16 shooters
- * awarded Protea Colours (SASCOC-managed, career-once honour) across five
- * divisions plus 5 shooters awarded SASSCo Federation Colours only, no
- * Protea.
+ * by France in Bitche, 6–12 August 2022. 21 team members across five
+ * divisions.
  *
  * Source roster: the On Target Africa magazine "Protea Colours" article
- * by Grant Anderson (SAPRF Chairperson), June/July 2022, Issue 38
- * (image supplied by Exco, Oct 2026). The article is unambiguous about
- * which 16 names earned Protea Colours and which 5 attended on SASSCo
- * Federation Colours only — this seeder honours that distinction.
+ * by Grant Anderson (SAPRF Chairperson), June/July 2022, Issue 38, plus
+ * Greg Sykes's Oct 2026 email to Exco pinning the per-division layout of
+ * the shooters the magazine listed only in the SASSCo-only group.
  *
- *   - The 16 Protea-colours rows have `awarded_colours = true` IFF the
- *     matched user doesn't already carry a colours-awarding row from
- *     another year. The "at most one colours row per user" invariant is
- *     enforced in application code (MySQL doesn't support partial unique
- *     indexes), so skipping on an existing colours row keeps us safe.
+ *   - `awarded_colours` is forced to FALSE on every row. This seeder
+ *     records WHO represented South Africa in 2022 — the Protea Colours
+ *     award is a separate SASCOC decision that Exco maintains via the
+ *     admin UI (NationalTeamAppearanceController "promote on toggle"
+ *     path). Same convention as the 2023, 2024, 2025 and 2026 seeders.
  *
- *   - The 5 SASSCo-only rows have `awarded_colours = false` always, with
- *     a note explaining why (so a future admin reader doesn't flip the
- *     flag "because they were on the team"). They still represent SA at
- *     this championship — the appearance row is the historical record
- *     of that — they just didn't earn Protea Colours.
+ *   - Divisions follow Greg's email: Open (6), Ladies (3), Senior (4+1),
+ *     Factory (2+1), Limited (4). Glen Clark and Russell Ferreira were
+ *     the two names Greg didn't call out — they're placed in Senior and
+ *     Factory respectively based on their 2024–2026 team records, and
+ *     admin can move them via the UI if a more authoritative source
+ *     turns up.
  *
- *   - Divisions follow the magazine article: Open (6), Ladies (2),
- *     Senior (4), Factory (2), Limited (2). The 5 SASSCo-only entries
- *     have no division listed in the article; they're attached to Open
- *     with division_label "Open" and the note captures their status.
- *     Admin can split those into their actual divisions via the UI if
- *     the source archive turns up a per-division breakdown later.
- *
- * Shooter resolution order (identical to the 2024/2025/2026 seeders):
+ * Shooter resolution order (identical to the 2023/2024/2025/2026 seeders):
  *   1. SAPRF number from `SAPRF_HINTS` if the roster name needs pinning.
  *   2. Case-insensitive, whitespace-collapsed name match on users.name.
  *   3. Loose fallback that strips punctuation + diacritics on both sides
@@ -83,75 +74,49 @@ class SeedNationalTeam2022Command extends Command
     private const APPEARED_AT = self::STARTS_ON;
 
     /**
-     * Note added to the 5 SASSCo-only rows so a future admin reader
-     * understands why awarded_colours stays false even though these
-     * shooters appear on the 2022 roster.
-     */
-    private const SASSCO_NOTE = 'Awarded SASSCo Federation Colours for attending IPRF 2022 — not Protea Colours (per the SAPRF Chairperson\'s On Target Africa announcement, Issue 38).';
-
-    /**
-     * Division layout combines the On Target Africa magazine (which names
-     * each division's Protea-awarded shooters) with Greg Sykes's Oct 2026
-     * email to Exco (which fills in the actual division of each SASSCo-
-     * only shooter). The magazine groups the 5 SASSCo-only names together
-     * without divisions; Greg's email places them inside their real
-     * divisions (Kim-Leigh → Ladies, Willem + Arnold → Limited). Glen
-     * Clark and Russell Ferreira weren't listed in Greg's email so they
-     * stay in their best-guess divisions based on their 2024–2026 team
-     * records (Senior and Factory respectively).
+     * Division layout per Greg Sykes's Oct 2026 email, cross-referenced
+     * against the On Target Africa magazine. Every row is `role=shooter`
+     * and `awarded_colours=false` — this seeder is strictly a historical
+     * record of who represented South Africa at the 2022 Championship.
+     * Protea Colours awards are an admin-UI concern.
      *
-     * `colours` flips the colours-award path: true for the 16 Protea
-     * names, false for the 5 SASSCo-only names.
-     *
-     * When `colours` is true the actual flag is still gated by
-     * `!$user->hasProteaColours()` so we never try to double-award.
-     * When `colours` is false the row ALWAYS stores awarded_colours=false
-     * regardless of the user's history, and the SASSCO_NOTE is attached.
+     * Glen Clark and Russell Ferreira are placed in Senior and Factory
+     * respectively — a best guess from their 2024–2026 team records,
+     * since Greg's email didn't call out their 2022 division.
      */
     private const ROSTER = [
-        // Open division (6) — all Protea Colours.
-        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Garth Olivier',         'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Justin Louw',           'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Johan Lottering',       'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Hendrik Nel',           'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Jason Marais',          'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
+        // Open (6)
+        ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Garth Olivier',         'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Justin Louw',           'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Johan Lottering',       'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Hendrik Nel',           'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Jason Marais',          'division_slug' => 'open',    'division_label' => 'Open'],
 
-        // Ladies (3) — Liesl + Natasha got Protea per the magazine;
-        // Kim-Leigh was in the Ladies division but on SASSCo-only
-        // Federation Colours (per Greg's Oct 2026 email).
-        ['name' => 'Liesl Baben',           'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => true],
-        ['name' => 'Natasha Britnell',      'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => true],
-        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => false],
+        // Ladies (3)
+        ['name' => 'Liesl Baben',           'division_slug' => 'ladies',  'division_label' => 'Ladies'],
+        ['name' => 'Natasha Britnell',      'division_slug' => 'ladies',  'division_label' => 'Ladies'],
+        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'ladies',  'division_label' => 'Ladies'],
 
-        // Senior (4) — all Protea Colours. Greg confirms "Senior is correct"
-        // in his email, matching the magazine.
-        ['name' => 'Grant Anderson',        'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
-        ['name' => 'Le Riche Coetzer',      'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
-        ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
-        ['name' => 'Derek Reyneke',         'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
+        // Senior (5) — includes Glen Clark (best-guess division; Greg
+        // didn't call out Glen's 2022 division in his email).
+        ['name' => 'Grant Anderson',        'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Le Riche Coetzer',      'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Derek Reyneke',         'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Glen Clark',            'division_slug' => 'senior',  'division_label' => 'Seniors'],
 
-        // Factory (2) — both Protea Colours. Perry + Rob need user
-        // accounts first; add their SAPRF numbers to SAPRF_HINTS once
-        // they exist, then rerun.
-        ['name' => 'Perry De Gouveia',      'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => true],
-        ['name' => 'Rob Ramsden',           'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => true],
+        // Factory (3) — includes Russell Ferreira (best-guess division;
+        // Greg didn't call out Russell's 2022 division in his email).
+        ['name' => 'Perry De Gouveia',      'division_slug' => 'factory', 'division_label' => 'Factory'],
+        ['name' => 'Rob Ramsden',           'division_slug' => 'factory', 'division_label' => 'Factory'],
+        ['name' => 'Russell Ferreira',      'division_slug' => 'factory', 'division_label' => 'Factory'],
 
-        // Limited (4) — Greg + Konrad got Protea (magazine); Willem +
-        // Arnold were in Limited on SASSCo-only Federation Colours
-        // (per Greg's Oct 2026 email).
-        ['name' => 'Greg Sykes',            'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => true],
-        ['name' => 'Konrad Gräbe',          'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => true],
-        ['name' => 'Willem van Biljon',     'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => false],
-        ['name' => 'Arnold Van Zyl',        'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => false],
-
-        // SASSCo-only names Greg's email didn't place in a division.
-        // Divisions here are best-guess from the 2024–2026 teams and
-        // can be moved via the admin UI if a per-division source turns
-        // up. The SASSCO_NOTE still attaches so the Protea-colours flag
-        // stays off.
-        ['name' => 'Glen Clark',            'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => false],
-        ['name' => 'Russell Ferreira',      'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => false],
+        // Limited (4)
+        ['name' => 'Greg Sykes',            'division_slug' => 'limited', 'division_label' => 'Limited'],
+        ['name' => 'Konrad Gräbe',          'division_slug' => 'limited', 'division_label' => 'Limited'],
+        ['name' => 'Willem van Biljon',     'division_slug' => 'limited', 'division_label' => 'Limited'],
+        ['name' => 'Arnold Van Zyl',        'division_slug' => 'limited', 'division_label' => 'Limited'],
     ];
 
     /**
@@ -243,9 +208,6 @@ class SeedNationalTeam2022Command extends Command
 
         $report = [
             'created' => 0,
-            'colours_awarded' => 0,
-            'already_has_colours' => 0,
-            'sassco_only' => 0,
             'already_present' => 0,
             'ambiguous' => [],
             'unresolved' => [],
@@ -299,40 +261,10 @@ class SeedNationalTeam2022Command extends Command
                     ? $divisionsBySlug->get($entry['division_slug'])?->id
                     : null;
 
-                // Colours path — the SASSCo-only group always stores
-                // awarded_colours=false and attaches the SASSCO_NOTE.
-                // The Protea group tries to award, but respects the
-                // "one colours row per user" invariant by deferring to
-                // any pre-existing colours row the user already has.
-                $awardColours = false;
-                $note = null;
-                $label = 'CREATE';
-
-                if ($entry['colours'] === false) {
-                    $note = self::SASSCO_NOTE;
-                    $report['sassco_only']++;
-                    $label = 'CREATE-S';
-                    $noteSuffix = '(SASSCo Federation Colours only — no Protea)';
-                } elseif ($user->hasProteaColours()) {
-                    // Shouldn't happen on a clean seed order (2022 is
-                    // historically the earliest colours year), but if an
-                    // Exco member has already hand-recorded colours for
-                    // a different year via the admin UI, honour that.
-                    $report['already_has_colours']++;
-                    $noteSuffix = '(user already has Protea Colours on another row)';
-                } else {
-                    $awardColours = true;
-                    $report['colours_awarded']++;
-                    $label = 'CREATE+C';
-                    $noteSuffix = '(awards Protea Colours)';
-                }
-
                 $this->line(sprintf(
-                    '  %-9s %-28s  div=%-10s  %s',
-                    $label,
+                    '  CREATE      %-28s  div=%s',
                     $entry['name'],
                     $entry['division_label'],
-                    $noteSuffix,
                 ));
 
                 if (! $dryRun) {
@@ -347,10 +279,14 @@ class SeedNationalTeam2022Command extends Command
                         'host_country' => self::HOST_COUNTRY,
                         'placing' => null,
                         'selection_cycle_id' => null,
-                        'awarded_colours' => $awardColours,
+                        // Protea Colours intentionally NOT awarded. This
+                        // seeder records WHO represented SA at the 2022
+                        // Worlds — Protea Colours awards are an Exco
+                        // decision maintained via the admin UI.
+                        'awarded_colours' => false,
                         'appeared_at' => Carbon::parse(self::APPEARED_AT),
                         'recorded_by' => $recordedBy,
-                        'notes' => $note,
+                        'notes' => null,
                     ]);
                 }
 
@@ -371,13 +307,11 @@ class SeedNationalTeam2022Command extends Command
 
         $this->newLine();
         $this->info('--- Summary ---');
-        $this->line('Created:                  '.$report['created']);
-        $this->line('Protea Colours awarded:   '.$report['colours_awarded']);
-        $this->line('Already had colours:      '.$report['already_has_colours']);
-        $this->line('SASSCo-only (no Protea):  '.$report['sassco_only']);
-        $this->line('Already present:          '.$report['already_present']);
-        $this->line('Unresolved names:         '.count($report['unresolved']));
-        $this->line('Ambiguous names:          '.count($report['ambiguous']));
+        $this->line('Created:            '.$report['created']);
+        $this->line('Already present:    '.$report['already_present']);
+        $this->line('Unresolved names:   '.count($report['unresolved']));
+        $this->line('Ambiguous names:    '.count($report['ambiguous']));
+        $this->line('Colours awarded:    0   (team representation only — award separately via admin UI)');
 
         if ($report['unresolved']) {
             $this->newLine();
