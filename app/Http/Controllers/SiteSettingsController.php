@@ -210,7 +210,7 @@ class SiteSettingsController extends Controller
             $this->settingsService->set(
                 WorldsCountdown::SETTING_KEY,
                 WorldsCountdown::normalize($validated['worlds_countdown_at'] ?? ''),
-                'Landing-page countdown target, South African time. Blank keeps 1 August 2028.',
+                'Landing-page countdown target, South African time. Blank means the final dates are still to be announced.',
             );
         }
 

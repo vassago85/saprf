@@ -8,8 +8,9 @@ use Illuminate\Support\Carbon;
 /**
  * Target instant for the public landing-page countdown.
  *
- * Until Site Settings stores an exact start, the page counts down to
- * 1 August 2028 (the month on the Worlds poster) at midnight SAST.
+ * The poster only names August 2028. Until Site Settings stores a
+ * different start, the homepage says the final dates are still to be
+ * announced and does not tick toward a made-up day.
  */
 class WorldsCountdown
 {
@@ -17,6 +18,10 @@ class WorldsCountdown
 
     public const TIMEZONE = 'Africa/Johannesburg';
 
+    /**
+     * Placeholder written when the settings form was saved before a real
+     * start existed. Treated the same as a blank value.
+     */
     public const DEFAULT = '2028-08-01 00:00:00';
 
     public function __construct(private readonly SettingsService $settings) {}
@@ -26,16 +31,27 @@ class WorldsCountdown
         return app(self::class);
     }
 
+    public function isAnnounced(): bool
+    {
+        $raw = $this->stored();
+
+        return $raw !== '' && $raw !== self::DEFAULT;
+    }
+
     public function target(): Carbon
     {
-        $raw = $this->settings->get(self::SETTING_KEY);
-        $value = is_string($raw) && trim($raw) !== '' ? trim($raw) : self::DEFAULT;
+        $raw = $this->stored();
+        $value = $raw !== '' ? $raw : self::DEFAULT;
 
         return Carbon::parse($value, self::TIMEZONE);
     }
 
     public function hasPassed(?Carbon $now = null): bool
     {
+        if (! $this->isAnnounced()) {
+            return false;
+        }
+
         return ($now ?? Carbon::now(self::TIMEZONE))->greaterThanOrEqualTo($this->target());
     }
 
@@ -48,11 +64,22 @@ class WorldsCountdown
     }
 
     /**
-     * Value for a datetime-local input.
+     * Value for a datetime-local input. Blank until a real start is saved.
      */
     public function inputValue(): string
     {
+        if (! $this->isAnnounced()) {
+            return '';
+        }
+
         return $this->target()->format('Y-m-d\TH:i');
+    }
+
+    private function stored(): string
+    {
+        $raw = $this->settings->get(self::SETTING_KEY);
+
+        return is_string($raw) ? trim($raw) : '';
     }
 
     public function label(): string

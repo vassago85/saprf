@@ -14,12 +14,26 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-it('counts down to 1 August 2028 until an exact date is saved', function () {
+it('says the final dates are still to be announced until an exact start is saved', function () {
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('1 August 2028', false)
-        ->assertSee('Days', false)
-        ->assertSee('data-countdown-target="2028-08-01T00:00:00+02:00"', false);
+        ->assertSee('August 2028', false)
+        ->assertSee('Final dates to be announced', false)
+        ->assertDontSee('1 August 2028', false)
+        ->assertDontSee('data-countdown-target', false);
+});
+
+it('still says the dates are unannounced when the placeholder midnight is stored', function () {
+    Setting::updateOrCreate(
+        ['key' => 'worlds_countdown_at'],
+        ['value' => '2028-08-01 00:00:00', 'description' => 'test'],
+    );
+    app(SettingsService::class)->clearCache();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Final dates to be announced', false)
+        ->assertDontSee('data-countdown-target', false);
 });
 
 it('uses the site setting when the exact start is saved', function () {

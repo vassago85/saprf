@@ -9,7 +9,10 @@
             IPRF Centerfire World Championship · Mpumalanga
         </p>
 
-        @if ($underway)
+        @if (! $countdown->isAnnounced())
+            <p class="mt-3 font-heading text-2xl sm:text-3xl font-bold tracking-tight">August 2028</p>
+            <p class="mt-2 text-sm text-stone-400">Final dates to be announced.</p>
+        @elseif ($underway)
             <p class="mt-3 font-heading text-2xl sm:text-3xl font-bold tracking-tight">The championship is underway</p>
         @else
             <div

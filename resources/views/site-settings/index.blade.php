@@ -22,8 +22,9 @@
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-3">
                 <h2 class="font-heading text-lg font-semibold text-stone-900">IPRF Worlds countdown</h2>
                 <p class="text-sm text-stone-500">
-                    The public homepage counts down to this moment in South African time.
-                    It stays on 1 August 2028 until you set the exact start.
+                    Leave this blank while the final dates are still to be announced.
+                    The homepage then shows August 2028 without a countdown.
+                    Set the start, in South African time, once it is confirmed.
                 </p>
                 <div>
                     <label for="worlds_countdown_at" class="block text-sm font-medium text-stone-700">Start</label>
