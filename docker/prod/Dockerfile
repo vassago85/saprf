@@ -59,7 +59,7 @@ RUN npm run build
 # =============================================================================
 # Stage 3: Production image
 # =============================================================================
-FROM php:8.4-fpm-alpine AS production
+FROM php:8.4.27-fpm-alpine AS production
 
 RUN apk add --no-cache \
     nginx \
