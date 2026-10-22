@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Setting;
+use App\Models\User;
+use App\Navigation\SidebarMenu;
 use App\Services\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -30,4 +32,24 @@ function seedRoles(): void
     foreach (['owner', 'admin', 'match_director', 'member', 'iprf_selector', 'developer', 'exco', 'chair', 'provincial_admin'] as $role) {
         Role::firstOrCreate(['name' => $role]);
     }
+}
+
+/**
+ * Sidebar helpers used by SidebarNavigationTest and MatchWorkspaceTest.
+ * Defined here (not in a single feature test file) so Pest's parallel
+ * runner can call them from any process.
+ *
+ * @return list<string>
+ */
+function sidebarLabels(User $user, string $mode): array
+{
+    return SidebarMenu::labelsFor($user, $mode);
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function sidebarSections(User $user, string $mode): array
+{
+    return SidebarMenu::sectionsFor($user, $mode);
 }

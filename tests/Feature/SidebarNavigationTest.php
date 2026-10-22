@@ -21,16 +21,6 @@ function staffUser(string $role): User
     return $user;
 }
 
-function sidebarLabels(User $user, string $mode): array
-{
-    return SidebarMenu::labelsFor($user, $mode);
-}
-
-function sidebarSections(User $user, string $mode): array
-{
-    return SidebarMenu::sectionsFor($user, $mode);
-}
-
 it('lists the expected shooter items for a member', function () {
     $member = staffUser('member');
 

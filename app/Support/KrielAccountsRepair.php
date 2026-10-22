@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Actions\LinkFreeDependant;
 use App\Models\User;
+use App\Notifications\MemberInvitationNotification;
 
 /**
  * One-off correction for Theo Kriel and his son Juan.
@@ -42,12 +43,20 @@ class KrielAccountsRepair
             ->where('id', '!=', $theo->id)
             ->exists();
 
+        $emailChanged = false;
         if (! $taken && strcasecmp((string) $theo->email, self::GUARDIAN_EMAIL) !== 0) {
             $theo->email = self::GUARDIAN_EMAIL;
+            $theo->email_verified_at = null;
             $theo->save();
+            $emailChanged = true;
         }
 
         app(LinkFreeDependant::class)->link($theo, $juan, 'junior');
+
+        if ($emailChanged || ! $theo->hasOnboarded()) {
+            $token = $theo->generateInvitationToken();
+            $theo->notify(new MemberInvitationNotification($token));
+        }
 
         return true;
     }

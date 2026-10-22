@@ -2,7 +2,9 @@
 
 use App\Models\Membership;
 use App\Models\User;
+use App\Notifications\MemberInvitationNotification;
 use App\Support\KrielAccountsRepair;
+use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
     seedRoles();
@@ -50,7 +52,9 @@ it('links an existing free account as a free guardian\'s dependant', function ()
         ->and($child->email)->toBe('juan@example.com');
 });
 
-it('moves Theo onto his own email and keeps Juan as his free junior', function () {
+it('moves Theo onto his own email, keeps Juan as his free junior, and sends Theo an activation email', function () {
+    Notification::fake();
+
     $theo = User::factory()->create([
         'name' => 'Theo Kriel',
         'email' => 'theo.kriel@import.saprf.local',
@@ -90,4 +94,8 @@ it('moves Theo onto his own email and keeps Juan as his free junior', function (
         ->and($juan->email)->toBe('cernoflash@gmail.com')
         ->and($juan->membership->membership_type)->toBe('free')
         ->and($juan->membership->saprf_number)->toBe('1990');
+
+    Notification::assertSentTo($theo, MemberInvitationNotification::class);
+    Notification::assertNotSentTo($juan, MemberInvitationNotification::class);
+    expect($theo->email_verified_at)->toBeNull();
 });
