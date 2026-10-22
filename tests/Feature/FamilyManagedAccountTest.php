@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Club;
 use App\Models\Division;
 use App\Models\Membership;
 use App\Models\MembershipFeeTier;
@@ -254,6 +255,99 @@ it('creates a membership for the family member and charges the parent', function
         ->and($payment->user_id)->toBe($this->parent->id)
         ->and($payment->payable_id)->toBe($membership->id)
         ->and((float) $payment->amount)->toBe(425.0);
+});
+
+it('gives a free non-member dependant to a free registrant', function () {
+    Membership::create([
+        'user_id' => $this->parent->id,
+        'membership_type' => 'free',
+        'status' => 'lapsed',
+        'payment_status' => 'unpaid',
+        'expiry_date' => '2026-07-31',
+    ]);
+
+    $this->actingAs($this->parent)
+        ->post(route('family.store'), [
+            'name' => 'Juan Kriel',
+            'relationship' => 'junior',
+            'date_of_birth' => '2014-03-12',
+            'province_id' => $this->province->id,
+            'division_id' => $this->division->id,
+        ])
+        ->assertRedirect(route('family.index'));
+
+    $child = User::where('name', 'Juan Kriel')->first();
+    expect($child)->not->toBeNull()
+        ->and($child->parent_id)->toBe($this->parent->id)
+        ->and($child->is_managed_account)->toBeTrue()
+        ->and($child->membership)->not->toBeNull()
+        ->and($child->membership->membership_type)->toBe('free')
+        ->and($child->membership->payment_status)->toBe('unpaid')
+        ->and($child->membership->isActiveMember())->toBeFalse();
+
+    $this->actingAs($this->parent)
+        ->get(route('family.index'))
+        ->assertOk()
+        ->assertSee('Non-member');
+});
+
+it('gives a free non-member dependant to a guardian with no membership', function () {
+    $this->actingAs($this->parent)
+        ->post(route('family.store'), [
+            'name' => 'Sam Kriel',
+            'relationship' => 'junior',
+            'date_of_birth' => '2016-01-02',
+            'province_id' => $this->province->id,
+            'division_id' => $this->division->id,
+        ])
+        ->assertRedirect(route('family.index'));
+
+    $child = User::where('name', 'Sam Kriel')->first();
+    expect($child->membership->membership_type)->toBe('free')
+        ->and($child->membership->isActiveMember())->toBeFalse();
+});
+
+it('does not turn a paying member\'s new dependant into a free registrant', function () {
+    $club = Club::create([
+        'name' => 'Highveld Precision Rifle Club',
+        'slug' => 'highveld-precision-rifle-club',
+        'abbreviation' => 'HPRC',
+        'province_id' => $this->province->id,
+        'saprf_recognised' => true,
+    ]);
+    $this->parent->update([
+        'date_of_birth' => '1985-04-01',
+        'gender' => 'male',
+        'ethnicity' => 'white',
+        'club_id' => $club->id,
+        'country_of_residence' => 'ZA',
+        'sa_id_number' => '8504015009087',
+        'sa_citizen' => true,
+        'previously_disadvantaged' => false,
+    ]);
+    Membership::create([
+        'user_id' => $this->parent->id,
+        'saprf_number' => '1604',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2027-01-01',
+    ]);
+
+    $this->actingAs($this->parent)
+        ->post(route('family.store'), [
+            'name' => 'Paid Child',
+            'relationship' => 'junior',
+            'date_of_birth' => '2015-05-05',
+            'province_id' => $this->province->id,
+            'division_id' => $this->division->id,
+        ])
+        ->assertRedirect(route('family.index'));
+
+    $child = User::where('name', 'Paid Child')->first();
+    expect($child->is_managed_account)->toBeTrue()
+        ->and($child->membership)->toBeNull();
 });
 
 it('rejects applying for membership on someone else\'s family account', function () {

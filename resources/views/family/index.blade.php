@@ -57,8 +57,10 @@
                             @if($junior->division)
                                 <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">{{ $junior->division->name }}</span>
                             @endif
-                            @if($membershipActive)
+                            @if($membershipActive && $membership->membership_type !== 'free')
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Active member</span>
+                            @elseif($membership && ($membership->membership_type === 'free' || ! $membership->isActiveMember()))
+                                <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">Non-member</span>
                             @else
                                 <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">No membership</span>
                             @endif
@@ -73,6 +75,7 @@
             <ul class="list-disc pl-5 space-y-0.5 text-sky-800">
                 <li>You manage everything: profile, matches, memberships, results — and pay for the whole family from your account.</li>
                 <li>Family members don't need their own email or login.</li>
+                <li>If you are a free registrant or a non-member, a dependant you add stays a free non-member too. They can shoot with you; their scores do not count as a member's.</li>
                 <li>When someone is ready to manage their own account (e.g. they get their own email), use the <strong>Hand Over</strong> button on their profile to transfer it to them.</li>
                 <li>All their scores, registrations, and standings stay attached — nothing is lost.</li>
             </ul>

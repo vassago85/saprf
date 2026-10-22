@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\LinkFreeDependant;
 use App\Models\Membership;
 use App\Models\User;
 use App\Services\AuditLogService;
@@ -10,6 +11,7 @@ use App\Services\StandingsCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class UserManagementController extends Controller
 {
@@ -58,7 +60,7 @@ class UserManagementController extends Controller
 
     public function edit(Request $request, User $user): View
     {
-        $user->load('roles', 'membership');
+        $user->load('roles', 'membership', 'parent');
         $assignableRoles = self::STANDARD_ASSIGNABLE_ROLES;
         // Developers see the elevated tier as an "advanced" section so they
         // can manage sysadmin/federation-level access without dropping to
@@ -140,6 +142,72 @@ class UserManagementController extends Controller
 
         return redirect()->route('user-management.edit', $user)
             ->with('success', "{$user->name}'s membership updated.");
+    }
+
+    public function updateGuardian(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'guardian_email' => ['nullable', 'email'],
+            'managed_relationship' => ['nullable', 'string', 'in:'.implode(',', array_keys(User::MANAGED_RELATIONSHIPS))],
+            'unlink' => ['nullable', 'boolean'],
+        ]);
+
+        if ($request->boolean('unlink')) {
+            $before = $user->only(['parent_id', 'is_managed_account', 'managed_relationship']);
+            $user->parent_id = null;
+            $user->is_managed_account = false;
+            $user->managed_relationship = null;
+            $user->save();
+
+            $this->auditLogService->log(
+                $request->user(),
+                'family.member.unlinked',
+                'User',
+                $user->id,
+                $before,
+                $user->only(['parent_id', 'is_managed_account', 'managed_relationship']),
+                'Dependant unlinked via user management.',
+            );
+
+            return redirect()->route('user-management.edit', $user)
+                ->with('success', "{$user->name} is no longer a managed dependant.");
+        }
+
+        $email = strtolower(trim((string) ($validated['guardian_email'] ?? '')));
+        if ($email === '') {
+            return back()->withErrors(['guardian_email' => 'Enter the guardian’s email, or unlink the dependant.']);
+        }
+
+        $guardian = User::query()->whereRaw('lower(email) = ?', [$email])->first();
+        if (! $guardian) {
+            return back()->withErrors(['guardian_email' => 'No account uses that email.']);
+        }
+
+        try {
+            app(LinkFreeDependant::class)->link(
+                $guardian,
+                $user,
+                $validated['managed_relationship'] ?: 'junior',
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['guardian_email' => $e->getMessage()]);
+        }
+
+        $this->auditLogService->log(
+            $request->user(),
+            'family.member.linked',
+            'User',
+            $user->id,
+            null,
+            [
+                'parent_id' => $guardian->id,
+                'managed_relationship' => $user->managed_relationship,
+            ],
+            'Linked as a dependant via user management.',
+        );
+
+        return redirect()->route('user-management.edit', $user)
+            ->with('success', "{$user->name} is now a dependant of {$guardian->name}.");
     }
 
     public function updateRole(Request $request, User $user): RedirectResponse

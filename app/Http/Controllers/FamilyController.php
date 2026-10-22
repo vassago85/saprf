@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\LinkFreeDependant;
 use App\Http\Requests\StoreJuniorRequest;
 use App\Models\Division;
 use App\Models\Province;
@@ -79,6 +80,8 @@ class FamilyController extends Controller
 
             return $junior;
         });
+
+        app(LinkFreeDependant::class)->ensureFreeStanding($parent, $junior);
 
         $this->auditLogService->log(
             $parent,

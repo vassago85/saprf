@@ -213,6 +213,44 @@
             </div>
         </form>
 
+        <form method="POST" action="{{ route('user-management.update-guardian', $user) }}" class="space-y-5">
+            @csrf
+            @method('PUT')
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-heading text-base font-semibold text-stone-900">Guardian</h2>
+                    <p class="mt-1 text-xs text-stone-400">Link this person as a dependant of another account. A free registrant or a non-member guardian keeps a dependant who has no membership as a free non-member. Each person still needs their own email.</p>
+                </div>
+                @if($user->parent)
+                    <p class="text-sm text-stone-600">Currently managed by <strong>{{ $user->parent->name }}</strong> ({{ $user->parent->email }})@if($user->managedRelationshipLabel()) as {{ $user->managedRelationshipLabel() }}@endif.</p>
+                @endif
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Guardian email</label>
+                        <input type="email" name="guardian_email" value="{{ old('guardian_email', $user->parent?->email) }}" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        @error('guardian_email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">Relationship</label>
+                        <select name="managed_relationship" class="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            @foreach(\App\Models\User::MANAGED_RELATIONSHIPS as $value => $label)
+                                <option value="{{ $value }}" @selected(old('managed_relationship', $user->managed_relationship ?? 'junior') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-stone-600">
+                    <input type="checkbox" name="unlink" value="1" class="rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                    Remove the guardian link
+                </label>
+                <div>
+                    <button type="submit" class="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
+                        Save guardian
+                    </button>
+                </div>
+            </div>
+        </form>
+
         @if(!$user->hasRole('owner') && $user->id !== auth()->id())
             <div class="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-base font-semibold text-red-800 mb-2">Danger Zone</h2>
