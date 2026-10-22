@@ -16,6 +16,13 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
+# Queue and scheduler share this entrypoint and start after the web
+# container is healthy. Only the web process should publish the poster.
+if [ "$1" = "/usr/bin/supervisord" ]; then
+    echo "Featuring the 2028 Worlds poster on the homepage..."
+    php artisan saprf:feature-worlds-2028-poster --sync
+fi
+
 echo "Creating storage link..."
 php artisan storage:link 2>/dev/null || true
 

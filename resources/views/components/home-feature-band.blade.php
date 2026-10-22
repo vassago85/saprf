@@ -39,7 +39,10 @@
 
             <div class="lg:col-span-7">
                 <figure class="mx-auto max-w-[720px]">
-                    <div class="rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/40 bg-stone-800 aspect-[16/9]">
+                    {{-- Natural ratio so a poster keeps its type and logos. A fixed
+                         16:9 crop cuts the top and bottom of this artwork. --}}
+                    <div class="rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/40 bg-stone-950 [&_figure]:h-full [&_picture]:block [&_picture]:h-full"
+                         style="aspect-ratio: {{ ($item->width && $item->height) ? ((int) $item->width).'/'.((int) $item->height) : '16/9' }};">
                         {{-- Caption suppressed: the outer <figure>/<figcaption> below renders
                              the band's own caption. Leaving the component's figcaption on would
                              both overflow the aspect-ratio box AND nest a <figure> inside a
@@ -49,7 +52,7 @@
                             :showCaption="false"
                             sizes="(min-width: 1024px) 720px, 100vw"
                             class="w-full h-full"
-                            imgClass="w-full h-full object-cover"
+                            imgClass="w-full h-full object-contain"
                             loading="lazy" />
                     </div>
                     @if($caption)
