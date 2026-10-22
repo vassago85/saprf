@@ -531,6 +531,67 @@
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">Setup:</strong> Create a Mailgun account, add and verify your domain, then paste the API key and domain here. The <code class="text-xs bg-stone-200 px-1 py-0.5 rounded">.env</code> values will be used as fallback if these fields are left blank.</p>
                 </div>
+            </div>
+
+            {{-- Cloudflare Turnstile — invisible / one-click anti-bot
+                 challenge on /contact, /register, /login and /forgot-password.
+                 Keys come from https://dash.cloudflare.com/?to=/:account/turnstile.
+                 When both keys are blank the service treats verify() as a pass
+                 (graceful no-op on fresh clones / local dev). --}}
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-heading text-lg font-semibold text-stone-900">Anti-bot (Cloudflare Turnstile)</h2>
+                        <p class="text-sm text-stone-500">Invisible-by-default challenge on the public forms. Create a widget at <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener" class="text-emerald-700 underline">Cloudflare → Turnstile</a>, then paste the two keys here.</p>
+                    </div>
+                    @php
+                        $tsConfigured = !empty($settings['turnstile_site_key'] ?? '') && ($turnstileSecretConfigured ?? false);
+                        $tsEnabled = (bool) ($settings['turnstile_enabled'] ?? true);
+                    @endphp
+                    @if($tsConfigured && $tsEnabled)
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
+                    @elseif($tsConfigured && !$tsEnabled)
+                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">Keys set · disabled</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700 ring-1 ring-inset ring-stone-500/20">Not configured</span>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="turnstile_site_key" class="block text-sm font-medium text-stone-700">Site Key</label>
+                        <input type="text" name="turnstile_site_key" id="turnstile_site_key"
+                               value="{{ old('turnstile_site_key', $settings['turnstile_site_key'] ?? '') }}"
+                               placeholder="0x4AAAAAAA… (public, visible in HTML)"
+                               autocomplete="off"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Public — baked into the widget. Safe to show in HTML.</p>
+                    </div>
+
+                    <div>
+                        <label for="turnstile_secret" class="block text-sm font-medium text-stone-700">Secret Key</label>
+                        <input type="password" name="turnstile_secret" id="turnstile_secret"
+                               value="" autocomplete="new-password"
+                               placeholder="{{ ($turnstileSecretConfigured ?? false) ? 'Key saved — leave blank to keep it' : '0x4AAAAAAA… (private, server-side verify)' }}"
+                               class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">{{ ($turnstileSecretConfigured ?? false) ? 'A secret is stored. Leave blank to keep it — never sent back to the browser.' : 'Paste the Turnstile secret key. Verified server-to-server against challenges.cloudflare.com.' }}</p>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="hidden" name="turnstile_enabled" value="0">
+                            <input type="checkbox" name="turnstile_enabled" id="turnstile_enabled" value="1"
+                                   @checked(old('turnstile_enabled', $settings['turnstile_enabled'] ?? '1'))
+                                   class="h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
+                            <span class="text-sm text-stone-700">Enable the Turnstile challenge on public forms</span>
+                        </label>
+                        <p class="mt-1 text-xs text-stone-400">Off = temporary kill switch (e.g. debugging a false lockout). The challenge only renders when keys are also configured.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
+                    <p><strong class="text-stone-900">Covered forms:</strong> <code>/contact</code>, <code>/register</code>, <code>/login</code>, <code>/forgot-password</code>. Each will show the Turnstile widget as soon as both keys are saved and the switch above is on.</p>
+                </div>
 
                 {{-- Notification master switch. --}}
                 @php

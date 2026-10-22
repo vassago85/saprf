@@ -16,6 +16,32 @@ class ContactMessage extends Model
     public const SPAM_CLEAN = 'clean';
     public const SPAM_HONEYPOT = 'honeypot';
     public const SPAM_TOO_FAST = 'too_fast';
+    /** Message body contained a URL and the sender didn't claim they were a human, OR body contained 2+ URLs. */
+    public const SPAM_URL_FLOOD = 'url_flood';
+    /** Message body matched one of our brittle spam-keyword patterns (porn, viagra, SEO shill wording). */
+    public const SPAM_KEYWORD = 'keyword';
+    /** Sender email domain matched the disposable-mail blocklist (fastemail.digital, mailinator.*, etc.). */
+    public const SPAM_DISPOSABLE_EMAIL = 'disposable_email';
+    /** Cloudflare Turnstile challenge failed (missing token, bad token, or verification call errored). */
+    public const SPAM_TURNSTILE_FAILED = 'turnstile_failed';
+
+    /**
+     * Every non-clean spam_status value. Used by the admin inbox dropdown so
+     * we don't have to maintain the list in two places.
+     *
+     * @return array<string, string>  value => human label
+     */
+    public static function spamStatusOptions(): array
+    {
+        return [
+            self::SPAM_HONEYPOT => 'Honeypot',
+            self::SPAM_TOO_FAST => 'Too fast',
+            self::SPAM_URL_FLOOD => 'Too many URLs',
+            self::SPAM_KEYWORD => 'Spam keywords',
+            self::SPAM_DISPOSABLE_EMAIL => 'Disposable email',
+            self::SPAM_TURNSTILE_FAILED => 'Failed Turnstile',
+        ];
+    }
 
     protected $fillable = [
         'first_name',

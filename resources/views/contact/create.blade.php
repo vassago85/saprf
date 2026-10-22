@@ -81,6 +81,12 @@
                                   class="w-full rounded-md border border-stone-300 bg-white text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500 placeholder-stone-400 resize-y">{{ old('message') }}</textarea>
                     </div>
 
+                    {{-- Cloudflare Turnstile challenge. Invisible when the
+                         visitor looks human; a one-click checkbox otherwise.
+                         Renders nothing when Turnstile keys aren't configured
+                         in Site Settings — see TurnstileService::isEnabled(). --}}
+                    <x-turnstile action="contact" />
+
                     <div>
                         <button type="submit" class="inline-flex items-center rounded-md bg-stone-900 px-5 py-2 text-sm font-semibold text-white hover:bg-stone-800 transition">
                             Submit

@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\TurnstileService;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -23,6 +24,13 @@ new #[Layout('components.layouts.guest')] #[Title('Sign In — SAPRF')] class ex
     #[Url(as: 'redirect', except: '')]
     public string $intended = '';
 
+    /**
+     * Cloudflare Turnstile token. Populated by the <x-turnstile> component
+     * when the visitor passes the challenge. Short-circuits login when
+     * Turnstile is configured and the token is missing or invalid.
+     */
+    public string $turnstile_token = '';
+
     private const MAX_ATTEMPTS = 5;
 
     private const DECAY_SECONDS = 60;
@@ -35,6 +43,15 @@ new #[Layout('components.layouts.guest')] #[Title('Sign In — SAPRF')] class ex
         ]);
 
         if ($this->isRateLimited()) {
+            return;
+        }
+
+        // Defence-in-depth against credential-stuffing bots. Verify runs
+        // before Auth::attempt so a bot can't even measure the "exists /
+        // doesn't exist" timing difference without first solving the
+        // challenge. No-op when Turnstile isn't configured.
+        if (! app(TurnstileService::class)->verify($this->turnstile_token, request()->ip())) {
+            $this->addError('turnstile_token', 'Please complete the anti-bot challenge below before signing in.');
             return;
         }
 
@@ -149,6 +166,11 @@ new #[Layout('components.layouts.guest')] #[Title('Sign In — SAPRF')] class ex
                     </div>
                     <a href="{{ route('password.request') }}" class="text-sm text-emerald-700 font-medium hover:text-emerald-800">Forgot password?</a>
                 </div>
+
+                {{-- Cloudflare Turnstile. Renders nothing when CF keys aren't
+                     configured, so a fresh clone or local Laragon just
+                     behaves exactly as before. --}}
+                <x-turnstile action="login" livewire-property="turnstile_token" />
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                     Sign In

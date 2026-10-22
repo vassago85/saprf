@@ -3,6 +3,7 @@
 use App\Models\Province;
 use App\Models\User;
 use App\Notifications\EmailOtpNotification;
+use App\Services\TurnstileService;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -53,6 +54,15 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
      */
     public int $hp_started_at = 0;
 
+    /**
+     * Cloudflare Turnstile token. Populated by the <x-turnstile> component
+     * when the visitor solves (or passes invisibly) the challenge. Checked
+     * against Cloudflare's siteverify endpoint before the user row is
+     * created. When Turnstile is not configured in Site Settings, the
+     * service verifies as "pass" and this stays empty.
+     */
+    public string $turnstile_token = '';
+
     public function mount(): void
     {
         $this->hp_started_at = now()->getTimestamp();
@@ -96,6 +106,14 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
         }
 
         if ($this->isRateLimited()) {
+            return;
+        }
+
+        // Cloudflare Turnstile — enforced only when the keys are configured
+        // in Site Settings. verify() returns true when disabled so this
+        // short-circuit is a no-op on first boot / local dev.
+        if (! app(TurnstileService::class)->verify($this->turnstile_token, request()->ip())) {
+            $this->addError('turnstile_token', 'Please complete the anti-bot challenge below before submitting.');
             return;
         }
 
@@ -397,6 +415,12 @@ new #[Layout('components.layouts.guest')] #[Title('Create Account — SAPRF')] c
                     </label>
                     @error('terms_accepted') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </fieldset>
+
+                {{-- Cloudflare Turnstile — invisible for most real users,
+                     shows a one-click checkbox on bot-ish visitors. Renders
+                     nothing when Turnstile isn't configured, so this is safe
+                     to leave in on fresh clones that don't have CF keys. --}}
+                <x-turnstile action="register" livewire-property="turnstile_token" />
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                     Create Account

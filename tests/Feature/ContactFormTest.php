@@ -114,6 +114,112 @@ test('a message is short-blocked when too short', function () {
         ->assertSessionHasErrors('message');
 });
 
+test('submissions with 2 or more URLs are flagged as url_flood spam', function () {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $this->post(route('contact.store'), validSubmission([
+        'message' => 'Great site! Check out https://cheap-pills.example.com and also https://buy-crypto.example.top for amazing deals.',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    $message = ContactMessage::first();
+    expect($message->spam_status)->toBe(ContactMessage::SPAM_URL_FLOOD);
+
+    Notification::assertNothingSent();
+});
+
+test('submissions with no URLs or just one URL are still accepted as clean', function () {
+    Notification::fake();
+
+    $this->post(route('contact.store'), validSubmission([
+        'message' => 'I run https://my-club.org and would like to affiliate. Please advise.',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_CLEAN);
+});
+
+test('submissions with porn keywords are flagged as spam', function () {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $this->post(route('contact.store'), validSubmission([
+        'subject' => 'List of niche porn categories',
+        'message' => 'Please visit our site for the best adult content around.',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_KEYWORD);
+    Notification::assertNothingSent();
+});
+
+test('submissions from disposable email domains are flagged as spam', function () {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    // Hit via a tenant-style subdomain to confirm the suffix-match works —
+    // exactly the pattern of the live abuse ("bob@rio.olivia.fastemail.digital").
+    $this->post(route('contact.store'), validSubmission([
+        'email' => 'bob@rio.olivia.fastemail.digital',
+        'email_confirmation' => 'bob@rio.olivia.fastemail.digital',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_DISPOSABLE_EMAIL);
+    Notification::assertNothingSent();
+});
+
+test('normal email domains are not flagged as disposable', function () {
+    Notification::fake();
+
+    $this->post(route('contact.store'), validSubmission([
+        'email' => 'legit@gmail.com',
+        'email_confirmation' => 'legit@gmail.com',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_CLEAN);
+});
+
+test('a missing Turnstile token is flagged when Turnstile is configured', function () {
+    Notification::fake();
+    \Illuminate\Support\Facades\Cache::forget('saprf_settings');
+    $settings = app(\App\Services\SettingsService::class);
+    $settings->set('turnstile_site_key', 'site', 'test');
+    $settings->set('turnstile_secret', 'secret', 'test');
+    $settings->set('turnstile_enabled', '1', 'test');
+    \Illuminate\Support\Facades\Cache::forget('saprf_settings');
+
+    $this->post(route('contact.store'), validSubmission([
+        // No 'cf-turnstile-response' field.
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_TURNSTILE_FAILED);
+    Notification::assertNothingSent();
+});
+
+test('a valid Turnstile token lets the submission through as clean', function () {
+    Notification::fake();
+    \Illuminate\Support\Facades\Cache::forget('saprf_settings');
+    $settings = app(\App\Services\SettingsService::class);
+    $settings->set('turnstile_site_key', 'site', 'test');
+    $settings->set('turnstile_secret', 'secret', 'test');
+    $settings->set('turnstile_enabled', '1', 'test');
+    \Illuminate\Support\Facades\Cache::forget('saprf_settings');
+
+    \Illuminate\Support\Facades\Http::fake([
+        'challenges.cloudflare.com/*' => \Illuminate\Support\Facades\Http::response(['success' => true]),
+    ]);
+
+    $this->post(route('contact.store'), validSubmission([
+        'cf-turnstile-response' => 'good-token',
+    ]))->assertRedirect(route('contact.thanks'));
+
+    expect(ContactMessage::first()->spam_status)->toBe(ContactMessage::SPAM_CLEAN);
+});
+
 test('rate limiting blocks after 5 submissions from the same IP within an hour', function () {
     Notification::fake();
     RateLimiter::clear('contact-form:127.0.0.1');

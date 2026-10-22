@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\TurnstileService;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -9,11 +10,26 @@ new #[Layout('components.layouts.guest')] #[Title('Forgot Password — SAPRF')] 
     public string $email = '';
     public string $status = '';
 
+    /**
+     * Cloudflare Turnstile token. Protects this endpoint against bulk
+     * password-reset email abuse — without it, a bot can walk the user
+     * table by submitting addresses and watching whether Laravel's
+     * generic response changes.
+     */
+    public string $turnstile_token = '';
+
     public function sendResetLink(): void
     {
         $this->validate([
             'email' => ['required', 'email'],
         ]);
+
+        // No-op when Turnstile isn't configured. When it is, stops a bot
+        // from spamming reset emails to arbitrary addresses.
+        if (! app(TurnstileService::class)->verify($this->turnstile_token, request()->ip())) {
+            $this->addError('turnstile_token', 'Please complete the anti-bot challenge below before requesting the reset.');
+            return;
+        }
 
         try {
             $result = Password::sendResetLink(['email' => $this->email]);
@@ -58,6 +74,8 @@ new #[Layout('components.layouts.guest')] #[Title('Forgot Password — SAPRF')] 
                         class="w-full rounded-lg border border-stone-300 text-sm py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500" />
                     @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
+
+                <x-turnstile action="forgot-password" livewire-property="turnstile_token" />
 
                 <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition">
                     Send Reset Link

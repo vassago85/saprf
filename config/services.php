@@ -56,4 +56,13 @@ return [
         'analytics_id' => env('GOOGLE_ANALYTICS_ID', 'G-DESCP26KTX'),
     ],
 
+    // Cloudflare Turnstile anti-bot challenge. Site Settings (owner UI)
+    // overrides both of these at runtime via TurnstileService, so .env is
+    // only the fallback for first-boot before an owner pastes keys into
+    // the UI. See TurnstileService for the resolution order.
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret' => env('TURNSTILE_SECRET'),
+    ],
+
 ];

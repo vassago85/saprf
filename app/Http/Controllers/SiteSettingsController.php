@@ -40,6 +40,12 @@ class SiteSettingsController extends Controller
         $settings['mailgun_webhook_signing_key'] = '';
         $settings['invoice_ninja_api_token'] = '';
 
+        // Turnstile secret follows the same pattern — mask on render,
+        // save only overwrites when a non-empty value is submitted.
+        $turnstileSecretConfigured = filled($settings['turnstile_secret'] ?? '')
+            || filled(config('services.turnstile.secret'));
+        $settings['turnstile_secret'] = '';
+
         // Owner + developer are the only people who could reasonably receive
         // the platform-fee payout — restrict the picker so we don't offer
         // random shooter accounts.
@@ -53,6 +59,7 @@ class SiteSettingsController extends Controller
             'mailgunSecretConfigured',
             'mailgunWebhookSigningConfigured',
             'invoiceNinjaTokenConfigured',
+            'turnstileSecretConfigured',
         ));
     }
 
@@ -104,6 +111,9 @@ class SiteSettingsController extends Controller
             'invoice_vat_number' => ['nullable', 'string', 'max:50'],
             'invoice_footer_notes' => ['nullable', 'string', 'max:500'],
             'worlds_countdown_at' => ['nullable', 'date'],
+            'turnstile_site_key' => ['nullable', 'string', 'max:255'],
+            'turnstile_secret' => ['nullable', 'string', 'max:255'],
+            'turnstile_enabled' => ['nullable', 'boolean'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -213,6 +223,20 @@ class SiteSettingsController extends Controller
                 'Landing-page countdown target, South African time. Blank means the final dates are still to be announced.',
             );
         }
+
+        // Cloudflare Turnstile. Site key is public (bakes into the widget);
+        // secret follows the Mailgun / PayFast "blank keeps existing" rule
+        // so re-saving the form doesn't wipe the key when the password
+        // input renders empty on purpose.
+        $this->settingsService->set('turnstile_site_key', $validated['turnstile_site_key'] ?? '', 'Cloudflare Turnstile public site key (safe to render in HTML)');
+        if (filled($validated['turnstile_secret'] ?? null)) {
+            $this->settingsService->set('turnstile_secret', $validated['turnstile_secret'], 'Cloudflare Turnstile secret key (server-side verify)');
+        }
+        $this->settingsService->set(
+            'turnstile_enabled',
+            $request->boolean('turnstile_enabled') ? '1' : '0',
+            'Enable Cloudflare Turnstile challenge on /contact, /register, /login, /forgot-password (1=on, 0=off). Keys must also be configured for the widget to render.',
+        );
 
         $this->auditLogService->log(
             $request->user(),

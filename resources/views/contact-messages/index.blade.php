@@ -25,8 +25,9 @@
                 <select name="status" id="status" class="rounded-lg border border-stone-300 text-sm py-2 px-3">
                     <option value="" @selected($filters['status'] === '')>All</option>
                     <option value="clean" @selected($filters['status'] === 'clean')>Clean</option>
-                    <option value="honeypot" @selected($filters['status'] === 'honeypot')>Honeypot hit</option>
-                    <option value="too_fast" @selected($filters['status'] === 'too_fast')>Submitted too fast</option>
+                    @foreach(\App\Models\ContactMessage::spamStatusOptions() as $value => $label)
+                        <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
+                    @endforeach
                 </select>
             </div>
             <div>
@@ -63,10 +64,12 @@
                             <td class="px-4 py-3 text-sm">
                                 @if ($m->spam_status === \App\Models\ContactMessage::SPAM_CLEAN)
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">Clean</span>
-                                @elseif ($m->spam_status === \App\Models\ContactMessage::SPAM_HONEYPOT)
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">Honeypot</span>
                                 @else
-                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">Too fast</span>
+                                    @php
+                                        $spamLabels = \App\Models\ContactMessage::spamStatusOptions();
+                                        $spamLabel = $spamLabels[$m->spam_status] ?? ucfirst(str_replace('_', ' ', $m->spam_status));
+                                    @endphp
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">{{ $spamLabel }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-stone-600">
