@@ -11,6 +11,7 @@ use App\Services\InvoiceNinja\InvoiceNinjaException;
 use App\Services\InvoiceNinja\IssueCharsleyInvoice;
 use App\Services\SettingsService;
 use App\Support\BackupNotificationAddress;
+use App\Support\WorldsCountdown;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -102,6 +103,7 @@ class SiteSettingsController extends Controller
             'invoice_registration_number' => ['nullable', 'string', 'max:100'],
             'invoice_vat_number' => ['nullable', 'string', 'max:50'],
             'invoice_footer_notes' => ['nullable', 'string', 'max:500'],
+            'worlds_countdown_at' => ['nullable', 'date'],
         ]);
 
         $oldValues = $this->settingsService->all();
@@ -203,6 +205,14 @@ class SiteSettingsController extends Controller
         $this->settingsService->set('invoice_registration_number', $validated['invoice_registration_number'] ?? '', 'Company / NPO registration number on invoices');
         $this->settingsService->set('invoice_vat_number', $validated['invoice_vat_number'] ?? '', 'SA VAT number. When set, invoices become VAT-compliant tax invoices.');
         $this->settingsService->set('invoice_footer_notes', $validated['invoice_footer_notes'] ?? '', 'Optional footer text on invoices (overrides the default "not a VAT invoice" line)');
+
+        if (array_key_exists('worlds_countdown_at', $validated)) {
+            $this->settingsService->set(
+                WorldsCountdown::SETTING_KEY,
+                WorldsCountdown::normalize($validated['worlds_countdown_at'] ?? ''),
+                'Landing-page countdown target, South African time. Blank keeps 1 August 2028.',
+            );
+        }
 
         $this->auditLogService->log(
             $request->user(),

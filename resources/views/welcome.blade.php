@@ -214,6 +214,8 @@
         </div>
     </section>
 
+    <x-worlds-countdown />
+
     {{-- TEAM SOUTH AFRICA — data-driven feature band.
          Picks the item flagged `is_home_feature`, falling back to the
          cover of the most recent NationalTeam, else hides itself. --}}

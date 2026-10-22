@@ -19,6 +19,20 @@
                 </div>
             @endif
 
+            <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-3">
+                <h2 class="font-heading text-lg font-semibold text-stone-900">IPRF Worlds countdown</h2>
+                <p class="text-sm text-stone-500">
+                    The public homepage counts down to this moment in South African time.
+                    It stays on 1 August 2028 until you set the exact start.
+                </p>
+                <div>
+                    <label for="worlds_countdown_at" class="block text-sm font-medium text-stone-700">Start</label>
+                    <input type="datetime-local" name="worlds_countdown_at" id="worlds_countdown_at"
+                        value="{{ old('worlds_countdown_at', \App\Support\WorldsCountdown::make()->inputValue()) }}"
+                        class="mt-1 block w-full max-w-xs rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                </div>
+            </div>
+
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
                 <div class="flex items-start justify-between gap-4">
                     <div>
