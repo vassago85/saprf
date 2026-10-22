@@ -655,3 +655,73 @@ it('drops the sidebar badge cache the moment an admin approves', function () {
 
     expect($approvals['badge'])->toBeNull();
 });
+
+it('drops the contact-enquiries badge the moment an admin marks one handled', function () {
+    $admin = staffUser('admin');
+
+    $message = ContactMessage::create([
+        'first_name' => 'Jane',
+        'surname' => 'Doe',
+        'email' => 'jane@example.test',
+        'subject' => 'Hello',
+        'message' => 'Please get back to me when you can.',
+        'spam_status' => ContactMessage::SPAM_CLEAN,
+    ]);
+
+    // Warm the sidebar cache so the badge is sitting at "1".
+    SidebarMenu::sectionsFor($admin, 'admin');
+    expect(Cache::has('sidebar:badge:unhandled_contacts'))->toBeTrue();
+
+    // Mark handled through the real controller route — this must flush the
+    // cache so the next sidebar render shows "0" instead of the stale "1".
+    $this->actingAs($admin)
+        ->post(route('contact-messages.mark-handled', $message))
+        ->assertRedirect(route('contact-messages.show', $message));
+
+    expect(Cache::has('sidebar:badge:unhandled_contacts'))->toBeFalse();
+
+    // Recomputing confirms the badge is now null (0 unhandled collapses to null).
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $contacts = collect($sections)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'contact-messages.index');
+
+    expect($contacts['badge'])->toBeNull();
+});
+
+it('bumps the contact-enquiries badge the moment an admin reopens a handled message', function () {
+    $admin = staffUser('admin');
+
+    $message = ContactMessage::create([
+        'first_name' => 'Jane',
+        'surname' => 'Doe',
+        'email' => 'jane@example.test',
+        'subject' => 'Hello',
+        'message' => 'Please get back to me when you can.',
+        'spam_status' => ContactMessage::SPAM_CLEAN,
+        'handled_at' => now(),
+        'handled_by' => $admin->id,
+    ]);
+
+    // Warm the sidebar cache so the badge is sitting at null (0 unhandled).
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $contacts = collect($sections)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'contact-messages.index');
+    expect($contacts['badge'])->toBeNull()
+        ->and(Cache::has('sidebar:badge:unhandled_contacts'))->toBeTrue();
+
+    // Reopening must flush the cache so the sidebar badge snaps up to "1".
+    $this->actingAs($admin)
+        ->post(route('contact-messages.reopen', $message))
+        ->assertRedirect(route('contact-messages.show', $message));
+
+    expect(Cache::has('sidebar:badge:unhandled_contacts'))->toBeFalse();
+
+    $sections = SidebarMenu::sectionsFor($admin, 'admin');
+    $contacts = collect($sections)
+        ->flatMap(fn ($s) => $s['items'])
+        ->firstWhere('route', 'contact-messages.index');
+
+    expect($contacts['badge'])->toBe(1);
+});

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContactMessage;
+use App\Navigation\SidebarMenu;
 use App\Notifications\ContactMessageReceivedNotification;
 use App\Notifications\ContactMessageReplyNotification;
 use App\Services\StaffInboxService;
@@ -81,6 +82,12 @@ class ContactController extends Controller
 
         if ($spamStatus === ContactMessage::SPAM_CLEAN) {
             $this->notifyAdmins($message);
+
+            // A fresh clean enquiry bumps the unhandled count by one.
+            // Drop the shared sidebar badge cache so every admin's next
+            // sidebar render shows the new total instead of waiting out
+            // the 60-second TTL. See SidebarMenu::GLOBAL_BADGES.
+            SidebarMenu::clearBadge('unhandled_contacts');
         }
 
         // Show the same "thanks" flash whether the submission was flagged
@@ -99,6 +106,12 @@ class ContactController extends Controller
     public function index(Request $request): View
     {
         Gate::authorize('viewAny', ContactMessage::class);
+
+        // Self-heal the sidebar badge: whatever an admin lands on this page
+        // with, we recompute the authoritative count below. Dropping the
+        // cache now guarantees the next sidebar render reflects reality
+        // instead of a stale 60s-TTL copy. Mirrors ApprovalController::index.
+        SidebarMenu::clearBadge('unhandled_contacts');
 
         // query('key', $default) uses ?? internally, so ConvertEmptyStringsToNull
         // turns the form's "All" (value="") into null and then into the default —
@@ -183,6 +196,11 @@ class ContactController extends Controller
             'handled_notes' => $data['handled_notes'] ?? null,
         ]);
 
+        // Marking as handled drops the unhandled count by one — flush the
+        // shared sidebar badge cache so the "2" (or whatever) in the sidebar
+        // snaps down on the next render instead of lingering for up to 60s.
+        SidebarMenu::clearBadge('unhandled_contacts');
+
         return redirect()->route('contact-messages.show', $contactMessage)
             ->with('success', 'Marked as handled.');
     }
@@ -195,6 +213,10 @@ class ContactController extends Controller
             'handled_at' => null,
             'handled_by' => null,
         ]);
+
+        // Reopening pushes the unhandled count back up — same cache flush as
+        // markHandled() so the sidebar badge immediately reflects the change.
+        SidebarMenu::clearBadge('unhandled_contacts');
 
         return redirect()->route('contact-messages.show', $contactMessage)
             ->with('success', 'Reopened.');
