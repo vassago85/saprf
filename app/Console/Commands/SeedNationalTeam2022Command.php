@@ -90,9 +90,18 @@ class SeedNationalTeam2022Command extends Command
     private const SASSCO_NOTE = 'Awarded SASSCo Federation Colours for attending IPRF 2022 — not Protea Colours (per the SAPRF Chairperson\'s On Target Africa announcement, Issue 38).';
 
     /**
-     * Division layout follows the article's division headers. `colours`
-     * flips the colours-award path: true for the 16 Protea names, false
-     * for the 5 SASSCo-only names.
+     * Division layout combines the On Target Africa magazine (which names
+     * each division's Protea-awarded shooters) with Greg Sykes's Oct 2026
+     * email to Exco (which fills in the actual division of each SASSCo-
+     * only shooter). The magazine groups the 5 SASSCo-only names together
+     * without divisions; Greg's email places them inside their real
+     * divisions (Kim-Leigh → Ladies, Willem + Arnold → Limited). Glen
+     * Clark and Russell Ferreira weren't listed in Greg's email so they
+     * stay in their best-guess divisions based on their 2024–2026 team
+     * records (Senior and Factory respectively).
+     *
+     * `colours` flips the colours-award path: true for the 16 Protea
+     * names, false for the 5 SASSCo-only names.
      *
      * When `colours` is true the actual flag is still gated by
      * `!$user->hasProteaColours()` so we never try to double-award.
@@ -102,38 +111,47 @@ class SeedNationalTeam2022Command extends Command
     private const ROSTER = [
         // Open division (6) — all Protea Colours.
         ['name' => 'Warren Britnell',       'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
+        ['name' => 'Garth Olivier',         'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
         ['name' => 'Justin Louw',           'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
         ['name' => 'Johan Lottering',       'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
-        ['name' => 'Garth Olivier',         'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
         ['name' => 'Hendrik Nel',           'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
         ['name' => 'Jason Marais',          'division_slug' => 'open',    'division_label' => 'Open',        'colours' => true],
 
-        // Ladies Open (2) — all Protea Colours.
+        // Ladies (3) — Liesl + Natasha got Protea per the magazine;
+        // Kim-Leigh was in the Ladies division but on SASSCo-only
+        // Federation Colours (per Greg's Oct 2026 email).
         ['name' => 'Liesl Baben',           'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => true],
         ['name' => 'Natasha Britnell',      'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => true],
+        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'ladies',  'division_label' => 'Ladies',      'colours' => false],
 
-        // Senior Open (4) — all Protea Colours.
+        // Senior (4) — all Protea Colours. Greg confirms "Senior is correct"
+        // in his email, matching the magazine.
         ['name' => 'Grant Anderson',        'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
         ['name' => 'Le Riche Coetzer',      'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
         ['name' => 'Andries Lategan',       'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
         ['name' => 'Derek Reyneke',         'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => true],
 
-        // Factory (2) — all Protea Colours.
+        // Factory (2) — both Protea Colours. Perry + Rob need user
+        // accounts first; add their SAPRF numbers to SAPRF_HINTS once
+        // they exist, then rerun.
         ['name' => 'Perry De Gouveia',      'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => true],
         ['name' => 'Rob Ramsden',           'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => true],
 
-        // Limited (2) — all Protea Colours.
+        // Limited (4) — Greg + Konrad got Protea (magazine); Willem +
+        // Arnold were in Limited on SASSCo-only Federation Colours
+        // (per Greg's Oct 2026 email).
         ['name' => 'Greg Sykes',            'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => true],
         ['name' => 'Konrad Gräbe',          'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => true],
+        ['name' => 'Willem van Biljon',     'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => false],
+        ['name' => 'Arnold Van Zyl',        'division_slug' => 'limited', 'division_label' => 'Limited',     'colours' => false],
 
-        // SASSCo Federation Colours only (5) — no Protea. The magazine
-        // doesn't list these by division; recorded under Open with the
-        // SASSCO_NOTE until a per-division source is confirmed.
-        ['name' => 'Glen Clark',            'division_slug' => 'open',    'division_label' => 'Open',        'colours' => false],
-        ['name' => 'Willem van Biljon',     'division_slug' => 'open',    'division_label' => 'Open',        'colours' => false],
-        ['name' => 'Kim-Leigh Ferreira',    'division_slug' => 'open',    'division_label' => 'Open',        'colours' => false],
-        ['name' => 'Russell Ferreira',      'division_slug' => 'open',    'division_label' => 'Open',        'colours' => false],
-        ['name' => 'Arnold Van Zyl',        'division_slug' => 'open',    'division_label' => 'Open',        'colours' => false],
+        // SASSCo-only names Greg's email didn't place in a division.
+        // Divisions here are best-guess from the 2024–2026 teams and
+        // can be moved via the admin UI if a per-division source turns
+        // up. The SASSCO_NOTE still attaches so the Protea-colours flag
+        // stays off.
+        ['name' => 'Glen Clark',            'division_slug' => 'senior',  'division_label' => 'Seniors',     'colours' => false],
+        ['name' => 'Russell Ferreira',      'division_slug' => 'factory', 'division_label' => 'Factory',     'colours' => false],
     ];
 
     /**
@@ -147,6 +165,23 @@ class SeedNationalTeam2022Command extends Command
         // Magazine drops the "Snr" suffix; SAPRF membership is
         // "LeRiche Coetzer Snr", #16, Western Cape.
         'Le Riche Coetzer' => '16',
+
+        // Greg Sykes — SAPRF #83, email 308wingreg@gmail.com. The hint
+        // is belt-and-braces: his DB name is "Greg Sykes" so strict
+        // matching already works, but the hint protects against any
+        // future namespace collision with a different "Greg Sykes".
+        'Greg Sykes' => '83',
+
+        // Perry De Gouveia — TODO: add SAPRF number once Exco confirms
+        // whether Perry's user account exists in the system (he does
+        // not resolve as of Oct 2026). Until then this row logs as
+        // UNRESOLVED on each run.
+        // 'Perry De Gouveia' => '???',
+
+        // Rob Ramsden — TODO: as above. Rob is the SAPRF founder (per
+        // the June/July 2022 Chairperson's article) so a membership
+        // likely exists; just needs pinning by number.
+        // 'Rob Ramsden' => '???',
     ];
 
     public function handle(): int

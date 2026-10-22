@@ -84,42 +84,50 @@ class SeedNationalTeam2023Command extends Command
     private const APPEARED_AT = self::STARTS_ON;
 
     /**
-     * Division label resolution — the published roster is flat (no
-     * per-division breakdown), so every shooter is attached to the Open
-     * division with division_label "Open". If Exco later wants to split
-     * historically-correct divisions (e.g. Cheryl Wellen in Ladies,
-     * Grant/Andries/Le Riche/Glen in Seniors), they can do that in the
-     * admin UI without re-running the seeder.
+     * Division breakdown comes from Greg Sykes's Oct 2026 email to Exco
+     * (the magazine's announcement was a flat list). Roles come from the
+     * magazine captions ("Tour Team Captain" → Glen Clark; "PR22 Italy
+     * Tour Team Manager" → Greg Sykes).
      *
-     * `role` defaults to shooter. Glen Clark gets captain. Gregory Sykes
-     * gets TWO rows: one shooter row and one manager row — he travelled
-     * in both capacities.
+     * Names here match the SAPRF membership roll (DB spellings), not the
+     * magazine spellings, so strict name resolution succeeds without
+     * leaning on SAPRF_HINTS:
      *
-     * Order within the roster is alphabetical, matching how the magazine
-     * announcement presented the squad.
+     *   - "Gregory Sykes" (magazine) → "Greg Sykes" (DB, #83)
+     *   - "Corné van As"  (magazine) → "Cornelis van As" (DB, #1175)
+     *
+     * `role` defaults to shooter. Glen Clark gets captain. Greg Sykes
+     * gets TWO rows: one shooter row in Open and one manager row with
+     * no shooting division — he travelled in both capacities.
+     *
+     * Row count: 5 Open + 4 Senior + 2 Factory + 1 Ladies + 1 Greg-as-
+     * manager = 13 appearance rows for 12 real people.
      */
     private const ROSTER = [
-        ['name' => 'Alwyn van Graan',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Andries Lategan',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Cheryl Wellen',         'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Corné van As',          'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Desmond Wellen',        'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Francois Stoltz',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
+        // Open (5) — shooters.
+        ['name' => 'Warren Britnell',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Jason Marais',          'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Greg Sykes',            'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Francois Stoltz',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open',    'division_label' => 'Open'],
+        ['name' => 'Cornelis van As',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open',    'division_label' => 'Open'],
 
-        // Tour Team Captain per magazine caption.
-        ['name' => 'Glen Clark',            'role' => NationalTeamAppearance::ROLE_CAPTAIN, 'division_slug' => 'open', 'division_label' => 'Open'],
+        // Senior (4) — Glen Clark is Tour Team Captain per the magazine.
+        ['name' => 'Glen Clark',            'role' => NationalTeamAppearance::ROLE_CAPTAIN, 'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Andries Lategan',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Le Riche Coetzer',      'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'senior',  'division_label' => 'Seniors'],
+        ['name' => 'Grant Anderson',        'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'senior',  'division_label' => 'Seniors'],
 
-        ['name' => 'Grant Anderson',        'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
+        // Factory (2) — shooters.
+        ['name' => 'Desmond Wellen',        'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'factory', 'division_label' => 'Factory'],
+        ['name' => 'Alwyn van Graan',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'factory', 'division_label' => 'Factory'],
 
-        // Gregory Sykes travelled in two capacities — shoot + manage. Both
-        // rows are seeded; the idempotency guard includes role so each
-        // one survives a rerun independently.
-        ['name' => 'Gregory Sykes',         'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Gregory Sykes',         'role' => NationalTeamAppearance::ROLE_MANAGER, 'division_slug' => null,   'division_label' => 'Team Manager'],
+        // Ladies (1) — shooter.
+        ['name' => 'Cheryl Wellen',         'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'ladies',  'division_label' => 'Ladies'],
 
-        ['name' => 'Jason Marais',          'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Le Riche Coetzer',      'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
-        ['name' => 'Warren Britnell',       'role' => NationalTeamAppearance::ROLE_SHOOTER, 'division_slug' => 'open', 'division_label' => 'Open'],
+        // Greg Sykes's manager row — the idempotency guard includes
+        // role so this row and his Open-shooter row above are both
+        // written on first run and both skipped on subsequent runs.
+        ['name' => 'Greg Sykes',            'role' => NationalTeamAppearance::ROLE_MANAGER, 'division_slug' => null,      'division_label' => 'Team Manager'],
     ];
 
     /**
@@ -132,6 +140,17 @@ class SeedNationalTeam2023Command extends Command
         // Magazine drops the "Snr" suffix; SAPRF membership is
         // "LeRiche Coetzer Snr", #16, Western Cape.
         'Le Riche Coetzer' => '16',
+
+        // Greg Sykes — SAPRF #83, email 308wingreg@gmail.com. Pinned
+        // defensively so his two rows (Open shooter + manager) both
+        // resolve regardless of any future "Greg Sykes" collision.
+        'Greg Sykes' => '83',
+
+        // Cornelis van As — SAPRF #1175, email muisvanas@gmail.com.
+        // The magazine wrote "Corné van As" but the SAPRF membership
+        // is formal "Cornelis van As"; the ROSTER uses the DB spelling
+        // so strict resolution works, and the hint is belt-and-braces.
+        'Cornelis van As' => '1175',
     ];
 
     public function handle(): int
