@@ -270,11 +270,21 @@ test('MembershipObserver auto-promotes pending scores when membership becomes va
     expect($score->fresh()->status)->toBe('valid');
 });
 
-test('MembershipObserver reclassifies scores from lapsed to non_member when the membership is flipped to free', function () {
-    // Regression: the De Villiers family were imported as paying members, then
-    // admin flipped their membership_type to "free" after realising they were
-    // one-off provincial registrants. Their scores stayed labelled LAPSED on
-    // the scoreboard until the observer learned to demote on that transition.
+/*
+ * The three tests below used to assert that MembershipObserver auto-demoted
+ * past scores whenever an admin flipped a member to free, revoked them, or
+ * shrank the paid window. That behaviour caused the lapsed-renewal trap
+ * (Hanno van Niekerk, Oct 2026): the renewal flow briefly shrank his window,
+ * the observer re-evaluated every historical score, and his whole prior
+ * season fell off the national log before PayFast had even confirmed.
+ *
+ * Policy change: the past is immutable. A valid score stays valid regardless
+ * of later membership edits. Admins who genuinely need past scores reclassified
+ * (e.g. a member revoked for cheating, a mis-imported "paid" that was always
+ * free) run `php artisan scores:reevaluate --user=<id>` explicitly — audited
+ * and intentional, not a side effect of a form save.
+ */
+test('MembershipObserver does NOT auto-demote historical scores when membership_type flips to free', function () {
     $matchDate = Carbon::today()->subDays(30);
     $user = User::factory()->create();
     $mship = Membership::create([
@@ -284,20 +294,21 @@ test('MembershipObserver reclassifies scores from lapsed to non_member when the 
         'status' => 'expired',
         'payment_status' => 'unpaid',
         'start_date' => Carbon::today()->subYear(),
-        // Expires BEFORE the score date, so evaluateScoreStatus picks 'lapsed'.
         'expiry_date' => $matchDate->copy()->subDays(10),
     ]);
 
     $score = makeScore($this->match, $user, 'pending', $matchDate);
     $this->service->evaluateScoreStatus($score);
-    expect($score->fresh()->status)->toBe('lapsed');
+    $before = $score->fresh()->status;
+    expect($before)->toBe('lapsed');
 
     $mship->update(['membership_type' => 'free']);
 
-    expect($score->fresh()->status)->toBe('non_member');
+    // Status is untouched by the admin edit — reconciliation is manual.
+    expect($score->fresh()->status)->toBe($before);
 });
 
-test('MembershipObserver reclassifies valid scores to non_member when membership is revoked', function () {
+test('MembershipObserver does NOT auto-demote valid historical scores when the member is revoked', function () {
     $matchDate = Carbon::today()->subDays(10);
     $user = User::factory()->create();
     $mship = Membership::create([
@@ -316,13 +327,11 @@ test('MembershipObserver reclassifies valid scores to non_member when membership
 
     $mship->update(['status' => 'revoked']);
 
-    // isMembershipValidOnDate() short-circuits on revoked, so the score falls
-    // through the lapsed grace-window branch and lands on 'lapsed' (past
-    // grace) — but crucially it is no longer 'valid'.
-    expect($score->fresh()->status)->not->toBe('valid');
+    // Revocation does not retroactively strike the shooter's prior scores.
+    expect($score->fresh()->status)->toBe('valid');
 });
 
-test('MembershipObserver reclassifies valid scores to lapsed when expiry_date is pulled back before the match', function () {
+test('MembershipObserver does NOT auto-demote valid historical scores when expiry_date is pulled back before the match', function () {
     $matchDate = Carbon::today()->subDays(60);
     $user = User::factory()->create();
     $mship = Membership::create([
@@ -332,7 +341,6 @@ test('MembershipObserver reclassifies valid scores to lapsed when expiry_date is
         'status' => 'active',
         'payment_status' => 'paid',
         'start_date' => Carbon::today()->subYear(),
-        // Initial expiry AFTER the match: the score is valid.
         'expiry_date' => Carbon::today()->subDays(30),
     ]);
 
@@ -340,10 +348,39 @@ test('MembershipObserver reclassifies valid scores to lapsed when expiry_date is
     $this->service->evaluateScoreStatus($score);
     expect($score->fresh()->status)->toBe('valid');
 
-    // Admin corrects the expiry backwards to BEFORE the match date.
+    // Admin shrinks the expiry window to before the match date.
+    // Lapsed-renewal regression: historical status MUST stay valid.
     $mship->update(['expiry_date' => $matchDate->copy()->subDays(1)]);
 
-    expect($score->fresh()->status)->not->toBe('valid');
+    expect($score->fresh()->status)->toBe('valid');
+});
+
+test('MembershipObserver does NOT auto-demote historical scores when start_date is pushed forward (lapsed-renewal regression)', function () {
+    // Exact shape of the Hanno van Niekerk incident: shooter was paid up for
+    // the 2026 season (start 2025-10-05, expiry 2026-10-07), scores were marked
+    // valid as they came in, then on renewal checkout start_date briefly
+    // jumped forward. Before this policy change, that forward shift triggered
+    // reevaluateScoresForUser() and the whole season went to 'lapsed'.
+    $matchDate = Carbon::today()->subMonths(3);
+    $user = User::factory()->create();
+    $mship = Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'SAPRF-DEMOTE-4',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYear(),
+        'expiry_date' => Carbon::today()->addMonths(6),
+    ]);
+
+    $score = makeScore($this->match, $user, 'pending', $matchDate);
+    $this->service->evaluateScoreStatus($score);
+    expect($score->fresh()->status)->toBe('valid');
+
+    // start_date jumps to today — AFTER the score's match date.
+    $mship->update(['start_date' => Carbon::today()]);
+
+    expect($score->fresh()->status)->toBe('valid');
 });
 
 test('MembershipObserver leaves scores alone when the paid window is extended forward (no auto-backdate)', function () {

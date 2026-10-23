@@ -10,30 +10,29 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Keeps a shooter's score classifications in sync with their membership record
- * so nobody sees a stale "LAPSED" pill on a scoreboard next to someone the
- * admin has since flagged as a free registrant, or vice versa.
+ * — but only ever in the direction that resolves a *pending* score. Historical
+ * scores that have already been judged (`valid`, `lapsed`, `non_member`) are
+ * NEVER auto-demoted by a later membership edit. The rule is simple:
  *
- * Two distinct paths, deliberately asymmetric:
+ *   "The past does not get rewritten. A shooter who was paid up when they shot
+ *    a match keeps that score forever. An admin edit on their membership
+ *    record today cannot retroactively knock scores off last season's log."
  *
- * 1. PROMOTION (membership becomes valid): only 'pending' scores get promoted
- *    to 'valid'. We deliberately do NOT touch 'non_member' scores — joining or
- *    paying today must not retroactively backdate credit for a match a shooter
- *    shot as a genuine non-member.
+ * The only automatic path is PROMOTION: when a membership becomes valid
+ * (payment confirmed, status active, expiry in the future), 'pending' grace-
+ * window scores get promoted to 'valid'. Pending means the system has not yet
+ * taken a position on the score — resolving them forward is fine.
  *
- * 2. DEMOTION (membership is downgraded — type flipped to 'free', status set
- *    to 'revoked', or the paid window shrinks past scored matches): re-evaluate
- *    ALL of that shooter's scores. This closes the gap where admin cleanups
- *    (e.g. correcting a mis-imported "paid" member to "free") left old scores
- *    stranded with a lapsed/valid label that no longer matches their record.
+ * Every DEMOTION path (admin flips to free, admin revokes, admin shrinks the
+ * paid window, renewal rewrites start_date, etc.) is intentionally NOT handled
+ * here. If an admin genuinely needs past scores re-classified against the new
+ * membership state (e.g. a member was revoked for cheating and their results
+ * should be struck), that is an explicit, audited action:
  *
- * For a wider admin correction that legitimately widens the window (backdating
- * start_date, extending expiry_date to cover earlier matches), use the
- * explicit audited path: `php artisan scores:reevaluate --user=<id>`. That
- * expansion case stays manual on purpose so someone has to sign off on
- * backdating.
+ *     php artisan scores:reevaluate --user=<id>
  *
- * Both paths cover the PayFast webhook and admin manual updates — both go
- * through Membership::save().
+ * Keeping demotion behind that command stops renewal checkouts, data cleanups,
+ * and typo fixes from silently wiping a shooter's season off the standings.
  */
 class MembershipObserver
 {
@@ -64,17 +63,12 @@ class MembershipObserver
      */
     private function syncScoresForMembership(Membership $membership): array
     {
-        $service = app(ScoreValidationService::class);
-
-        if ($this->wasJustActivated($membership)) {
-            return $service->resolvePendingScoresForUser($membership->user_id);
+        if (! $this->wasJustActivated($membership)) {
+            return [];
         }
 
-        if ($this->wasJustDemoted($membership)) {
-            return $service->reevaluateScoresForUser($membership->user_id);
-        }
-
-        return [];
+        return app(ScoreValidationService::class)
+            ->resolvePendingScoresForUser($membership->user_id);
     }
 
     private function wasJustActivated(Membership $membership): bool
@@ -93,45 +87,5 @@ class MembershipObserver
             && $membership->expiry_date->gte(now()->startOfDay());
 
         return $nowValid;
-    }
-
-    /**
-     * Any change that makes past scores less valid than they were classified.
-     * Covers the three real-world cases:
-     *   - Admin fixes a mis-imported paying member to "Free"
-     *     (membership_type changed to 'free')
-     *   - Membership gets revoked (status changed to 'revoked')
-     *   - Paid window is shortened (expiry_date pulled earlier, start_date
-     *     pushed later), potentially stranding scores outside the new window.
-     */
-    private function wasJustDemoted(Membership $membership): bool
-    {
-        if ($membership->wasChanged('membership_type') && $membership->membership_type === 'free') {
-            return true;
-        }
-
-        if ($membership->wasChanged('status') && $membership->status === 'revoked') {
-            return true;
-        }
-
-        // Window shrunk on either side. We only care about SHRINKAGE — expansion
-        // (backdate/extend) is intentionally left to the explicit
-        // `scores:reevaluate --user=` command so someone signs off on giving a
-        // shooter retroactive credit for older matches.
-        if ($membership->wasChanged('expiry_date')) {
-            $prev = $membership->getOriginal('expiry_date');
-            if ($prev && $membership->expiry_date && $membership->expiry_date->lt($prev)) {
-                return true;
-            }
-        }
-
-        if ($membership->wasChanged('start_date')) {
-            $prev = $membership->getOriginal('start_date');
-            if ($prev && $membership->start_date && $membership->start_date->gt($prev)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

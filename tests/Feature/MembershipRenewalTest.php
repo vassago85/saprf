@@ -236,3 +236,103 @@ it('reports window helpers correctly on the model', function () {
     expect($far->isWithinRenewalWindow())->toBeFalse()
         ->and($far->shouldShowDashboardRenewalNotice())->toBeFalse();
 });
+
+/*
+ * ── Lapsed-renewal trap regression ────────────────────────────────
+ *
+ * When an active member's year expires and the nightly job lapses them,
+ * opening checkout to renew used to overwrite start_date = today on the
+ * same membership row before PayFast confirmed anything. The
+ * MembershipObserver treats a forward-shifted start_date as a demotion
+ * and re-evaluated every historical score, demoting the shooter's
+ * entire prior season to "Lapsed on match date" — even though they had
+ * been fully paid up through that whole year.
+ *
+ * The fix:
+ *   - joinMembership leaves start_date / expiry_date alone on existing
+ *     memberships. It only flips type/status/payment_status/fee_tier_id.
+ *   - handleSuccessfulPayment stamps the new window on ITN success and
+ *     preserves the historical start_date so prior-year scores keep
+ *     counting.
+ */
+it('does not demote prior-season scores when opening checkout on a lapsed membership', function () {
+    $historicalStart = Carbon::parse('2025-10-05');
+    $historicalExpiry = Carbon::parse('2026-10-07');
+
+    $membership = Membership::create([
+        'user_id' => $this->user->id,
+        'saprf_number' => '185',
+        'membership_type' => 'paid',
+        'fee_tier_id' => MembershipFeeTier::where('slug', 'adult')->value('id'),
+        'status' => 'lapsed',
+        'payment_status' => 'paid',
+        'start_date' => $historicalStart->toDateString(),
+        'expiry_date' => $historicalExpiry->toDateString(),
+    ]);
+
+    $adultTier = MembershipFeeTier::where('slug', 'adult')->firstOrFail();
+
+    $this->actingAs($this->user)
+        ->post(route('membership.join'), ['fee_tier_id' => $adultTier->id])
+        ->assertRedirect();
+
+    $membership->refresh();
+
+    // Historical window must stay put — this is the regression guard.
+    expect($membership->start_date->toDateString())->toBe($historicalStart->toDateString())
+        ->and($membership->expiry_date->toDateString())->toBe($historicalExpiry->toDateString())
+        ->and($membership->status)->toBe('pending')
+        ->and($membership->payment_status)->toBe('unpaid')
+        ->and($membership->fee_tier_id)->toBe($adultTier->id);
+});
+
+it('stamps the new paid window on ITN success and keeps the historical start_date', function () {
+    $historicalStart = Carbon::parse('2025-10-05');
+    $historicalExpiry = Carbon::parse('2026-10-07');
+
+    $membership = Membership::create([
+        'user_id' => $this->user->id,
+        'saprf_number' => '186',
+        'membership_type' => 'paid',
+        'fee_tier_id' => MembershipFeeTier::where('slug', 'adult')->value('id'),
+        'status' => 'lapsed',
+        'payment_status' => 'paid',
+        'start_date' => $historicalStart->toDateString(),
+        'expiry_date' => $historicalExpiry->toDateString(),
+    ]);
+
+    $adultTier = MembershipFeeTier::where('slug', 'adult')->firstOrFail();
+
+    // Open checkout — should NOT touch the historical dates.
+    $this->actingAs($this->user)
+        ->post(route('membership.join'), ['fee_tier_id' => $adultTier->id])
+        ->assertRedirect();
+
+    $payment = Payment::where('payable_type', Membership::class)
+        ->where('payable_id', $membership->id)
+        ->latest('id')
+        ->firstOrFail();
+
+    // ITN lands and marks the payment complete.
+    $this->post(route('payments.notify'), signedRenewalItn([
+        'm_payment_id' => $payment->m_payment_id,
+        'pf_payment_id' => '2099050',
+        'payment_status' => 'COMPLETE',
+        'item_name' => 'SAPRF Membership',
+        'amount_gross' => number_format((float) $adultTier->price, 2, '.', ''),
+        'amount_fee' => '-11.00',
+        'amount_net' => number_format((float) $adultTier->price - 11, 2, '.', ''),
+        'merchant_id' => config('payfast.merchant_id'),
+    ]))->assertOk();
+
+    $membership->refresh();
+    $expectedExpiry = Carbon::today()->addMonths($adultTier->duration_months)->toDateString();
+
+    expect($membership->status)->toBe('active')
+        ->and($membership->payment_status)->toBe('paid')
+        // Historical start preserved: 2025-10-05 keeps prior-year scores
+        // inside the paid window after reevaluation.
+        ->and($membership->start_date->toDateString())->toBe($historicalStart->toDateString())
+        // Expiry stamped forward on payment success, not on checkout.
+        ->and($membership->expiry_date->toDateString())->toBe($expectedExpiry);
+});

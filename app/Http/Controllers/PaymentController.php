@@ -448,20 +448,26 @@ class PaymentController extends Controller
             ]);
             $membership = $existing;
         } elseif ($existing) {
-            $expiry = now()->addMonths($tier->duration_months ?? 12)->toDateString();
-
             // Someone paying a fee tier is a paying member by definition — always
             // promote the type, even when the row started life as a `free` stub
             // (guest shooter created by a sponsor) or inherited the old `free`
             // default. Without this the record stays "Type: Free" after payment
             // and gets billed as a non-member on future match entries.
+            //
+            // DO NOT touch start_date / expiry_date here. Overwriting them to
+            // "today → today + 12mo" before PayFast confirms the payment
+            // retroactively drops every score the shooter earned under the
+            // old paid window, because MembershipObserver treats a forward-
+            // shifted start_date as a demotion and re-evaluates every past
+            // score. If the shooter opens checkout, closes the tab, and
+            // never pays, their historical scores stay intact. The new window
+            // is written in handleSuccessfulPayment() once the ITN lands —
+            // see the matching comment there.
             $existing->update([
                 'membership_type' => 'paid',
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'fee_tier_id' => $tier->id,
-                'start_date' => now()->toDateString(),
-                'expiry_date' => $expiry,
             ]);
             $membership = $existing;
         } else {
@@ -733,6 +739,24 @@ class PaymentController extends Controller
 
             if ($isEarlyRenewal) {
                 $updates['expiry_date'] = $payable->computeRenewedExpiryDate()->toDateString();
+            } else {
+                // Fresh join or renewal of a lapsed/expired membership. The
+                // new paid window is written HERE on confirmed payment, not
+                // in joinMembership when checkout opened — see the comment
+                // there. Stamping it on checkout caused a stalled payment
+                // to silently drop every score the shooter earned under
+                // the old paid window.
+                //
+                // Only move expiry_date forward. Preserve the historical
+                // start_date on an existing membership so prior scores
+                // inside the old paid period keep counting; only stamp
+                // start_date = today when the row has no history at all
+                // (brand-new signup).
+                $months = $payable->feeTier?->duration_months ?? 12;
+                $updates['expiry_date'] = now()->startOfDay()->addMonths($months)->toDateString();
+                if (! $payable->start_date) {
+                    $updates['start_date'] = now()->toDateString();
+                }
             }
 
             $payable->update($updates);
