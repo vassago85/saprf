@@ -4,19 +4,19 @@
 
 ## Scope
 
-These rules govern the 2027 SAPRF national series and national championships for Centerfire and PR22 Rimfire. All competition is individual.
+These rules govern the 2027 SAPRF national series and national championships for Centrefire and PR22 Rimfire. All competition is individual.
 
 ## Divisions
 
 | Discipline | Division | Eligibility or equipment |
 |---|---|---|
-| Centerfire | Open | Open to all; no additional equipment rules |
-| Centerfire | Ladies Open | Female shooters |
-| Centerfire | Junior Open | Aged 14 to 20 at the start of the calendar year |
-| Centerfire | Senior Open | Over 55 |
-| Centerfire | Mil/LEO | Active full or part time military or law enforcement officers |
-| Centerfire | Limited | .308 Win/7.62x51 NATO only; projectile maximum 179 gr and 2,800 fps; no modified wildcat rounds |
-| Centerfire | Factory | Standard rifle from a single mainstream manufacturer; limited modifications |
+| Centrefire | Open | Open to all; no additional equipment rules |
+| Centrefire | Ladies Open | Female shooters |
+| Centrefire | Junior Open | Aged 14 to 20 at the start of the calendar year |
+| Centrefire | Senior Open | Over 55 |
+| Centrefire | Mil/LEO | Active full or part time military or law enforcement officers |
+| Centrefire | Limited | .308 Win/7.62x51 NATO only; projectile maximum 179 gr and 2,800 fps; no modified wildcat rounds |
+| Centrefire | Factory | Standard rifle from a single mainstream manufacturer; limited modifications |
 | PR22 Rimfire | Open | Open to all; no additional equipment rules |
 | PR22 Rimfire | Ladies Open | Female shooters |
 | PR22 Rimfire | Junior Open | Aged 12 to 18 at the start of the calendar year |
@@ -24,7 +24,7 @@ These rules govern the 2027 SAPRF national series and national championships for
 | PR22 Rimfire | Mil/LEO | Active full or part time military or law enforcement officers |
 | PR22 Rimfire | Factory | Standard rifle from a single mainstream manufacturer; limited modifications |
 
-All Centerfire rifles are limited to a maximum of .30 calibre and 3,200 fps.
+All Centrefire rifles are limited to a maximum of .30 calibre and 3,200 fps.
 
 ## Nationals and scoring
 
@@ -58,7 +58,7 @@ A shooter moving from Factory to Open keeps their scores, as a Factory rifle mee
 
 ## Selection and colours
 
-The SAPRF selection committee decides national team selection for 2028, using the 2027 Centerfire final ranking, and the award of SAPRF colours, using the final rankings across all divisions in both disciplines. The committee makes the final decision on whether a shooter has shot enough matches and is of the standard to represent the country.
+The SAPRF selection committee decides national team selection for 2028, using the 2027 Centrefire final ranking, and the award of SAPRF colours, using the final rankings across all divisions in both disciplines. The committee makes the final decision on whether a shooter has shot enough matches and is of the standard to represent the country.
 
 International shooters must compete in at least 3 nationally qualifying PRS or IPRF national selection matches and shoot the SA Champs to be eligible for selection. The committee decides how their results are considered.
 

@@ -46,3 +46,15 @@ if (! function_exists('impacts')) {
         return Format::impacts($count);
     }
 }
+
+if (! function_exists('points')) {
+    /**
+     * Season-standings points to one decimal. The one and only entry point —
+     * every homepage widget, standings page and shooter-profile card runs
+     * through here so 283.5 can never render as 283 or 283.50 somewhere.
+     */
+    function points(int|float|string|null $value): string
+    {
+        return Format::points($value);
+    }
+}

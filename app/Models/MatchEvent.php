@@ -510,6 +510,29 @@ class MatchEvent extends Model
         })->whereIn('status', ['open', 'closed', 'draft', 'cancelled']);
     }
 
+    /**
+     * Matches that fall on today — the start date is on or before today, and
+     * the effective end (match_end_date, else match_date) is still today or
+     * later. Used on the homepage "Live now" block. Status open or closed, so
+     * a 2-day national whose registration has already closed still shows.
+     */
+    public function scopeLive(Builder $query): Builder
+    {
+        $today = now()->startOfDay()->toDateString();
+
+        return $query->whereIn('status', ['open', 'closed'])
+            ->where('match_date', '<=', $today)
+            ->where(function (Builder $q) use ($today) {
+                $q->where(function (Builder $q2) use ($today) {
+                    $q2->whereNull('match_end_date')
+                        ->where('match_date', '=', $today);
+                })->orWhere(function (Builder $q2) use ($today) {
+                    $q2->whereNotNull('match_end_date')
+                        ->where('match_end_date', '>=', $today);
+                });
+            });
+    }
+
     public function scopePast(Builder $query): Builder
     {
         // Cancelled matches never belong under Results — they can still appear

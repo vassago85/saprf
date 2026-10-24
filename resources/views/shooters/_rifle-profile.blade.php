@@ -1,6 +1,6 @@
 {{--
     Rifle spec cards shown at the top of the shooter profile.
-    Renders one accordion per (Centerfire = PRS, Rimfire = PR22) rifle
+    Renders one accordion per (Centrefire = PRS, Rimfire = PR22) rifle
     the shooter has flagged as visible on their profile.
 --}}
 @if($profileRifles->isNotEmpty())
@@ -11,7 +11,7 @@
     <div class="mb-6">
         <h2 class="font-heading text-xl font-bold text-stone-900 mb-3">Rifles</h2>
         <div class="space-y-4">
-            @foreach([['label' => 'Centerfire', 'rifle' => $centerfire, 'series' => 'PRS'], ['label' => 'Rimfire', 'rifle' => $rimfire, 'series' => 'PR22']] as $group)
+            @foreach([['label' => 'Centrefire', 'rifle' => $centerfire, 'series' => 'PRS'], ['label' => 'Rimfire', 'rifle' => $rimfire, 'series' => 'PR22']] as $group)
                 @if($group['rifle'])
                     @php $rifle = $group['rifle']; $rows = $rifle->profileSpecRows(); @endphp
                     <div class="rounded-xl border border-stone-200 bg-white overflow-hidden" x-data="{ open: true }">

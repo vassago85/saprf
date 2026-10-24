@@ -12,6 +12,7 @@ use App\Models\Standing;
 use App\Models\User;
 use App\Services\ScoreValidationService;
 use App\Services\StandingsCalculationService;
+use App\Support\MatchName;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -332,6 +333,11 @@ class ImportScrapedPrsCommand extends Command
     {
         $director = ($m['match_director'] ?? '') ?: null;
         $contact = ($m['contact'] ?? '') ?: null;
+
+        // Normalise the scraped name through the same rewriter the admin forms
+        // use so a re-run of this importer never recreates "CenterFire 1day"
+        // alongside the already-corrected "Centrefire 1-Day".
+        $m['name'] = MatchName::normalize($m['name']);
 
         // Key on the DATE as well as the name: the source reuses event names all
         // season (e.g. several "Centrefire WC Provincial" on different dates), so

@@ -43,8 +43,8 @@
                         <div>
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">National</p>
                             <div class="flex items-baseline gap-2">
-                                <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['overall_rank'] }}</p>
-                                <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['overall_points'] ?? 0, 2) }} pts</p>
+                                <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['overall_rank_label'] ?? $tabEntry['overall_rank'] }}</p>
+                                <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['overall_points'] ?? 0, 1) }} pts</p>
                             </div>
                             {{-- One chip per division the shooter competed in. A single shooter
                                  may have several (e.g. Open in one match, Factory in another) and
@@ -52,7 +52,7 @@
                             @if(!empty($tabEntry['divisions']))
                                 <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0 text-[10px] text-stone-400">
                                     @foreach($tabEntry['divisions'] as $div)
-                                        <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span></span>
+                                        <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank_label'] ?? $div['rank'] ?? '—' }}</span></span>
                                     @endforeach
                                 </div>
                             @endif
@@ -63,13 +63,13 @@
                                     Provincial @if($tabEntry['province_name'])<span class="text-blue-400">&middot; {{ $tabEntry['province_name'] }}</span>@endif
                                 </p>
                                 <div class="flex items-baseline gap-2">
-                                    <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['provincial_rank'] ?? '—' }}</p>
-                                    <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['provincial_points'] ?? 0, 2) }} pts</p>
+                                    <p class="text-3xl font-bold text-stone-900">#{{ $tabEntry['provincial_rank_label'] ?? $tabEntry['provincial_rank'] ?? '—' }}</p>
+                                    <p class="text-sm text-stone-500 tabular-nums">{{ number_format($tabEntry['provincial_points'] ?? 0, 1) }} pts</p>
                                 </div>
                                 @if(!empty($tabEntry['provincial_divisions']))
                                     <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0 text-[10px] text-stone-400">
                                         @foreach($tabEntry['provincial_divisions'] as $div)
-                                            <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</span></span>
+                                            <span>{{ $div['name'] }}: <span class="font-bold text-amber-700">#{{ $div['rank_label'] ?? $div['rank'] ?? '—' }}</span></span>
                                         @endforeach
                                     </div>
                                 @endif

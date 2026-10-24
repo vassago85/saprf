@@ -55,7 +55,9 @@ class StandingController extends Controller
             null,
             null,
             null,
-            random_int(1, 2147483646),
+            // Deterministic order inside ties — see Volt mount() for the
+            // "no more per-visit shuffle" rationale.
+            null,
         )->standings;
 
         $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers(
@@ -89,9 +91,45 @@ class StandingController extends Controller
 
     // ── Public Standings ──
 
+    /**
+     * Discipline-specific landing page — /standings/prs renders PRS,
+     * /standings/pr22 renders PR22. The series comes from the route
+     * defaults (not a query param), so bookmarks are canonical and the
+     * discipline switch is a real link to the other URL.
+     */
+    public function publicDisciplineIndex(Request $request, string $series): View
+    {
+        $series = in_array($series, ['PRS', 'PR22'], true) ? $series : 'PRS';
+
+        return view('standings.discipline', ['series' => $series]);
+    }
+
+    /**
+     * Legacy /standings 301 → /standings/prs (or /standings/pr22 when
+     * ?series=PR22). Every other filter query param is forwarded so a
+     * saved bookmark keeps its filtered view. The series param is
+     * stripped from the forwarded query because the destination URL
+     * carries it.
+     */
+    public function publicRedirect(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $requested = $request->query('series');
+        $target = $requested === 'PR22' ? route('standings.pr22') : route('standings.prs');
+
+        $forward = $request->query();
+        unset($forward['series']);
+
+        return redirect($target.($forward === [] ? '' : '?'.http_build_query($forward)), 301);
+    }
+
+    /**
+     * Deprecated single-page standings view. Kept as a thin wrapper so any
+     * cached routes / tests that still reference 'publicIndex' resolve;
+     * the real route sends traffic through publicRedirect() above.
+     */
     public function publicIndex(): View
     {
-        return view('standings.public');
+        return view('standings.discipline', ['series' => 'PRS']);
     }
 
     /**
@@ -125,8 +163,7 @@ class StandingController extends Controller
             ->when($request->filled('series'), fn ($q) => $q->where('series', $request->input('series')))
             ->when($request->filled('season'), fn ($q) => $q->where('season', $request->input('season')))
             ->when($request->filled('province_id'), fn ($q) => $q->where('province_id', $request->input('province_id')))
-            ->whereNull('province_id')
-            ->orderBy('rank');
+            ->whereNull('province_id');
 
         if ($divisionId) {
             $query->where('division_id', $divisionId);
@@ -134,8 +171,41 @@ class StandingController extends Controller
             $query->whereNull('division_id');
         }
 
-        $query->limit($request->filled('limit') ? (int) $request->input('limit') : 100);
+        // Deliberately NOT ordering by rank here — RankStandings below
+        // produces the canonical display order (rank asc, then surname /
+        // first name / id). That's the same order the standings page
+        // uses, so the homepage widget and the full table never disagree
+        // on who sits first inside a tie.
+        $models = $query->get();
 
-        return response()->json(['data' => $query->get()]);
+        $limit = $request->filled('limit') ? (int) $request->input('limit') : 100;
+
+        // Hand off to the single ranking authority so tied rows get their
+        // T1 label even though the DB stored "1" / "1". With a null seed
+        // the order is deterministic (surname, first name, id).
+        $ranker = app(\App\Services\RankStandings::class);
+
+        $payload = $models->map(fn (Standing $s) => [
+            'model' => $s,
+            'points' => (float) $s->points,
+            'name' => (string) ($s->user?->name ?? ''),
+            'id' => (int) ($s->user_id ?? $s->id),
+        ])->values();
+
+        $ordered = $ranker->rank($payload, null)
+            ->take($limit)
+            ->map(function (array $row): Standing {
+                /** @var Standing $model */
+                $model = $row['model'];
+                $model->setAttribute('rank', $row['rank']);
+                $model->setAttribute('rank_label', $row['rank_label']);
+                $model->setAttribute('is_tied', $row['is_tied']);
+                $model->setAttribute('points_display', points((float) $model->points));
+
+                return $model;
+            })
+            ->values();
+
+        return response()->json(['data' => $ordered]);
     }
 }

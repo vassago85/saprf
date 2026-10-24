@@ -16,6 +16,7 @@ use App\Models\Venue;
 use App\Services\FinancialService;
 use App\Services\MatchFinanceService;
 use App\Services\SettingsService;
+use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -209,6 +210,15 @@ class MatchWorkspaceController extends Controller
             'scores_finalized_at' => now(),
             'scores_finalized_by' => $request->user()->id,
         ])->save();
+
+        // Snapshot the current standings for every shooter in this series/
+        // season so the public standings page can draw movement arrows
+        // (▲n/▼n) against the previous finalisation. Deliberately BEFORE
+        // the notification dispatch — notifications are user-visible and
+        // allowed to fail; the snapshot is a tiny insert and should always
+        // succeed. StandingsSnapshotRecorder is idempotent on taken_at,
+        // so a quick unmark→remark won't double-write.
+        app(StandingsSnapshotRecorder::class)->recordForMatch($match->fresh());
 
         if (! $wasFinalized && $match->scores_finalized_notified_at === null) {
             NotifyScoresFinalizedJob::dispatch($match->id);

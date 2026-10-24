@@ -29,19 +29,25 @@ class FeatureWorlds2028PosterCommand extends Command
 
     protected $description = 'Feature the 2028 IPRF Worlds poster on the public landing page.';
 
-    private const VERSION = '2028-rondavels-v1';
+    // Bump this when the poster asset is replaced OR when the user-visible
+    // caption / alt / home_headline text below changes, so the next run of
+    // this command re-applies them to the existing MediaItem row.
+    private const VERSION = '2028-rondavels-v2-centrefire';
 
     private const VERSION_KEY = 'landing_poster_version';
 
     private const HASH_KEY = 'landing_poster_sha256';
 
+    // Slug stays as the original "centerfire" spelling so we match the
+    // existing MediaAlbum row rather than orphaning it with a second album.
+    // The normalize-names command rewrites the stored title on existing data.
     private const ALBUM_SLUG = 'iprf-centerfire-world-championship-2028';
 
-    private const ALBUM_TITLE = 'IPRF Centerfire World Championship 2028';
+    private const ALBUM_TITLE = 'IPRF Centrefire World Championship 2028';
 
-    private const CAPTION = 'IPRF Centerfire World Championship, Mpumalanga';
+    private const CAPTION = 'IPRF Centrefire World Championship, Mpumalanga';
 
-    private const ALT = 'Poster announcing that South Africa will host the IPRF Centerfire World Championship in Mpumalanga in August 2028';
+    private const ALT = 'Poster announcing that South Africa will host the IPRF Centrefire World Championship in Mpumalanga in August 2028';
 
     public function handle(SettingsService $settings): int
     {
@@ -97,7 +103,7 @@ class FeatureWorlds2028PosterCommand extends Command
                 'alt' => self::ALT,
                 'caption' => self::CAPTION,
                 'home_label' => 'Host federation',
-                'home_headline' => 'South Africa will host the IPRF Centerfire World Championship',
+                'home_headline' => 'South Africa will host the IPRF Centrefire World Championship',
                 'home_summary' => 'August 2028 in Mpumalanga.',
                 'home_link_type' => 'custom',
                 'home_link_url' => route('events.index'),

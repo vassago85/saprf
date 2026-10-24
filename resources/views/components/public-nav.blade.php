@@ -13,7 +13,7 @@
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'events' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     Events
                 </a>
-                <a href="/standings"
+                <a href="{{ route('standings.prs') }}"
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'standings' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     Standings
                 </a>
@@ -74,7 +74,7 @@
                      class="absolute top-16 inset-x-0 bg-white border-b border-stone-200 shadow-lg z-50">
                     <div class="px-4 py-3 space-y-1">
                         <a href="/events" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'events' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Events</a>
-                        <a href="/standings" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'standings' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Standings</a>
+                        <a href="{{ route('standings.prs') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'standings' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Standings</a>
                         <a href="{{ route('sa-team.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'sa-team' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">
                             <span class="inline-flex items-center gap-1.5">
                                 <svg class="size-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 8.5 8h7L12 2ZM4 10l3.5 6h9L20 10H4Zm2 8 6 4 6-4H6Z"/></svg>

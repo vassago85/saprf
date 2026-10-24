@@ -15,7 +15,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap gap-2 mb-2">
                             <x-discipline-chip :discipline="$match->match_type" />
-                            <x-level-chip :level="$match->series_level" />
+                            <x-level-chip :level="$match->series_level" :match-name="$match->name" />
                         </div>
                         <h1 class="font-heading text-xl font-bold text-stone-900">{{ $match->name }}</h1>
                         <p class="text-sm text-stone-500 mt-0.5">{{ $match->location_display ?: $match->venue_name }}</p>

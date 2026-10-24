@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\MatchEvent;
+use App\Support\MatchName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,6 +12,17 @@ class StoreMatchRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()->can('create', MatchEvent::class);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // Normalise spellings on the way in so a match director typing
+        // "CenterFire 1day" is stored as "Centrefire 1-Day" — one spelling
+        // across the whole site, enforced at the write path rather than fixed
+        // afterwards.
+        if ($this->has('name')) {
+            $this->merge(['name' => MatchName::normalize($this->input('name'))]);
+        }
     }
 
     public function rules(): array

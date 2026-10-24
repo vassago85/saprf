@@ -120,7 +120,7 @@ it('defaults the table to points descending', function () {
 
     expect($sort)->toBe('points')->and($direction)->toBe('desc');
 
-    $this->get('/standings?season=2026&series=PR22&level=provincial')
+    $this->get('/standings/pr22?season=2026&series=PR22&level=provincial')
         ->assertOk()
         ->assertSee('↓');
 });
@@ -149,7 +149,7 @@ it('ranks a filtered province by points even when the stored rank says otherwise
 });
 
 it('ignores an unknown sort value and falls back to points descending', function () {
-    $this->get('/standings?'.http_build_query([
+    $this->get('/standings/pr22?'.http_build_query([
         'season' => '2026',
         'series' => 'PR22',
         'level' => 'provincial',
@@ -159,16 +159,21 @@ it('ignores an unknown sort value and falls back to points descending', function
         ->assertSeeInOrder(['Bob Alpha', 'Cara Mid', 'Alice Zulu']);
 });
 
-it('renders clickable sort links in the header with active-column indicator', function () {
-    $response = $this->get('/standings?season=2026&series=PR22&level=provincial');
+it('renders clickable sort buttons in the header with active-column indicator', function () {
+    $response = $this->get('/standings/pr22?season=2026&level=provincial');
     $response->assertOk();
 
     $html = $response->getContent();
 
-    // The Points header is the active default sort — should have the ↓ arrow.
-    expect($html)->toContain('sort=points')
-        ->toContain('sort=shooter')
-        ->toContain('sort=province')
-        ->toContain('sort=rank')
+    // The new discipline Volt renders sort controls as Livewire-wired
+    // <button> elements, not querystring links. The URL still updates
+    // via Livewire's #[Url] on sort/direction, so a shareable deeplink
+    // is still possible — the toolbar just doesn't need to pre-render
+    // 5 href permutations. Verify the four sort handlers are wired and
+    // the Points header shows the active (↓) indicator by default.
+    expect($html)->toContain("sortBy('points')")
+        ->toContain("sortBy('shooter')")
+        ->toContain("sortBy('province')")
+        ->toContain("sortBy('rank')")
         ->toContain('↓'); // active desc indicator on Points
 });

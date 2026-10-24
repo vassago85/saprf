@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR22 standings 2026 · SAPRF (mockup)</title>
+<!-- MOCKUP ONLY. Layout and content reference for the SAPRF standings rebuild.
+     Do NOT copy these colours, fonts or inline styles. Rebuild with the platform's existing
+     components, Tailwind/CSS tokens and Livewire views so it looks identical to the rest of saprf.co.za.
+     Movement arrows are sample values. Text in [SQUARE BRACKETS] is a placeholder for real data. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F7F5}
+a{color:#0B6B3A;text-decoration:none}a:hover{color:#08512C;text-decoration:underline}
+table{border-collapse:collapse;width:100%}
+tbody tr:hover{background:#F1F6F2}
+</style>
+</head>
+<body>
+<div style="font-family: Inter, system-ui, sans-serif; color: #14181B; background: #F6F7F5; min-height: 100vh">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E3E6E2">
+<div style="max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+<a href="#" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: 1px; color: #0B6B3A; text-decoration: none">SAPRF</a>
+<nav aria-label="Main" style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center; font-size: 14px">
+<a href="#" style="padding: 8px 12px; color: #3E4650">Events</a>
+<a href="#" aria-current="page" style="padding: 8px 12px; color: #0B6B3A; background: #E7F2EA; border-radius: 6px; font-weight: 600">Standings</a>
+<a href="#" style="padding: 8px 12px; color: #3E4650">SA Team</a>
+<a href="#" style="padding: 8px 12px; color: #3E4650">Media</a>
+<a href="#" style="padding: 8px 12px; color: #3E4650">Documents</a>
+<a href="#" style="padding: 8px 12px; color: #3E4650">FAQ</a>
+<a href="#" style="padding: 8px 12px; color: #3E4650">Login</a>
+<a href="#" style="padding: 10px 16px; background: #0B6B3A; color: #FFFFFF; border-radius: 8px; font-weight: 600">Join SAPRF</a>
+</nav>
+</div>
+</header>
+
+<div style="background: #E7F2EA; border-bottom: 1px solid #CFE3D5">
+<div style="max-width: 1240px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 14px">
+<span style="font-weight: 700; font-size: 12px; letter-spacing: 0.08em; color: #0B6B3A">NEXT MATCH · 7 DAYS</span>
+<span style="font-weight: 600">WC Provincial Rimfire Champs</span>
+<span style="color: #3E4650">Atlantis Shooting Range · 31 Oct · 34 entries</span>
+<a href="#" style="margin-left: auto; font-weight: 600">Register →</a>
+</div>
+</div>
+
+<main style="max-width: 1240px; margin: 0 auto; padding: 40px 24px 64px">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+<div>
+<nav aria-label="Discipline" style="display: inline-flex; gap: 4px; padding: 4px; background: #E9ECE8; border-radius: 10px; margin-bottom: 20px">
+<a href="standings-prs.html" style="padding: 10px 18px; border-radius: 7px; color: #3E4650; font-weight: 600; font-size: 15px; text-decoration: none">PRS <span style="font-weight: 500; color: #5B6470">Centrefire</span></a>
+<a href="standings-pr22.html" aria-current="page" style="padding: 10px 18px; border-radius: 7px; background: #FFFFFF; color: #14181B; font-weight: 700; font-size: 15px; text-decoration: none">PR22 <span style="font-weight: 500; color: #5B6470">Rimfire</span></a>
+</nav>
+<div style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; color: #0B6B3A">2026 SEASON · NATIONAL · saprf.co.za/standings/pr22</div>
+<h1 style="margin: 6px 0 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 56px; line-height: 1">PR22 standings</h1>
+<p style="margin: 10px 0 0; color: #5B6470; font-size: 15px; max-width: 620px">[PR22 COUNTING RULE AND MAX POINTS]. Last updated after [LAST VERIFIED MATCH].</p>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" style="font: inherit; font-size: 14px; padding: 10px 14px; border: 1px solid #D5DAD4; background: #FFFFFF; border-radius: 8px; cursor: pointer">How points work</button>
+<button type="button" style="font: inherit; font-size: 14px; padding: 10px 14px; border: 1px solid #D5DAD4; background: #FFFFFF; border-radius: 8px; cursor: pointer">Share</button>
+</div>
+</div>
+
+<div style="margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 12px; padding: 16px 18px"><div style="font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700">[n]</div><div style="font-size: 13px; color: #5B6470; margin-top: 2px">Ranked shooters</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 12px; padding: 16px 18px"><div style="font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700">[n]</div><div style="font-size: 13px; color: #5B6470; margin-top: 2px">Completed</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 12px; padding: 16px 18px"><div style="font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700">[n]</div><div style="font-size: 13px; color: #5B6470; margin-top: 2px">Remaining</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 12px; padding: 16px 18px"><div style="font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700">[n]</div><div style="font-size: 13px; color: #5B6470; margin-top: 2px">Matches this season</div></div>
+</div>
+
+<div style="margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px">
+
+<a href="#" style="display: block; text-decoration: none; color: #14181B; background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px; padding: 20px 22px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 999px; background: #F4D35E; color: #14181B">1ST</span>
+<span style="font-size: 13px; color: #5B6470">GP</span>
+</div>
+<div style="margin-top: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.05">Kevin Goncalves</div>
+<div style="margin-top: 10px; display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 26px">68</span>
+<span style="font-size: 13px; color: #5B6470">Leader</span>
+</div>
+</a>
+
+<a href="#" style="display: block; text-decoration: none; color: #14181B; background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px; padding: 20px 22px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 999px; background: #DDE1E5; color: #14181B">2ND</span>
+<span style="font-size: 13px; color: #5B6470">WC</span>
+</div>
+<div style="margin-top: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.05">Malcolm Coetzee</div>
+<div style="margin-top: 10px; display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 26px">68</span>
+<span style="font-size: 13px; color: #5B6470">Level on points</span>
+</div>
+</a>
+
+<a href="#" style="display: block; text-decoration: none; color: #14181B; background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px; padding: 20px 22px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 999px; background: #E7C3A0; color: #14181B">3RD</span>
+<span style="font-size: 13px; color: #5B6470">GP</span>
+</div>
+<div style="margin-top: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.05">Deon Retief</div>
+<div style="margin-top: 10px; display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 26px">67</span>
+<span style="font-size: 13px; color: #5B6470">−1 to 1st</span>
+</div>
+</a>
+
+</div>
+
+<div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<section aria-label="Standings table" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px">
+<div style="padding: 16px 18px; border-bottom: 1px solid #E3E6E2; display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+<div role="group" aria-label="Level" style="display: inline-flex; border: 1px solid #D5DAD4; border-radius: 8px; overflow: hidden">
+<button type="button" aria-pressed="true" style="font: inherit; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 0; background: #14181B; color: #FFFFFF; cursor: pointer">National</button>
+<button type="button" aria-pressed="false" style="font: inherit; font-size: 14px; padding: 9px 14px; border: 0; background: #FFFFFF; color: #3E4650; cursor: pointer">Provincial</button>
+</div>
+<label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #3E4650">Division
+<select style="font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #D5DAD4; border-radius: 8px; background: #FFFFFF"><option>All</option></select>
+</label>
+<label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #3E4650">Province
+<select style="font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #D5DAD4; border-radius: 8px; background: #FFFFFF"><option>All</option><option>Gauteng</option><option>Western Cape</option></select>
+</label>
+<label style="margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 14px">
+<span style="position: absolute; left: -9999px">Find a shooter</span>
+<input type="search" placeholder="Find a shooter" style="font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid #D5DAD4; border-radius: 8px; width: 200px">
+</label>
+</div>
+
+<div style="overflow-x: auto">
+<table>
+<thead>
+<tr style="text-align: left; font-size: 12px; letter-spacing: 0.06em; color: #5B6470; border-bottom: 1px solid #E3E6E2">
+<th scope="col" style="padding: 12px 18px; font-weight: 600; width: 44px">#</th>
+<th scope="col" style="padding: 12px 10px; font-weight: 600">SHOOTER</th>
+<th scope="col" style="padding: 12px 10px; font-weight: 600">DIVISION</th>
+<th scope="col" style="padding: 12px 10px; font-weight: 600">PROV</th>
+<th scope="col" style="padding: 12px 10px; font-weight: 600; text-align: right">POINTS <span style="font-weight: 500; color: #7A838C">/ [MAX]</span></th>
+<th scope="col" style="padding: 12px 18px 12px 10px; font-weight: 600; text-align: right">GAP</th>
+</tr>
+</thead>
+<tbody>
+
+<tr style="border-bottom: 1px solid #EEF0ED; font-size: 15px">
+<td style="padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #3E4650">1</td>
+<td style="padding: 11px 10px; white-space: nowrap">
+<a href="#" style="font-weight: 600; color: #14181B">Kevin Goncalves</a>
+
+</td>
+<td style="padding: 11px 10px; color: #3E4650">[DIV]</td>
+<td style="padding: 11px 10px; color: #3E4650">GP</td>
+<td style="padding: 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700">68</td>
+<td style="padding: 11px 18px 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5B6470">—</td>
+</tr>
+
+<tr style="border-bottom: 1px solid #EEF0ED; font-size: 15px">
+<td style="padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #3E4650">2</td>
+<td style="padding: 11px 10px; white-space: nowrap">
+<a href="#" style="font-weight: 600; color: #14181B">Malcolm Coetzee</a>
+
+</td>
+<td style="padding: 11px 10px; color: #3E4650">[DIV]</td>
+<td style="padding: 11px 10px; color: #3E4650">WC</td>
+<td style="padding: 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700">68</td>
+<td style="padding: 11px 18px 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5B6470">0</td>
+</tr>
+
+<tr style="border-bottom: 1px solid #EEF0ED; font-size: 15px">
+<td style="padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #3E4650">3</td>
+<td style="padding: 11px 10px; white-space: nowrap">
+<a href="#" style="font-weight: 600; color: #14181B">Deon Retief</a>
+
+</td>
+<td style="padding: 11px 10px; color: #3E4650">[DIV]</td>
+<td style="padding: 11px 10px; color: #3E4650">GP</td>
+<td style="padding: 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700">67</td>
+<td style="padding: 11px 18px 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5B6470">−1</td>
+</tr>
+
+<tr style="border-bottom: 1px solid #EEF0ED; font-size: 15px">
+<td style="padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #3E4650">4</td>
+<td style="padding: 11px 10px; white-space: nowrap">
+<a href="#" style="font-weight: 600; color: #14181B">Russell Ferreira</a>
+<span style="margin-left: 8px; font-size: 11px; font-weight: 700; color: #0B6B3A; background: #E7F2EA; border-radius: 4px; padding: 2px 6px">SA ×4</span>
+</td>
+<td style="padding: 11px 10px; color: #3E4650">[DIV]</td>
+<td style="padding: 11px 10px; color: #3E4650">GP</td>
+<td style="padding: 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700">67</td>
+<td style="padding: 11px 18px 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5B6470">−1</td>
+</tr>
+
+<tr style="border-bottom: 1px solid #EEF0ED; font-size: 15px">
+<td style="padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #3E4650">5</td>
+<td style="padding: 11px 10px; white-space: nowrap">
+<a href="#" style="font-weight: 600; color: #14181B">Gerhard Slabbert</a>
+
+</td>
+<td style="padding: 11px 10px; color: #3E4650">[DIV]</td>
+<td style="padding: 11px 10px; color: #3E4650">WC</td>
+<td style="padding: 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700">66</td>
+<td style="padding: 11px 18px 11px 10px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5B6470">−2</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+<div style="padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; color: #5B6470">
+<span>Showing 1–5 of [n]</span>
+<button type="button" style="font: inherit; font-size: 14px; font-weight: 600; padding: 10px 16px; border: 1px solid #0B6B3A; color: #0B6B3A; background: #FFFFFF; border-radius: 8px; cursor: pointer">Show all</button>
+</div>
+</section>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px; padding: 18px 20px">
+<h2 style="margin: 0 0 12px; font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">Still to shoot</h2>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<div style="display: flex; gap: 12px"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; width: 64px">31 Oct</span><span>WC Provincial Rimfire Champs · Atlantis</span></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; width: 64px">7–8 Nov</span><span>Rimfire PR22 GP 2-Day National Championship · Rayton</span></div>
+</div>
+<a href="#" style="display: inline-block; margin-top: 12px; font-size: 14px; font-weight: 600">All events →</a>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E3E6E2; border-radius: 14px; padding: 18px 20px">
+<h2 style="margin: 0 0 8px; font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">How ranking works</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #3E4650">[PR22 SCORING SUMMARY]. [TIE-BREAK RULE]</p>
+<a href="#" style="display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 600">Read the PR22 rulebook →</a>
+</section>
+</aside>
+
+</div>
+</main>
+
+<footer style="border-top: 1px solid #E3E6E2; background: #FFFFFF">
+<div style="max-width: 1240px; margin: 0 auto; padding: 24px; font-size: 13px; color: #5B6470">© 2026 South African Precision Rifle Federation (NPC)</div>
+</footer>
+</div>
+</body>
+</html>

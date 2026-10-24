@@ -38,7 +38,7 @@
 
                 <div class="flex flex-wrap items-center gap-2.5 mb-4">
                     <x-discipline-chip :discipline="$match->match_type" />
-                    <x-level-chip :level="$match->series_level" />
+                    <x-level-chip :level="$match->series_level" :match-name="$match->name" />
                     @if($match->status === 'completed')
                         <x-status-chip status="completed" />
                     @else

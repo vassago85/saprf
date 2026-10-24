@@ -33,12 +33,8 @@ new class extends Component
     #[Url(except: '')]
     public string $direction = '';
 
-    public int $seed = 0;
-
     public function mount(): void
     {
-        $this->seed = random_int(1, 2147483646);
-
         if ($this->season === '') {
             $this->season = (string) now()->year;
         }
@@ -147,7 +143,10 @@ new class extends Component
             $provinceId,
             $this->sort !== '' ? $this->sort : null,
             $this->direction !== '' ? $this->direction : null,
-            $this->seed,
+            // Null seed → deterministic surname/first-name/id order inside
+            // ties. Keeps the display order stable across visits AND identical
+            // to what the homepage API returns via the same ranker.
+            null,
         );
 
         $userIds = $page->standings->pluck('user_id')->filter()->unique()->values()->all();

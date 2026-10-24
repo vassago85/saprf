@@ -51,7 +51,7 @@ it('ranks all provinces as one table and shows each shooter rank inside their pr
             'GP 2',
         ]);
 
-    $this->get('/standings?season=2026&series=PR22&level=provincial')
+    $this->get('/standings/pr22?season=2026&level=provincial')
         ->assertOk()
         ->assertSeeInOrder(['Cape Leader', 'Gauteng Leader', 'Gauteng Second'])
         ->assertSee('data-rank-label="1"', false)
@@ -80,7 +80,7 @@ it('ranks a single province on its own and hides the province rank label', funct
         ->and($page->standings->pluck('user_id')->all())->toBe([$capeLeader->id, $capeSecond->id])
         ->and($page->standings->first()->province_rank_label)->toBeNull();
 
-    $this->get('/standings?season=2026&series=PR22&level=provincial&province_id='.$this->wc->id)
+    $this->get('/standings/pr22?season=2026&level=provincial&province_id='.$this->wc->id)
         ->assertOk()
         ->assertSee('Cape Leader')
         ->assertSee('Cape Second')
@@ -104,7 +104,7 @@ it('shares national ranks when points tie and does not add a province rank', fun
         ->and($page->standings->pluck('rank_label')->unique()->values()->all())->toContain('T1')
         ->and($page->standings->last()->rank_label)->toBe('3');
 
-    $this->get('/standings?season=2026&series=PR22&level=national')
+    $this->get('/standings/pr22?season=2026&level=national')
         ->assertOk()
         ->assertSee('data-rank-label="T1"', false)
         ->assertSee('data-rank-label="3"', false)
@@ -128,23 +128,9 @@ it('recomputes rank after the division filter', function () {
         ->and($factory->standings->pluck('rank_label')->all())->toBe(['1', '2']);
 });
 
-it('keeps the visit seed when the national and provincial tabs change', function () {
-    $shooter = User::factory()->create(['name' => 'Tab Shooter', 'province_id' => $this->gp->id]);
-    rankStanding($shooter, 'provincial', 100, 1, $this->gp->id);
-    rankStanding($shooter, 'national', 100, 1);
-
-    $component = Volt::test('standings.season')
-        ->set('season', '2026')
-        ->set('series', 'PR22')
-        ->set('level', 'provincial')
-        ->set('seed', 4242);
-
-    $component->call('setLevel', 'national');
-
-    expect($component->get('seed'))->toBe(4242)
-        ->and($component->get('level'))->toBe('national');
-
-    $component->call('setLevel', 'provincial');
-
-    expect($component->get('seed'))->toBe(4242);
-});
+// NOTE: The "visit seed" behaviour (per-visit random tie-break order) was
+// intentionally removed in the 24 Oct 2026 standings rebuild — the whole
+// site now uses the deterministic surname/first-name/id tie-break so the
+// standings page, API and shooter profile agree on the order. The old
+// seed test used to pin $seed on the Volt component; there is no such
+// property any more.

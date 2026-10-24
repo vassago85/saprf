@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\MatchEvent;
+use App\Support\MatchName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,6 +12,13 @@ class UpdateMatchRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()->can('update', $this->route('match'));
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('name')) {
+            $this->merge(['name' => MatchName::normalize($this->input('name'))]);
+        }
     }
 
     public function rules(): array

@@ -102,7 +102,7 @@ province).
 
 The 2027 rules ([`docs/rules/national-series-2027.md`](../rules/national-series-2027.md))
 replace both models above with one final ranking out of **500**, for
-Centerfire and PR22 alike. Scoring mode `national_series_2027`.
+Centrefire and PR22 alike. Scoring mode `national_series_2027`.
 
 | Component | What counts | Max |
 |---|---|---|

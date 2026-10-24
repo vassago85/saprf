@@ -6,7 +6,7 @@
 <section class="bg-stone-950 text-white" aria-labelledby="worlds-countdown-h">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <p id="worlds-countdown-h" class="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
-            IPRF Centerfire World Championship · Mpumalanga
+            IPRF Centrefire World Championship · Mpumalanga
         </p>
 
         @if (! $countdown->isAnnounced())

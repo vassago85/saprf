@@ -274,7 +274,7 @@ it('shows every division a shooter placed in — not just the first', function (
     $response->assertSee('PRS Factory Match', false);
 });
 
-it('renders the full gear spec card grouped by Centerfire and Rimfire on the shooter profile', function () {
+it('renders the full gear spec card grouped by Centrefire and Rimfire on the shooter profile', function () {
     $shooter = User::factory()->create(['name' => 'Gear Head']);
 
     \App\Models\RifleConfiguration::create([
@@ -301,7 +301,7 @@ it('renders the full gear spec card grouped by Centerfire and Rimfire on the sho
 
     $this->get('/standings/2026/shooter/'.$shooter->id)
         ->assertOk()
-        ->assertSee('Centerfire', false)
+        ->assertSee('Centrefire', false)
         ->assertSee('Rimfire', false)
         ->assertSee('25x47L')
         ->assertSee('Vudoo V-22')
@@ -340,7 +340,7 @@ it('shows opted-in main rifles on the public shooter profile and hides the rest'
     $this->get('/standings/2026/shooter/'.$shooter->id)
         ->assertOk()
         ->assertSee('Public Creedmoor')
-        ->assertSee('Centerfire', false)
+        ->assertSee('Centrefire', false)
         ->assertDontSee('Hidden Rimfire')
         ->assertDontSee('Spare Rifle');
 });

@@ -138,7 +138,7 @@ class DocumentsController extends Controller
                     ],
                     ...($this->settings->nationalSeries2027Published() ? [[
                         'title' => 'SAPRF 2027 National Series, Championships and Selection',
-                        'subtitle' => 'Centerfire + PR22 Rimfire · October 2026',
+                        'subtitle' => 'Centrefire + PR22 Rimfire · October 2026',
                         'description' => 'Divisions, 1-day nationals, the 2-day championships, the 500-point final ranking (best 3 nationals + championships, max 2 from your home province), tie-breaks, and how the ranking feeds 2028 team selection and SAPRF colours.',
                         'url' => route('rules.national-series-2027'),
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],

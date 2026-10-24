@@ -1360,16 +1360,46 @@ class MatchController extends Controller
 
     public function apiUpcoming(): JsonResponse
     {
-        $matches = MatchEvent::query()
+        $columns = ['id', 'name', 'slug', 'match_type', 'series_level', 'province_id', 'match_date', 'match_end_date', 'venue_name', 'venue_location', 'city', 'status', 'active_member_fee', 'non_member_fee', 'max_competitors', 'registration_close_date'];
+
+        // Matches that fall on today — lead the homepage with these so a
+        // weekend national doesn't disappear from the home panel just because
+        // registration has closed or the clock has ticked past midnight.
+        $live = MatchEvent::query()
+            ->published()
+            ->live()
+            ->with('province')
+            ->withCount('scores')
+            ->orderBy('match_date')
+            ->get($columns);
+
+        $liveIds = $live->pluck('id')->all();
+
+        // Future matches: start date (or end date, for multi-day) is today or
+        // later. Include status=closed so a registration-closed weekend match
+        // still appears on the homepage until it has actually finished.
+        $today = now()->startOfDay()->toDateString();
+
+        $upcoming = MatchEvent::query()
             ->published()
             ->with('province')
-            ->where('match_date', '>=', now())
-            ->where('status', 'open')
+            ->whereNotIn('id', $liveIds)
+            ->whereIn('status', ['open', 'closed'])
+            ->where(function ($q) use ($today) {
+                $q->where('match_date', '>=', $today)
+                    ->orWhere(function ($q2) use ($today) {
+                        $q2->whereNotNull('match_end_date')
+                            ->where('match_end_date', '>=', $today);
+                    });
+            })
             ->orderBy('match_date')
             ->limit(6)
-            ->get(['id', 'name', 'slug', 'match_type', 'series_level', 'province_id', 'match_date', 'venue_name', 'venue_location', 'city', 'status', 'active_member_fee', 'non_member_fee', 'max_competitors', 'registration_close_date']);
+            ->get($columns);
 
-        return response()->json(['data' => $matches]);
+        return response()->json([
+            'data' => $upcoming,
+            'live' => $live,
+        ]);
     }
 
     public function apiRecentResults(): JsonResponse

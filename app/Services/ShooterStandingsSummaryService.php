@@ -71,6 +71,11 @@ class ShooterStandingsSummaryService
                 'scoring_mode' => $seriesRule?->scoring_mode ?? 'best_of_n',
 
                 'overall_rank' => $overall?->rank,
+                // Tie-aware label ("T1" when another shooter shares the
+                // same rank in the same series/season/overall scope). The
+                // public shooter profile reads this instead of the raw int
+                // so "#2 of 2 tied on 100.0" renders as "T1" everywhere.
+                'overall_rank_label' => Standing::rankLabelFor($overall),
                 'overall_points' => $overall?->points,
                 'pool_breakdown' => $overall?->pool_breakdown,
                 'divisions' => $divisions,
@@ -78,6 +83,7 @@ class ShooterStandingsSummaryService
                 'has_provincial' => (bool) $provincial,
                 'province_name' => $user->province?->name,
                 'provincial_rank' => $provincial?->rank,
+                'provincial_rank_label' => Standing::rankLabelFor($provincial),
                 'provincial_points' => $provincial?->points,
                 'provincial_pool_breakdown' => $provincial?->pool_breakdown,
                 'provincial_divisions' => $provincialDivisions,
@@ -141,6 +147,7 @@ class ShooterStandingsSummaryService
             ->map(fn (Standing $s) => [
                 'name' => $s->division?->name,
                 'rank' => (int) $s->rank,
+                'rank_label' => Standing::rankLabelFor($s),
                 'points' => (float) $s->points,
                 'pool_breakdown' => $s->pool_breakdown,
             ])

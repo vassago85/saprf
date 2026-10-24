@@ -142,7 +142,19 @@ Route::post('/contact', [ContactController::class, 'store'])->name('contact.stor
 Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('contact.thanks');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
-Route::get('/standings', [StandingController::class, 'publicIndex'])->name('standings.public');
+// Public standings — split by discipline so each one has its own URL,
+// title, canonical, counting-rule line and live/next-match strip. The
+// bare /standings URL stays live and 301s to /standings/prs (or
+// /standings/pr22 when ?series=PR22) so old external bookmarks keep
+// working. Every other filter (season, level, division_id, province_id,
+// search) survives the redirect — see StandingController::publicRedirect.
+Route::get('/standings', [StandingController::class, 'publicRedirect'])->name('standings.public');
+Route::get('/standings/prs', [StandingController::class, 'publicDisciplineIndex'])
+    ->defaults('series', 'PRS')
+    ->name('standings.prs');
+Route::get('/standings/pr22', [StandingController::class, 'publicDisciplineIndex'])
+    ->defaults('series', 'PR22')
+    ->name('standings.pr22');
 
 // Public "Represented South Africa" roster — every IPRF World Championship
 // appearance grouped by year. Powered by the admin-maintained

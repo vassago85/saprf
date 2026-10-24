@@ -10,7 +10,7 @@
             'fee_tier' => [['name' => 'fee_tier_id', 'label' => 'Fee tier', 'options' => $feeTiers->pluck('name', 'id')->all()]],
             'division' => [['name' => 'division_id', 'label' => 'Division', 'options' => $divisions->pluck('name', 'id')->all()]],
             'series' => [
-                ['name' => 'series', 'label' => 'Series', 'options' => ['PRS' => 'PRS (Centerfire)', 'PR22' => 'PR22 (Rimfire)']],
+                ['name' => 'series', 'label' => 'Series', 'options' => ['PRS' => 'PRS (Centrefire)', 'PR22' => 'PR22 (Rimfire)']],
                 ['name' => 'season', 'label' => 'Season', 'options' => [(string) now()->year => (string) now()->year, (string) (now()->year - 1) => (string) (now()->year - 1)]],
             ],
             'role' => [['name' => 'role', 'label' => 'Role', 'options' => collect($roles)->mapWithKeys(fn ($r) => [$r => ucwords(str_replace('_', ' ', $r))])->all()]],

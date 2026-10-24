@@ -89,7 +89,7 @@
         {{-- Tag row --}}
         <div class="flex flex-wrap gap-1.5 mb-4">
             <x-discipline-chip :discipline="$match->match_type" />
-            <x-level-chip :level="$match->series_level" />
+            <x-level-chip :level="$match->series_level" :match-name="$match->name" />
             @if($match->status !== 'completed')
                 <x-status-chip :status="$regStatus" />
             @else

@@ -11,6 +11,15 @@ use Illuminate\Support\Collection;
 
 class StandingsCalculationService
 {
+    public function __construct(
+        // Injected so the test battery can swap it for a null/mock
+        // without touching every one of the 15+ sites that call
+        // recalculateForMatch(). Nullable so legacy container builds
+        // (older queues, CLI commands that `new` the service directly)
+        // still work — a null recorder just skips the snapshot.
+        private readonly ?StandingsSnapshotRecorder $snapshots = null,
+    ) {}
+
     public function recalculateForMatch(MatchEvent $match): void
     {
         $this->calculateMatchRankings($match);
@@ -55,6 +64,14 @@ class StandingsCalculationService
             if ($pooled) {
                 $this->recalculateSeasonStandings($match->series, $season);
             }
+        }
+
+        // Snapshot AFTER the standings are rebuilt so the recorded ranks
+        // are the ones the public page will render next time. Idempotent
+        // on taken_at: a completeScores → recalculateForMatch chain in the
+        // same request will record once, not twice.
+        if ($this->snapshots !== null && $match->scoresAreFinalized()) {
+            $this->snapshots->recordForMatch($match->fresh());
         }
     }
 
@@ -1038,17 +1055,37 @@ class StandingsCalculationService
         ?int $provinceId,
         ?int $divisionId,
     ): void {
-        $rank = 1;
+        // Standard competition ranking (1, 2, 2, 4) so stored ranks agree
+        // with what the public page renders via RankStandings. Previously
+        // this hardcoded 1..N sequentially (1, 2, 3, 4), which meant two
+        // shooters on identical points were persisted as rank 2 and rank
+        // 3 even though the public leaderboard shows them both as T2 —
+        // and the shooter-profile summary card then read the stored "3"
+        // and displayed "#3" where the standings page showed "T2".
+        $position = 0;
+        $lastPoints = null;
+        $lastRank = 0;
 
         foreach ($totals as $row) {
+            $position++;
+            $points = (float) $row['points'];
+
+            if ($lastPoints !== null && abs($points - $lastPoints) < 0.0005) {
+                $rank = $lastRank; // tie — share the previous shooter's rank
+            } else {
+                $rank = $position;
+                $lastRank = $position;
+            }
+            $lastPoints = $points;
+
             Standing::create([
                 'user_id' => (int) $row['user_id'],
                 'series' => $series,
                 'season' => $season,
                 'province_id' => $provinceId,
                 'division_id' => $divisionId,
-                'points' => (float) $row['points'],
-                'rank' => $rank++,
+                'points' => $points,
+                'rank' => $rank,
                 'pool_breakdown' => $row['pool_breakdown'] ?? null,
             ]);
         }

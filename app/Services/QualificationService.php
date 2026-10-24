@@ -347,6 +347,104 @@ class QualificationService
     }
 
     /**
+     * Short, mockup-ready counting-rule line for the top of the public
+     * standings page. Keeps the specific "best N / out of M" shape the
+     * design calls for ("Best 3 match scores count, each out of 100.")
+     * rather than the longer dashboard sentence.
+     *
+     * The `$level` arg is required because provincial standings run under
+     * a different formula to the national ones even for the same series:
+     * PRS national uses the annual log, PRS provincial uses best-of-N,
+     * PR22 national uses weighted pools, PR22 provincial uses best-of-N.
+     *
+     * Returns a plain sentence (no HTML). Safe to echo via {{ }}.
+     */
+    public function countingRuleText(string $series, string $season, string $level = 'national'): string
+    {
+        $rule = QualificationRule::query()
+            ->where('series', $series)
+            ->where('season', $season)
+            ->first();
+
+        if ($level === 'provincial') {
+            $bestOf = (int) ($rule?->provincial_pool_best_of ?: $rule?->best_of_count ?: 3);
+
+            return "Provincial standings: best {$bestOf} match scores count toward the season total.";
+        }
+
+        if (! $rule) {
+            return 'Season standings from national and final match scores.';
+        }
+
+        if ($rule->isNationalSeries2027()) {
+            $n = $rule->regularBestOf();
+            $cap = QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP;
+
+            return "Best {$n} nationals (max {$cap} from your home province) plus the 2-day championships, out of 500.";
+        }
+
+        if ($rule->isAnnualLogWithChamps()) {
+            $n = $rule->regularBestOf();
+
+            return "Best {$n} regular national match scores plus a fixed SA Champs percentage, out of 400.";
+        }
+
+        if ($rule->isPooledScoring()) {
+            $prov = (int) $rule->provincial_pool_weight_pct;
+            $nat = (int) $rule->national_pool_weight_pct;
+            $champs = (int) $rule->champs_pool_weight_pct;
+
+            return "Weighted pools: provincial {$prov}% + national {$nat}% + SA Champs {$champs}%, out of 100.";
+        }
+
+        $n = (int) ($rule->best_of_count ?: 3);
+
+        return "Best {$n} national or final match scores count toward the season total, out of ".($n * 100).'.';
+    }
+
+    /**
+     * Numeric "/ max" denominator rendered in the standings table header
+     * next to the Points column. Matches the mockup "POINTS / 300" copy.
+     *
+     * Falls back to 100 for provincial / pooled modes where every row is
+     * already a percentage of its own pool, which is what the table
+     * already shows today.
+     */
+    public function countingRuleMax(string $series, string $season, string $level = 'national'): int
+    {
+        $rule = QualificationRule::query()
+            ->where('series', $series)
+            ->where('season', $season)
+            ->first();
+
+        if ($level === 'provincial') {
+            $bestOf = (int) ($rule?->provincial_pool_best_of ?: $rule?->best_of_count ?: 3);
+
+            return $bestOf * 100;
+        }
+
+        if (! $rule) {
+            return 300;
+        }
+
+        if ($rule->isNationalSeries2027()) {
+            return 500;
+        }
+
+        if ($rule->isAnnualLogWithChamps()) {
+            return 400;
+        }
+
+        if ($rule->isPooledScoring()) {
+            return 100;
+        }
+
+        $n = (int) ($rule->best_of_count ?: 3);
+
+        return $n * 100;
+    }
+
+    /**
      * @return array{provincial:int, national:int, final:int}
      */
     private function countMatchesByLevel(User $user, string $series, string $season): array

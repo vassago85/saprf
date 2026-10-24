@@ -83,7 +83,7 @@
                                 <span class="block text-[10px] text-stone-400 mt-0.5">Max {{ $pb['home_province_cap'] }} from your home province</span>
                             @endisset
                             <div class="mt-2 flex items-baseline gap-1">
-                                <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format($pb['regular_total'] ?? 0, 2) }}</span>
+                                <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format($pb['regular_total'] ?? 0, 1) }}</span>
                                 <span class="text-xs text-stone-400">/ {{ ($pb['regular_best_of'] ?? 3) * 100 }}</span>
                             </div>
                             <div class="mt-2 space-y-1 text-[11px] text-stone-500">
@@ -105,7 +105,7 @@
                         <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
                             <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">SA Champs</span>
                             <div class="mt-2 flex items-baseline gap-1">
-                                <span class="text-2xl font-bold text-amber-800 tabular-nums">{{ number_format($pb['champs_pct'] ?? 0, 2) }}</span>
+                                <span class="text-2xl font-bold text-amber-800 tabular-nums">{{ number_format($pb['champs_pct'] ?? 0, 1) }}</span>
                                 <span class="text-xs text-stone-400">/ {{ $pb['champs_max'] ?? 100 }}</span>
                             </div>
                             <div class="mt-2 text-[11px] text-stone-500">
@@ -130,7 +130,7 @@
                     </div>
                     <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
                         <span class="text-xs font-semibold uppercase tracking-wider">Annual Total</span>
-                        <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 2) }} / {{ $pb['max'] ?? 400 }}</span>
+                        <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 1) }} / {{ $pb['max'] ?? 400 }}</span>
                     </div>
                     @if(($pb['selection_eligible'] ?? true) === false)
                         <p class="mt-2 text-[11px] text-amber-700">
@@ -171,7 +171,7 @@
                             <span class="text-[10px] font-mono text-stone-500">{{ $bpCounted->count() }}/{{ $bpMatches->count() }} counted</span>
                         </div>
                         <div class="mt-2 flex items-baseline gap-1">
-                            <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format((float) ($pb['total'] ?? ($entry['overall_points'] ?? 0)), 2) }}</span>
+                            <span class="text-2xl font-bold text-emerald-800 tabular-nums">{{ number_format((float) ($pb['total'] ?? ($entry['overall_points'] ?? 0)), 1) }}</span>
                             @if($bpMax)
                                 <span class="text-xs text-stone-400">/ {{ $bpMax }}</span>
                             @endif
@@ -204,7 +204,7 @@
                     </div>
                     <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
                         <span class="text-xs font-semibold uppercase tracking-wider">National Season Total</span>
-                        <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Nat. Pts column in the match table below">{{ number_format($entry['overall_points'] ?? 0, 2) }}@if($bpMax) / {{ $bpMax }}@endif</span>
+                        <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Nat. Pts column in the match table below">{{ number_format($entry['overall_points'] ?? 0, 1) }}@if($bpMax) / {{ $bpMax }}@endif</span>
                     </div>
                 </div>
 
@@ -272,7 +272,7 @@
                     </div>
                     <div class="rounded-lg bg-stone-900 text-white px-4 py-3 flex items-center justify-between">
                         <span class="text-xs font-semibold uppercase tracking-wider">National Season Total</span>
-                        <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Nat. Pts column in the match table below">{{ number_format($entry['overall_points'] ?? 0, 2) }} / 100</span>
+                        <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Nat. Pts column in the match table below">{{ number_format($entry['overall_points'] ?? 0, 1) }} / 100</span>
                     </div>
                 </div>
 
@@ -313,7 +313,7 @@
                                                 <span class="text-stone-400">&middot; {{ $matchDates[$m['match_id']]->format('d M Y') }}</span>
                                             @endif
                                         </span>
-                                        <span class="font-mono text-blue-800 font-semibold">{{ number_format((float) $m['contribution'], 2) }}</span>
+                                        <span class="font-mono text-blue-800 font-semibold">{{ number_format((float) $m['contribution'], 1) }}</span>
                                     </div>
                                 @empty
                                     <div class="text-stone-400">No provincial matches counted yet.</div>
@@ -323,7 +323,7 @@
                         <div class="rounded-lg bg-blue-900 text-white px-4 py-3 flex items-center justify-between">
                             <span class="text-xs font-semibold uppercase tracking-wider">Provincial Season Total</span>
                             <span class="text-2xl font-bold tabular-nums" title="Equals the sum of the Prov. Pts column in the match table below">
-                                {{ number_format((float) ($entry['provincial_points'] ?? 0), 2) }}@if($ppMax)<span class="text-xs text-blue-200"> / {{ $ppMax }}</span>@endif
+                                {{ number_format((float) ($entry['provincial_points'] ?? 0), 1) }}@if($ppMax)<span class="text-xs text-blue-200"> / {{ $ppMax }}</span>@endif
                             </span>
                         </div>
                     </div>
@@ -401,8 +401,8 @@
                             <div class="flex items-start justify-center gap-6 flex-wrap">
                                 <div title="Ranking against every {{ $series }} shooter in the season">
                                     <p class="text-xs text-stone-400">Overall</p>
-                                    <p class="text-xl font-bold text-stone-900">#{{ $entry['overall_rank'] }}</p>
-                                    <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 2) }} pts</p>
+                                    <p class="text-xl font-bold text-stone-900">#{{ $entry['overall_rank_label'] ?? $entry['overall_rank'] }}</p>
+                                    <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['overall_points'] ?? 0, 1) }} pts</p>
                                     <p class="text-[9px] text-stone-400 uppercase tracking-wider">vs everyone</p>
                                 </div>
                                 {{-- One tile per division the shooter placed in. Each division has
@@ -411,8 +411,8 @@
                                 @foreach($entry['divisions'] ?? [] as $div)
                                     <div title="Separate ranking computed using {{ $div['name'] }}-only normalization (each match's top {{ $div['name'] }} shooter = 100%). Points here will not match the Overall total.">
                                         <p class="text-xs text-stone-400">{{ $div['name'] }}</p>
-                                        <p class="text-xl font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</p>
-                                        <p class="text-xs text-stone-500 tabular-nums">{{ number_format($div['points'] ?? 0, 2) }} pts</p>
+                                        <p class="text-xl font-bold text-amber-700">#{{ $div['rank_label'] ?? $div['rank'] ?? '—' }}</p>
+                                        <p class="text-xs text-stone-500 tabular-nums">{{ points($div['points'] ?? 0) }} pts</p>
                                         <p class="text-[9px] text-stone-400 uppercase tracking-wider">division only</p>
                                     </div>
                                 @endforeach
@@ -432,15 +432,15 @@
                             <div class="flex items-start justify-center gap-6 flex-wrap">
                                 <div title="Ranking against every {{ $entry['province_name'] ?? 'in-province' }} {{ $series }} shooter">
                                     <p class="text-xs text-stone-400">Overall</p>
-                                    <p class="text-xl font-bold text-stone-900">#{{ $entry['provincial_rank'] ?? '—' }}</p>
-                                    <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['provincial_points'] ?? 0, 2) }} pts</p>
+                                    <p class="text-xl font-bold text-stone-900">#{{ $entry['provincial_rank_label'] ?? $entry['provincial_rank'] ?? '—' }}</p>
+                                    <p class="text-xs text-stone-500 tabular-nums">{{ number_format($entry['provincial_points'] ?? 0, 1) }} pts</p>
                                     <p class="text-[9px] text-stone-400 uppercase tracking-wider">vs everyone</p>
                                 </div>
                                 @foreach($entry['provincial_divisions'] ?? [] as $div)
                                     <div title="Separate ranking computed using {{ $div['name'] }}-only normalization. Points here will not match the Overall total.">
                                         <p class="text-xs text-stone-400">{{ $div['name'] }}</p>
-                                        <p class="text-xl font-bold text-amber-700">#{{ $div['rank'] ?? '—' }}</p>
-                                        <p class="text-xs text-stone-500 tabular-nums">{{ number_format($div['points'] ?? 0, 2) }} pts</p>
+                                        <p class="text-xl font-bold text-amber-700">#{{ $div['rank_label'] ?? $div['rank'] ?? '—' }}</p>
+                                        <p class="text-xs text-stone-500 tabular-nums">{{ points($div['points'] ?? 0) }} pts</p>
                                         <p class="text-[9px] text-stone-400 uppercase tracking-wider">division only</p>
                                     </div>
                                 @endforeach
@@ -537,7 +537,7 @@
                                 <td class="px-5 py-3 text-center whitespace-nowrap bg-emerald-50/20">
                                     @if($countedNat)
                                         <span class="text-sm font-bold text-emerald-700 tabular-nums" title="Points contributed to {{ $series }} National standing">
-                                            +{{ number_format((float) $contribution['national_pts'], 2) }}
+                                            +{{ number_format((float) $contribution['national_pts'], 1) }}
                                         </span>
                                     @elseif($isValid)
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset bg-stone-100 text-stone-400 ring-stone-200" title="Valid score, but not among the counting matches for the National standing">DROPPED</span>
@@ -553,7 +553,7 @@
                                             <span class="text-stone-300" title="This match does not feed the Provincial standing">—</span>
                                         @elseif($countedProv)
                                             <span class="text-sm font-bold text-blue-700 tabular-nums" title="Points contributed to {{ $series }} Provincial standing">
-                                                +{{ number_format((float) $contribution['provincial_pts'], 2) }}
+                                                +{{ number_format((float) $contribution['provincial_pts'], 1) }}
                                             </span>
                                         @elseif($isValid)
                                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset bg-stone-100 text-stone-400 ring-stone-200" title="Valid score, but not among the counting matches for the Provincial standing">DROPPED</span>
@@ -584,17 +584,17 @@
                                      is deliberately redundant with the column header — the
                                      blue/emerald colour distinction alone reads as ambiguous
                                      for anyone scanning just the footer row. --}}
-                                <td class="px-5 py-3 text-center bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 2) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
+                                <td class="px-5 py-3 text-center bg-emerald-50/20" title="Sum of Nat. Pts = your {{ $series }} National OVERALL standing points ({{ number_format($entry['overall_points'] ?? 0, 1) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
                                     <div class="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 leading-none">Nat total</div>
                                     <div class="text-sm font-bold text-emerald-700 tabular-nums mt-0.5">
-                                        {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 2) }}
+                                        {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['national_pts'] ?? 0)), 1) }}
                                     </div>
                                 </td>
                                 @if($hasProvincialCol)
-                                    <td class="px-5 py-3 text-center bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 2) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
+                                    <td class="px-5 py-3 text-center bg-blue-50/20" title="Sum of Prov. Pts = your {{ $series }} Provincial OVERALL standing points ({{ number_format($entry['provincial_points'] ?? 0, 1) }}). Division-only standings use the same values, so if you shot one division all season, this sum also equals your division standing.">
                                         <div class="text-[9px] font-semibold uppercase tracking-wider text-blue-600 leading-none">Prov total</div>
                                         <div class="text-sm font-bold text-blue-700 tabular-nums mt-0.5">
-                                            {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 2) }}
+                                            {{ number_format(collect($seriesScores)->sum(fn($s) => (float) ($contributionByMatch[$s->match_id]['provincial_pts'] ?? 0)), 1) }}
                                         </div>
                                     </td>
                                 @endif

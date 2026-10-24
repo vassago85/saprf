@@ -80,10 +80,10 @@ class RulesController extends Controller
         'national-series-2027' => [
             'title' => 'SAPRF 2027 National Series, Championships and Selection',
             'kicker' => 'SAPRF · Sport Rules',
-            'subtitle' => 'Centerfire and PR22 Rimfire · divisions, nationals, championships, the 500-point final ranking and 2028 team selection.',
+            'subtitle' => 'Centrefire and PR22 Rimfire · divisions, nationals, championships, the 500-point final ranking and 2028 team selection.',
             'version' => null,
             'effective_date' => '14 October 2026',
-            'blurb' => 'The rules governing the 2027 SAPRF national series and national championships for Centerfire and PR22 Rimfire, and how the final ranking feeds 2028 national team selection and SAPRF colours.',
+            'blurb' => 'The rules governing the 2027 SAPRF national series and national championships for Centrefire and PR22 Rimfire, and how the final ranking feeds 2028 national team selection and SAPRF colours.',
             'md' => 'docs/rules/national-series-2027.md',
             'pdf' => 'publications/saprf-national-series-2027.pdf',
             'view' => 'rules.national-series-2027',

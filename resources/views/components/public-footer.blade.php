@@ -21,7 +21,7 @@
                 <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Competition</h4>
                 <ul class="space-y-2 text-sm">
                     <li><a href="/events" class="text-stone-300 hover:text-white transition">Events</a></li>
-                    <li><a href="/standings" class="text-stone-300 hover:text-white transition">Standings</a></li>
+                    <li><a href="{{ route('standings.prs') }}" class="text-stone-300 hover:text-white transition">Standings</a></li>
                     <li><a href="/events?tab=results" class="text-stone-300 hover:text-white transition">Results</a></li>
                     <li><a href="{{ route('documents.index') }}" class="text-stone-300 hover:text-white transition">Documents</a></li>
                 </ul>

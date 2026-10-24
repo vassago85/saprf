@@ -46,7 +46,7 @@
         <span class="text-xs text-stone-600 tabular-nums">
             <span class="font-bold text-amber-700">#{{ $division['rank'] ?? '—' }}</span>
             <span class="text-stone-400">&middot;</span>
-            <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($division['points'] ?? 0), 2) }}</span>@if($max)<span class="text-stone-400"> / {{ $max }}</span>@endif
+            <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($division['points'] ?? 0), 1) }}</span>@if($max)<span class="text-stone-400"> / {{ $max }}</span>@endif
         </span>
     </div>
 
@@ -113,7 +113,7 @@
                             <span class="text-stone-400">&middot; {{ $matchDates[$m['match_id']]->format('d M Y') }}</span>
                         @endif
                     </span>
-                    <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($m['contribution'] ?? $m['pct'] ?? 0), 2) }}</span>
+                    <span class="font-mono {{ $theme['value_text'] }} font-semibold">{{ number_format((float) ($m['contribution'] ?? $m['pct'] ?? 0), 1) }}</span>
                 </div>
             @empty
                 <div class="text-stone-400">No counted matches in this division.</div>

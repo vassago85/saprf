@@ -10,7 +10,8 @@
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2" x-data="{ matchType: '{{ old('match_type', '') }}' }">
                 <div class="sm:col-span-2">
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Match Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" id="name" value="{{ old('name') }}" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <input type="text" name="name" id="name" value="{{ old('name') }}" required placeholder="e.g. Centrefire WC 2-Day National" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <p class="mt-1 text-xs text-stone-400">Spelling is normalised on save: use <code>Centrefire</code>, <code>1-Day</code> / <code>2-Day</code>, <code>Day 1</code>.</p>
                 </div>
 
                 <div>
