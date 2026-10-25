@@ -345,6 +345,23 @@ it('shows the Add-a-Shooter panel on the match edit page for the MD', function (
         ->assertSee(route('events.members.search', $this->match), escape: false);
 });
 
+it('registers adminAddShooter as a window global, not under alpine:init', function () {
+    // Regression: a prior version registered the component via
+    //   document.addEventListener('alpine:init', () => Alpine.data('adminAddShooter', …))
+    // which silently broke on every wire:navigate page transition because
+    // alpine:init fires exactly once per Alpine lifetime. Pin the fix in
+    // place: the Settings page must emit the component as a plain window
+    // global so Alpine's scope chain finds it regardless of init timing.
+    $html = $this->actingAs($this->md)
+        ->get(route('matches.settings', $this->match))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)
+        ->toContain('window.adminAddShooter = function')
+        ->and($html)->not->toContain("Alpine.data('adminAddShooter'");
+});
+
 // ── New (not-on-the-platform) shooter path ──
 
 it('lets the MD add a brand-new shooter (no user_id, name only) as paid + confirmed', function () {

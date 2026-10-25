@@ -552,61 +552,15 @@
         @endif
     </div>
 
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('adminAddShooter', (config) => ({
-                query: '',
-                results: [],
-                loading: false,
-                selected: null,
-                showNewShooter: false,
-                newShooterName: '',
-                newShooterEmail: '',
-                searchUrl: config.searchUrl,
-                _abort: null,
-                init() {},
-                search() {
-                    if (this.query.trim().length < 2) {
-                        this.results = [];
-                        return;
-                    }
-                    if (this._abort) { this._abort.abort(); }
-                    this._abort = new AbortController();
-                    this.loading = true;
-                    fetch(this.searchUrl + '?q=' + encodeURIComponent(this.query.trim()), {
-                        headers: { 'Accept': 'application/json' },
-                        credentials: 'same-origin',
-                        signal: this._abort.signal,
-                    })
-                        .then(r => r.ok ? r.json() : Promise.reject(r))
-                        .then(data => { this.results = data.results || []; })
-                        .catch(() => { /* ignored: transient network / abort */ })
-                        .finally(() => { this.loading = false; });
-                },
-                pick(member) {
-                    this.selected = member;
-                    this.showNewShooter = false;
-                    this.results = [];
-                },
-                startNewShooter() {
-                    this.showNewShooter = true;
-                    // Pre-fill the name from whatever they typed in the
-                    // search box — most MDs will have typed the person's
-                    // name already before realising they're not there.
-                    if (this.query.trim().length >= 2 && this.newShooterName === '') {
-                        this.newShooterName = this.query.trim();
-                    }
-                    this.results = [];
-                },
-                clear() {
-                    this.selected = null;
-                    this.showNewShooter = false;
-                    this.newShooterName = '';
-                    this.newShooterEmail = '';
-                    this.query = '';
-                    this.results = [];
-                },
-            }));
-        });
-    </script>
+    {{--
+        adminAddShooter is registered as window.adminAddShooter by
+        resources/views/matches/workspace/_add-shooter-panel.blade.php
+        under @once/@push('scripts'). That partial's registration is
+        the single source of truth — @once guards against double-
+        registration when both this page and the workspace Settings
+        tab render the component. See the comment there for why it
+        is a window global and not an Alpine.data() call under
+        alpine:init (wire:navigate timing bug).
+    --}}
+    @include('matches.workspace._add-shooter-panel-script')
 </x-layouts.app>
