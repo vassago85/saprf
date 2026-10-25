@@ -36,18 +36,24 @@
 
     <h2 class="sr-only">Matches list</h2>
 
+    {{--
+        Responsive columns: Name / Type / Province / Date / Status are
+        always visible. Series Level and Venue collapse below `md`;
+        MD column collapses below `lg`. The Match name links straight
+        to the workspace where the full detail is visible.
+    --}}
     <x-admin-table>
             <table class="min-w-full">
             <thead class="border-b-2 border-stone-200">
                 <tr>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Name</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Type</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Series Level</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Province</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Venue</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">MD</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Name</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Type</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Series Level</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Province</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Venue</th>
+                    <th class="hidden lg:table-cell px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">MD</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Date</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,30 +64,37 @@
                 @forelse ($matches as $match)
                     <tr class="cursor-pointer border-b border-stone-100 transition hover:bg-stone-50"
                         onclick="window.location.assign('{{ route('matches.overview', $match) }}')">
-                        <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-stone-900">
+                        <td class="px-3 md:px-5 py-4 text-sm font-medium text-stone-900">
                             <a href="{{ route('matches.overview', $match) }}"
                                wire:navigate
                                onclick="event.stopPropagation()"
                                class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $match->name }}</a>
+                            {{-- Mobile-only: surface Province abbreviation under the match name since that column is hidden until md. --}}
+                            <span class="md:hidden mt-0.5 block text-[11px] text-stone-400">{{ $match->province?->abbreviation ?? '' }}</span>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm">
                             @if ($match->match_type === 'PRS')
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">PRS</span>
                             @else
                                 <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">PR22</span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $match->series_level }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->province?->name ?? '—' }}</td>
-                        <td class="max-w-[220px] truncate px-5 py-4 text-sm text-stone-700" title="{{ $match->venue_name }}">{{ $match->venue_name ?: '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->director_name ?: '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">
-                            {{ $match->match_date->format('d M Y') }}
+                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $match->series_level }}</td>
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm text-stone-700">
+                            <span class="hidden md:inline">{{ $match->province?->name ?? '—' }}</span>
+                            <span class="md:hidden">{{ $match->province?->abbreviation ?? '—' }}</span>
+                        </td>
+                        <td class="hidden md:table-cell max-w-[220px] truncate px-5 py-4 text-sm text-stone-700" title="{{ $match->venue_name }}">{{ $match->venue_name ?: '—' }}</td>
+                        <td class="hidden lg:table-cell whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $match->director_name ?: '—' }}</td>
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm text-stone-700">
+                            {{-- Compact date on narrow screens, full on md+. --}}
+                            <span class="md:hidden">{{ $match->match_date->format('d M') }}</span>
+                            <span class="hidden md:inline">{{ $match->match_date->format('d M Y') }}</span>
                             @if($match->isMultiDay())
                                 <span class="text-stone-400">–</span> {{ $match->match_end_date->format('d M') }}
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm">
                             @switch($match->status)
                                 @case('draft')
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">Draft</span>

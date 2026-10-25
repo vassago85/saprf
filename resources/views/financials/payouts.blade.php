@@ -64,19 +64,23 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
+                        {{--
+                            Responsive: Reference / Match Director / Net Due / Actions always visible.
+                            Match collapses below `md`, Requested below `lg`.
+                        --}}
                         <tr class="border-b border-amber-200 text-left text-xs uppercase text-amber-800">
-                            <th class="py-2.5 px-5">Reference</th>
-                            <th class="py-2.5 px-5">Match Director</th>
-                            <th class="py-2.5 px-5">Match</th>
-                            <th class="py-2.5 px-5 text-right">Net Due</th>
-                            <th class="py-2.5 px-5">Requested</th>
-                            <th class="py-2.5 px-5"></th>
+                            <th class="py-2.5 px-3 md:px-5">Reference</th>
+                            <th class="py-2.5 px-3 md:px-5">Match Director</th>
+                            <th class="hidden md:table-cell py-2.5 px-5">Match</th>
+                            <th class="py-2.5 px-3 md:px-5 text-right">Net Due</th>
+                            <th class="hidden lg:table-cell py-2.5 px-5">Requested</th>
+                            <th class="py-2.5 px-3 md:px-5"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($pendingMdPayouts as $mdPayout)
                         <tr class="border-b border-amber-100 last:border-b-0 hover:bg-amber-100/40 align-top" x-data="{ open: false }">
-                            <td class="py-3 px-5 font-mono text-xs text-amber-900">
+                            <td class="py-3 px-3 md:px-5 font-mono text-xs text-amber-900">
                                 {{-- Reference is the shortest route into the full
                                      payout statement (per-entry breakdown, payment
                                      history, banking). PayoutPolicy::view allows
@@ -86,8 +90,12 @@
                                     {{ $mdPayout->reference }}
                                 </a>
                             </td>
-                            <td class="py-3 px-5 text-amber-900">
+                            <td class="py-3 px-3 md:px-5 text-amber-900">
                                 <div class="font-semibold">{{ $mdPayout->payeeUser?->name ?? '—' }}</div>
+                                {{-- Mobile-only: match name under the MD since that column is hidden below md. --}}
+                                @if($mdPayout->match)
+                                    <div class="md:hidden text-xs text-amber-700 truncate max-w-[10rem]">{{ $mdPayout->match->name }}</div>
+                                @endif
                                 {{-- Banking details raised to always-visible: an admin
                                      needs the account to make the transfer, so there's
                                      no reason to hide it behind a "Mark Paid" expand. --}}
@@ -111,7 +119,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="py-3 px-5 text-amber-900">
+                            <td class="hidden md:table-cell py-3 px-5 text-amber-900">
                                 @if($mdPayout->match)
                                     <a href="{{ route('financials.match-report', $mdPayout->match) }}" class="hover:underline">
                                         {{ $mdPayout->match->name }}
@@ -121,11 +129,11 @@
                                     —
                                 @endif
                             </td>
-                            <td class="py-3 px-5 text-right font-bold text-amber-900">R{{ number_format($mdPayout->net_amount, 2) }}</td>
-                            <td class="py-3 px-5 text-amber-800 text-xs">
+                            <td class="py-3 px-3 md:px-5 text-right font-bold text-amber-900">R{{ number_format($mdPayout->net_amount, 2) }}</td>
+                            <td class="hidden lg:table-cell py-3 px-5 text-amber-800 text-xs">
                                 {{ $mdPayout->created_at->diffForHumans() }}
                             </td>
-                            <td class="py-3 px-5 text-right">
+                            <td class="py-3 px-3 md:px-5 text-right">
                                 <div class="inline-flex items-center gap-2">
                                     {{-- Rebuild is always available while a payout is
                                          pending. The MD may still be settling cash,
@@ -275,46 +283,61 @@
         {{-- Payouts Table --}}
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
+                {{--
+                    Responsive: Reference / Payee / Outstanding / Status / Actions
+                    always visible. Type + Match/Period collapse below `md`,
+                    Net Due + Paid + Date collapse below `lg`.
+                --}}
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-stone-200 text-left text-xs uppercase text-stone-500">
-                            <th class="py-3 px-4">Reference</th>
-                            <th class="py-3 px-4">Type</th>
-                            <th class="py-3 px-4">Payee</th>
-                            <th class="py-3 px-4">Match / Period</th>
-                            <th class="py-3 px-4 text-right">Net Due</th>
-                            <th class="py-3 px-4 text-right">Paid</th>
-                            <th class="py-3 px-4 text-right">Outstanding</th>
-                            <th class="py-3 px-4">Status</th>
-                            <th class="py-3 px-4">Date</th>
-                            <th class="py-3 px-4"></th>
+                            <th class="py-3 px-3 md:px-4">Reference</th>
+                            <th class="hidden md:table-cell py-3 px-4">Type</th>
+                            <th class="py-3 px-3 md:px-4">Payee</th>
+                            <th class="hidden md:table-cell py-3 px-4">Match / Period</th>
+                            <th class="hidden lg:table-cell py-3 px-4 text-right">Net Due</th>
+                            <th class="hidden lg:table-cell py-3 px-4 text-right">Paid</th>
+                            <th class="py-3 px-3 md:px-4 text-right">Outstanding</th>
+                            <th class="py-3 px-3 md:px-4">Status</th>
+                            <th class="hidden lg:table-cell py-3 px-4">Date</th>
+                            <th class="py-3 px-3 md:px-4"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($payouts as $payout)
                         <tr class="border-b border-stone-100 hover:bg-stone-50" x-data="{ open: false }">
-                            <td class="py-3 px-4 font-mono text-xs text-stone-600">{{ $payout->reference }}</td>
-                            <td class="py-3 px-4">
+                            <td class="py-3 px-3 md:px-4 font-mono text-xs text-stone-600">{{ $payout->reference }}</td>
+                            <td class="hidden md:table-cell py-3 px-4">
                                 @if($payout->payee_type === 'platform_operator')
                                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-violet-50 text-violet-700">Platform Operator</span>
                                 @else
                                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-stone-100 text-stone-600">Match Director</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-stone-700">{{ $payout->payeeUser?->name ?? 'SAPRF' }}</td>
-                            <td class="py-3 px-4 text-stone-600">
+                            <td class="py-3 px-3 md:px-4 text-stone-700">
+                                <div class="truncate max-w-[10rem] md:max-w-none">{{ $payout->payeeUser?->name ?? 'SAPRF' }}</div>
+                                {{-- Mobile-only: payee type + match/period under the name since those columns are hidden below md. --}}
+                                <div class="md:hidden text-[11px] text-stone-500 truncate max-w-[10rem]">
+                                    @if($payout->payee_type === 'platform_operator' && $payout->period_start)
+                                        Platform · {{ $payout->period_start->format('F Y') }}
+                                    @else
+                                        {{ $payout->match?->name ?? 'MD payout' }}
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="hidden md:table-cell py-3 px-4 text-stone-600">
                                 @if($payout->payee_type === 'platform_operator' && $payout->period_start)
                                     {{ $payout->period_start->format('F Y') }}
                                 @else
                                     {{ $payout->match?->name ?? '—' }}
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-right font-medium">R{{ number_format($payout->net_amount, 2) }}</td>
-                            <td class="py-3 px-4 text-right text-emerald-700">R{{ number_format($payout->paid_amount, 2) }}</td>
-                            <td class="py-3 px-4 text-right {{ $payout->outstandingBalance() > 0 ? 'text-red-600 font-semibold' : 'text-stone-400' }}">
+                            <td class="hidden lg:table-cell py-3 px-4 text-right font-medium">R{{ number_format($payout->net_amount, 2) }}</td>
+                            <td class="hidden lg:table-cell py-3 px-4 text-right text-emerald-700">R{{ number_format($payout->paid_amount, 2) }}</td>
+                            <td class="py-3 px-3 md:px-4 text-right {{ $payout->outstandingBalance() > 0 ? 'text-red-600 font-semibold' : 'text-stone-400' }}">
                                 R{{ number_format($payout->outstandingBalance(), 2) }}
                             </td>
-                            <td class="py-3 px-4">
+                            <td class="py-3 px-3 md:px-4">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                                     @if($payout->status === 'paid') bg-emerald-50 text-emerald-700
                                     @elseif($payout->status === 'partial') bg-amber-50 text-amber-700
@@ -322,8 +345,8 @@
                                     {{ ucfirst($payout->status) }}
                                 </span>
                             </td>
-                            <td class="py-3 px-4 text-stone-500 text-xs">{{ $payout->created_at->format('d M Y') }}</td>
-                            <td class="py-3 px-4 text-right">
+                            <td class="hidden lg:table-cell py-3 px-4 text-stone-500 text-xs">{{ $payout->created_at->format('d M Y') }}</td>
+                            <td class="py-3 px-3 md:px-4 text-right">
                                 @if($payout->payee_type === 'match_director')
                                     <a href="{{ route('financials.payouts.statement-pdf', $payout) }}"
                                        class="text-stone-600 hover:text-stone-800 text-xs font-medium mr-3">PDF</a>

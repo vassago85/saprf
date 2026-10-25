@@ -28,30 +28,39 @@
 
     <h2 class="sr-only">Scores list</h2>
 
+    {{--
+        Responsive columns: Match / Shooter / Impacts / Status / Actions
+        always visible. Division collapses below `md` (surfaced under
+        Shooter as a muted sub-line), Placement below `lg`.
+    --}}
     <x-admin-table>
             <table class="min-w-full">
             <thead class="border-b-2 border-stone-200">
                 <tr>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Division</th>
-                    <th class="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
-                    <th class="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Placement</th>
-                    <th class="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
-                    <th class="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Actions</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Match</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Division</th>
+                    <th class="px-3 md:px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Impacts</th>
+                    <th class="hidden lg:table-cell px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Placement</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">Status</th>
+                    <th class="px-3 md:px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-400">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($scores as $score)
                     <tr class="border-b border-stone-100 hover:bg-stone-50 transition">
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">
-                            <a href="{{ route('matches.show', $score->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline">{{ $score->match->name }}</a>
+                        <td class="px-3 md:px-5 py-4 text-sm text-stone-900">
+                            <a href="{{ route('matches.show', $score->match) }}" class="text-emerald-700 hover:text-emerald-900 hover:underline truncate max-w-[10rem] md:max-w-none block">{{ $score->match->name }}</a>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-900">{{ $score->display_name }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $score->division?->name ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-right font-mono font-medium text-stone-900">{{ impacts($score->raw_score) }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm text-right text-stone-700">{{ $score->placement ?? '—' }}</td>
-                        <td class="whitespace-nowrap px-5 py-4 text-sm">
+                        <td class="px-3 md:px-5 py-4 text-sm text-stone-900">
+                            <div class="truncate max-w-[10rem] md:max-w-none">{{ $score->display_name }}</div>
+                            {{-- Mobile-only: show division under shooter since Division column hides below md. --}}
+                            <div class="md:hidden text-xs text-stone-500 truncate">{{ $score->division?->name ?? '' }}</div>
+                        </td>
+                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-4 text-sm text-stone-700">{{ $score->division?->name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm text-right font-mono font-medium text-stone-900">{{ impacts($score->raw_score) }}</td>
+                        <td class="hidden lg:table-cell whitespace-nowrap px-5 py-4 text-sm text-right text-stone-700">{{ $score->placement ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm">
                             @switch($score->status)
                                 @case('valid')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Valid</span>
@@ -67,7 +76,7 @@
                                     @break
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-4 text-right text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-4 text-right text-sm">
                             <flux:button href="{{ route('scores.show', $score) }}" variant="ghost" size="sm" icon="eye" />
                         </td>
                     </tr>

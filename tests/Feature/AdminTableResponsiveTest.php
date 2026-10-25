@@ -92,3 +92,36 @@ it('custom pagination view hides the numeric pager below lg and shows a Page X o
     expect($html)->toContain('hidden lg:flex');
     expect($html)->not->toContain('hidden sm:flex-1 sm:flex');
 });
+
+// ── Sweep: wide admin tables apply the responsive-column pattern ───────
+
+it('every swept admin index renders with hidden md/lg table-cell gating on at least one column', function (string $routeName) {
+    $admin = User::factory()->create();
+    Role::findByName('admin');
+    $admin->assignRole('admin');
+
+    // Owner role for user-management, which is owner-only. Harmless on
+    // the other routes — assigning both doesn't change their behaviour.
+    Role::findByName('owner');
+    $admin->assignRole('owner');
+
+    $html = $this->actingAs($admin)->get(route($routeName))->assertOk()->getContent();
+
+    // Each swept page MUST hide at least one column below `md` — the
+    // sweep's floor-level signature. Wider tables (payouts, matches,
+    // user-management) also hide a second tier below `lg`, but the
+    // audit-log only needs the `md` tier because its five essential
+    // columns fit comfortably on tablets. If a future refactor rips
+    // out the `md:table-cell` gating this test fails loudly instead
+    // of the user noticing it on a 718px screenshot three weeks later.
+    expect(substr_count($html, 'hidden md:table-cell'))
+        ->toBeGreaterThan(0, 'Route '.$routeName.' is missing hidden md:table-cell');
+})->with([
+    'matches.index'              => 'matches.index',
+    'user-management.index'      => 'user-management.index',
+    'email-logs.index'           => 'email-logs.index',
+    'scores.index'               => 'scores.index',
+    'financials.transactions'    => 'financials.transactions',
+    'financials.payouts'         => 'financials.payouts',
+    'audit-logs.index'           => 'audit-logs.index',
+]);

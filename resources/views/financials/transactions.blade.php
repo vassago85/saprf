@@ -22,22 +22,31 @@
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
+                {{--
+                    Responsive columns: Date / Type / Amount always
+                    visible. Description collapses below `md` (surfaced
+                    under Amount as a muted sub-line so the info isn't
+                    lost), User below `md`, Source below `lg`.
+                --}}
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-stone-200 text-left text-xs uppercase text-stone-500">
-                            <th class="py-3 px-4">Date</th>
-                            <th class="py-3 px-4">Type</th>
-                            <th class="py-3 px-4">Description</th>
-                            <th class="py-3 px-4 text-right">Amount</th>
-                            <th class="py-3 px-4">User</th>
-                            <th class="py-3 px-4">Source</th>
+                            <th class="py-3 px-3 md:px-4">Date</th>
+                            <th class="py-3 px-3 md:px-4">Type</th>
+                            <th class="hidden md:table-cell py-3 px-4">Description</th>
+                            <th class="py-3 px-3 md:px-4 text-right">Amount</th>
+                            <th class="hidden md:table-cell py-3 px-4">User</th>
+                            <th class="hidden lg:table-cell py-3 px-4">Source</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($transactions as $txn)
                         <tr class="border-b border-stone-100 hover:bg-stone-50">
-                            <td class="py-3 px-4 text-stone-500 text-xs whitespace-nowrap">{{ $txn->created_at->format('d M Y H:i') }}</td>
-                            <td class="py-3 px-4">
+                            <td class="py-3 px-3 md:px-4 text-stone-500 text-xs whitespace-nowrap">
+                                <span class="md:hidden">{{ $txn->created_at->format('d M H:i') }}</span>
+                                <span class="hidden md:inline">{{ $txn->created_at->format('d M Y H:i') }}</span>
+                            </td>
+                            <td class="py-3 px-3 md:px-4">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                                     @if($txn->type === 'payment') bg-emerald-50 text-emerald-700
                                     @elseif($txn->type === 'refund') bg-red-50 text-red-700
@@ -46,12 +55,14 @@
                                     {{ ucfirst($txn->type) }}
                                 </span>
                             </td>
-                            <td class="py-3 px-4 text-stone-700">{{ $txn->description }}</td>
-                            <td class="py-3 px-4 text-right font-semibold {{ $txn->type === 'refund' ? 'text-red-600' : 'text-stone-900' }}">
+                            <td class="hidden md:table-cell py-3 px-4 text-stone-700">{{ $txn->description }}</td>
+                            <td class="py-3 px-3 md:px-4 text-right font-semibold {{ $txn->type === 'refund' ? 'text-red-600' : 'text-stone-900' }}">
                                 R{{ number_format(abs($txn->amount), 2) }}
+                                {{-- Mobile-only: description + user under the amount so nothing is lost. --}}
+                                <div class="md:hidden mt-0.5 text-[11px] font-normal text-stone-500 truncate max-w-[10rem] ml-auto">{{ $txn->description }}</div>
                             </td>
-                            <td class="py-3 px-4 text-stone-600">{{ $txn->user?->name ?? '—' }}</td>
-                            <td class="py-3 px-4 text-xs text-stone-400">{{ $txn->source_type }}:{{ $txn->source_id }}</td>
+                            <td class="hidden md:table-cell py-3 px-4 text-stone-600">{{ $txn->user?->name ?? '—' }}</td>
+                            <td class="hidden lg:table-cell py-3 px-4 text-xs text-stone-400">{{ $txn->source_type }}:{{ $txn->source_id }}</td>
                         </tr>
                         @empty
                         <tr>

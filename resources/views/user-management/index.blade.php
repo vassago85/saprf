@@ -108,15 +108,22 @@
                                        class="h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-500">
                             </th>
                         @endif
-                        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Name</th>
-                        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Email</th>
-                        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Roles</th>
+                        {{--
+                            Responsive columns: Name + Actions always visible.
+                            Email collapses below `md`; it shows under the Name
+                            as a muted sub-line on mobile so you don't lose the
+                            info entirely. Roles collapses below `md`,
+                            Membership/Deleted below `lg`.
+                        --}}
+                        <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Name</th>
+                        <th class="hidden md:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Email</th>
+                        <th class="hidden md:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Roles</th>
                         @if(! $showTrashed)
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Membership</th>
+                            <th class="hidden lg:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Membership</th>
                         @else
-                            <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Deleted</th>
+                            <th class="hidden lg:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Deleted</th>
                         @endif
-                        <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
+                        <th class="px-3 md:px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-100">
@@ -134,8 +141,10 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-stone-900">
-                                {{ $user->name }}
+                            <td class="px-3 md:px-5 py-3.5 text-sm font-medium text-stone-900">
+                                <div class="truncate max-w-[12rem] md:max-w-none">{{ $user->name }}</div>
+                                {{-- Mobile-only: show email under name since the Email column is hidden below md. --}}
+                                <div class="md:hidden text-xs text-stone-500 truncate max-w-[12rem]">{{ $user->email }}</div>
                                 @if(! $showTrashed && $user->email_bounced_at)
                                     <span class="ml-1 inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20" title="Hard bounce recorded {{ date_short($user->email_bounced_at) }}">Bouncing</span>
                                 @endif
@@ -146,8 +155,8 @@
                                     <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20" title="This account's email address has never been verified">Unverified</span>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->email }}</td>
-                            <td class="px-5 py-3.5 text-sm">
+                            <td class="hidden md:table-cell whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $user->email }}</td>
+                            <td class="hidden md:table-cell px-5 py-3.5 text-sm">
                                 <div class="flex flex-wrap gap-1">
                                     @forelse ($user->getRoleNames() as $role)
                                         @php
@@ -167,7 +176,7 @@
                                 </div>
                             </td>
                             @if(! $showTrashed)
-                                <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                                <td class="hidden lg:table-cell whitespace-nowrap px-5 py-3.5 text-sm">
                                     @if($user->membership)
                                         <div class="flex flex-col gap-1">
                                         <div class="flex items-center gap-1.5">
@@ -188,11 +197,11 @@
                                     @endif
                                 </td>
                             @else
-                                <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
+                                <td class="hidden lg:table-cell whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
                                     {{ datetime_short($user->deleted_at) }}
                                 </td>
                             @endif
-                            <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
+                            <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-right text-sm">
                                 <x-row-actions>
                                     @if($showTrashed)
                                         <form method="POST" action="{{ route('user-management.restore', $user->id) }}" class="inline">

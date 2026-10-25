@@ -72,40 +72,48 @@
 
     <x-admin-table>
         <table class="min-w-full">
+            {{--
+                Responsive columns: Sent / Recipient / Status / Actions
+                always visible. Subject collapses below `md` (surfaced
+                under Recipient as a line-clamped sub-line on mobile so
+                the content isn't lost), Type collapses below `lg`.
+            --}}
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Sent</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Recipient</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Subject</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Type</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Sent</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Recipient</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Subject</th>
+                    <th class="hidden lg:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Type</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                    <th class="px-3 md:px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
                 @forelse ($logs as $log)
                     <tr class="hover:bg-stone-50 transition-colors">
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-sm text-stone-500">
                             {{ datetime_short($log->sent_at ?? $log->created_at) }}
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-900">
-                            {{ $log->to_email }}
+                        <td class="px-3 md:px-5 py-3.5 text-sm text-stone-900">
+                            <div class="truncate max-w-[12rem] md:max-w-none">{{ $log->to_email }}</div>
                             @if ($log->to_name)
-                                <div class="text-xs text-stone-400">{{ $log->to_name }}</div>
+                                <div class="text-xs text-stone-400 truncate max-w-[12rem] md:max-w-none">{{ $log->to_name }}</div>
                             @endif
+                            {{-- Mobile-only: show subject under recipient since the Subject column is hidden below md. --}}
+                            <div class="md:hidden text-xs text-stone-500 line-clamp-1 mt-0.5">{{ $log->subject }}</div>
                         </td>
-                        <td class="px-5 py-3.5 text-sm text-stone-900">
+                        <td class="hidden md:table-cell px-5 py-3.5 text-sm text-stone-900">
                             <span class="line-clamp-1">{{ $log->subject }}</span>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-xs text-stone-500">
+                        <td class="hidden lg:table-cell whitespace-nowrap px-5 py-3.5 text-xs text-stone-500">
                             {{ $log->typeLabel() }}
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-sm">
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $log->statusPillClasses() }}">
                                 {{ $log->statusLabel() }}
                             </span>
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-right text-sm">
                             <div class="inline-flex items-center justify-end gap-3">
                                 <a href="{{ route('email-logs.show', $log) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">View</a>
                                 @if ($log->canResend() && ! $mailgunPausedUntil)
