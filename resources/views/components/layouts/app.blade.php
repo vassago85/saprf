@@ -182,16 +182,17 @@
 
         <flux:spacer />
 
-        {{-- Compact notification bell — polls unread-count endpoint every 30s. --}}
+        {{--
+            Compact notification bell — listens for the shared poller's
+            `saprf:unread-count` event instead of running its own
+            setInterval, so the mobile header bell + iOS PWA nav bell
+            share a single hardened poller (back-off + singleton guard).
+            See resources/views/components/communications-bell-poll.blade.php.
+        --}}
         @auth
             <a href="{{ route('communications.index') }}"
                 x-data="{ unread: {{ \App\Models\AnnouncementRecipient::query()->where('user_id', auth()->id())->whereNull('read_at')->count() }} }"
-                x-init="setInterval(async () => {
-                    try {
-                        const r = await fetch('{{ route('communications.unread-count') }}', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-                        if (r.ok) { const j = await r.json(); unread = j.unread; }
-                    } catch (e) {}
-                }, 30000)"
+                x-init="window.addEventListener('saprf:unread-count', (e) => unread = e.detail)"
                 class="relative mr-3 inline-flex items-center rounded-lg p-2 text-stone-600 hover:bg-stone-100"
                 aria-label="Communications">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5">
@@ -231,6 +232,16 @@
 
     @auth
         <x-ios-pwa-nav />
+
+        {{--
+            Shared poller for the unread-communications badge. One
+            global setTimeout chain feeds BOTH the mobile header bell
+            and the iOS PWA nav bell via a window CustomEvent, with
+            exponential back-off on failure so a prod rebuild window
+            no longer spills 2-3 "502 Bad Gateway" lines per tab into
+            the console every 30 seconds.
+        --}}
+        <x-communications-bell-poll />
     @endauth
 
     @stack('scripts')

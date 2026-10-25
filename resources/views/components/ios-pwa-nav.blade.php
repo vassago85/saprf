@@ -59,16 +59,19 @@
             <span>Home</span>
         </a>
 
-        {{-- Communications with unread badge --}}
+        {{--
+            Communications with unread badge — listens for the shared
+            poller's event (same instance that drives the mobile header
+            bell) rather than running its own setInterval. On an iOS
+            PWA both bells render; without the shared poller we were
+            doubling up on `/communications/unread-count` hits and 502
+            console lines during deploy windows.
+            See resources/views/components/communications-bell-poll.blade.php.
+        --}}
         <a
             href="{{ route('communications.index') }}"
             x-data="{ unread: {{ (int) \App\Models\AnnouncementRecipient::query()->where('user_id', auth()->id())->whereNull('read_at')->count() }} }"
-            x-init="setInterval(async () => {
-                try {
-                    const r = await fetch('{{ route('communications.unread-count') }}', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-                    if (r.ok) { const j = await r.json(); unread = j.unread; }
-                } catch (e) {}
-            }, 30000)"
+            x-init="window.addEventListener('saprf:unread-count', (e) => unread = e.detail)"
             class="relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium hover:bg-stone-100 active:bg-stone-200 transition {{ request()->routeIs('communications.*') ? 'text-emerald-700' : '' }}"
             aria-label="Communications"
         >
