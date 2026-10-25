@@ -23,24 +23,39 @@
         @endforeach
     </div>
 
+    {{--
+        Column visibility: Source and Entity are hidden below `md`
+        (768px) so the five essential columns — Date / User / Action /
+        Subject / Details — fit without horizontal scrolling on tablets
+        and large phones. The Source badge duplicates what the User
+        column implies (plain name = User, "System" shows as the User
+        name, impersonation is annotated inline), and the Entity type
+        is already visible via the Subject row's naming convention.
+        Both still render on `md:` and up where the full seven-column
+        table has room to breathe.
+    --}}
     <x-admin-table>
         <table class="min-w-full">
             <thead>
                 <tr class="border-b-2 border-stone-200 bg-stone-50">
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Date</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Source</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">User</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Action</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Entity</th>
-                    <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Subject</th>
-                    <th class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Details</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Date</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Source</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">User</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Action</th>
+                    <th class="hidden md:table-cell px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Entity</th>
+                    <th class="px-3 md:px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Subject</th>
+                    <th class="px-3 md:px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Details</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
                 @forelse ($auditLogs as $log)
                     <tr class="hover:bg-stone-50 transition-colors">
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-500">{{ $log->created_at->format('d M Y H:i:s') }}</td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-sm text-stone-500">
+                            {{-- Compact date on mobile, full on md+ --}}
+                            <span class="md:hidden">{{ $log->created_at->format('d M H:i') }}</span>
+                            <span class="hidden md:inline">{{ $log->created_at->format('d M Y H:i:s') }}</span>
+                        </td>
+                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-3.5 text-sm">
                             @switch($log->displayActorType($revealImpersonation))
                                 @case(\App\Models\AuditLog::ACTOR_SYSTEM)
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">System</span>
@@ -52,15 +67,15 @@
                                     <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">User</span>
                             @endswitch
                         </td>
-                        <td class="px-5 py-3.5 text-sm text-stone-900">
-                            <div>{{ $log->displayActorName($revealImpersonation) }}</div>
+                        <td class="px-3 md:px-5 py-3.5 text-sm text-stone-900">
+                            <div class="truncate max-w-[8rem] md:max-w-none">{{ $log->displayActorName($revealImpersonation) }}</div>
                             @if($revealImpersonation && $log->wasImpersonated())
                                 <div class="text-xs text-red-700 mt-0.5">
                                     acting as {{ $log->impersonatedUser?->name ?? ('#'.$log->impersonated_user_id) }}
                                 </div>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-sm">
                             @switch($log->action_type)
                                 @case('created')
                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Created</span>
@@ -75,16 +90,16 @@
                                     <span class="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-500/20">{{ ucfirst($log->action_type) }}</span>
                             @endswitch
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-sm text-stone-600">
+                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-3.5 text-sm text-stone-600">
                             <div>{{ class_basename($log->entity_type) }}</div>
                             @if($log->entity_id)
                                 <div class="text-xs font-mono text-stone-400">#{{ $log->entity_id }}</div>
                             @endif
                         </td>
-                        <td class="px-5 py-3.5 text-sm text-stone-900">
+                        <td class="px-3 md:px-5 py-3.5 text-sm text-stone-900">
                             @php $subject = $log->resolveSubject(); @endphp
                             @if($subject)
-                                <div class="font-medium">
+                                <div class="font-medium truncate max-w-[10rem] md:max-w-none">
                                     {{ $subject['name'] }}
                                     @if($subject['is_deleted'])
                                         <span class="ml-1 inline-flex items-center rounded-full bg-red-50 px-1.5 py-0 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">Deleted</span>
@@ -93,13 +108,13 @@
                                 @if(! empty($subject['saprf_number']))
                                     <div class="text-xs text-stone-500">{{ $subject['saprf_number'] }}</div>
                                 @elseif(! empty($subject['email']))
-                                    <div class="text-xs text-stone-500 truncate max-w-xs">{{ $subject['email'] }}</div>
+                                    <div class="text-xs text-stone-500 truncate max-w-[10rem] md:max-w-xs">{{ $subject['email'] }}</div>
                                 @endif
                             @else
                                 <span class="text-stone-300">—</span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-5 py-3.5 text-right text-sm">
+                        <td class="whitespace-nowrap px-3 md:px-5 py-3.5 text-right text-sm">
                             <a href="{{ route('audit-logs.show', $log) }}" class="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="View">
                                 <svg class="inline h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                             </a>
