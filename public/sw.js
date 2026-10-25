@@ -12,7 +12,7 @@
 // detect the change and swap in the new worker. (Byte-level diff in this
 // file already triggers an update — the constant is here so we can force
 // one without editing logic, e.g. to flush a client-side cache later.)
-const SW_VERSION = '2026-08-18-2';
+const SW_VERSION = '2026-10-25-1';
 
 self.addEventListener('install', (event) => {
     // Take over immediately so a returning user isn't stuck on the
@@ -26,10 +26,29 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Pass-through. Presence of a fetch handler is what qualifies the site
-    // for the browser "Install app" prompt on Chromium — we don't need to
-    // intercept anything until Level 2.
-    event.respondWith(fetch(event.request));
+    // Narrow scope: only touch same-origin GETs. Chromium's "has a fetch
+    // handler" installability requirement is satisfied by this handler
+    // existing + calling respondWith on at least a navigation — we do
+    // NOT need to proxy every cross-origin analytics beacon, extension
+    // request, or non-GET form submit. Letting those fall through
+    // unintercepted avoids "TypeError: Failed to fetch" rejections for
+    // requests the browser was handling fine on its own.
+    const url = new URL(event.request.url);
+    if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
+        return;
+    }
+
+    // Pass-through for same-origin GETs with a swallow-on-failure fallback:
+    // when the user is briefly offline or a request is aborted mid-flight,
+    // the fetch() rejects — respondWith() would then surface that rejection
+    // as an unhandled promise error on every tab. Returning a tiny 503
+    // keeps the console clean and lets the page's own error handling run.
+    event.respondWith(
+        fetch(event.request).catch(() => new Response('', {
+            status: 503,
+            statusText: 'Service Unavailable',
+        }))
+    );
 });
 
 // ── Web Push ──────────────────────────────────────────────────────────
