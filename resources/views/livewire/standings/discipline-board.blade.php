@@ -210,26 +210,41 @@ new class extends Component
         $counters = app(SeasonMatchCounters::class)
             ->for($this->series, $season, $page->totalRanked);
 
-        // Division leaders — overall winner of each division, used in the
-        // sidebar card. Pulled with its own tiny queries (one per
+        // Division leaders — top-ranked shooter(s) per division, used in
+        // the sidebar card. Pulled with its own small queries (one per
         // division) so the leader respects the current level/province
-        // filters a visitor has applied.
+        // filters a visitor has applied. When multiple shooters sit on
+        // the same winning points total we return ALL of them so the
+        // sidebar can render the tie honestly (T1 / T1 / …), matching
+        // the main table.
         $divisionLeaders = Division::active()->ordered()->get()->map(function (Division $div) use ($season, $level, $provinceId) {
-            $leader = Standing::query()
-                ->with(['user.province', 'division', 'province'])
+            $base = Standing::query()
                 ->where('season', $season)
                 ->where('series', $this->series)
                 ->where('division_id', $div->id)
                 ->when($level === 'provincial', fn ($q) => $q->whereNotNull('province_id'), fn ($q) => $q->whereNull('province_id'))
-                ->when($provinceId && $level === 'provincial', fn ($q) => $q->where('province_id', $provinceId))
-                ->orderByDesc('points')
-                ->first();
+                ->when($provinceId && $level === 'provincial', fn ($q) => $q->where('province_id', $provinceId));
+
+            $topPoints = (clone $base)->max('points');
+
+            if ($topPoints === null) {
+                return ['division' => $div, 'leaders' => collect()];
+            }
+
+            // Shooters tied on the top total (within half a thousandth —
+            // Standing.points is cast float, same tolerance we use in
+            // persistRankedStandings for competition ranking).
+            $leaders = (clone $base)
+                ->with(['user.province', 'division', 'province'])
+                ->whereBetween('points', [$topPoints - 0.0005, $topPoints + 0.0005])
+                ->orderBy('user_id')
+                ->get();
 
             return [
                 'division' => $div,
-                'leader' => $leader,
+                'leaders' => $leaders,
             ];
-        })->filter(fn (array $row) => $row['leader'] !== null)->values();
+        })->filter(fn (array $row) => $row['leaders']->isNotEmpty())->values();
 
         // "Still to shoot" — upcoming matches in this series/season.
         $stillToShoot = MatchEvent::query()
@@ -742,17 +757,28 @@ new class extends Component
                             @foreach($divisionLeaders as $row)
                                 @php
                                     $div = $row['division'];
-                                    $leader = $row['leader'];
+                                    $leaders = $row['leaders'];
+                                    $tied = $leaders->count() > 1;
                                 @endphp
-                                <li class="py-2.5 flex items-center justify-between gap-3">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-[11px] font-semibold uppercase tracking-wider text-amber-700">{{ $div->name }}</p>
-                                        <a href="{{ url('/standings/' . $season . '/shooter/' . ($leader->user_id ?? $leader->id)) }}"
-                                           class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition truncate block">
-                                            {{ $leader->user?->name ?? '—' }}
-                                        </a>
-                                    </div>
-                                    <span class="font-mono text-sm font-bold text-stone-900 tabular-nums shrink-0">{{ points($leader->points) }}</span>
+                                <li class="py-2.5">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-1">{{ $div->name }}</p>
+                                    @foreach($leaders as $leader)
+                                        <div class="flex items-center justify-between gap-3 {{ !$loop->first ? 'mt-1' : '' }}">
+                                            <div class="min-w-0 flex-1 flex items-center gap-2">
+                                                @if($tied)
+                                                    <span class="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-md bg-emerald-50 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200 shrink-0"
+                                                          title="Tied — share rank">T1</span>
+                                                @endif
+                                                <a href="{{ url('/standings/' . $season . '/shooter/' . $leader->user_id) }}"
+                                                   class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition truncate block">
+                                                    {{ $leader->user?->name ?? '—' }}
+                                                </a>
+                                            </div>
+                                            @if($loop->first)
+                                                <span class="font-mono text-sm font-bold text-stone-900 tabular-nums shrink-0">{{ points($leader->points) }}</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
                                 </li>
                             @endforeach
                         </ul>

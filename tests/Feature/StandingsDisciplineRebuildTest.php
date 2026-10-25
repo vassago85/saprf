@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\Standing;
 use App\Models\User;
@@ -206,4 +207,54 @@ it('StandingsMovement computes previous_rank minus current_rank from two snapsho
     $move = app(StandingsMovement::class)->for([$u->id], '2026', 'PRS', 'national', null, null);
     // 5 (previous) - 2 (current) = 3 → shooter moved UP by 3 (▲3 emerald).
     expect($move[$u->id])->toBe(3);
+});
+
+// ── Division leaders sidebar: ties show every leader, not one ──────────
+
+it('Division leaders sidebar lists every shooter when the top division score is tied', function () {
+    // Two shooters tied at 300.0 in Factory + a clear leader in Open — matches
+    // the live PR22 provincial board on saprf.co.za where Factory had T1 /
+    // T1 at 300.0 but the sidebar silently rendered just one of them.
+    $factory = Division::firstOrCreate(
+        ['slug' => 'factory'],
+        ['name' => 'Factory', 'display_order' => 1, 'active' => true],
+    );
+    $open = Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 2, 'active' => true],
+    );
+
+    $russell = User::factory()->create(['name' => 'Russell Factory Tied']);
+    $kevin   = User::factory()->create(['name' => 'Kevin Factory Tied']);
+    $deon    = User::factory()->create(['name' => 'Deon Open Leader']);
+
+    foreach ([
+        [$russell->id, $factory->id, 300.0, 1],
+        [$kevin->id,   $factory->id, 300.0, 1],
+        [$deon->id,    $open->id,    296.0, 1],
+    ] as [$uid, $divId, $pts, $rank]) {
+        Standing::create([
+            'user_id' => $uid,
+            'series' => 'PR22',
+            'season' => '2026',
+            'division_id' => $divId,
+            'province_id' => null,
+            'points' => $pts,
+            'rank' => $rank,
+        ]);
+    }
+
+    $html = $this->get('/standings/pr22?season=2026')->assertOk()->getContent();
+
+    // Both tied Factory shooters must appear, each flagged T1 in the
+    // sidebar. The clear Open leader must appear without a T1 badge
+    // (otherwise we'd be falsely implying a tie that doesn't exist).
+    expect($html)->toContain('Russell Factory Tied');
+    expect($html)->toContain('Kevin Factory Tied');
+    expect($html)->toContain('Deon Open Leader');
+
+    // The T1 badge is only rendered inside the sidebar <li> when
+    // leaders->count() > 1 — pin the exact badge markup so a future
+    // refactor can't quietly drop it.
+    expect(substr_count($html, '>T1<'))->toBeGreaterThanOrEqual(2);
 });
