@@ -28,6 +28,11 @@ class StoreScoreImportRequest extends FormRequest
             // Legacy day 1/2 still accepted for older clients but is not shown in the UI.
             'score_scope' => ['nullable', Rule::in(['day1', 'overall'])],
             'day' => ['nullable', 'integer', Rule::in([1, 2])],
+            'assignment_review' => ['nullable', 'boolean'],
+            'links' => ['nullable', 'array'],
+            'links.*' => ['nullable', 'string', 'max:32'],
+            'score_overrides' => ['nullable', 'array'],
+            'score_overrides.*.impacts' => ['nullable', 'numeric', 'min:0', 'max:9999'],
         ];
     }
 

@@ -1254,6 +1254,25 @@ class MatchController extends Controller
                 ->withErrors(['fee_override_reason' => 'A reason is required when waiving the lapsed-member surcharge.']);
         }
 
+        // A brand-new shooter is a non-member. Refuse the waive before
+        // provisioning a stub, so a rejected tick does not leave an account behind.
+        if (! $hasUserId && $waiveLapsed) {
+            $newEmail = trim((string) ($validated['new_shooter_email'] ?? ''));
+            $existing = app(GuestShooterService::class)->findExisting(
+                $validated['new_shooter_name'],
+                $newEmail !== '' ? $newEmail : null,
+            );
+            $previewCategory = $existing
+                ? app(MembershipValidationService::class)->classifyRegistrationCategory($existing, $match->match_date)
+                : 'non_member';
+
+            if ($previewCategory === 'non_member') {
+                return back()
+                    ->withInput()
+                    ->withErrors(['waive_lapsed_surcharge' => 'The non-member surcharge cannot be waived. It is kept by SAPRF.']);
+            }
+        }
+
         if ($hasUserId) {
             $shooter = User::query()->findOrFail($validated['user_id']);
         } else {
@@ -1289,13 +1308,18 @@ class MatchController extends Controller
                 ->with('info', $shooter->name.' is already registered for this match (entry #'.$existing->id.').');
         }
 
-        // Only "force" the pricing bracket to active_member when the
-        // shooter is actually lapsed and the operator ticked the box.
-        // For non-members or already-active members we let the normal
-        // classification stand — waiving the box then does nothing, which
-        // is honest UX.
+        // The waive tick only relaxes a lapsed-member surcharge, and only
+        // with a written reason. Non-member surcharge is SAPRF money: do
+        // not save the entry as if the tick had worked.
         $currentCategory = app(MembershipValidationService::class)
             ->classifyRegistrationCategory($shooter, $match->match_date);
+
+        if ($waiveLapsed && $currentCategory === 'non_member') {
+            return back()
+                ->withInput()
+                ->withErrors(['waive_lapsed_surcharge' => 'The non-member surcharge cannot be waived. It is kept by SAPRF.']);
+        }
+
         $forcedCategory = ($waiveLapsed && $currentCategory === 'lapsed_member') ? 'active_member' : null;
 
         $division = Division::findOrFail($validated['division_id']);

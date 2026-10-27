@@ -10,7 +10,9 @@ use App\Models\MatchRegistration;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\ShooterLog;
+use App\Services\CsvScoreAssignmentService;
 use App\Services\ImpactScoring\ImpactLiveImportService;
+use App\Services\PaymentInquiryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,6 +61,7 @@ class ScoreImportController extends Controller
             'matchMeta' => $matchMeta,
             'preselectedMatchId' => $request->integer('match_id') ?: null,
             'lockedMatch' => null,
+            'initialMode' => $request->query('mode') === 'csv' ? 'csv' : 'impact',
         ]);
     }
 
@@ -114,6 +117,35 @@ class ScoreImportController extends Controller
         // Replace only clears scores on the target match (sibling or national).
         // shooter_logs.score_id is ON DELETE RESTRICT, so drop logs first.
         $replaceExisting = $request->boolean('replace_existing');
+
+        // Reviewed CSV uploads use the same assignment corrections as Impact
+        // (confirm fuzzy names, assign later, skip) and finish immediately so
+        // the unpaid-shooter emails are on the next screen.
+        if ($request->boolean('assignment_review')) {
+            try {
+                $import = app(CsvScoreAssignmentService::class)->import(
+                    $selectedMatch,
+                    $targetMatch,
+                    $request->user(),
+                    $absolutePath,
+                    [
+                        'replace_existing' => $replaceExisting,
+                        'links' => $request->input('links', []),
+                        'score_overrides' => $request->input('score_overrides', []),
+                        'notes' => $notes,
+                        'source_type' => $request->validated('source_type'),
+                        'original_filename' => $file->getClientOriginalName(),
+                    ],
+                );
+            } catch (\Throwable $e) {
+                return back()->withInput()->with('error', $e->getMessage());
+            }
+
+            return redirect()
+                ->route('score-imports.show', $import)
+                ->with('success', 'CSV scores imported. Link anyone still unassigned, and email unpaid shooters from the audit below.');
+        }
+
         if ($replaceExisting) {
             DB::transaction(function () use ($targetMatch) {
                 $scoreIds = Score::where('match_id', $targetMatch->id)->pluck('id');
@@ -192,6 +224,69 @@ class ScoreImportController extends Controller
     }
 
     /**
+     * Preview a CSV against the match entry list so the MD can confirm
+     * fuzzy names, assign later, or skip — same corrections as Impact.
+     */
+    public function previewCsv(Request $request, CsvScoreAssignmentService $csv): JsonResponse
+    {
+        $this->authorize('create', Score::class);
+
+        $data = $request->validate([
+            'match_id' => ['required', 'exists:matches,id'],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
+        ]);
+
+        $match = MatchEvent::query()->findOrFail((int) $data['match_id']);
+        $path = $request->file('file')?->getRealPath();
+        if (! $path) {
+            return response()->json(['ok' => false, 'message' => 'Could not read the uploaded CSV.'], 422);
+        }
+
+        try {
+            $preview = $csv->preview($match, $path);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        foreach ($preview['shooters'] as &$row) {
+            unset($row['source_row']);
+        }
+        unset($row);
+
+        return response()->json(['ok' => true, 'preview' => $preview]);
+    }
+
+    /**
+     * Email every unpaid shooter still listed on this import's audit.
+     */
+    public function notifyUnpaid(Request $request, ScoreImport $scoreImport, PaymentInquiryService $inquiries): RedirectResponse
+    {
+        $match = $scoreImport->match;
+        $this->authorize('update', $match);
+
+        $ids = collect(is_array($scoreImport->raw_payload['audit'] ?? null) ? $scoreImport->raw_payload['audit'] : [])
+            ->pluck('registration_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $query = MatchRegistration::query()
+            ->with('user')
+            ->where('registration_status', '!=', 'cancelled');
+
+        if ($ids->isNotEmpty()) {
+            $query->whereIn('id', $ids->all());
+        } else {
+            $query->where('match_id', $match->id);
+        }
+
+        return back()->with('success', $inquiries->sendOutstanding($request->user(), $query->get()));
+    }
+
+    /**
      * Import scores directly from Impact Scoring (no CSV download).
      */
     public function storeImpact(
@@ -260,7 +355,7 @@ class ScoreImportController extends Controller
 
         return back()->with(
             'success',
-            'Linked Impact score to entry '.$entryName
+            'Linked score to entry '.$entryName
             .' ('.$category.') — entry division applied.'
             .$note
         );
@@ -295,7 +390,7 @@ class ScoreImportController extends Controller
 
         $liveRegistrations = $registrationIds === []
             ? collect()
-            : MatchRegistration::query()->whereIn('id', $registrationIds)->get()->keyBy('id');
+            : MatchRegistration::query()->with('user')->whereIn('id', $registrationIds)->get()->keyBy('id');
 
         $audit = [];
         foreach ($rawAudit as $row) {
@@ -404,6 +499,7 @@ class ScoreImportController extends Controller
             'auditSummary',
             'pendingLinkScores',
             'linkRegistrations',
+            'liveRegistrations',
         ));
     }
 

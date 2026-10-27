@@ -15,6 +15,7 @@ use App\Models\ScoreImport;
 use App\Models\Venue;
 use App\Services\FinancialService;
 use App\Services\MatchFinanceService;
+use App\Services\PaymentInquiryService;
 use App\Services\SettingsService;
 use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
@@ -141,6 +142,23 @@ class MatchWorkspaceController extends Controller
                 'search' => $request->input('search'),
             ],
         ]));
+    }
+
+    /**
+     * Email every shooter on this match who still owes an entry fee.
+     * Same message as the per-row inquiry; the 24-hour cooldown still applies.
+     */
+    public function notifyUnpaid(Request $request, MatchEvent $match, PaymentInquiryService $inquiries): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $registrations = MatchRegistration::query()
+            ->with('user')
+            ->where('match_id', $match->id)
+            ->where('registration_status', '!=', 'cancelled')
+            ->get();
+
+        return back()->with('success', $inquiries->sendOutstanding($request->user(), $registrations));
     }
 
     // ── Scores ──
@@ -271,10 +289,16 @@ class MatchWorkspaceController extends Controller
             ->latest('id')
             ->first();
 
-        $surchargePerShooter = (float) $this->settings->get('non_member_surcharge', 0);
-        $surchargedEntryCount = $money['paid_entries']
-            ->where('membership_fee_category', 'non_member')
-            ->count();
+        // Label the line from the surcharge amounts stored on paid rows.
+        // The global rate and a headcount of non-member categories can
+        // disagree with that sum (lapsed surcharges, older rates, zeros).
+        $surchargeRows = $money['paid_entries']->filter(
+            fn ($reg) => (float) $reg->surcharge_amount > 0
+        );
+        $surchargeRates = $surchargeRows
+            ->map(fn ($reg) => number_format((float) $reg->surcharge_amount, 2, '.', ''))
+            ->unique()
+            ->values();
 
         return view('matches.workspace.finances', $this->workspaceData($match, 'finances', [
             'money' => $money,
@@ -282,8 +306,8 @@ class MatchWorkspaceController extends Controller
             'payout' => $payout,
             'viewerIsMatchDirector' => $viewerIsMatchDirector,
             'expenses' => $match->expenses->sortByDesc('created_at'),
-            'surchargePerShooter' => $surchargePerShooter,
-            'surchargedEntryCount' => $surchargedEntryCount,
+            'surchargedEntryCount' => $surchargeRows->count(),
+            'uniformSurchargeRate' => $surchargeRates->count() === 1 ? (float) $surchargeRates->first() : null,
         ]));
     }
 

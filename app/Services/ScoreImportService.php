@@ -23,29 +23,7 @@ class ScoreImportService
 
         try {
             $parsed = $this->readCsv($fullPath);
-
-            // Validate required columns are present. Fail fast with a clear message
-            // rather than importing zero-score garbage.
-            //
-            // Shooter name: accept either a combined "shooter_name" column, OR
-            // both a "first" and "last" column (Impact scoring format).
-            $hasName = in_array('shooter_name', $parsed['headers'], true)
-                || (in_array('first', $parsed['headers'], true) && in_array('last', $parsed['headers'], true));
-            $hasScore = in_array('raw_score', $parsed['headers'], true);
-
-            if (! $hasName || ! $hasScore) {
-                $missing = [];
-                if (! $hasName) {
-                    $missing[] = 'shooter_name (or first + last)';
-                }
-                if (! $hasScore) {
-                    $missing[] = 'raw_score (or impacts / total / points)';
-                }
-                throw new \RuntimeException(
-                    'CSV is missing required column(s): ' . implode(', ', $missing) .
-                    '. Found columns: ' . implode(', ', $parsed['headers']) . '.'
-                );
-            }
+            $this->assertImportableCsv($parsed);
 
             DB::transaction(function () use ($scoreImport, $parsed, &$count, &$skippedRows) {
                 $match = $scoreImport->match;
@@ -167,6 +145,71 @@ class ScoreImportService
         );
 
         return $count;
+    }
+
+    /**
+     * Normalized CSV rows for the assignment preview. Same column rules as
+     * {@see importCsv}. Each item is the source row plus its 0-based index,
+     * which the preview UI uses as the link key.
+     *
+     * @return list<array{index:int,row:array<string,mixed>}>
+     */
+    public function rowsFromCsv(string $fullPath): array
+    {
+        $parsed = $this->readCsv($fullPath);
+        $this->assertImportableCsv($parsed);
+
+        $rows = [];
+        foreach ($parsed['rows'] as $index => $rawRow) {
+            $rows[] = [
+                'index' => (int) $index,
+                'row' => $this->normalizeRow($rawRow),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Division slug the CSV row resolves to (Impact Div / Category aliases).
+     */
+    public function divisionSlugForRow(array $row): ?string
+    {
+        $id = $this->resolveDivision($row);
+        if (! $id) {
+            return null;
+        }
+
+        return \App\Models\Division::query()->whereKey($id)->value('slug');
+    }
+
+    /**
+     * @param  array{headers: array<int, string>, rows: array<int, array<string, mixed>>}  $parsed
+     */
+    private function assertImportableCsv(array $parsed): void
+    {
+        // Shooter name: accept either a combined "shooter_name" column, OR
+        // both a "first" and "last" column (Impact scoring format).
+        $hasName = in_array('shooter_name', $parsed['headers'], true)
+            || (in_array('first', $parsed['headers'], true) && in_array('last', $parsed['headers'], true));
+        $hasScore = in_array('raw_score', $parsed['headers'], true);
+
+        if ($hasName && $hasScore) {
+            return;
+        }
+
+        $missing = [];
+        if (! $hasName) {
+            $missing[] = 'shooter_name (or first + last)';
+        }
+        if (! $hasScore) {
+            $missing[] = 'raw_score (or impacts / total / points)';
+        }
+
+        throw new \RuntimeException(
+            'CSV is missing required column(s): '.implode(', ', $missing).
+            '. Found columns: '.implode(', ', $parsed['headers']).'.'
+        );
     }
 
     /**

@@ -57,7 +57,7 @@ class ScoreValidationService
         if (! empty($meta['impact']['needs_member_link'])) {
             $score->status = 'invalid';
             $score->is_member = false;
-            $score->validation_reason = 'Awaiting entry link after Impact import.';
+            $score->validation_reason = 'Awaiting entry link — assign this score to a match entry.';
             $score->save();
             $this->syncOfficialLog($score);
 

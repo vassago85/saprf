@@ -2,9 +2,11 @@
     @include('matches.workspace._chrome')
 
     <div class="mt-6 space-y-4">
-        {{-- Toolbar: filters + actions --}}
+        {{-- Toolbar: filters + actions. The email action is its own form so it
+             is not nested inside the filter GET. --}}
+        <div class="flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4">
         <form method="GET" action="{{ route('matches.entries', $match) }}"
-              class="flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4">
+              class="flex flex-1 flex-wrap items-end gap-3">
             <div class="min-w-[180px] flex-1">
                 <label class="block text-xs font-semibold text-stone-500">Search shooter</label>
                 <input type="text" name="search" value="{{ $filters['search'] }}"
@@ -41,7 +43,20 @@
                     Reset
                 </a>
             </div>
-            <div class="ml-auto flex gap-2">
+        </form>
+            <div class="ml-auto flex flex-wrap gap-2">
+                @can('update', $match)
+                    @if(($counts['pending_payment'] ?? 0) > 0)
+                        <form method="POST" action="{{ route('matches.notify-unpaid', $match) }}">
+                            @csrf
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-amber-950 hover:bg-amber-400"
+                                    onclick="return confirm('Email all {{ $counts['pending_payment'] }} unpaid shooter(s) on this match?');">
+                                Email unpaid ({{ $counts['pending_payment'] }})
+                            </button>
+                        </form>
+                    @endif
+                @endcan
                 <a href="{{ route('matches.export-impact-scoring', $match) }}"
                    class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
                     <flux:icon.arrow-down-tray class="size-4" />
@@ -53,7 +68,7 @@
                     Add entry
                 </a>
             </div>
-        </form>
+        </div>
 
         {{-- Entries table --}}
         <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
@@ -127,6 +142,18 @@
                                         {{ $reg->registered_at?->format('j M') }}
                                     </td>
                                     <td class="px-4 py-2.5 text-right">
+                                        <div class="inline-flex items-center justify-end gap-1.5">
+                                        @can('update', $reg)
+                                            @if($reg->hasOutstandingPayment() && $reg->canSendPaymentInquiry() && $reg->user?->email && ! str_contains((string) $reg->user->email, '@saprf.walkin'))
+                                                <form method="POST" action="{{ route('registrations.payment-inquiry', $reg) }}" class="inline">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="inline-flex items-center rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+                                                        Email
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endcan
                                         @if($reg->hasOutstandingPayment() && $reg->registration_status !== 'cancelled')
                                             {{-- Fast path to the mark-settled form on the
                                                  detail page. The #mark-settled anchor
@@ -144,6 +171,7 @@
                                                 Edit
                                             </a>
                                         @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach

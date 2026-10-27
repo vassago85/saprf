@@ -102,7 +102,8 @@ it('finds a member by name for the sponsor search', function () {
         ->getJson(route('events.members.search', ['match' => $this->match, 'q' => 'Bobby']))
         ->assertOk()
         ->assertJsonFragment(['name' => 'Bobby Shooter'])
-        ->assertJsonPath('results.0.entry_state', 'none');
+        ->assertJsonPath('results.0.entry_state', 'none')
+        ->assertJsonPath('results.0.fee_category', 'non_member');
 });
 
 it('finds a member by SAPRF number for the sponsor search', function () {

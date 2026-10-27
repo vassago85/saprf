@@ -181,6 +181,65 @@ it('rejects waive-lapsed without a reason', function () {
     expect(MatchRegistration::where('user_id', $this->lapsedMember->id)->count())->toBe(0);
 });
 
+it('refuses to waive the surcharge for a non-member', function () {
+    $visitor = User::factory()->create(['email_verified_at' => now(), 'name' => 'Walk In Visitor']);
+
+    $this->actingAs($this->md)
+        ->from(route('matches.settings', $this->match))
+        ->post(route('matches.entries.store', $this->match), [
+            'user_id' => $visitor->id,
+            'division_id' => $this->open->id,
+            'waive_lapsed_surcharge' => '1',
+            'fee_override_reason' => 'They paid cash, please drop the extra.',
+        ])
+        ->assertRedirect(route('matches.settings', $this->match))
+        ->assertSessionHasErrors('waive_lapsed_surcharge');
+
+    expect(MatchRegistration::where('user_id', $visitor->id)->count())->toBe(0);
+});
+
+it('refuses to waive the surcharge when adding a brand-new shooter', function () {
+    $this->actingAs($this->md)
+        ->from(route('matches.settings', $this->match))
+        ->post(route('matches.entries.store', $this->match), [
+            'new_shooter_name' => 'Not On The Platform',
+            'division_id' => $this->open->id,
+            'waive_lapsed_surcharge' => '1',
+            'fee_override_reason' => 'Comp the surcharge so they come back.',
+        ])
+        ->assertRedirect(route('matches.settings', $this->match))
+        ->assertSessionHasErrors('waive_lapsed_surcharge');
+
+    expect(User::where('name', 'Not On The Platform')->count())->toBe(0)
+        ->and(MatchRegistration::count())->toBe(0);
+});
+
+it('refuses to waive the surcharge for a member past the lapsed window', function () {
+    $longExpired = User::factory()->create(['email_verified_at' => now()]);
+    Membership::create([
+        'user_id' => $longExpired->id,
+        'saprf_number' => 'SAPRF-MDADD-OLD',
+        'membership_type' => 'paid',
+        'status' => 'expired',
+        'payment_status' => 'paid',
+        'start_date' => Carbon::today()->subYears(3),
+        'expiry_date' => Carbon::today()->subDays(120),
+    ]);
+
+    $this->actingAs($this->md)
+        ->from(route('matches.settings', $this->match))
+        ->post(route('matches.entries.store', $this->match), [
+            'user_id' => $longExpired->id,
+            'division_id' => $this->open->id,
+            'waive_lapsed_surcharge' => '1',
+            'fee_override_reason' => 'They used to be a member.',
+        ])
+        ->assertRedirect(route('matches.settings', $this->match))
+        ->assertSessionHasErrors('waive_lapsed_surcharge');
+
+    expect(MatchRegistration::where('user_id', $longExpired->id)->count())->toBe(0);
+});
+
 it('ignores waive-lapsed when the shooter is not actually lapsed', function () {
     // An admin ticking the box for an active member should NOT be able to
     // discount their entry — the toggle only relaxes a real surcharge.
@@ -341,6 +400,8 @@ it('shows the Add-a-Shooter panel on the match edit page for the MD', function (
         ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Add a Shooter')
+        ->assertSee('Non-member surcharge is kept by SAPRF')
+        ->assertDontSee('Ignored for active members and non-members')
         ->assertSee(route('matches.entries.store', $this->match), escape: false)
         ->assertSee(route('events.members.search', $this->match), escape: false);
 });
@@ -486,4 +547,39 @@ it('lets the MD add themselves with one click from the edit page', function () {
         ->assertOk()
         ->assertSee("You're entered in this match", false)
         ->assertDontSee('Shooting this match yourself?');
+});
+
+it('tells the add-shooter search which fee bracket a member is in', function () {
+    $this->actingAs($this->md)
+        ->getJson(route('events.members.search', ['match' => $this->match, 'q' => 'SAPRF-MDADD-2']))
+        ->assertOk()
+        ->assertJsonPath('results.0.fee_category', 'lapsed_member');
+});
+
+it('labels the payout surcharge from the amounts stored on the entries', function () {
+    foreach ([0, 1] as $i) {
+        MatchRegistration::create([
+            'match_id' => $this->match->id,
+            'user_id' => User::factory()->create()->id,
+            'shooter_name' => 'Paid Shooter '.$i,
+            'membership_fee_category' => 'non_member',
+            'fee_amount' => 750,
+            'surcharge_amount' => 100,
+            'saprf_fee' => 50,
+            'platform_fee' => 50,
+            'gateway_fee' => 0,
+            'md_net_amount' => 550,
+            'payment_status' => 'paid',
+            'registration_status' => 'confirmed',
+            'registered_at' => now(),
+        ]);
+    }
+
+    // The site setting is R200. The line must follow the R100 stored on
+    // these rows, so "2 × R200" cannot appear next to a R200 total.
+    $this->actingAs($this->md)
+        ->get(route('matches.finances', $this->match))
+        ->assertOk()
+        ->assertSee('Non-member surcharge (2 × R100, to SAPRF)', false)
+        ->assertDontSee('× R200');
 });

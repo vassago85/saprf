@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\User;
+use App\Services\MembershipValidationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -49,7 +50,7 @@ class MemberSearchController extends Controller
                 $q->where('users.name', 'like', $like)
                     ->orWhere('memberships.saprf_number', 'like', $term . '%');
             })
-            ->with('province:id,name')
+            ->with(['province:id,name', 'membership'])
             ->orderBy('users.name')
             ->limit(10)
             ->get();
@@ -62,7 +63,9 @@ class MemberSearchController extends Controller
             ->get()
             ->keyBy('user_id');
 
-        $results = $users->map(function (User $user) use ($existingEntries) {
+        $classifier = app(MembershipValidationService::class);
+
+        $results = $users->map(function (User $user) use ($existingEntries, $classifier, $match) {
             $entry = $existingEntries->get($user->id);
 
             return [
@@ -70,6 +73,7 @@ class MemberSearchController extends Controller
                 'name' => $user->name,
                 'saprf_number' => $user->saprf_number,
                 'province' => $user->province?->name,
+                'fee_category' => $classifier->classifyRegistrationCategory($user, $match->match_date),
                 'entry_state' => $this->entryState($entry),
                 'registration_id' => $entry?->id,
             ];

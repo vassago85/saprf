@@ -625,7 +625,8 @@ class ImpactLiveImportService
         if (! $user || ! str_contains((string) $user->email, '@saprf.walkin')) {
             return;
         }
-        if (! str_contains((string) $user->email, 'impact.assignlater.')) {
+        $email = (string) $user->email;
+        if (! str_contains($email, 'impact.assignlater.') && ! str_contains($email, 'csv.assignlater.')) {
             return;
         }
         if (Score::query()->where('user_id', $userId)->exists()) {

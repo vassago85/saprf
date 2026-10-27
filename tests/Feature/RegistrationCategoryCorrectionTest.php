@@ -153,6 +153,30 @@ it('refuses to recategorise a paid registration', function () {
         ->and((float) $registration->fee_amount)->toBe(1200.00);
 });
 
+it('blocks a match director from waiving a non-member surcharge by recategorising', function () {
+    $md = User::factory()->create(['email_verified_at' => now()]);
+    $md->assignRole('match_director');
+    $this->match->update(['created_by' => $md->id]);
+
+    $visitor = User::factory()->create(['email_verified_at' => now()]);
+    $registration = lapsedRegistration($visitor, $this->match, $this->open->id, [
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 1440.00,
+        'surcharge_amount' => 250.00,
+    ]);
+
+    $this->actingAs($md)
+        ->put(route('registrations.update-category', $registration), [
+            'membership_fee_category' => 'active_member',
+            'fee_override_reason' => 'Trying to drop the non-member surcharge.',
+        ])
+        ->assertForbidden();
+
+    $registration->refresh();
+    expect($registration->membership_fee_category)->toBe('non_member')
+        ->and((float) $registration->surcharge_amount)->toBe(250.0);
+});
+
 it('blocks the shooter from changing their own fee category', function () {
     $registration = lapsedRegistration($this->shooter, $this->match, $this->open->id);
 

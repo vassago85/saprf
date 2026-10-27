@@ -454,6 +454,15 @@ class RegistrationController extends Controller
             'fee_override_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
+        // Staff can still correct a bracket. A match director cannot move a
+        // non-member onto a cheaper bracket — that surcharge stays with SAPRF.
+        $dropsNonMemberSurcharge = $registration->membership_fee_category === 'non_member'
+            && $validated['membership_fee_category'] !== 'non_member';
+
+        if ($dropsNonMemberSurcharge && ! $request->user()->hasRole(['developer', 'exco', 'owner', 'admin'])) {
+            return back()->with('error', 'The non-member surcharge cannot be waived. It is kept by SAPRF.');
+        }
+
         $result = $this->pricingService->applyCategory(
             $registration,
             $validated['membership_fee_category'],

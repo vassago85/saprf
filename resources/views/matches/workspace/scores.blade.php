@@ -6,6 +6,29 @@
         $notifiedAt = $match->scores_finalized_notified_at;
     @endphp
 
+    @can('update', $match)
+        @if(($counts['pending_payment'] ?? 0) > 0)
+            <div class="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-semibold text-amber-950">
+                            {{ $counts['pending_payment'] }} {{ \Illuminate\Support\Str::plural('shooter', $counts['pending_payment']) }} still {{ $counts['pending_payment'] === 1 ? 'owes' : 'owe' }} an entry fee
+                        </p>
+                        <p class="mt-0.5 text-xs text-amber-800">Send the payment email from here. Each shooter can pay now or reply with proof of payment.</p>
+                    </div>
+                    <form method="POST" action="{{ route('matches.notify-unpaid', $match) }}">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-amber-950 hover:bg-amber-400"
+                                onclick="return confirm('Email all unpaid shooters on this match now?');">
+                            Email unpaid shooters
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
+    @endcan
+
     @if($hasAnyScores)
         <div class="mt-6 rounded-xl border p-4 {{ $scoresFinalized ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50' }}">
             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -78,6 +101,11 @@
                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
                     <flux:icon.arrow-up-tray class="size-4" />
                     Import from Impact
+                </a>
+                <a href="{{ route('score-imports.create', ['match_id' => $match->id, 'mode' => 'csv']) }}" wire:navigate
+                   class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                    <flux:icon.arrow-up-tray class="size-4" />
+                    Upload CSV
                 </a>
                 <a href="{{ route('scores.entry', $match) }}" wire:navigate
                    class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">

@@ -5,6 +5,8 @@
              'preselectedMatchId' => old('match_id', $preselectedMatchId),
              'previewUrl' => route('score-imports.impact.preview'),
              'importUrl' => route('score-imports.impact.store'),
+             'csvPreviewUrl' => route('score-imports.csv.preview'),
+             'initialMode' => $initialMode ?? 'impact',
              'csrf' => csrf_token(),
          ]))"
          x-cloak>
@@ -321,6 +323,7 @@
                 <summary class="cursor-pointer font-semibold text-sky-900 select-none">CSV format &amp; example downloads</summary>
                 <div class="mt-3 text-sm text-sky-900 space-y-2">
                     <p>The CSV must have a header row. <strong>Required:</strong> shooter identity (<code class="rounded bg-white px-1.5 py-0.5 text-xs">shooter_name</code>, or <code class="rounded bg-white px-1.5 py-0.5 text-xs">first</code> + <code class="rounded bg-white px-1.5 py-0.5 text-xs">last</code>) and a numeric total (<code class="rounded bg-white px-1.5 py-0.5 text-xs">raw_score</code>, <code class="rounded bg-white px-1.5 py-0.5 text-xs">Impacts</code>, <code class="rounded bg-white px-1.5 py-0.5 text-xs">Total</code>, etc.).</p>
+                    <p>Preview before import. Confirm fuzzy names, choose <strong>Assign later</strong> when you still need to check who someone is, or skip a row. Exact matches land on that entry. You can correct the hit total before it is saved.</p>
                     <div class="mt-3 pt-3 border-t border-sky-200/70">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <a href="{{ route('score-imports.template', ['variant' => 'basic']) }}" class="flex items-start gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 hover:border-sky-400 hover:bg-sky-50 transition text-xs">
@@ -337,12 +340,19 @@
                 </div>
             </details>
 
-            <form method="POST" action="{{ route('score-imports.store') }}" enctype="multipart/form-data" class="space-y-6">
+            <form method="POST" action="{{ route('score-imports.store') }}" enctype="multipart/form-data" class="space-y-6" @submit="onCsvSubmit">
                 @csrf
+                <input type="hidden" name="assignment_review" :value="csvPreview ? '1' : '0'">
+                <template x-for="row in (csvPreview?.shooters || [])" :key="'csv-link-'+row.row_key">
+                    <span>
+                        <input type="hidden" :name="'links['+row.row_key+']'" :value="csvLinkValue(row)">
+                        <input type="hidden" :name="'score_overrides['+row.row_key+'][impacts]'" :value="csvImpacts(row)">
+                    </span>
+                </template>
                 <div class="rounded-2xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
                     <div>
                         <label for="csv_match_id" class="block text-sm font-medium text-stone-700 mb-1">Match <span class="text-red-500">*</span></label>
-                        <select name="match_id" id="csv_match_id" required x-model="matchId" class="block w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                        <select name="match_id" id="csv_match_id" required x-model="matchId" @change="resetCsvPreview()" class="block w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                             <option value="">Select match…</option>
                             @foreach ($matches as $match)
                                 <option value="{{ $match->id }}">
@@ -383,7 +393,7 @@
 
                     <div>
                         <label for="file" class="block text-sm font-medium text-stone-700 mb-1">CSV File <span class="text-red-500">*</span></label>
-                        <input type="file" name="file" id="file" accept=".csv,text/csv" required
+                        <input type="file" name="file" id="file" accept=".csv,text/csv" required @change="resetCsvPreview()"
                                class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"/>
                         @error('file') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
@@ -399,9 +409,104 @@
                     </div>
                 </div>
 
-                <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                    Upload &amp; Import
-                </button>
+                <div x-show="csvPreviewError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="csvPreviewError"></div>
+
+                <div x-show="csvPreview" class="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 bg-stone-50/80 px-5 py-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-400">Assign scores to entries</p>
+                            <p class="text-sm text-stone-600 mt-0.5">Same corrections as Impact. Confirm a fuzzy name, assign later, or skip. The imported name stays on the scoreboard.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <span class="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 font-medium" x-text="(csvPreview?.summary?.exact||0)+' matched'"></span>
+                            <span class="rounded-full bg-amber-100 text-amber-900 px-2.5 py-1 font-medium" x-text="(csvPreview?.summary?.fuzzy||0)+' need confirm'"></span>
+                            <span class="rounded-full bg-stone-200 text-stone-700 px-2.5 py-1 font-medium" x-text="(csvPreview?.summary?.unmatched||0)+' unmatched'"></span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
+                                <tr>
+                                    <th class="px-4 py-2.5 font-semibold">Shooter</th>
+                                    <th class="px-4 py-2.5 font-semibold">Division</th>
+                                    <th class="px-4 py-2.5 font-semibold text-right">Hits <span class="font-normal normal-case text-stone-400">(editable)</span></th>
+                                    <th class="px-4 py-2.5 font-semibold">Link</th>
+                                    <th class="px-4 py-2.5 font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-100">
+                                <template x-for="row in (csvPreview?.shooters || [])" :key="'csv-row-'+row.row_key">
+                                    <tr class="align-top hover:bg-stone-50/60">
+                                        <td class="px-4 py-3 font-medium text-stone-900" x-text="row.name"></td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium capitalize text-stone-800" x-text="row.division_slug"></span>
+                                            <span class="block text-[10px] text-stone-400 mt-0.5" x-text="row.division_source === 'registration' ? 'from entry' : 'from CSV'"></span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <input type="number" min="0" max="9999" step="1"
+                                                   class="w-20 rounded-lg border text-right text-sm tabular-nums py-1 px-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                   :class="Number(csvImpacts(row)) !== Number(row.impacts) ? 'border-amber-400 bg-amber-50 font-semibold text-amber-900' : 'border-stone-200 text-stone-900'"
+                                                   :value="csvImpacts(row)"
+                                                   @input="setCsvOverride(row.row_key, $event.target.value, row.impacts)">
+                                        </td>
+                                        <td class="px-4 py-3 min-w-[12rem]">
+                                            <template x-if="row.match_status === 'exact'">
+                                                <span class="text-xs text-emerald-700 font-medium" x-text="'✓ '+(row.registration_name || 'entry')"></span>
+                                            </template>
+                                            <template x-if="row.match_status === 'fuzzy'">
+                                                <select class="w-full rounded-lg border border-amber-300 bg-amber-50 text-xs py-1.5"
+                                                        :value="csvLinks[row.row_key] || ''"
+                                                        @change="csvLinks[row.row_key] = $event.target.value">
+                                                    <option value="">Confirm link…</option>
+                                                    <template x-for="c in row.fuzzy_candidates" :key="c.key">
+                                                        <option :value="c.key" x-text="c.name+' ('+c.score+'%)'"></option>
+                                                    </template>
+                                                    <option value="assign_later">Assign later (import stub)</option>
+                                                    <option value="skip">Skip this shooter</option>
+                                                </select>
+                                            </template>
+                                            <template x-if="row.match_status === 'unmatched'">
+                                                <select class="w-full rounded-lg border border-violet-200 bg-violet-50 text-xs py-1.5"
+                                                        :value="csvLinks[row.row_key] || 'auto'"
+                                                        @change="csvLinks[row.row_key] = $event.target.value">
+                                                    <option value="auto" x-text="row.action === 'walk_in_member' ? 'Auto: member walk-in' : 'Auto: non-member stub'"></option>
+                                                    <option value="assign_later">Assign later (import stub)</option>
+                                                    <option value="skip">Skip this shooter</option>
+                                                </select>
+                                            </template>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="text-[11px] font-medium rounded-full px-2 py-0.5"
+                                                  :class="{
+                                                    'bg-emerald-100 text-emerald-800': row.action === 'import' && csvLinks[row.row_key] !== 'assign_later',
+                                                    'bg-amber-100 text-amber-900': row.action === 'import_and_collect' && csvLinks[row.row_key] !== 'assign_later',
+                                                    'bg-sky-100 text-sky-900': (row.action === 'walk_in_member' || row.action === 'walk_in_lapsed') && csvLinks[row.row_key] !== 'assign_later' && csvLinks[row.row_key] !== 'skip',
+                                                    'bg-stone-100 text-stone-600': row.action === 'non_member_no_log' && csvLinks[row.row_key] !== 'assign_later' && csvLinks[row.row_key] !== 'skip',
+                                                    'bg-violet-100 text-violet-900': csvLinks[row.row_key] === 'assign_later',
+                                                    'bg-stone-200 text-stone-500': csvLinks[row.row_key] === 'skip',
+                                                  }"
+                                                  x-text="csvLinks[row.row_key] === 'assign_later' ? 'Assign later' : (csvLinks[row.row_key] === 'skip' ? 'Skip' : actionLabel(row.action))"></span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="button" @click="runCsvPreview()" :disabled="csvPreviewLoading || !matchId"
+                            class="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-40 transition">
+                        <span x-text="csvPreviewLoading ? 'Reading CSV…' : 'Preview & assign'"></span>
+                    </button>
+                    <button type="submit" x-show="csvPreview" :disabled="!canCsvImport"
+                            class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-40 transition">
+                        Import CSV
+                    </button>
+                    <p class="text-xs text-stone-500" x-show="unconfirmedCsvFuzzy > 0">
+                        Confirm <span class="font-semibold" x-text="unconfirmedCsvFuzzy"></span> fuzzy name match(es) first.
+                    </p>
+                </div>
             </form>
         </div>
     </div>
@@ -409,7 +514,7 @@
     <script>
         function scoreImportWizard(cfg) {
             return {
-                mode: 'impact',
+                mode: cfg.initialMode === 'csv' ? 'csv' : 'impact',
                 matchMeta: cfg.matchMeta || {},
                 matchId: cfg.preselectedMatchId ? String(cfg.preselectedMatchId) : '',
                 impactRef: '',
@@ -425,6 +530,12 @@
                 links: {},
                 scoreOverrides: {},
                 expanded: {},
+                csvPreviewUrl: cfg.csvPreviewUrl,
+                csvPreview: null,
+                csvPreviewLoading: false,
+                csvPreviewError: '',
+                csvLinks: {},
+                csvOverrides: {},
                 get isTwoDayNational() {
                     return this.matchId && this.matchMeta[this.matchId]?.is_two_day_national;
                 },
@@ -434,6 +545,16 @@
                         r.match_status === 'fuzzy'
                         && !this.links[r.impact_shooter_id]
                     ).length;
+                },
+                get unconfirmedCsvFuzzy() {
+                    if (!this.csvPreview?.shooters) return 0;
+                    return this.csvPreview.shooters.filter(r =>
+                        r.match_status === 'fuzzy' && !this.csvLinks[r.row_key]
+                    ).length;
+                },
+                get canCsvImport() {
+                    return !!this.csvPreview && this.unconfirmedCsvFuzzy === 0
+                        && (!this.isTwoDayNational || !!this.scoreScope);
                 },
                 get canImport() {
                     return !!this.preview && this.unconfirmedFuzzy === 0
@@ -551,6 +672,80 @@
                     if (!this.canImport) {
                         e.preventDefault();
                         return;
+                    }
+                },
+                resetCsvPreview() {
+                    this.csvPreview = null;
+                    this.csvPreviewError = '';
+                    this.csvLinks = {};
+                    this.csvOverrides = {};
+                },
+                csvImpacts(row) {
+                    const value = this.csvOverrides[row.row_key];
+                    return (value !== undefined && value !== '') ? value : row.impacts;
+                },
+                csvLinkValue(row) {
+                    if (row.match_status === 'exact' && row.registration_id) {
+                        return 'reg:' + row.registration_id;
+                    }
+                    if (row.match_status === 'unmatched') {
+                        return this.csvLinks[row.row_key] || 'auto';
+                    }
+                    return this.csvLinks[row.row_key] || '';
+                },
+                setCsvOverride(key, value, original) {
+                    if (value === '' || Number(value) === Number(original)) {
+                        const copy = { ...this.csvOverrides };
+                        delete copy[key];
+                        this.csvOverrides = copy;
+                        return;
+                    }
+                    this.csvOverrides = { ...this.csvOverrides, [key]: value };
+                },
+                onCsvSubmit(e) {
+                    if (!this.canCsvImport) {
+                        e.preventDefault();
+                    }
+                },
+                async runCsvPreview() {
+                    const input = document.getElementById('file');
+                    const file = input?.files?.[0];
+                    if (!this.matchId || !file) {
+                        this.csvPreviewError = 'Choose a match and a CSV file first.';
+                        return;
+                    }
+                    this.csvPreviewLoading = true;
+                    this.csvPreviewError = '';
+                    try {
+                        const body = new FormData();
+                        body.append('match_id', this.matchId);
+                        body.append('file', file);
+                        const res = await fetch(this.csvPreviewUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': this.csrf,
+                            },
+                            body,
+                        });
+                        const data = await res.json();
+                        if (!data.ok) {
+                            this.csvPreviewError = data.message || 'Preview failed.';
+                            this.csvPreview = null;
+                            return;
+                        }
+                        this.csvPreview = data.preview;
+                        const next = { ...this.csvLinks };
+                        (data.preview.shooters || []).forEach(r => {
+                            if (r.match_status === 'exact' && r.registration_id) {
+                                next[r.row_key] = 'reg:' + r.registration_id;
+                            }
+                        });
+                        this.csvLinks = next;
+                    } catch (e) {
+                        this.csvPreviewError = e.message || 'Network error.';
+                    } finally {
+                        this.csvPreviewLoading = false;
                     }
                 },
             };

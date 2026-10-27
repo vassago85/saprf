@@ -70,7 +70,7 @@
     @if (($audit ?? []) !== [])
         @php
             $reasonMeta = [
-                'pending_unpaid' => ['label' => 'Unpaid / pending', 'tone' => 'amber', 'hint' => 'Send inquiry or mark settled when POP arrives'],
+                'pending_unpaid' => ['label' => 'Unpaid / pending', 'tone' => 'amber', 'hint' => 'Email them now, or mark settled when POP arrives'],
                 'walk_in_member' => ['label' => 'Member walk-in', 'tone' => 'sky', 'hint' => 'Not on entry list — collect fee (deducted from MD payout)'],
                 'assign_later' => ['label' => 'Assign later', 'tone' => 'violet', 'hint' => 'Stub score — link a member below when confirmed'],
                 'skipped_fuzzy' => ['label' => 'Skipped (fuzzy)', 'tone' => 'stone', 'hint' => 'Name not confirmed at import'],
@@ -92,7 +92,19 @@
                         <h2 class="mt-1 font-heading text-xl font-bold tracking-tight">Who needs attention</h2>
                         <p class="mt-1 text-sm text-stone-300">Unpaid entries, walk-ins, deferred links, skips, and non-members — kept for the record.</p>
                     </div>
-                    <div class="flex flex-wrap gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        @can('update', $scoreImport->match)
+                            @if (($auditSummary['pending_unpaid'] ?? 0) > 0)
+                                <form method="POST" action="{{ route('score-imports.notify-unpaid', $scoreImport) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-300 transition"
+                                            onclick="return confirm('Email every unpaid shooter still on this import? Each email offers Pay now, or reply with POP so you can mark them settled.');">
+                                        Email unpaid shooters now
+                                    </button>
+                                </form>
+                            @endif
+                        @endcan
                         @foreach ($auditSummary ?? [] as $key => $n)
                             @if ($n > 0)
                                 <span class="rounded-full bg-white/10 px-2.5 py-1 font-semibold ring-1 ring-white/15">
@@ -137,6 +149,22 @@
                                     Collect R{{ number_format((float) $row['fee_amount'], 2) }}
                                 </span>
                             @endif
+                            @php
+                                $liveReg = ($liveRegistrations ?? collect())->get($row['registration_id'] ?? 0);
+                            @endphp
+                            @if ($liveReg && $liveReg->hasOutstandingPayment() && auth()->user()->can('update', $liveReg))
+                                @if ($liveReg->canSendPaymentInquiry() && $liveReg->user?->email && ! str_contains((string) $liveReg->user->email, '@saprf.walkin'))
+                                    <form method="POST" action="{{ route('registrations.payment-inquiry', $liveReg) }}">
+                                        @csrf
+                                        <button type="submit"
+                                                class="inline-flex items-center rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700 transition">
+                                            Email {{ $liveReg->user->name ?? $row['name'] }}
+                                        </button>
+                                    </form>
+                                @elseif ($liveReg->payment_inquiry_sent_at)
+                                    <span class="text-[11px] text-stone-500">Emailed {{ $liveReg->payment_inquiry_sent_at->diffForHumans() }}</span>
+                                @endif
+                            @endif
                         </div>
                     </li>
                 @endforeach
@@ -152,7 +180,7 @@
                 </div>
                 <div>
                     <h2 class="font-heading text-lg font-bold text-violet-950">Link to entry</h2>
-                    <p class="mt-0.5 text-sm text-violet-900/80">Attach the real <strong>match entry</strong> (member or non-member). Entry <em>division</em> wins; the Impact <em>name stays as shown</em> (e.g. Kaden linked to a Karen entry still displays as Kaden).</p>
+                    <p class="mt-0.5 text-sm text-violet-900/80">Attach the real <strong>match entry</strong> (member or non-member). Entry <em>division</em> wins; the imported <em>name stays as shown</em> (e.g. Kaden linked to a Karen entry still displays as Kaden).</p>
                 </div>
             </div>
             @if ($linkRegistrations->isEmpty())
@@ -166,7 +194,7 @@
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-stone-900">{{ $pending->shooter_name }}</p>
                                 <p class="text-xs text-stone-500 mt-0.5">
-                                    Impact name · {{ number_format((float) ($pending->raw_score ?? $pending->day1_raw_score ?? 0), 1) }} hits
+                                    Scoreboard name · {{ number_format((float) ($pending->raw_score ?? $pending->day1_raw_score ?? 0), 1) }} hits
                                     · {{ $pending->status }}
                                 </p>
                             </div>

@@ -636,6 +636,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.scores.complete');
             Route::post('/scores/uncomplete', [MatchWorkspaceController::class, 'uncompleteScores'])
                 ->name('matches.scores.uncomplete');
+            Route::post('/notify-unpaid', [MatchWorkspaceController::class, 'notifyUnpaid'])
+                ->name('matches.notify-unpaid');
             Route::get('/finances', [MatchWorkspaceController::class, 'finances'])->name('matches.finances');
             Route::get('/messages', [MatchWorkspaceController::class, 'messages'])->name('matches.messages');
             Route::get('/settings', [MatchWorkspaceController::class, 'settings'])->name('matches.settings');
@@ -692,6 +694,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/score-imports/template', [ScoreImportController::class, 'template'])->name('score-imports.template');
         Route::post('/score-imports/impact/preview', [ScoreImportController::class, 'previewImpact'])
             ->name('score-imports.impact.preview');
+        Route::post('/score-imports/csv/preview', [ScoreImportController::class, 'previewCsv'])
+            ->name('score-imports.csv.preview');
+        Route::post('/score-imports/{scoreImport}/notify-unpaid', [ScoreImportController::class, 'notifyUnpaid'])
+            ->name('score-imports.notify-unpaid');
         Route::post('/score-imports/impact', [ScoreImportController::class, 'storeImpact'])
             ->name('score-imports.impact.store');
         Route::resource('score-imports', ScoreImportController::class)

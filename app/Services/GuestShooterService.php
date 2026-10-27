@@ -59,6 +59,36 @@ class GuestShooterService
         }
 
         $email = $this->normaliseEmail($email);
+        $existing = $this->findExisting($name, $email);
+
+        if ($existing) {
+            // If the caller has now supplied a real email for a stub that
+            // previously only had a placeholder, upgrade the record so
+            // future sponsors reach the same person via the stronger
+            // email-based dedup path. A real account matched by email is
+            // left untouched.
+            if ($email !== null && $this->hasPlaceholderEmail($existing)) {
+                $existing->forceFill(['email' => $email])->save();
+            }
+
+            return $existing;
+        }
+
+        return $this->createStub($name, $email);
+    }
+
+    /**
+     * Same lookup as findOrCreate, without provisioning a stub.
+     * Returns null when this name/email would create a new non-member.
+     */
+    public function findExisting(string $name, ?string $email = null): ?User
+    {
+        $name = $this->normaliseName($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $email = $this->normaliseEmail($email);
 
         if ($email !== null) {
             $viaEmail = User::whereRaw('LOWER(email) = ?', [$email])->first();
@@ -69,18 +99,10 @@ class GuestShooterService
 
         $viaName = User::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
         if ($viaName && $this->isStub($viaName)) {
-            // If the caller has now supplied a real email for a stub that
-            // previously only had a placeholder, upgrade the record so
-            // future sponsors reach the same person via the stronger
-            // email-based dedup path.
-            if ($email !== null && $this->hasPlaceholderEmail($viaName)) {
-                $viaName->forceFill(['email' => $email])->save();
-            }
-
             return $viaName;
         }
 
-        return $this->createStub($name, $email);
+        return null;
     }
 
     private function createStub(string $name, ?string $email): User

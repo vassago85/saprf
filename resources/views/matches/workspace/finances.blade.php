@@ -40,7 +40,11 @@
                         @if($money['surcharges'] > 0)
                             <tr>
                                 <td class="py-1.5 text-stone-700">
-                                    Non-member surcharge ({{ $surchargedEntryCount }} × R{{ number_format($surchargePerShooter, 0) }}, to SAPRF)
+                                    @if($uniformSurchargeRate !== null)
+                                        Non-member surcharge ({{ $surchargedEntryCount }} × R{{ number_format($uniformSurchargeRate, fmod((float) $uniformSurchargeRate, 1.0) === 0.0 ? 0 : 2) }}, to SAPRF)
+                                    @else
+                                        Surcharges kept by SAPRF ({{ $surchargedEntryCount }} {{ \Illuminate\Support\Str::plural('entry', $surchargedEntryCount) }})
+                                    @endif
                                 </td>
                                 <td class="py-1.5 text-right tabular-nums text-stone-500">
                                     − R {{ number_format((float) $money['surcharges'], 2) }}

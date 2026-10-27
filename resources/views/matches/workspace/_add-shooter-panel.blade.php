@@ -157,26 +157,34 @@
                 </div>
             </div>
 
-            <div class="rounded-lg border border-amber-200 bg-amber-50/60 p-3"
-                 x-data="{ waive: false }">
-                <label class="flex items-start gap-2 text-sm text-stone-700">
-                    <input type="hidden" name="waive_lapsed_surcharge" value="0">
-                    <input type="checkbox" name="waive_lapsed_surcharge" value="1" x-model="waive"
-                           class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
-                    <span>
-                        <span class="block font-medium">Waive lapsed-member surcharge</span>
-                        <span class="mt-0.5 block text-xs text-stone-500">Applies only when this shooter's membership is expired. Ignored for active members and non-members.</span>
-                    </span>
-                </label>
-                <div x-show="waive" x-cloak class="mt-3">
-                    <label for="fee_override_reason" class="block text-xs font-medium text-stone-600 mb-1">Reason <span class="text-red-500">*</span></label>
-                    <textarea name="fee_override_reason" id="fee_override_reason" rows="2" maxlength="500"
-                              :required="waive"
-                              placeholder="e.g. Paid R550 direct to MD in cash; grace on lapsed renewal for this match."
-                              class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-amber-500 focus:border-amber-500"></textarea>
-                    <p class="mt-1 text-[11px] text-stone-500">Stored on the entry so future auditors can see why the surcharge was waived.</p>
+            <template x-if="showNewShooter || (selected && selected.fee_category === 'non_member')">
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+                    Non-member surcharge is kept by SAPRF. Match directors cannot waive it.
                 </div>
-            </div>
+            </template>
+
+            <template x-if="selected && selected.fee_category === 'lapsed_member'">
+                <div class="rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+                     x-data="{ waive: false }">
+                    <label class="flex items-start gap-2 text-sm text-stone-700">
+                        <input type="hidden" name="waive_lapsed_surcharge" value="0">
+                        <input type="checkbox" name="waive_lapsed_surcharge" value="1" x-model="waive"
+                               class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                        <span>
+                            <span class="block font-medium">Waive lapsed-member surcharge</span>
+                            <span class="mt-0.5 block text-xs text-stone-500">Only for a membership that expired recently. The non-member surcharge cannot be waived.</span>
+                        </span>
+                    </label>
+                    <div x-show="waive" x-cloak class="mt-3">
+                        <label for="fee_override_reason" class="block text-xs font-medium text-stone-600 mb-1">Reason <span class="text-red-500">*</span></label>
+                        <textarea name="fee_override_reason" id="fee_override_reason" rows="2" maxlength="500"
+                                  :required="waive"
+                                  placeholder="e.g. Paid R550 direct to MD in cash; grace on lapsed renewal for this match."
+                                  class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-amber-500 focus:border-amber-500"></textarea>
+                        <p class="mt-1 text-[11px] text-stone-500">Stored on the entry so future auditors can see why the surcharge was waived.</p>
+                    </div>
+                </div>
+            </template>
 
             <div class="flex items-center justify-end gap-3 pt-1">
                 <button type="button" @click="clear()"
@@ -190,10 +198,10 @@
         </form>
     </template>
 
-    @if($errors->hasAny(['user_id', 'division_id', 'fee_override_reason', 'new_shooter_name', 'new_shooter_email']))
+    @if($errors->hasAny(['user_id', 'division_id', 'fee_override_reason', 'waive_lapsed_surcharge', 'new_shooter_name', 'new_shooter_email']))
         <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             <ul class="list-inside list-disc space-y-1">
-                @foreach(['user_id', 'new_shooter_name', 'new_shooter_email', 'division_id', 'fee_override_reason'] as $field)
+                @foreach(['user_id', 'new_shooter_name', 'new_shooter_email', 'division_id', 'fee_override_reason', 'waive_lapsed_surcharge'] as $field)
                     @foreach($errors->get($field) as $message)
                         <li>{{ $message }}</li>
                     @endforeach
