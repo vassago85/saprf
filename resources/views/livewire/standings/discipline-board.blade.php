@@ -210,13 +210,11 @@ new class extends Component
         $counters = app(SeasonMatchCounters::class)
             ->for($this->series, $season, $page->totalRanked);
 
-        // Division leaders — top-ranked shooter(s) per division, used in
-        // the sidebar card. Pulled with its own small queries (one per
-        // division) so the leader respects the current level/province
-        // filters a visitor has applied. When multiple shooters sit on
-        // the same winning points total we return ALL of them so the
-        // sidebar can render the tie honestly (T1 / T1 / …), matching
-        // the main table.
+        // Division leaders — top shooter(s) per division, used in the
+        // sidebar card. The card is ordered by that top score, highest
+        // first, so a division is not stuck in its catalogue position.
+        // When several shooters share the winning total we keep all of
+        // them so the sidebar can show the tie (T1 / T1).
         $divisionLeaders = Division::active()->ordered()->get()->map(function (Division $div) use ($season, $level, $provinceId) {
             $base = Standing::query()
                 ->where('season', $season)
@@ -244,7 +242,17 @@ new class extends Component
                 'division' => $div,
                 'leaders' => $leaders,
             ];
-        })->filter(fn (array $row) => $row['leaders']->isNotEmpty())->values();
+        })->filter(fn (array $row) => $row['leaders']->isNotEmpty())
+            ->sort(function (array $a, array $b): int {
+                $byPoints = ((float) $b['leaders']->max('points')) <=> ((float) $a['leaders']->max('points'));
+                if ($byPoints !== 0) {
+                    return $byPoints;
+                }
+
+                return [(int) $a['division']->display_order, $a['division']->name]
+                    <=> [(int) $b['division']->display_order, $b['division']->name];
+            })
+            ->values();
 
         // "Still to shoot" — upcoming matches in this series/season.
         $stillToShoot = MatchEvent::query()

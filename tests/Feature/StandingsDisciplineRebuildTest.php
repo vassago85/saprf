@@ -434,3 +434,59 @@ it('Division leaders sidebar lists every shooter when the top division score is 
     // refactor can't quietly drop it.
     expect(substr_count($html, '>T1<'))->toBeGreaterThanOrEqual(2);
 });
+
+it('lists division leaders by highest score instead of catalogue order', function () {
+    $open = Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 1, 'is_active' => true],
+    );
+    $factory = Division::firstOrCreate(
+        ['slug' => 'factory'],
+        ['name' => 'Factory', 'display_order' => 2, 'is_active' => true],
+    );
+    $senior = Division::firstOrCreate(
+        ['slug' => 'senior'],
+        ['name' => 'Senior', 'display_order' => 3, 'is_active' => true],
+    );
+
+    Standing::create([
+        'user_id' => User::factory()->create(['name' => 'Malcolm Open Leader'])->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'division_id' => $open->id,
+        'province_id' => null,
+        'points' => 68.1,
+        'rank' => 1,
+    ]);
+    Standing::create([
+        'user_id' => User::factory()->create(['name' => 'Kevin Factory Leader'])->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'division_id' => $factory->id,
+        'province_id' => null,
+        'points' => 68.5,
+        'rank' => 1,
+    ]);
+    Standing::create([
+        'user_id' => User::factory()->create(['name' => 'LeRiche Senior Leader'])->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'division_id' => $senior->id,
+        'province_id' => null,
+        'points' => 64.9,
+        'rank' => 1,
+    ]);
+
+    $html = $this->get('/standings/prs?season=2026')->assertOk()->getContent();
+    $sidebar = strstr($html, 'Division leaders');
+
+    $factoryAt = strpos($sidebar, 'Kevin Factory Leader');
+    $openAt = strpos($sidebar, 'Malcolm Open Leader');
+    $seniorAt = strpos($sidebar, 'LeRiche Senior Leader');
+
+    expect($factoryAt)->not->toBeFalse()
+        ->and($openAt)->not->toBeFalse()
+        ->and($seniorAt)->not->toBeFalse()
+        ->and($factoryAt)->toBeLessThan($openAt)
+        ->and($openAt)->toBeLessThan($seniorAt);
+});
