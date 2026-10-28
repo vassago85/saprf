@@ -2,12 +2,17 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\QualificationRule;
+use App\Models\Score;
 use App\Models\Standing;
+use App\Models\StandingsSnapshot;
 use App\Models\User;
 use App\Services\SeasonMatchCounters;
+use App\Services\StandingsCalculationService;
 use App\Services\StandingsMovement;
 use App\Services\StandingsSnapshotRecorder;
 use App\Support\Format;
+use Illuminate\Support\Carbon;
 
 beforeEach(function () {
     seedRoles();
@@ -169,7 +174,7 @@ it('StandingsMovement returns null for a user with fewer than two snapshots', fu
     // One snapshot: not enough history to compute a delta — service must
     // return null (so the view can render a neutral "·", not "▲0" or
     // "▼0" which would read as "no change" instead of "no history").
-    \App\Models\StandingsSnapshot::create([
+    StandingsSnapshot::create([
         'season' => '2026',
         'series' => 'PRS',
         'level' => 'national',
@@ -191,7 +196,7 @@ it('StandingsMovement returns null for a user with fewer than two snapshots', fu
 it('StandingsMovement computes previous_rank minus current_rank from two snapshots', function () {
     $u = User::factory()->create();
     foreach ([['rank' => 5, 'at' => now()->subDay()], ['rank' => 2, 'at' => now()]] as $snap) {
-        \App\Models\StandingsSnapshot::create([
+        StandingsSnapshot::create([
             'season' => '2026',
             'series' => 'PRS',
             'level' => 'national',
@@ -209,6 +214,111 @@ it('StandingsMovement computes previous_rank minus current_rank from two snapsho
     expect($move[$u->id])->toBe(3);
 });
 
+it('records a new PRS snapshot when a finalised match is rebuilt so the next update shows place arrows', function () {
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 4,
+        'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $leader = User::factory()->create(['name' => 'Alex Leader']);
+    $riser = User::factory()->create(['name' => 'Blair Riser']);
+    $service = app(StandingsCalculationService::class);
+
+    $first = arrowMatch('First National', '2026-03-01', now()->subDays(10));
+    arrowScore($first, $leader, $open->id, 100);
+    arrowScore($first, $riser, $open->id, 50);
+    $service->recalculateForMatch($first);
+
+    expect(StandingsSnapshot::query()->where('user_id', $riser->id)->whereNull('division_id')->count())->toBe(1);
+
+    $second = arrowMatch('Second National', '2026-04-01', now()->subDay());
+    arrowScore($second, $leader, $open->id, 40);
+    arrowScore($second, $riser, $open->id, 100);
+    $service->recalculateForMatch($second);
+
+    $move = app(StandingsMovement::class)->for(
+        [$riser->id, $leader->id],
+        '2026',
+        'PRS',
+        'national',
+        null,
+        null,
+    );
+
+    // Blair was 2nd, then won the second match and leads. ▲1.
+    expect($move[$riser->id])->toBe(1)
+        ->and($move[$leader->id])->toBe(-1);
+
+    $this->get('/standings/prs?season=2026')
+        ->assertOk()
+        ->assertSee('▲1')
+        ->assertSee('▼1');
+});
+
+it('writes a fresh snapshot when standings change after the match was already finalised', function () {
+    $shooter = User::factory()->create();
+    $match = arrowMatch('Corrected National', '2026-05-01', now()->subHour());
+
+    Standing::create([
+        'user_id' => $shooter->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => null,
+        'division_id' => null,
+        'points' => 80,
+        'rank' => 4,
+    ]);
+
+    $recorder = app(StandingsSnapshotRecorder::class);
+    expect($recorder->recordForMatch($match))->toBe(1);
+
+    Standing::query()->where('user_id', $shooter->id)->update(['rank' => 1, 'points' => 100]);
+
+    expect($recorder->recordForMatch($match->fresh()))->toBe(1);
+
+    $move = app(StandingsMovement::class)->for([$shooter->id], '2026', 'PRS', 'national', null, null);
+    expect($move[$shooter->id])->toBe(3);
+});
+
+function arrowMatch(string $name, string $date, Carbon $finalizedAt): MatchEvent
+{
+    return MatchEvent::create([
+        'name' => $name,
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'match_date' => $date,
+        'status' => 'completed',
+        'published' => true,
+        'created_by' => User::factory()->create()->id,
+        'active_member_fee' => 100,
+        'scores_finalized_at' => $finalizedAt,
+        'scores_finalized_by' => User::factory()->create()->id,
+    ]);
+}
+
+function arrowScore(MatchEvent $match, User $shooter, int $divisionId, float $raw): Score
+{
+    return Score::create([
+        'match_id' => $match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => $shooter->name,
+        'division_id' => $divisionId,
+        'raw_score' => $raw,
+        'status' => 'valid',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'match_date' => $match->match_date,
+    ]);
+}
+
 // ── Division leaders sidebar: ties show every leader, not one ──────────
 
 it('Division leaders sidebar lists every shooter when the top division score is tied', function () {
@@ -225,8 +335,8 @@ it('Division leaders sidebar lists every shooter when the top division score is 
     );
 
     $russell = User::factory()->create(['name' => 'Russell Factory Tied']);
-    $kevin   = User::factory()->create(['name' => 'Kevin Factory Tied']);
-    $deon    = User::factory()->create(['name' => 'Deon Open Leader']);
+    $kevin = User::factory()->create(['name' => 'Kevin Factory Tied']);
+    $deon = User::factory()->create(['name' => 'Deon Open Leader']);
 
     foreach ([
         [$russell->id, $factory->id, 300.0, 1],

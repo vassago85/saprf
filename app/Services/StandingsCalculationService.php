@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\Standing;
@@ -12,12 +13,11 @@ use Illuminate\Support\Collection;
 class StandingsCalculationService
 {
     public function __construct(
-        // Injected so the test battery can swap it for a null/mock
-        // without touching every one of the 15+ sites that call
-        // recalculateForMatch(). Nullable so legacy container builds
-        // (older queues, CLI commands that `new` the service directly)
-        // still work — a null recorder just skips the snapshot.
-        private readonly ?StandingsSnapshotRecorder $snapshots = null,
+        // Must not default to null. Laravel skips auto-injection for any
+        // parameter that has a default, so `= null` left this null in
+        // production and finalised rebuilds never wrote a snapshot.
+        // Place arrows then had nothing new to compare against.
+        private readonly StandingsSnapshotRecorder $snapshots,
     ) {}
 
     public function recalculateForMatch(MatchEvent $match): void
@@ -44,11 +44,7 @@ class StandingsCalculationService
             if ($match->series_level === 'provincial') {
                 $this->recalculateProvincialStandings($match->series, $season);
             }
-
-            return;
-        }
-
-        if (in_array($match->series_level, ['national', 'final'], true)) {
+        } elseif (in_array($match->series_level, ['national', 'final'], true)) {
             // A national match is national ONLY. Even if the legacy
             // also_counts_for_provincial flag is set, we deliberately do not
             // touch the provincial standings from here — provincial credit
@@ -70,7 +66,7 @@ class StandingsCalculationService
         // are the ones the public page will render next time. Idempotent
         // on taken_at: a completeScores → recalculateForMatch chain in the
         // same request will record once, not twice.
-        if ($this->snapshots !== null && $match->scoresAreFinalized()) {
+        if ($match->scoresAreFinalized()) {
             $this->snapshots->recordForMatch($match->fresh());
         }
     }
@@ -82,7 +78,7 @@ class StandingsCalculationService
      */
     public function recalculateProvincialStandings(string $series, string $season): void
     {
-        foreach (\App\Models\Province::query()->pluck('id') as $provinceId) {
+        foreach (Province::query()->pluck('id') as $provinceId) {
             $this->recalculateSeasonStandings($series, $season, (int) $provinceId);
         }
     }
@@ -96,7 +92,7 @@ class StandingsCalculationService
     public function calculateMatchRankings(MatchEvent $match): void
     {
         $scores = Score::where('match_id', $match->id)
-            ->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)
+            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
             ->orderByDesc('raw_score')
             ->get();
 
@@ -148,7 +144,7 @@ class StandingsCalculationService
     public function calculateProvincialNormalizedScores(MatchEvent $match): void
     {
         $scores = Score::where('match_id', $match->id)
-            ->whereIn('status', \App\Services\ScoreValidationService::VISIBLE_STATUSES)
+            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
             ->whereNotNull('provincial_raw_score')
             ->where('provincial_raw_score', '>', 0)
             ->get();
@@ -359,7 +355,7 @@ class StandingsCalculationService
      * The champs component can never be replaced by an extra regular match, so
      * a shooter with four 100% regulars and no champs tops out at 300, not 400.
      *
-     * @return \Illuminate\Support\Collection<int, array{user_id:int, points:float, pool_breakdown:array}>
+     * @return Collection<int, array{user_id:int, points:float, pool_breakdown:array}>
      */
     private function aggregatePrsAnnualLog(Collection $scores, string $context, int $regularBestOf): Collection
     {
@@ -674,7 +670,7 @@ class StandingsCalculationService
      * points share a rank and the following rank(s) are skipped (1, 2, 2, 4).
      * Ties are decided on points rounded to 2 decimals.
      *
-     * @param \Illuminate\Support\Collection<int, array{user_id:int, points:float, pool_breakdown?:array}> $totals
+     * @param  Collection<int, array{user_id:int, points:float, pool_breakdown?:array}>  $totals
      */
     public function persistCompetitionRankedStandings(
         Collection $totals,
@@ -716,7 +712,7 @@ class StandingsCalculationService
      * $divisionId is null). Reads the persisted standings and shapes them for
      * display / export.
      *
-     * @return \Illuminate\Support\Collection<int, array{
+     * @return Collection<int, array{
      *     rank:int, user_id:int, shooter:string, regular:array, champs_pct:float,
      *     total:float, max:int
      * }>
@@ -764,7 +760,7 @@ class StandingsCalculationService
      *     pool's best-of (2). The pool result is the AVERAGE of those counting
      *     scores. Practically: 1 shot → 0, 2 shot → best 1, 3+ shot → best 2.
      *
-     * @return \Illuminate\Support\Collection<int, array{user_id: int, points: float, pool_breakdown: array}>
+     * @return Collection<int, array{user_id: int, points: float, pool_breakdown: array}>
      */
     private function aggregateWeightedPools(
         Collection $scores,
@@ -967,7 +963,7 @@ class StandingsCalculationService
     }
 
     /**
-     * @param string $context 'overall' | 'division'
+     * @param  string  $context  'overall' | 'division'
      */
     private function aggregateSeasonTotals(
         Collection $scores,
@@ -978,7 +974,7 @@ class StandingsCalculationService
     ): Collection {
         return $scores
             ->groupBy('user_id')
-            ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $useProvincialScore, $finalsMultiplier): array {
+            ->map(function (Collection $userScores, int $userId) use ($context, $bestOf, $finalsMultiplier): array {
                 // Keep the source Score attached so we can record per-match
                 // metadata (match_id, name, level) alongside the value that
                 // actually counts. National scores never reach this method

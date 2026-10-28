@@ -63,15 +63,16 @@ class StandingsMovement
         // appears outside the ROW_NUMBER() call, otherwise the parser
         // trips on `rank, taken_at`.
         $rows = DB::select(
-            "SELECT user_id, `rank`, taken_at FROM (
+            'SELECT user_id, `rank`, taken_at FROM (
                 SELECT user_id, `rank`, taken_at, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY taken_at DESC) AS rn
                 FROM standings_snapshots
-                WHERE season = ? AND series = ? AND level = ?"
+                WHERE season = ? AND series = ? AND level = ?'
             .($provinceId !== null ? ' AND province_id = ?' : ' AND province_id IS NULL')
             .($divisionId !== null ? ' AND division_id = ?' : ' AND division_id IS NULL')
             .' AND user_id IN ('.implode(',', array_fill(0, count($userIds), '?')).')
             ) ranked
-            WHERE rn <= 2',
+            WHERE rn <= 2
+            ORDER BY user_id, taken_at DESC',
             array_values(array_filter(
                 array_merge(
                     [$season, $series, $level],
@@ -97,6 +98,7 @@ class StandingsMovement
             $pair = $byUser[$uid] ?? [];
             if (count($pair) < 2) {
                 $out[$uid] = null;      // only one snapshot so far
+
                 continue;
             }
             $current = $pair[0];
