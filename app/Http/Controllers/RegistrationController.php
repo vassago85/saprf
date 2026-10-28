@@ -6,9 +6,10 @@ use App\Http\Requests\StoreRegistrationRequest;
 use App\Models\AccountCredit;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Payout;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
-use App\Models\Payout;
+use App\Policies\RegistrationPolicy;
 use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\CreditRefundService;
@@ -19,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -216,12 +218,13 @@ class RegistrationController extends Controller
 
     public function updateRifle(Request $request, MatchRegistration $registration): RedirectResponse
     {
-        if ($registration->user_id !== $request->user()->id && ! $request->user()->hasAnyRole(['owner', 'admin', 'match_director'])) {
-            abort(403);
-        }
+        abort_unless($this->actorMayReviseEntry($request, $registration), 403);
 
         $validated = $request->validate([
-            'rifle_configuration_id' => ['nullable', 'exists:rifle_configurations,id'],
+            'rifle_configuration_id' => [
+                'nullable',
+                Rule::exists('rifle_configurations', 'id')->where('user_id', $registration->user_id),
+            ],
         ]);
 
         $old = $registration->only(['rifle_configuration_id']);
@@ -246,11 +249,9 @@ class RegistrationController extends Controller
      */
     public function updateDivision(Request $request, MatchRegistration $registration): RedirectResponse
     {
-        $isStaff = $request->user()->hasAnyRole(['owner', 'admin', 'match_director']);
+        $isStaff = $this->actorIsEntryStaff($request, $registration);
 
-        if ($registration->user_id !== $request->user()->id && ! $isStaff) {
-            abort(403);
-        }
+        abort_unless($this->actorMayReviseEntry($request, $registration), 403);
 
         // Members can only change their entry while registration is open; staff
         // may adjust it at any time.
@@ -261,7 +262,7 @@ class RegistrationController extends Controller
         $allowedDivisionIds = $registration->match?->availableDivisions()->pluck('id')->all() ?? [];
 
         $validated = $request->validate([
-            'division_id' => ['required', \Illuminate\Validation\Rule::in($allowedDivisionIds)],
+            'division_id' => ['required', Rule::in($allowedDivisionIds)],
         ], [
             'division_id.required' => 'Please choose a division.',
             'division_id.in' => 'The selected division is not available for this match.',
@@ -346,9 +347,7 @@ class RegistrationController extends Controller
 
     public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse
     {
-        if ($registration->user_id !== $request->user()->id && ! $request->user()->hasAnyRole(['owner', 'admin', 'match_director'])) {
-            abort(403);
-        }
+        abort_unless($this->actorMayReviseEntry($request, $registration), 403);
 
         $validated = $request->validate([
             'shot_count' => ['nullable', 'integer', 'min:0', 'max:9999'],
@@ -357,8 +356,9 @@ class RegistrationController extends Controller
         $old = $registration->only(['shot_count']);
         $registration->update($validated);
 
-        if ($registration->rifle_configuration_id) {
-            $registration->rifleConfiguration->recalculateShotCount();
+        $rifle = $registration->rifleConfiguration;
+        if ($rifle && (int) $rifle->user_id === (int) $registration->user_id) {
+            $rifle->recalculateShotCount();
         }
 
         $this->auditLogService->log(
@@ -589,7 +589,7 @@ class RegistrationController extends Controller
      *   - Rows we sent an inquiry to less than 24h ago — dedupes an
      *     accidental double-click.
      *
-     * Auth: {@see \App\Policies\RegistrationPolicy::update} — admins,
+     * Auth: {@see RegistrationPolicy::update} — admins,
      * owners, and the MD of the registration's match.
      */
     public function sendPaymentInquiry(Request $request, MatchRegistration $registration): RedirectResponse
@@ -603,7 +603,7 @@ class RegistrationController extends Controller
         if (! $registration->canSendPaymentInquiry()) {
             $ago = $registration->payment_inquiry_sent_at?->diffForHumans() ?? 'recently';
 
-            return back()->with('error', 'A payment inquiry was already sent ' . $ago . ' — please wait 24h before re-sending.');
+            return back()->with('error', 'A payment inquiry was already sent '.$ago.' — please wait 24h before re-sending.');
         }
 
         $shooter = $registration->user;
@@ -639,7 +639,7 @@ class RegistrationController extends Controller
 
         return back()->with(
             'success',
-            'Payment inquiry emailed to ' . $shooter->name . ' (' . $shooter->email . ').'
+            'Payment inquiry emailed to '.$shooter->name.' ('.$shooter->email.').'
         );
     }
 
@@ -863,9 +863,7 @@ class RegistrationController extends Controller
         // Idempotent: if a previous click already flipped the row to
         // paid/waived, don't ask the shooter to confirm a second time.
         if (! $registration->hasOutstandingPayment()) {
-            return redirect()->route('registrations.confirm-old-site-payment.done', [
-                'registration' => $registration->id,
-            ]);
+            return $this->redirectToOldSitePaymentDone($registration);
         }
 
         return view('registrations.confirm-old-site-payment', compact('registration'));
@@ -886,9 +884,7 @@ class RegistrationController extends Controller
         // Same idempotency guard as the GET — protects against a double
         // POST from a nervous shooter clicking Confirm twice.
         if (! $registration->hasOutstandingPayment()) {
-            return redirect()->route('registrations.confirm-old-site-payment.done', [
-                'registration' => $registration->id,
-            ]);
+            return $this->redirectToOldSitePaymentDone($registration);
         }
 
         $old = $registration->only(['payment_status', 'registration_status']);
@@ -899,8 +895,8 @@ class RegistrationController extends Controller
                 ? 'confirmed'
                 : $registration->registration_status,
             'fee_override_reason' => trim(
-                ($registration->fee_override_reason ? $registration->fee_override_reason . ' | ' : '')
-                . 'Shooter self-confirmed payment via legacy SAPRF site (' . now()->toDateString() . ').'
+                ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '')
+                .'Shooter self-confirmed payment via legacy SAPRF site ('.now()->toDateString().').'
             ),
         ]);
 
@@ -922,21 +918,63 @@ class RegistrationController extends Controller
             ],
         );
 
-        return redirect()->route('registrations.confirm-old-site-payment.done', [
-            'registration' => $registration->id,
-        ]);
+        return $this->redirectToOldSitePaymentDone($registration);
     }
 
     /**
-     * Thank-you page shown after {@see confirmOldSitePayment}. Also the
-     * "already confirmed" landing when the shooter revisits the signed
-     * URL after the fact. Rendered without the signed middleware so a
-     * refresh doesn't 403; the page is purely informational.
+     * Thank-you page after {@see confirmOldSitePayment}. The URL is signed
+     * so an anonymous visitor cannot open another entry's match name by
+     * guessing the registration id.
      */
     public function oldSitePaymentConfirmationDone(MatchRegistration $registration): View
     {
         $registration->loadMissing('match');
 
         return view('registrations.confirm-old-site-payment-done', compact('registration'));
+    }
+
+    /**
+     * The shooter on the entry, an owner/admin, or the match director who
+     * created this match. Any other match director is refused — they used
+     * to pass a role check that ignored match ownership.
+     */
+    private function actorMayReviseEntry(Request $request, MatchRegistration $registration): bool
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ((int) $registration->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return $this->actorIsEntryStaff($request, $registration);
+    }
+
+    private function actorIsEntryStaff(Request $request, MatchRegistration $registration): bool
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['owner', 'admin'])) {
+            return true;
+        }
+
+        return $user->hasRole('match_director')
+            && (int) $registration->match?->created_by === (int) $user->id;
+    }
+
+    private function redirectToOldSitePaymentDone(MatchRegistration $registration): RedirectResponse
+    {
+        return redirect()->to(URL::temporarySignedRoute(
+            'registrations.confirm-old-site-payment.done',
+            now()->addDays(14),
+            ['registration' => $registration->id],
+        ));
     }
 }

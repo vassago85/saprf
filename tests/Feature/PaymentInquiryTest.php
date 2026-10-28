@@ -281,9 +281,10 @@ it('flips the row to waived + confirmed when the shooter POSTs a signed confirm'
 
     $response = $this->post($url);
 
-    $response->assertRedirect(route('registrations.confirm-old-site-payment.done', [
-        'registration' => $registration->id,
-    ]));
+    $response->assertRedirect();
+    expect($response->headers->get('Location'))
+        ->toContain('/registrations/'.$registration->id.'/confirm-old-site-payment/done')
+        ->toContain('signature=');
 
     $registration->refresh();
     expect($registration->payment_status)->toBe('waived')
@@ -302,9 +303,11 @@ it('is idempotent: revisiting the confirm URL after settlement redirects to the 
         ['registration' => $registration->id],
     );
 
-    $this->get($url)->assertRedirect(route('registrations.confirm-old-site-payment.done', [
-        'registration' => $registration->id,
-    ]));
+    $followed = $this->get($url);
+    $followed->assertRedirect();
+    expect($followed->headers->get('Location'))
+        ->toContain('/registrations/'.$registration->id.'/confirm-old-site-payment/done')
+        ->toContain('signature=');
 });
 
 it('rejects the confirm POST without a valid signature', function () {

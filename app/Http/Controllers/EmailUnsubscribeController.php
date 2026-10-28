@@ -44,6 +44,14 @@ class EmailUnsubscribeController extends Controller
             ? AnnouncementCategory::tryFrom((string) $categoryValue)
             : null;
 
+        if (! $request->isMethod('POST')) {
+            return view('email.unsubscribe-confirm', [
+                'user' => $user,
+                'category' => $category,
+                'action' => $request->fullUrl(),
+            ]);
+        }
+
         [$mutedCategories, $mode] = $this->mutedCategoriesFor($category);
 
         $pref = NotificationPreference::firstOrNew(['user_id' => $user->id]);
@@ -87,7 +95,7 @@ class EmailUnsubscribeController extends Controller
      * Work out which categories to add to the mute list.
      *
      * @return array{0: array<int, string>, 1: string}
-     *         [category values to add, 'single' or 'all_non_mandatory']
+     *                                                 [category values to add, 'single' or 'all_non_mandatory']
      */
     private function mutedCategoriesFor(?AnnouncementCategory $category): array
     {

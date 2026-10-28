@@ -299,7 +299,7 @@ class PaymentController extends Controller
             // Sandbox rescue: if signature fails but the ITN clearly matches a
             // pending payment (ref + COMPLETE + amount), accept it so registrations
             // still update. Live mode never uses this path.
-            if ($this->payFastService->isSandbox() && $this->sandboxItnMatchesPendingPayment($data)) {
+            if (app()->environment('local') && $this->payFastService->isSandbox() && $this->sandboxItnMatchesPendingPayment($data)) {
                 $sandboxOverride = true;
                 Log::warning('PayFast ITN signature failed; accepting via sandbox amount match', [
                     'errors' => $errors,
@@ -332,6 +332,17 @@ class PaymentController extends Controller
         }
 
         $pfPaymentStatus = $data['payment_status'] ?? '';
+
+        if ($pfPaymentStatus === 'COMPLETE' && ! $this->itnAmountMatchesPayment($payment, $data)) {
+            Log::warning('PayFast ITN amount does not match the pending payment', [
+                'm_payment_id' => $payment->m_payment_id,
+                'expected' => $payment->amount,
+                'amount_gross' => $data['amount_gross'] ?? null,
+            ]);
+
+            return response('INVALID', 400)->header('Content-Type', 'text/plain');
+        }
+
         $settlement = Payment::settlementFromItn($data);
         $payment->update([
             'gateway_payment_id' => $data['pf_payment_id'] ?? null,
@@ -374,6 +385,15 @@ class PaymentController extends Controller
         }
 
         if (! isset($data['amount_gross'])) {
+            return false;
+        }
+
+        return $this->itnAmountMatchesPayment($payment, $data);
+    }
+
+    private function itnAmountMatchesPayment(Payment $payment, array $data): bool
+    {
+        if (! isset($data['amount_gross']) || $data['amount_gross'] === '') {
             return false;
         }
 

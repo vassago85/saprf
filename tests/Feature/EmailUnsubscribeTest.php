@@ -27,13 +27,14 @@ function makeSubscriber(): User
 {
     $user = User::factory()->create(['email_verified_at' => now()]);
     $user->assignRole('member');
+
     return $user;
 }
 
 it('rejects an unsigned unsubscribe URL', function () {
     $user = makeSubscriber();
 
-    $this->get('/email/unsubscribe/' . $user->id . '?category=' . AnnouncementCategory::Announcement->value)
+    $this->get('/email/unsubscribe/'.$user->id.'?category='.AnnouncementCategory::Announcement->value)
         ->assertStatus(403);
 });
 
@@ -50,7 +51,7 @@ it('rejects a tampered signature', function () {
     $this->get($tampered)->assertStatus(403);
 });
 
-it('accepts a valid signed GET and mutes the single non-mandatory category', function () {
+it('shows a confirm page on GET and does not mute yet', function () {
     $user = makeSubscriber();
 
     $url = URL::signedRoute('email.unsubscribe', [
@@ -58,7 +59,20 @@ it('accepts a valid signed GET and mutes the single non-mandatory category', fun
         'category' => AnnouncementCategory::Announcement->value,
     ]);
 
-    $this->get($url)->assertOk()->assertSee('unsubscribed', false);
+    $this->get($url)->assertOk()->assertSee('Confirm unsubscribe');
+
+    expect(NotificationPreference::firstWhere('user_id', $user->id))->toBeNull();
+});
+
+it('mutes the single non-mandatory category on POST', function () {
+    $user = makeSubscriber();
+
+    $url = URL::signedRoute('email.unsubscribe', [
+        'user' => $user->id,
+        'category' => AnnouncementCategory::Announcement->value,
+    ]);
+
+    $this->post($url)->assertOk()->assertSee('unsubscribed', false);
 
     $pref = NotificationPreference::firstWhere('user_id', $user->id);
     expect($pref)->not->toBeNull();
@@ -89,7 +103,7 @@ it('mutes every non-mandatory category when the source category is mandatory', f
         'category' => AnnouncementCategory::PolicyChange->value,
     ]);
 
-    $this->get($url)->assertOk();
+    $this->post($url)->assertOk();
 
     $pref = NotificationPreference::firstWhere('user_id', $user->id);
     $muted = $pref->muted_email_categories;

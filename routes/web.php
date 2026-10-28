@@ -247,8 +247,8 @@ Route::post('/webhooks/mailgun', [MailgunWebhookController::class, 'handle'])
 // ── RFC 8058 one-click email unsubscribe ──
 // Signed URL, no session. Gmail POSTs here directly when a user clicks
 // its built-in "Unsubscribe" link on a message that carries our
-// List-Unsubscribe / List-Unsubscribe-Post headers. GET is supported
-// so the same link works when a human clicks it in the message body.
+// List-Unsubscribe / List-Unsubscribe-Post headers. GET shows a confirm
+// page so a prefetch cannot mute anyone. POST performs the unsubscribe.
 Route::match(['GET', 'POST'], '/email/unsubscribe/{user}', [EmailUnsubscribeController::class, 'handle'])
     ->middleware('signed')
     ->name('email.unsubscribe')
@@ -274,6 +274,7 @@ Route::post('/registrations/{registration}/confirm-old-site-payment', [Registrat
     ->middleware('signed')
     ->name('registrations.confirm-old-site-payment.apply');
 Route::get('/registrations/{registration}/confirm-old-site-payment/done', [RegistrationController::class, 'oldSitePaymentConfirmationDone'])
+    ->middleware('signed')
     ->name('registrations.confirm-old-site-payment.done');
 
 // ── Auth (guest only) ──
@@ -332,7 +333,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 // not the developer.
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('role:developer')->group(function (): void {
-        Route::get('/impersonate/{user}', [ImpersonationController::class, 'start'])
+        Route::post('/impersonate/{user}', [ImpersonationController::class, 'start'])
             ->name('impersonate.start');
     });
     Route::get('/impersonate-stop', [ImpersonationController::class, 'stop'])
@@ -387,8 +388,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/events/{match}/register', [MatchController::class, 'storeRegistration'])->name('events.register.store');
     // Sponsor search: look up another member by name or SAPRF number to enter
     // or pay for them on this match. Auth-only; no PII beyond name/number.
-    Route::get('/events/{match}/members/search', [MemberSearchController::class, 'search'])->name('events.members.search');
-    Route::middleware(['role:developer|exco|owner|admin|chair|iprf_selector|provincial_admin'])
+    Route::get('/events/{match}/members/search', [MemberSearchController::class, 'search'])
+        ->middleware('throttle:30,1')
+        ->name('events.members.search');
+    Route::middleware(['role:developer|exco|owner|admin|chair|iprf_selector|provincial_admin', 'throttle:30,1'])
         ->get('/members/search', [MemberLookupController::class, 'search'])
         ->name('members.search');
 
@@ -949,10 +952,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::put('/mail', [MailSettingsController::class, 'update'])->name('mail.update');
         Route::post('/mail/test', [MailSettingsController::class, 'test'])->name('mail.test');
 
-        Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
-        Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
-        Route::get('/backups/download/{disk}/{path}', [BackupController::class, 'download'])
-            ->where('path', '.*')->name('backups.download');
+        Route::middleware('role:developer')->group(function (): void {
+            Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+            Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
+            Route::get('/backups/download/{disk}/{path}', [BackupController::class, 'download'])
+                ->where('path', '.*')->name('backups.download');
+        });
     });
 
     // Shooter-facing IPRF dashboard. Any authenticated + verified member can

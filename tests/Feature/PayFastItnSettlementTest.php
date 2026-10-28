@@ -210,3 +210,76 @@ it('uses stored membership gateway fees instead of the card-rate estimate', func
     expect($summary['membership_revenue']['gateway_fees'])->toBe(11.00)
         ->and($summary['membership_revenue']['net_to_saprf'])->toBe(489.00);
 });
+
+it('rejects a signed ITN whose amount does not match the pending payment', function () {
+    $payment = Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => MatchRegistration::create([
+            'match_id' => $this->match->id,
+            'user_id' => $this->member->id,
+            'shooter_name' => $this->member->name,
+            'email' => $this->member->email,
+            'membership_fee_category' => 'active_member',
+            'fee_amount' => 1100.00,
+            'surcharge_amount' => 0,
+            'saprf_fee' => 50.00,
+            'platform_fee' => 0,
+            'gateway_fee' => 0,
+            'md_net_amount' => 1050.00,
+            'payment_status' => 'unpaid',
+            'registration_status' => 'pending',
+            'registered_at' => now(),
+        ])->id,
+        'user_id' => $this->member->id,
+        'amount' => 1100.00,
+        'm_payment_id' => 'REG-AMOUNT-MISMATCH',
+        'status' => 'pending',
+    ]);
+
+    postItn([
+        'm_payment_id' => $payment->m_payment_id,
+        'pf_payment_id' => '1089299',
+        'payment_status' => 'COMPLETE',
+        'item_name' => 'Match Registration',
+        'amount_gross' => '1.00',
+        'merchant_id' => config('payfast.merchant_id'),
+    ])->assertStatus(400);
+
+    expect($payment->fresh()->status)->toBe('pending');
+});
+
+it('does not accept an unsigned ITN just because sandbox mode is on outside local', function () {
+    config(['payfast.sandbox' => true]);
+
+    $payment = Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => MatchRegistration::create([
+            'match_id' => $this->match->id,
+            'user_id' => $this->member->id,
+            'shooter_name' => $this->member->name,
+            'email' => $this->member->email,
+            'membership_fee_category' => 'active_member',
+            'fee_amount' => 1100.00,
+            'surcharge_amount' => 0,
+            'saprf_fee' => 0,
+            'platform_fee' => 0,
+            'gateway_fee' => 0,
+            'md_net_amount' => 1100.00,
+            'payment_status' => 'unpaid',
+            'registration_status' => 'pending',
+            'registered_at' => now(),
+        ])->id,
+        'user_id' => $this->member->id,
+        'amount' => 1100.00,
+        'm_payment_id' => 'REG-UNSIGNED',
+        'status' => 'pending',
+    ]);
+
+    $this->post(route('payments.notify'), [
+        'm_payment_id' => $payment->m_payment_id,
+        'payment_status' => 'COMPLETE',
+        'amount_gross' => '1100.00',
+    ])->assertStatus(400);
+
+    expect($payment->fresh()->status)->toBe('pending');
+});

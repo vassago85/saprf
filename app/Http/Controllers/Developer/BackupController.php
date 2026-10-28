@@ -72,13 +72,14 @@ class BackupController extends Controller
                 ->with('success', 'Backup queued. It will appear below once the queue worker processes it.');
         } catch (\Throwable $e) {
             return redirect()->route('developer.backups.index')
-                ->with('error', 'Failed to queue backup: ' . $e->getMessage());
+                ->with('error', 'Failed to queue backup: '.$e->getMessage());
         }
     }
 
     public function download(string $disk, string $path): StreamedResponse
     {
         abort_unless(in_array($disk, (array) config('backup.backup.destination.disks', ['local']), true), 404);
+        abort_unless($this->pathIsBackupArchive($path), 404);
 
         $storage = Storage::disk($disk);
         abort_unless($storage->exists($path), 404);
@@ -86,5 +87,27 @@ class BackupController extends Controller
         $filename = basename($path);
 
         return $storage->download($path, $filename);
+    }
+
+    /**
+     * Only objects that live under the configured backup name. Rejects
+     * absolute paths and `..` so a staff session cannot read the rest of
+     * the disk.
+     */
+    private function pathIsBackupArchive(string $path): bool
+    {
+        $normalized = str_replace('\\', '/', $path);
+
+        if ($normalized === '' || str_contains($normalized, '..') || str_starts_with($normalized, '/')) {
+            return false;
+        }
+
+        $backupName = trim(str_replace('\\', '/', (string) config('backup.backup.name')), '/');
+
+        if ($backupName === '') {
+            return false;
+        }
+
+        return str_starts_with($normalized, $backupName.'/');
     }
 }

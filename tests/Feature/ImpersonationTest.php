@@ -2,9 +2,23 @@
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\AuditLogService;
 
 beforeEach(function () {
     seedRoles();
+});
+
+it('does not start impersonation from a GET', function () {
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+    $target = User::factory()->create();
+    $target->assignRole('member');
+
+    $this->actingAs($developer)
+        ->get(route('impersonate.start', $target))
+        ->assertMethodNotAllowed();
+
+    expect(auth()->id())->toBe($developer->id);
 });
 
 it('lets a developer impersonate another member and logs it', function () {
@@ -15,7 +29,7 @@ it('lets a developer impersonate another member and logs it', function () {
     $target->assignRole('member');
 
     $this->actingAs($developer)
-        ->get(route('impersonate.start', $target))
+        ->post(route('impersonate.start', $target))
         ->assertRedirect(route('dashboard'))
         ->assertSessionHas('impersonator_id', $developer->id)
         ->assertSessionHas('impersonator_name', 'Dev Dana');
@@ -42,7 +56,7 @@ it('lets an impersonated session hit /impersonate-stop and returns to the develo
     $developer->assignRole('developer');
     $target = User::factory()->create(['name' => 'Target Tanya']);
 
-    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $this->actingAs($developer)->post(route('impersonate.start', $target));
     // We're now the target.
     expect(auth()->id())->toBe($target->id);
 
@@ -74,7 +88,7 @@ it('blocks non-developers from starting impersonation via the middleware', funct
         $actor->assignRole($role);
         $target = User::factory()->create();
 
-        $response = $this->actingAs($actor)->get(route('impersonate.start', $target));
+        $response = $this->actingAs($actor)->post(route('impersonate.start', $target));
 
         // Spatie's role middleware aborts 403 rather than redirecting.
         $response->assertForbidden();
@@ -87,7 +101,7 @@ it('refuses self-impersonation with a flash error rather than switching', functi
     $developer->assignRole('developer');
 
     $this->actingAs($developer)
-        ->get(route('impersonate.start', $developer))
+        ->post(route('impersonate.start', $developer))
         ->assertRedirect(route('dashboard'))
         ->assertSessionHas('error')
         ->assertSessionMissing('impersonator_id');
@@ -113,14 +127,14 @@ it('re-attributes writes made during impersonation to the developer', function (
     $target = User::factory()->create(['name' => 'Target Tim']);
     $target->assignRole('member');
 
-    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $this->actingAs($developer)->post(route('impersonate.start', $target));
     expect(auth()->id())->toBe($target->id);
 
     // Controllers pass $request->user() — during impersonation that is
     // the TARGET. The service must rewrite user_id to the developer and
     // stamp impersonated_user_id so the audit log never pretends Tim
     // made the change.
-    $log = app(\App\Services\AuditLogService::class)->log(
+    $log = app(AuditLogService::class)->log(
         $target,
         'profile.updated',
         'User',
@@ -141,7 +155,7 @@ it('does not rewrite start/stop rows as impersonated writes', function () {
     $developer->assignRole('developer');
     $target = User::factory()->create(['name' => 'Target Tim']);
 
-    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $this->actingAs($developer)->post(route('impersonate.start', $target));
 
     $started = AuditLog::query()->where('action_type', 'impersonation.started')->latest('id')->first();
     expect($started->user_id)->toBe($developer->id);
@@ -161,7 +175,7 @@ it('hides impersonation start/stop from the shared audit log that admin and ExCo
     $admin = User::factory()->create(['name' => 'Admin Amy', 'email_verified_at' => now()]);
     $admin->assignRole('admin');
 
-    $this->actingAs($developer)->get(route('impersonate.start', $target));
+    $this->actingAs($developer)->post(route('impersonate.start', $target));
     $this->get(route('impersonate.stop'));
 
     $started = AuditLog::query()->where('action_type', 'impersonation.started')->latest('id')->first();
@@ -196,8 +210,8 @@ it('does not show acting-as on the shared audit log for non-developers', functio
     $admin = User::factory()->create(['name' => 'Admin Amy', 'email_verified_at' => now()]);
     $admin->assignRole('admin');
 
-    $this->actingAs($developer)->get(route('impersonate.start', $target));
-    $log = app(\App\Services\AuditLogService::class)->log(
+    $this->actingAs($developer)->post(route('impersonate.start', $target));
+    $log = app(AuditLogService::class)->log(
         $target,
         'profile.updated',
         'User',
@@ -250,7 +264,7 @@ it('leaves ordinary member writes untouched when no impersonation is active', fu
     $member = User::factory()->create();
     $member->assignRole('member');
 
-    $log = app(\App\Services\AuditLogService::class)->log(
+    $log = app(AuditLogService::class)->log(
         $member,
         'profile.updated',
         'User',
@@ -272,7 +286,7 @@ it('chains impersonations without stranding the developer as B when starting on 
     $b = User::factory()->create(['name' => 'Target B']);
     $c = User::factory()->create(['name' => 'Target C']);
 
-    $this->actingAs($developer)->get(route('impersonate.start', $b));
+    $this->actingAs($developer)->post(route('impersonate.start', $b));
     // At this point session('impersonator_id') = developer, auth = B.
 
     // Second impersonation from within B's session.
@@ -283,7 +297,7 @@ it('chains impersonations without stranding the developer as B when starting on 
     $this->get(route('impersonate.stop'));
     expect(auth()->id())->toBe($developer->id);
 
-    $this->get(route('impersonate.start', $c));
+    $this->post(route('impersonate.start', $c));
     expect(auth()->id())->toBe($c->id);
     expect(session('impersonator_id'))->toBe($developer->id);
 
