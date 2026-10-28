@@ -1,33 +1,32 @@
 @php
     $availableDivisionsForAdd = $match->availableDivisions();
 @endphp
-<div class="rounded-xl border border-emerald-200 bg-emerald-50/40 shadow-sm p-6"
+<div class="rounded-xl border border-stone-200 bg-white p-5"
      id="add-shooter"
      x-data="adminAddShooter({
         searchUrl: '{{ route('events.members.search', $match) }}',
      })"
      x-init="init()">
-    <div class="flex items-start justify-between gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-2">
         <div>
-            <h2 class="text-lg font-semibold text-stone-900">Add a Shooter</h2>
-            <p class="mt-1 text-sm text-stone-600">
-                Book a shooter into this match manually — for entries paid off-platform
-                (cash, EFT, comp'd). Confirmed and marked paid on save; no PayFast charge.
+            <h3 class="text-sm font-semibold text-stone-900">Add a shooter</h3>
+            <p class="mt-0.5 text-xs text-stone-500">
+                Book a shooter in manually — cash, EFT, comp'd. Confirmed and marked paid on save; no PayFast charge.
             </p>
         </div>
-        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-300">
+        <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">
             MD / Admin
         </span>
     </div>
 
     @if($selfEntry)
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-white px-3 py-2.5">
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5">
             <p class="text-sm text-stone-700">You're entered in this match{{ $selfEntry->division ? ' ('.$selfEntry->division->name.')' : '' }}.</p>
             <a href="{{ route('registrations.show', $selfEntry) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">View my entry →</a>
         </div>
     @elseif($availableDivisionsForAdd->isNotEmpty())
         <form method="POST" action="{{ route('matches.entries.store', $match) }}"
-              class="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-white px-3 py-2.5">
+              class="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5">
             @csrf
             <input type="hidden" name="user_id" value="{{ auth()->id() }}">
             <p class="text-sm font-medium text-stone-800">Shooting this match yourself?</p>
@@ -85,7 +84,7 @@
        class="mt-3 text-xs text-stone-500">No matching members found.</p>
 
     {{-- Escape hatch: shooter isn't on the platform yet. --}}
-    <div class="mt-3 pt-3 border-t border-emerald-100"
+    <div class="mt-3 pt-3 border-t border-stone-100"
          x-show="!selected && !showNewShooter" x-cloak>
         <button type="button"
                 @click="startNewShooter()"
@@ -119,7 +118,7 @@
             </template>
 
             <template x-if="showNewShooter">
-                <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-3">
+                <div class="rounded-lg border border-stone-200 bg-stone-50 p-3 space-y-3">
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm font-semibold text-stone-900">Adding a new shooter</p>
                         <button type="button" @click="clear()"

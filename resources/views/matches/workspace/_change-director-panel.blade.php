@@ -9,21 +9,21 @@
     which produced the "shows SAPRF Developer while MD is Hendrie Brink"
     confusion whenever the creating account differed from the actual MD.
 --}}
-<div class="rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm p-6"
+<div class="rounded-xl border border-stone-200 bg-white p-5"
      id="change-director"
      x-data="changeDirectorPanel({
         searchUrl: '{{ route('matches.directors.search') }}',
         currentDirectorId: {{ (int) $match->created_by }},
      })">
-    <div class="flex items-start justify-between gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-2">
         <div>
-            <h2 class="text-lg font-semibold text-stone-900">Change Director</h2>
-            <p class="mt-1 text-xs text-stone-600">
+            <h3 class="text-sm font-semibold text-stone-900">Change director</h3>
+            <p class="mt-0.5 text-xs text-stone-500">
                 Transfers ownership of this match. The new director gains
                 management rights and receives future MD payouts.
             </p>
         </div>
-        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-300">
+        <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">
             EXCO
         </span>
     </div>
