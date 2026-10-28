@@ -1,14 +1,14 @@
 <x-layouts.app :title="$match->name . ' — Settings'">
     @include('matches.workspace._chrome')
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-3">
+    <div class="mt-6 grid gap-4 lg:grid-cols-3">
         {{-- Main settings column: edit form --}}
-        <div class="lg:col-span-2">
+        <div class="space-y-4 lg:col-span-2">
             @include('matches.workspace._settings-form')
         </div>
 
-        {{-- Sidebar: add shooter + change director + MD payout link --}}
-        <div class="space-y-6">
+        {{-- Sidebar: add shooter + change director + match tools --}}
+        <div class="space-y-4">
             @can('update', $match)
                 @include('matches.workspace._add-shooter-panel')
             @endcan

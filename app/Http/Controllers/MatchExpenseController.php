@@ -28,7 +28,7 @@ class MatchExpenseController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('matches.show', $match)
+        return redirect()->route('matches.finances', $match)
             ->with('success', 'Expense added.');
     }
 
@@ -48,7 +48,7 @@ class MatchExpenseController extends Controller
         $validated['cost_type'] ??= 'fixed';
         $expense->update($validated);
 
-        return redirect()->route('matches.show', $match)
+        return redirect()->route('matches.finances', $match)
             ->with('success', 'Expense updated.');
     }
 
@@ -59,7 +59,7 @@ class MatchExpenseController extends Controller
 
         $expense->delete();
 
-        return redirect()->route('matches.show', $match)
+        return redirect()->route('matches.finances', $match)
             ->with('success', 'Expense removed.');
     }
 

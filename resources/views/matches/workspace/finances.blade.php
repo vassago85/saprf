@@ -1,6 +1,21 @@
 <x-layouts.app :title="$match->name . ' — Finances'">
     @include('matches.workspace._chrome')
 
+    @php
+        $registeredShooters = (int) ($counts['counted'] ?? 0);
+        $registeredRows = $match->registrations->where('registration_status', '!=', 'cancelled');
+        $registeredFees = round((float) $registeredRows->sum('fee_amount'), 2);
+        $registeredSaprf = round((float) $registeredRows->sum('saprf_fee'), 2);
+        $registeredPlatform = round((float) $registeredRows->sum('platform_fee'), 2);
+        $registeredGateway = round((float) $registeredRows->sum('gateway_fee'), 2);
+        $registeredSurcharges = round((float) $registeredRows->sum('surcharge_amount'), 2);
+        $registeredNet = round((float) $registeredRows->sum('md_net_amount'), 2);
+        $actualMatchCosts = $viewerIsMatchDirector
+            ? round((float) $expenses->sum(fn ($expense) => $expense->effectiveAmount($registeredShooters)), 2)
+            : 0.0;
+        $profitAfterCosts = round($registeredNet - $actualMatchCosts, 2);
+    @endphp
+
     <div class="mt-6 space-y-4">
         <div class="grid gap-4 lg:grid-cols-3">
             {{-- Payout ledger --}}
@@ -107,48 +122,19 @@
                 @endif
             </div>
 
-            {{-- Expenses + P&L (MD only) --}}
-            @if($viewerIsMatchDirector)
-                <div class="rounded-xl border border-stone-200 bg-white p-5">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h3 class="text-sm font-semibold text-stone-900">Match expenses</h3>
-                        <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">
-                            Only you see this
-                        </span>
-                    </div>
-                    @if($expenses->isEmpty())
-                        <div class="mt-4 rounded-lg border border-dashed border-stone-200 px-4 py-6 text-center text-sm text-stone-500">
-                            No expenses recorded yet.
-                            <div class="mt-3">
-                                <a href="{{ route('matches.settings', $match) }}#expenses" wire:navigate
-                                   class="inline-flex items-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
-                                    Add expense
-                                </a>
-                            </div>
-                        </div>
-                    @else
-                        <ul class="mt-3 divide-y divide-stone-100 text-sm">
-                            @foreach($expenses as $exp)
-                                <li class="flex items-center justify-between gap-3 py-2">
-                                    <span class="min-w-0 flex-1 truncate text-stone-700">{{ $exp->description }}</span>
-                                    <span class="shrink-0 tabular-nums text-stone-900">R {{ number_format($exp->effectiveAmount($counts['paid']), 2) }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-                    <table class="mt-4 w-full text-sm">
-                        <tbody>
-                            <tr class="border-t-2 border-stone-900">
-                                <td class="pt-3 text-base font-semibold text-stone-900">Estimated profit</td>
-                                <td class="pt-3 text-right text-base font-bold tabular-nums text-stone-900">
-                                    R {{ number_format((float) $money['profit_loss'], 2) }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            @endif
         </div>
+
+        {{-- Full expense editor (add / edit / delete). MD-only; replaces
+             the read-only list that used to live inside the payout card
+             and the dead "Add expense" link that pointed back at the
+             settings tab. --}}
+        @if($viewerIsMatchDirector)
+            @include('matches.workspace._match-expenses')
+        @endif
+
+        @can('update', $match)
+            @include('matches._cost-estimator', ['standalone' => true])
+        @endcan
 
         {{-- Per-entry breakdown --}}
         @php
