@@ -543,6 +543,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::post('/registrations/{registration}/withdraw', [RegistrationController::class, 'withdraw'])->name('registrations.withdraw');
     Route::put('/registrations/{registration}/shooter-name', [RegistrationController::class, 'updateShooterName'])->name('registrations.update-shooter-name');
+    Route::put('/registrations/{registration}/member', [RegistrationController::class, 'moveToMember'])->name('registrations.move-member');
     Route::put('/registrations/{registration}/division', [RegistrationController::class, 'updateDivision'])->name('registrations.update-division');
     Route::put('/registrations/{registration}/rifle', [RegistrationController::class, 'updateRifle'])->name('registrations.update-rifle');
     Route::put('/registrations/{registration}/shots', [RegistrationController::class, 'updateShotCount'])->name('registrations.update-shots');

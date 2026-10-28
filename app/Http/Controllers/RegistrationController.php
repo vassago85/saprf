@@ -7,6 +7,8 @@ use App\Models\AccountCredit;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
+use App\Models\Score;
+use App\Models\User;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
 use App\Policies\RegistrationPolicy;
@@ -343,6 +345,111 @@ class RegistrationController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Point an entry at a different member account. The label on the row
+     * (shooter_name) can already be edited on its own, which leaves the
+     * entry on whoever paid or typed the name. This moves the account the
+     * dashboard and profile read, and leaves the fee and the payment on
+     * the person who actually paid.
+     */
+    public function moveToMember(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $target = User::query()->findOrFail($validated['user_id']);
+        $registration->loadMissing(['rifleConfiguration', 'match']);
+
+        if ((int) $target->id === (int) $registration->user_id) {
+            return back()->with('info', $target->name.' already holds this entry.');
+        }
+
+        if (! $target->is_active) {
+            return back()->withErrors([
+                'user_id' => 'That member is inactive and cannot hold this entry.',
+            ]);
+        }
+
+        if ($target->is_managed_account) {
+            return back()->withErrors([
+                'user_id' => 'Managed family accounts stay with their parent. Choose the member\'s own login.',
+            ]);
+        }
+
+        $existing = $registration->match?->userRegistration($target);
+        if ($existing && (int) $existing->id !== (int) $registration->id) {
+            return back()->withErrors([
+                'user_id' => $target->name.' is already entered on this match.',
+            ]);
+        }
+
+        $targetAlreadyScored = Score::query()
+            ->where('match_id', $registration->match_id)
+            ->where('user_id', $target->id)
+            ->exists();
+        if ($targetAlreadyScored) {
+            return back()->withErrors([
+                'user_id' => $target->name.' already has a score on this match.',
+            ]);
+        }
+
+        $previous = $registration->user;
+        $old = $registration->only([
+            'user_id',
+            'shooter_name',
+            'email',
+            'phone',
+            'registered_by_user_id',
+            'rifle_configuration_id',
+        ]);
+
+        DB::transaction(function () use ($registration, $target, $previous): void {
+            $rifleStays = $registration->rifleConfiguration
+                && (int) $registration->rifleConfiguration->user_id === (int) $target->id;
+
+            $registration->update([
+                'user_id' => $target->id,
+                'shooter_name' => $target->name,
+                'email' => $target->email,
+                'phone' => $target->phone,
+                'registered_by_user_id' => $registration->registered_by_user_id ?: $previous?->id,
+                'rifle_configuration_id' => $rifleStays ? $registration->rifle_configuration_id : null,
+            ]);
+
+            if ($previous) {
+                Score::query()
+                    ->where('match_id', $registration->match_id)
+                    ->where('user_id', $previous->id)
+                    ->update([
+                        'user_id' => $target->id,
+                        'shooter_name' => $target->name,
+                    ]);
+            }
+        });
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.member.moved',
+            'MatchRegistration',
+            $registration->id,
+            $old,
+            $registration->only([
+                'user_id',
+                'shooter_name',
+                'email',
+                'phone',
+                'registered_by_user_id',
+                'rifle_configuration_id',
+            ]),
+        );
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', 'Entry moved to '.$target->name.'. The fee and the payment stay as they were.');
     }
 
     public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse

@@ -31,15 +31,25 @@
                     @class(['sm:col-span-2'])
                 >
                     <dt class="text-xs font-semibold uppercase tracking-wide text-stone-400">Shooter</dt>
-                    <dd class="mt-1 flex flex-wrap items-center gap-2" x-show="!editing">
-                        <span class="text-sm text-stone-900">{{ $displayName }}</span>
-                        @if($canEditShooterName)
-                            <button type="button"
-                                    @click="editing = true"
-                                    class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
-                                    title="Fix a mis-typed walk-in or Impact-imported name">
-                                Edit name
-                            </button>
+                    <dd class="mt-1" x-show="!editing">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-stone-900">{{ $displayName }}</span>
+                            @if($canEditShooterName)
+                                <button type="button"
+                                        @click="editing = true"
+                                        class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                                        title="Changes the label only. Use Move this entry to put the match on another member's profile.">
+                                    Edit name
+                                </button>
+                            @endif
+                        </div>
+                        @if($registration->user)
+                            <p class="mt-1 text-xs text-stone-500">
+                                Account: {{ $registration->user->name }}
+                                @if($registration->user->email)
+                                    · {{ $registration->user->email }}
+                                @endif
+                            </p>
                         @endif
                     </dd>
                     @if($canEditShooterName)
@@ -164,6 +174,109 @@
                 </div>
             </dl>
         </div>
+
+        @can('update', $registration)
+            @if($registration->match && $registration->registration_status !== 'cancelled')
+                <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+                     x-data="{
+                        query: '',
+                        results: [],
+                        loading: false,
+                        searched: false,
+                        selected: null,
+                        searchUrl: @js(route('events.members.search', $registration->match)),
+                        currentUserId: @js((int) $registration->user_id),
+                        search() {
+                            this.selected = null;
+                            const term = this.query.trim();
+                            if (term.length < 2) {
+                                this.results = [];
+                                this.searched = false;
+                                return;
+                            }
+                            this.loading = true;
+                            fetch(this.searchUrl + '?q=' + encodeURIComponent(term), {
+                                headers: { 'Accept': 'application/json' },
+                                credentials: 'same-origin',
+                            })
+                                .then((response) => response.ok ? response.json() : Promise.reject())
+                                .then((data) => {
+                                    const rows = data.results || [];
+                                    this.results = rows.filter((member) => member.id !== this.currentUserId);
+                                })
+                                .catch(() => { this.results = []; })
+                                .finally(() => {
+                                    this.loading = false;
+                                    this.searched = true;
+                                });
+                        },
+                        choose(member) {
+                            this.selected = member;
+                            this.results = [];
+                            this.query = member.saprf_number ? member.name + ' (' + member.saprf_number + ')' : member.name;
+                        },
+                     }">
+                    <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">Move this entry</h2>
+                    <p class="text-sm text-stone-600 mb-4">
+                        This entry sits on <strong>{{ $registration->user?->name ?? 'no account' }}</strong>@if($registration->user && $registration->shooter_name && strcasecmp((string) $registration->shooter_name, (string) $registration->user->name) !== 0), even though the label says {{ $registration->shooter_name }}@endif.
+                        Search for the member who should open it from their own profile. The fee stays
+                        <strong>R {{ number_format((float) $registration->fee_amount, 2) }}</strong>
+                        and the payment stays with whoever paid.
+                    </p>
+                    <form method="POST"
+                          action="{{ route('registrations.move-member', $registration) }}"
+                          class="space-y-3"
+                          @submit="if (!selected || !confirm('Move this entry to ' + selected.name + '? The fee and the payment stay as they are.')) { $event.preventDefault() }">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="user_id" :value="selected ? selected.id : ''">
+                        <div>
+                            <label for="move_member_query" class="block text-sm font-medium text-stone-700 mb-1">Member</label>
+                            <input type="text"
+                                   id="move_member_query"
+                                   x-model="query"
+                                   @input.debounce.300ms="search()"
+                                   autocomplete="off"
+                                   placeholder="Name or SAPRF number"
+                                   class="w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                        <div x-show="results.length > 0" x-cloak class="space-y-2">
+                            <template x-for="member in results" :key="member.id">
+                                <div class="flex items-center justify-between gap-2 rounded-lg border border-stone-200 px-3 py-2">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-stone-900" x-text="member.saprf_number ? member.name + ' (' + member.saprf_number + ')' : member.name"></p>
+                                        <p class="text-xs text-stone-500" x-show="member.province" x-text="member.province"></p>
+                                    </div>
+                                    <template x-if="member.entry_state === 'paid' || member.entry_state === 'unpaid'">
+                                        <span class="shrink-0 text-xs font-semibold text-stone-500">Already entered</span>
+                                    </template>
+                                    <template x-if="member.entry_state !== 'paid' && member.entry_state !== 'unpaid'">
+                                        <button type="button"
+                                                @click="choose(member)"
+                                                class="shrink-0 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800">
+                                            Select
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                        <p x-show="searched && !loading && query.trim().length >= 2 && results.length === 0" x-cloak class="text-xs text-stone-500">No other member matches that search.</p>
+                        <p x-show="selected" x-cloak class="text-sm text-stone-700">
+                            Selected: <span class="font-semibold" x-text="selected ? selected.name : ''"></span>
+                            <button type="button" @click="selected = null; query = ''" class="ml-2 text-xs font-semibold text-stone-500 underline">Clear</button>
+                        </p>
+                        @error('user_id')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                        <button type="submit"
+                                :disabled="!selected"
+                                class="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40">
+                            Move this entry
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
 
         @if($registration->canAccessWhatsappInvite())
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
