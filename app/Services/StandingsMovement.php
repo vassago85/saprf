@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\StandingsSnapshot;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,6 +30,14 @@ class StandingsMovement
     ): array {
         if ($userIds === []) {
             return [];
+        }
+
+        // The all-provinces board re-ranks every province into one table.
+        // Snapshots are stored per province (each province's own 1st, 2nd,
+        // 3rd), so a province_id IS NULL lookup finds nothing and the
+        // column stays blank. Rebuild the combined places from points.
+        if ($level === 'provincial' && $provinceId === null) {
+            return $this->acrossProvinces($userIds, $season, $series, $divisionId);
         }
 
         $base = StandingsSnapshot::query()
@@ -107,5 +116,99 @@ class StandingsMovement
         }
 
         return $out;
+    }
+
+    /**
+     * Movement on the combined provincial table (Province = All).
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, int|null>
+     */
+    private function acrossProvinces(array $userIds, string $season, string $series, ?int $divisionId): array
+    {
+        $divisionSql = $divisionId !== null ? 'AND division_id = ?' : 'AND division_id IS NULL';
+        $bindings = [$season, $series, 'provincial'];
+        if ($divisionId !== null) {
+            $bindings[] = $divisionId;
+        }
+
+        $times = DB::select(
+            'SELECT DISTINCT taken_at FROM standings_snapshots
+             WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL '.$divisionSql.'
+             ORDER BY taken_at DESC
+             LIMIT 2',
+            $bindings,
+        );
+
+        $blank = array_fill_keys($userIds, null);
+        if (count($times) < 2) {
+            return $blank;
+        }
+
+        $currentAt = Carbon::parse($times[0]->taken_at)->format('Y-m-d H:i:s');
+        $previousAt = Carbon::parse($times[1]->taken_at)->format('Y-m-d H:i:s');
+
+        $rows = DB::select(
+            'SELECT user_id, points, taken_at FROM standings_snapshots
+             WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL '.$divisionSql.'
+             AND taken_at IN (?, ?)',
+            array_merge($bindings, [$currentAt, $previousAt]),
+        );
+
+        $current = [];
+        $previous = [];
+        foreach ($rows as $row) {
+            $bucket = Carbon::parse($row->taken_at)->format('Y-m-d H:i:s') === $currentAt ? 'current' : 'previous';
+            if ($bucket === 'current') {
+                $current[(int) $row->user_id] = (float) $row->points;
+            } else {
+                $previous[(int) $row->user_id] = (float) $row->points;
+            }
+        }
+
+        $currentRanks = $this->ranksFromPoints($current);
+        $previousRanks = $this->ranksFromPoints($previous);
+
+        $out = $blank;
+        foreach ($userIds as $uid) {
+            if (! isset($currentRanks[$uid], $previousRanks[$uid])) {
+                continue;
+            }
+            $out[$uid] = $previousRanks[$uid] - $currentRanks[$uid];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Competition rank from points, matching the public table: equal points
+     * to 1 decimal share a place and the next place is skipped.
+     *
+     * @param  array<int, float>  $pointsByUser
+     * @return array<int, int>
+     */
+    private function ranksFromPoints(array $pointsByUser): array
+    {
+        $rows = [];
+        foreach ($pointsByUser as $userId => $points) {
+            $rows[] = ['user_id' => (int) $userId, 'tenths' => (int) round($points * 10)];
+        }
+
+        usort($rows, function (array $a, array $b): int {
+            return [$b['tenths'], $a['user_id']] <=> [$a['tenths'], $b['user_id']];
+        });
+
+        $ranks = [];
+        $rank = 0;
+        $previous = null;
+        foreach (array_values($rows) as $index => $row) {
+            if ($previous === null || $row['tenths'] !== $previous) {
+                $rank = $index + 1;
+                $previous = $row['tenths'];
+            }
+            $ranks[$row['user_id']] = $rank;
+        }
+
+        return $ranks;
     }
 }

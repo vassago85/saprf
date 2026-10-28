@@ -2,6 +2,7 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\Standing;
@@ -257,6 +258,71 @@ it('records a new PRS snapshot when a finalised match is rebuilt so the next upd
 
     $this->get('/standings/prs?season=2026')
         ->assertOk()
+        ->assertSee('▲1')
+        ->assertSee('▼1');
+});
+
+it('shows place arrows on the all-provinces board', function () {
+    $gp = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    $wc = Province::firstOrCreate(['name' => 'Western Cape'], ['abbreviation' => 'WC']);
+    $riser = User::factory()->create(['name' => 'Blair Provincial Riser']);
+    $faller = User::factory()->create(['name' => 'Alex Provincial Faller']);
+
+    Standing::create([
+        'user_id' => $riser->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $gp->id,
+        'division_id' => null,
+        'points' => 120,
+        'rank' => 1,
+    ]);
+    Standing::create([
+        'user_id' => $faller->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $wc->id,
+        'division_id' => null,
+        'points' => 100,
+        'rank' => 1,
+    ]);
+
+    // Stored rank is each province's own place (both 1st at home). The
+    // all-provinces board has to rebuild the combined order from points.
+    foreach ([
+        [$riser, $gp, 80.0, now()->subDay()],
+        [$faller, $wc, 100.0, now()->subDay()],
+        [$riser, $gp, 120.0, now()],
+        [$faller, $wc, 100.0, now()],
+    ] as [$shooter, $province, $points, $at]) {
+        StandingsSnapshot::create([
+            'season' => '2026',
+            'series' => 'PRS',
+            'level' => 'provincial',
+            'province_id' => $province->id,
+            'division_id' => null,
+            'user_id' => $shooter->id,
+            'rank' => 1,
+            'points' => $points,
+            'taken_at' => $at,
+        ]);
+    }
+
+    $move = app(StandingsMovement::class)->for(
+        [$riser->id, $faller->id],
+        '2026',
+        'PRS',
+        'provincial',
+        null,
+        null,
+    );
+
+    expect($move[$riser->id])->toBe(1)
+        ->and($move[$faller->id])->toBe(-1);
+
+    $this->get('/standings/prs?season=2026&level=provincial')
+        ->assertOk()
+        ->assertSee('Blair Provincial Riser')
         ->assertSee('▲1')
         ->assertSee('▼1');
 });
