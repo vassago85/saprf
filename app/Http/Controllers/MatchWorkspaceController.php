@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AnnouncementCategory;
+use App\Jobs\NotifyScoresFinalizedJob;
 use App\Models\Announcement;
 use App\Models\AuditLog;
-use App\Jobs\NotifyScoresFinalizedJob;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
@@ -14,6 +14,7 @@ use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\Venue;
 use App\Services\FinancialService;
+use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\MatchFinanceService;
 use App\Services\PaymentInquiryService;
 use App\Services\SettingsService;
@@ -229,6 +230,8 @@ class MatchWorkspaceController extends Controller
             'scores_finalized_by' => $request->user()->id,
         ])->save();
 
+        app(ImpactLiveSyncService::class)->setConfirmed($match->fresh(), true);
+
         // Snapshot the current standings for every shooter in this series/
         // season so the public standings page can draw movement arrows
         // (▲n/▼n) against the previous finalisation. Deliberately BEFORE
@@ -263,6 +266,8 @@ class MatchWorkspaceController extends Controller
             'scores_finalized_at' => null,
             'scores_finalized_by' => null,
         ])->save();
+
+        app(ImpactLiveSyncService::class)->setConfirmed($match->fresh(), false);
 
         return redirect()
             ->route('matches.scores', $match)

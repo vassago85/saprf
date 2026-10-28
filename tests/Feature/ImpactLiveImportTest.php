@@ -9,8 +9,11 @@ use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\User;
 use App\Notifications\ImpactImportCollectionReportNotification;
+use App\Services\ImpactScoring\ImpactLiveImportService;
 use App\Services\ImpactScoring\ImpactScoringClient;
+use App\Services\ImpactScoring\ImpactStageDays;
 use Carbon\Carbon;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 
@@ -113,7 +116,7 @@ function fakeImpactApi(?array $live = null): void
 {
     $live ??= impactLivePayload();
 
-    Http::fake(function (\Illuminate\Http\Client\Request $request) use ($live) {
+    Http::fake(function (Request $request) use ($live) {
         $url = $request->url();
         if (str_contains($url, '/rest/website/getLiveScoresForShooter')) {
             return Http::response([
@@ -189,7 +192,36 @@ it('parses an Impact results URL into a match id', function () {
     $client = app(ImpactScoringClient::class);
 
     expect($client->parseMatchId('https://www.impactscoring.net/match/results?id=11086'))->toBe(11086)
+        ->and($client->parseMatchId('https://www.impactscoring.net/match/view?id=10558'))->toBe(10558)
+        ->and($client->parseMatchId('https://www.impactscoring.net/match/view/?id=10558'))->toBe(10558)
+        ->and($client->parseMatchId('http://impactscoring.net/match/view?id=10558&tab=scores'))->toBe(10558)
+        ->and($client->parseMatchId('https://www.impactscoring.net/match/results/11086'))->toBe(11086)
+        ->and($client->parseMatchId('  10558  '))->toBe(10558)
         ->and($client->parseMatchId('11086'))->toBe(11086);
+});
+
+it('rejects an Impact link that is not the match itself', function (string $input) {
+    $client = app(ImpactScoringClient::class);
+
+    expect(fn () => $client->parseMatchId($input))->toThrow(RuntimeException::class);
+})->with([
+    'shooter page' => 'https://www.impactscoring.net/shooter/view?id=10558',
+    'stage page' => 'https://www.impactscoring.net/stage/view?id=10558',
+    'another site' => 'https://example.com/match/view?id=10558',
+    'empty' => '',
+    'words' => 'not-a-match',
+]);
+
+it('previews a match from the Impact match page url', function () {
+    fakeImpactApi();
+
+    $preview = app(ImpactLiveImportService::class)->preview(
+        $this->match,
+        'https://www.impactscoring.net/match/view?id=11086',
+    );
+
+    expect($preview['impact_match_id'])->toBe(11086)
+        ->and($preview['shooters'])->not->toBeEmpty();
 });
 
 it('previews Impact shooters and prefers registration divisions (Production→Factory fallback)', function () {
@@ -219,7 +251,7 @@ it('previews Impact shooters and prefers registration divisions (Production→Fa
         ->assertJsonPath('preview.summary.exact', 3)
         ->assertJsonPath('preview.summary.fuzzy', 1);
 
-    $preview = app(\App\Services\ImpactScoring\ImpactLiveImportService::class)
+    $preview = app(ImpactLiveImportService::class)
         ->preview($this->match, '11086');
 
     $byName = collect($preview['shooters'])->keyBy('impact_name');
@@ -320,6 +352,167 @@ it('builds a Day 1 provincial score from selected Impact stages on a 2-day natio
     expect($score)->not->toBeNull()
         ->and((float) $score->raw_score)->toBe(12.0)
         ->and($score->raw_meta['impact']['day1_stage_ids'])->toBe([28438]);
+});
+
+it('treats unlabelled Impact stages as day 1 when a later day is named', function () {
+    $days = ImpactStageDays::idsByDay([
+        ['id' => 28932, 'name' => 'stage 1 '],
+        ['id' => 28942, 'name' => 'stage 10'],
+        ['id' => 28943, 'name' => 'Day 2 Stage 1'],
+        ['id' => 28948, 'name' => 'Day 2 Stage 6'],
+    ]);
+
+    expect($days[1])->toBe([28932, 28942])
+        ->and($days[2])->toBe([28943, 28948]);
+});
+
+it('sums each Day 1 stage when the Impact day total is zero', function () {
+    Notification::fake();
+
+    $live = impactLivePayload();
+    $live['payload']['match']['name'] = 'Darling Steel Valley 2026';
+    $live['payload']['stages'] = [
+        ['id' => 1, 'name' => 'stage 1'],
+        ['id' => 2, 'name' => 'stage 2'],
+        ['id' => 3, 'name' => 'Day 2 Stage 1'],
+    ];
+    $live['payload']['shooters'] = [[
+        'id' => 1,
+        'name' => 'Kevin Goncalves',
+        'rank' => 1,
+        'points' => 0,
+        'divisionName' => 'Open',
+    ]];
+
+    Http::fake(function (Request $request) use ($live) {
+        $url = $request->url();
+        if (str_contains($url, '/rest/website/getLiveScoresForShooter')) {
+            return Http::response([
+                'errorCode' => 0,
+                'payload' => [
+                    'stages' => [
+                        ['id' => 1, 'name' => 'stage 1', 'points' => 600, 'misses' => 0, 'shotsProgressCount' => 8, 'maxShots' => 8, 'completed' => true],
+                        ['id' => 2, 'name' => 'stage 2', 'points' => 800, 'misses' => 0, 'shotsProgressCount' => 8, 'maxShots' => 8, 'completed' => true],
+                        ['id' => 3, 'name' => 'Day 2 Stage 1', 'points' => 1000, 'misses' => 0, 'shotsProgressCount' => 10, 'maxShots' => 10, 'completed' => true],
+                    ],
+                ],
+            ], 200);
+        }
+        if (str_contains($url, '/rest/website/getLiveScores')) {
+            return Http::response($live, 200);
+        }
+
+        return Http::response(['errorCode' => -1], 404);
+    });
+
+    $national = MatchEvent::create([
+        'name' => 'Darling Steel Valley PR22',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::yesterday()->subDay()->toDateString(),
+        'match_end_date' => Carbon::yesterday()->toDateString(),
+        'status' => 'published',
+        'published' => true,
+        'created_by' => $this->admin->id,
+        'active_member_fee' => 100,
+        'non_member_fee' => 150,
+        'lapsed_member_fee' => 120,
+    ]);
+
+    $kevin = impactMakeMember('Kevin Goncalves');
+    impactRegisterShooter($national, $kevin, $this->open);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $national->id,
+            'impact_ref' => '11188',
+            'score_scope' => 'day1',
+            'replace_existing' => 1,
+            'links' => [],
+            'score_overrides' => [
+                '1' => ['day1_impacts' => 0],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $sibling = $national->fresh()->provincialDay1Match;
+    $score = Score::where('match_id', $sibling->id)->where('user_id', $kevin->id)->first();
+
+    expect($score)->not->toBeNull()
+        ->and((float) $score->raw_score)->toBe(14.0)
+        ->and($score->raw_meta['impact']['day1_stage_ids'])->toBe([1, 2])
+        ->and($score->raw_meta['impact']['adjusted'])->toBeFalse();
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $national->id,
+            'impact_ref' => '11188',
+            'score_scope' => 'day1',
+            'day1_stage_ids' => [1, 2],
+            'replace_existing' => 1,
+            'links' => [],
+            'score_overrides' => [
+                '1' => ['day1_impacts' => 0, 'note' => 'did not shoot'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $sibling->id)->where('user_id', $kevin->id)->first();
+    expect((float) $score->raw_score)->toBe(0.0)
+        ->and($score->raw_meta['impact']['adjusted'])->toBeTrue();
+});
+
+it('adds every stage when the Impact match total is zero', function () {
+    Notification::fake();
+
+    $live = impactLivePayload();
+    $live['payload']['shooters'] = [[
+        'id' => 1,
+        'name' => 'Kevin Goncalves',
+        'rank' => 1,
+        'points' => 0,
+        'divisionName' => 'Open',
+    ]];
+
+    Http::fake(function (Request $request) use ($live) {
+        $url = $request->url();
+        if (str_contains($url, '/rest/website/getLiveScoresForShooter')) {
+            return Http::response([
+                'errorCode' => 0,
+                'payload' => [
+                    'stages' => [
+                        ['id' => 28438, 'name' => 'Stage 1', 'points' => 1200, 'misses' => 0, 'shotsProgressCount' => 12, 'maxShots' => 12, 'completed' => true],
+                        ['id' => 28439, 'name' => 'Stage 2', 'points' => 800, 'misses' => 0, 'shotsProgressCount' => 12, 'maxShots' => 12, 'completed' => true],
+                    ],
+                ],
+            ], 200);
+        }
+        if (str_contains($url, '/rest/website/getLiveScores')) {
+            return Http::response($live, 200);
+        }
+
+        return Http::response(['errorCode' => -1], 404);
+    });
+
+    $kevin = impactMakeMember('Kevin Goncalves');
+    impactRegisterShooter($this->match, $kevin, $this->open);
+
+    $this->actingAs($this->admin)
+        ->post(route('score-imports.impact.store'), [
+            'match_id' => $this->match->id,
+            'impact_ref' => '11188',
+            'replace_existing' => 1,
+            'links' => [],
+        ])
+        ->assertRedirect();
+
+    $score = Score::where('match_id', $this->match->id)->where('user_id', $kevin->id)->first();
+    expect($score)->not->toBeNull()
+        ->and((float) $score->raw_score)->toBe(20.0);
 });
 
 it('accepts an MD override of Impact hits before import and records the adjustment', function () {

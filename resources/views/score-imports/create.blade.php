@@ -53,7 +53,7 @@
                     <div class="min-w-0 flex-1">
                         <h2 class="font-heading text-lg font-bold text-stone-900">How to pull from Impact</h2>
                         <ol class="mt-2 space-y-1.5 text-sm text-stone-600 list-decimal list-inside">
-                            <li>Open the match on <a href="https://www.impactscoring.net/matches" target="_blank" class="font-medium text-emerald-700 hover:underline">impactscoring.net</a> → Results.</li>
+                            <li>Open the match itself on <a href="https://www.impactscoring.net/matches" target="_blank" class="font-medium text-emerald-700 hover:underline">impactscoring.net</a> (the match page or Results).</li>
                             <li>Copy the URL (or just the match id, e.g. <code class="rounded bg-white/80 px-1 text-xs">11086</code>).</li>
                             <li>Select this SAPRF match, paste the URL, preview, confirm any fuzzy name matches, then import.</li>
                             <li>Not sure who someone is? Choose <strong>Assign later</strong> — the score imports as a stub (doesn’t count) until you link a member.</li>
@@ -73,12 +73,8 @@
                 <template x-for="sid in day1StageIds" :key="'d1-'+sid">
                     <input type="hidden" name="day1_stage_ids[]" :value="sid">
                 </template>
-                <template x-for="row in (preview?.shooters || [])" :key="'ov-'+row.impact_shooter_id">
-                    <div>
-                        <input type="hidden" :name="'score_overrides['+row.impact_shooter_id+'][impacts]'" :value="overrideImpacts(row)">
-                        <input type="hidden" :name="'score_overrides['+row.impact_shooter_id+'][day1_impacts]'" :value="overrideDay1(row)">
-                        <input type="hidden" x-show="isAdjusted(row)" :name="'score_overrides['+row.impact_shooter_id+'][note]'" value="adjusted from Impact">
-                    </div>
+                <template x-for="item in overrideFields()" :key="item.key">
+                    <input type="hidden" :name="item.name" :value="item.value">
                 </template>
 
                 <div class="rounded-2xl border border-stone-200 bg-white shadow-sm p-6 space-y-5">
@@ -107,7 +103,7 @@
                         <label class="block text-sm font-medium text-stone-700 mb-1">Impact match URL or id <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
                             <input type="text" name="impact_ref" x-model="impactRef" required
-                                   placeholder="https://www.impactscoring.net/match/results?id=11086"
+                                   placeholder="https://www.impactscoring.net/match/view?id=10558"
                                    class="block w-full rounded-lg border border-stone-300 text-sm py-2.5 focus:ring-emerald-500 focus:border-emerald-500">
                             <button type="button" @click="runPreview()" :disabled="previewLoading || !matchId || !impactRef"
                                     class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-40 transition">
@@ -115,7 +111,7 @@
                                 <span x-text="previewLoading ? 'Loading…' : 'Preview'"></span>
                             </button>
                         </div>
-                        <p class="mt-1 text-xs text-stone-400">Paste the full results link or the numeric id only.</p>
+                        <p class="mt-1 text-xs text-stone-400">Paste the match page (/match/view?id=…), the results link, or the numeric id.</p>
                     </div>
 
                     {{-- Day 1 / Overall for 2-day nationals --}}
@@ -128,7 +124,7 @@
                                     <input type="radio" name="score_scope" value="day1" x-model="scoreScope" @change="onScopeChange()" class="mt-0.5 text-blue-600 focus:ring-blue-500">
                                     <span class="text-sm">
                                         <span class="block font-semibold text-stone-900">Day 1 → provincial</span>
-                                        <span class="block text-xs text-stone-500 mt-0.5">Pick which Impact stages were Day 1. Scores land on the provincial sibling.</span>
+                                        <span class="block text-xs text-stone-500 mt-0.5">Day 1 is the sum of each Day 1 stage. Scores land on the provincial sibling.</span>
                                     </span>
                                 </label>
                                 <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition"
@@ -142,24 +138,27 @@
                             </div>
                         </div>
 
-                        <div x-show="scoreScope === 'day1' && preview?.impact_stages?.length" class="space-y-2">
-                            <p class="text-sm font-medium text-stone-900">Which stages were Day 1?</p>
-                            <p class="text-xs text-stone-500">Tick every stage shot on day 1 — we sum those hits for the provincial score.</p>
-                            <div class="flex flex-wrap gap-2">
-                                <template x-for="stage in (preview?.impact_stages || [])" :key="stage.id">
-                                    <label class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium cursor-pointer transition"
-                                           :class="day1StageIds.includes(stage.id) ? 'border-blue-500 bg-blue-600 text-white' : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'">
-                                        <input type="checkbox" class="sr-only" :value="stage.id"
-                                               :checked="day1StageIds.includes(stage.id)"
-                                               @change="toggleDay1Stage(stage.id)">
-                                        <span x-text="stage.name"></span>
-                                    </label>
-                                </template>
+                        <div x-show="scoreScope === 'day1' && preview?.impact_stages?.length" class="space-y-3">
+                            <div>
+                                <p class="text-sm font-medium text-stone-900">Day 1 stages</p>
+                                <p class="text-xs text-stone-500 mt-0.5" x-text="stageDaySummary()"></p>
                             </div>
-                            <button type="button" @click="runPreview(true)" class="text-xs font-medium text-blue-700 hover:underline"
-                                    x-show="day1StageIds.length">
-                                Recalculate Day 1 totals →
-                            </button>
+                            <template x-for="group in stageDayGroups()" :key="'day-group-'+group.day">
+                                <div class="space-y-1.5">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-400" x-text="group.label"></p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="stage in group.stages" :key="stage.id">
+                                            <label class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium cursor-pointer transition"
+                                                   :class="day1StageIds.includes(Number(stage.id)) ? 'border-blue-500 bg-blue-600 text-white' : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'">
+                                                <input type="checkbox" class="sr-only" :value="stage.id"
+                                                       :checked="day1StageIds.includes(Number(stage.id))"
+                                                       @change="toggleDay1Stage(stage.id)">
+                                                <span x-text="stage.name"></span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -223,7 +222,7 @@
                                                 <div x-show="expanded[row.impact_shooter_id] && row.stages?.length" class="mt-2 rounded-lg border border-stone-100 bg-stone-50 p-2 space-y-1">
                                                     <template x-for="st in row.stages" :key="st.id">
                                                         <div class="flex justify-between gap-3 text-xs text-stone-600">
-                                                            <span x-text="st.name"></span>
+                                                            <span x-text="(st.day ? 'D'+st.day+' · ' : '') + st.name"></span>
                                                             <span class="tabular-nums whitespace-nowrap">
                                                                 <span class="font-medium text-stone-900" x-text="st.hits"></span> hit
                                                                 · <span x-text="st.misses"></span> miss
@@ -577,6 +576,40 @@
                     const o = this.scoreOverrides[row.impact_shooter_id];
                     return (o && o.day1_impacts !== undefined && o.day1_impacts !== '') ? o.day1_impacts : row.day1_impacts;
                 },
+                overrideFields() {
+                    const fields = [];
+                    Object.entries(this.scoreOverrides || {}).forEach(([sid, values]) => {
+                        ['impacts', 'day1_impacts', 'note'].forEach((field) => {
+                            if (!values || values[field] === undefined || values[field] === '') return;
+                            fields.push({
+                                key: sid + '-' + field,
+                                name: 'score_overrides[' + sid + '][' + field + ']',
+                                value: values[field],
+                            });
+                        });
+                    });
+                    return fields;
+                },
+                stageDayGroups() {
+                    const stages = this.preview?.impact_stages || [];
+                    const groups = {};
+                    stages.forEach((stage) => {
+                        const day = Number(stage.day) || 1;
+                        if (!groups[day]) {
+                            groups[day] = { day, label: 'Day ' + day, stages: [] };
+                        }
+                        groups[day].stages.push(stage);
+                    });
+                    return Object.values(groups);
+                },
+                stageDaySummary() {
+                    const days = this.preview?.stage_days || [];
+                    if (days.length < 2) {
+                        return 'The Day 1 score is the sum of each selected stage, not the match total.';
+                    }
+                    const bits = days.map((day) => 'Day ' + day.day + ': ' + day.count + (day.count === 1 ? ' stage' : ' stages'));
+                    return bits.join(' · ') + '. Day 1 is ticked already. The score is each of those stage hits added up. Untick a stage to leave it out.';
+                },
                 isAdjusted(row) {
                     return Number(this.overrideImpacts(row)) !== Number(row.impacts)
                         || Number(this.overrideDay1(row)) !== Number(row.day1_impacts);
@@ -608,6 +641,19 @@
                     } else {
                         this.day1StageIds = [...this.day1StageIds, id];
                     }
+                    this.recomputeDay1Totals();
+                },
+                recomputeDay1Totals() {
+                    if (!this.preview?.shooters) return;
+                    const want = new Set(this.day1StageIds.map(Number));
+                    const shooters = this.preview.shooters.map((row) => {
+                        if (!Array.isArray(row.stages) || row.stages.length === 0) return row;
+                        const day1 = row.stages.reduce((sum, stage) => {
+                            return want.has(Number(stage.id)) ? sum + Number(stage.hits || 0) : sum;
+                        }, 0);
+                        return { ...row, day1_impacts: day1 };
+                    });
+                    this.preview = { ...this.preview, shooters, day1_stage_ids: [...this.day1StageIds] };
                 },
                 toggleStages(row) {
                     if (!row.stages?.length) {
@@ -654,6 +700,10 @@
                             return;
                         }
                         this.preview = data.preview;
+                        if (this.scoreScope === 'day1' && this.day1StageIds.length === 0) {
+                            const suggested = (data.preview.day1_stage_ids || []).map(Number).filter(Boolean);
+                            if (suggested.length) this.day1StageIds = suggested;
+                        }
                         // Preserve confirmed fuzzy links
                         const next = { ...this.links };
                         (data.preview.shooters || []).forEach(r => {

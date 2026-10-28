@@ -6,6 +6,7 @@ use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
 use App\Jobs\NotifyRegistrationClosedPendingJob;
 use App\Jobs\ResolvePendingScoresJob;
+use App\Jobs\SyncImpactLiveScoresJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -30,6 +31,14 @@ Schedule::job(new NotifyRegistrationClosedPendingJob)->dailyAt('06:00');
 // and push them into the resolve/dispatch pipeline. Cheap query, so we
 // tick every minute so scheduled sends land within one minute of `send_at`.
 Schedule::job(new DispatchScheduledAnnouncementsJob)->everyMinute();
+
+// Impact live scoreboard. Only matches with the switch on, an Impact id,
+// and a date window that includes today are touched. The job itself
+// no-ops for anything else.
+Schedule::job(new SyncImpactLiveScoresJob)
+    ->everyFiveMinutes()
+    ->timezone('Africa/Johannesburg')
+    ->withoutOverlapping();
 
 Schedule::command('backup:clean')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();

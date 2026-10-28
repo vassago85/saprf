@@ -29,6 +29,25 @@
         @endif
     @endcan
 
+    @if($match->impact_live_sync && $match->impact_match_id)
+        <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+            <p class="font-semibold">Live scores are on</p>
+            <p class="mt-0.5 text-xs text-sky-800">
+                Impact match {{ $match->impact_match_id }} is pulled every 5 minutes on match day.
+                @if($match->impact_live_ended_at)
+                    Impact has marked it finished, so the pull has stopped.
+                @elseif($match->impact_live_synced_at)
+                    Last pull {{ $match->impact_live_synced_at->timezone('Africa/Johannesburg')->format('D j M, H:i') }}.
+                @else
+                    The first pull runs once the match day starts.
+                @endif
+                @if($match->impact_live_error)
+                    Last attempt failed: {{ $match->impact_live_error }}
+                @endif
+            </p>
+        </div>
+    @endif
+
     @if($hasAnyScores)
         <div class="mt-6 rounded-xl border p-4 {{ $scoresFinalized ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50' }}">
             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -56,9 +75,14 @@
                             Scores imported — not yet marked complete
                         </div>
                         <p class="mt-1 text-xs text-amber-800">
-                            Results are already visible on the public page as provisional. Shooters
-                            will <strong>only</strong> be notified once you confirm the names and
-                            entries are checked.
+                            @if($match->impact_live_sync || $match->impact_live_synced_at)
+                                Live scores are on the public page as <strong>incomplete — unverified</strong>.
+                                They do not count for the season until you confirm them.
+                            @else
+                                Results are already visible on the public page as provisional. Shooters
+                                will <strong>only</strong> be notified once you confirm the names and
+                                entries are checked.
+                            @endif
                         </p>
                     @endif
                 </div>

@@ -78,6 +78,11 @@
                             MD: {{ $match->director_name }}
                         </span>
                     @endif
+                    @if($match->impact_match_id)
+                        <a href="https://www.impactscoring.net/match/view?id={{ $match->impact_match_id }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 font-medium text-emerald-700 hover:text-emerald-800">
+                            Impact match
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -198,6 +203,11 @@
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
                                     <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
                                 </div>
+                                @if(! $match->scoresAreFinalized() && ($match->impact_live_sync || $match->impact_live_synced_at))
+                                    <p class="mb-3 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                                        Incomplete — unverified. These scores are a live pull from Impact and do not count until the match director confirms them.
+                                    </p>
+                                @endif
                                 @if($match->everyone_counts)
                                     <p class="mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1.5 inline-block">
                                         All shooters count for this match regardless of membership status on the day.

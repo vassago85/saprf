@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class MatchEvent extends Model
@@ -59,6 +60,11 @@ class MatchEvent extends Model
         'published',
         'also_counts_for_provincial',
         'everyone_counts',
+        'impact_match_id',
+        'impact_live_sync',
+        'impact_live_synced_at',
+        'impact_live_ended_at',
+        'impact_live_error',
         'source_national_match_id',
         'provincial_stage_columns',
     ];
@@ -85,13 +91,17 @@ class MatchEvent extends Model
             'published' => 'boolean',
             'also_counts_for_provincial' => 'boolean',
             'everyone_counts' => 'boolean',
+            'impact_match_id' => 'integer',
+            'impact_live_sync' => 'boolean',
+            'impact_live_synced_at' => 'datetime',
+            'impact_live_ended_at' => 'datetime',
         ];
     }
 
     protected static function booted(): void
     {
         static::creating(function (MatchEvent $match) {
-            $match->slug = Str::slug($match->name) . '-' . Str::random(5);
+            $match->slug = Str::slug($match->name).'-'.Str::random(5);
         });
 
         static::saving(function (MatchEvent $match) {
@@ -180,9 +190,9 @@ class MatchEvent extends Model
      * assigned to the match, falling back to every active division when none
      * have been configured.
      *
-     * @return \Illuminate\Support\Collection<int, Division>
+     * @return Collection<int, Division>
      */
-    public function availableDivisions(): \Illuminate\Support\Collection
+    public function availableDivisions(): Collection
     {
         $divisions = $this->divisions()
             ->where('is_active', true)
@@ -295,10 +305,10 @@ class MatchEvent extends Model
 
             if ($this->match_end_date && ! $this->match_end_date->isSameDay($this->match_date)) {
                 if ($this->match_date->month === $this->match_end_date->month) {
-                    return $this->match_date->format('j') . '–' . $this->match_end_date->format('j M Y');
+                    return $this->match_date->format('j').'–'.$this->match_end_date->format('j M Y');
                 }
 
-                return $this->match_date->format('j M') . ' – ' . $this->match_end_date->format('j M Y');
+                return $this->match_date->format('j M').' – '.$this->match_end_date->format('j M Y');
             }
 
             return $this->match_date->format('D, j M Y');
@@ -520,17 +530,70 @@ class MatchEvent extends Model
     {
         $today = now()->startOfDay()->toDateString();
 
+        // whereDate, not a raw compare: SQLite stores date casts as
+        // "Y-m-d H:i:s", so match_date <= '2026-10-28' misses a match on today.
         return $query->whereIn('status', ['open', 'closed'])
-            ->where('match_date', '<=', $today)
+            ->whereDate('match_date', '<=', $today)
             ->where(function (Builder $q) use ($today) {
                 $q->where(function (Builder $q2) use ($today) {
                     $q2->whereNull('match_end_date')
-                        ->where('match_date', '=', $today);
+                        ->whereDate('match_date', $today);
                 })->orWhere(function (Builder $q2) use ($today) {
                     $q2->whereNotNull('match_end_date')
-                        ->where('match_end_date', '>=', $today);
+                        ->whereDate('match_end_date', '>=', $today);
                 });
             });
+    }
+
+    /**
+     * Matches the scheduler should pull from Impact: on today, sync switched
+     * on, an Impact id saved, and Impact has not already marked it finished.
+     */
+    public function scopeDueForImpactLiveSync(Builder $query): Builder
+    {
+        $today = now()->startOfDay()->toDateString();
+
+        // whereDate, not a raw equality: SQLite stores date casts as
+        // "Y-m-d H:i:s", so match_date = '2026-10-28' would miss them.
+        // MariaDB DATE columns compare the same way through whereDate.
+        return $query->whereIn('status', ['open', 'closed'])
+            ->whereDate('match_date', '<=', $today)
+            ->where(function (Builder $q) use ($today) {
+                $q->where(function (Builder $q2) use ($today) {
+                    $q2->whereNull('match_end_date')
+                        ->whereDate('match_date', $today);
+                })->orWhere(function (Builder $q2) use ($today) {
+                    $q2->whereNotNull('match_end_date')
+                        ->whereDate('match_end_date', '>=', $today);
+                });
+            })
+            ->where('impact_live_sync', true)
+            ->whereNotNull('impact_match_id')
+            ->whereNull('impact_live_ended_at');
+    }
+
+    public function isDueForImpactLiveSync(): bool
+    {
+        if (! $this->impact_live_sync || ! $this->impact_match_id || $this->impact_live_ended_at !== null) {
+            return false;
+        }
+
+        if (! in_array($this->status, ['open', 'closed'], true) || $this->match_date === null) {
+            return false;
+        }
+
+        $today = now()->startOfDay();
+        if ($this->match_date->gt($today)) {
+            return false;
+        }
+
+        $end = $this->match_end_date ?? $this->match_date;
+
+        if ($this->match_end_date === null) {
+            return $this->match_date->isSameDay($today);
+        }
+
+        return $end->gte($today);
     }
 
     public function scopePast(Builder $query): Builder

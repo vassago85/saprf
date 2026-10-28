@@ -21,6 +21,7 @@ use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
+use App\Services\ImpactScoring\ImpactScoringClient;
 use App\Services\MatchFinanceService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
@@ -223,6 +224,29 @@ class MatchController extends Controller
         $removeBanner = (bool) ($validated['remove_banner'] ?? false);
         $removePoster = (bool) ($validated['remove_poster'] ?? false);
         unset($validated['divisions'], $validated['banner'], $validated['remove_banner'], $validated['poster'], $validated['remove_poster']);
+
+        if ($request->exists('impact_ref')) {
+            $ref = trim((string) ($validated['impact_ref'] ?? ''));
+            unset($validated['impact_ref']);
+            $sync = $request->boolean('impact_live_sync');
+
+            if ($ref === '') {
+                $validated['impact_match_id'] = null;
+                $validated['impact_live_sync'] = false;
+                $validated['impact_live_ended_at'] = null;
+                $validated['impact_live_error'] = null;
+            } else {
+                $newId = app(ImpactScoringClient::class)->parseMatchId($ref);
+                if ((int) $match->impact_match_id !== $newId) {
+                    $validated['impact_live_ended_at'] = null;
+                    $validated['impact_live_error'] = null;
+                }
+                $validated['impact_match_id'] = $newId;
+                $validated['impact_live_sync'] = $sync;
+            }
+        } else {
+            unset($validated['impact_ref'], $validated['impact_live_sync']);
+        }
 
         $baseFee = (float) ($validated['active_member_fee'] ?? $match->active_member_fee ?? 0);
         $nonMemberSurcharge = (float) $this->settingsService->get('non_member_surcharge', 0);

@@ -19,8 +19,10 @@ class ImpactScoringClient
     ) {}
 
     /**
-     * Extract a numeric Impact match id from a bare id or a results URL
-     * like https://www.impactscoring.net/match/results?id=11086
+     * Extract a numeric Impact match id from a bare id or the match's own page.
+     * Accepted links are only the match itself:
+     * https://www.impactscoring.net/match/view?id=10558
+     * https://www.impactscoring.net/match/results?id=11086
      */
     public function parseMatchId(string $input): int
     {
@@ -33,19 +35,24 @@ class ImpactScoringClient
             return (int) $input;
         }
 
-        if (preg_match('/[?&]id=(\d+)/', $input, $m)) {
-            return (int) $m[1];
+        $parts = parse_url($input);
+        $host = strtolower((string) (is_array($parts) ? ($parts['host'] ?? '') : ''));
+        $host = (string) preg_replace('/^www\./', '', $host);
+        $path = strtolower(rtrim((string) (is_array($parts) ? ($parts['path'] ?? '') : ''), '/'));
+        parse_str((string) (is_array($parts) ? ($parts['query'] ?? '') : ''), $query);
+        $id = $query['id'] ?? null;
+        $isImpact = $host === '' || $host === 'impactscoring.net';
+        $isMatchPage = in_array($path, ['/match/view', '/match/results'], true);
+
+        if ($isImpact && $isMatchPage && is_scalar($id) && ctype_digit((string) $id)) {
+            return (int) $id;
         }
 
-        if (preg_match('/\/match\/(?:results|view)\/?.*?(\d+)/', $input, $m)) {
-            return (int) $m[1];
+        if ($isImpact && preg_match('#^/match/(?:view|results)/(\d+)$#', $path, $matches)) {
+            return (int) $matches[1];
         }
 
-        if (preg_match('/(\d{3,})/', $input, $m)) {
-            return (int) $m[1];
-        }
-
-        throw new RuntimeException('Could not parse an Impact match id from: '.$input);
+        throw new RuntimeException('Paste the Impact match link (/match/view?id=…) or the match number.');
     }
 
     /**
@@ -129,7 +136,6 @@ class ImpactScoringClient
     }
 
     /**
-     * @param  mixed  $json
      * @return list<array{
      *   id:int,name:string,hits:float,misses:int,shots:int,max_shots:int,
      *   completed:bool,points:float,points_raw:int

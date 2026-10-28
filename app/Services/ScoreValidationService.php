@@ -261,7 +261,12 @@ class ScoreValidationService
 
     public function syncOfficialLog(Score $score): void
     {
-        if ($score->status === 'valid' && $score->user_id) {
+        // counts_for_log defaults to true. Live pulls set it false until the
+        // match director confirms, so a valid member must not hit the
+        // official log early. A missing attribute stays counted.
+        $confirmedForLog = $score->counts_for_log !== false;
+
+        if ($score->status === 'valid' && $score->user_id && $confirmedForLog) {
             ShooterLog::query()->updateOrCreate(
                 ['score_id' => $score->id],
                 [

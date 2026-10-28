@@ -49,6 +49,19 @@ it('exposes todays match in `live` even when registration has closed', function 
     expect(collect($json['data'])->pluck('id'))->not->toContain($live->id);
 });
 
+it('keeps a one-day match on the live panel for the whole of today', function () {
+    $today = makeHomepageMatch([
+        'name' => 'Club Today',
+        'match_date' => Carbon::today(),
+        'status' => 'closed',
+    ]);
+
+    $json = $this->getJson('/api/v1/matches/upcoming')->assertOk()->json();
+
+    expect(collect($json['live'])->pluck('id'))->toContain($today->id);
+    expect(collect($json['data'])->pluck('id'))->not->toContain($today->id);
+});
+
 it('keeps future `closed` matches in `data` (not just `open`)', function () {
     $future = makeHomepageMatch([
         'name' => 'Closed Next Week',

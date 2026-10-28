@@ -68,6 +68,11 @@ class ImpactLiveImportService
         $live = $this->client->getLiveScores($impactId);
         $impactMatch = $live['match'];
         $stages = $live['stages'];
+        $dayByStageId = ImpactStageDays::dayByStageId($stages);
+        $idsByDay = ImpactStageDays::idsByDay($stages);
+        if ($scoreScope === 'day1' && $day1StageIds === []) {
+            $day1StageIds = $idsByDay[1] ?? [];
+        }
 
         $registrations = $match->registrations()
             ->with(['user:id,name,email', 'division:id,name,slug'])
@@ -88,7 +93,15 @@ class ImpactLiveImportService
             $candidates
         );
 
-        $needStages = $includeStages || $day1StageIds !== [];
+        $anyZeroPoints = false;
+        foreach ($live['shooters'] as $shooterRow) {
+            if ((int) ($shooterRow['points'] ?? 0) === 0) {
+                $anyZeroPoints = true;
+                break;
+            }
+        }
+
+        $needStages = $includeStages || $day1StageIds !== [] || $scoreScope === 'day1' || $anyZeroPoints;
         $stagesByShooter = [];
         if ($needStages) {
             $ids = array_map(fn ($s) => (int) ($s['id'] ?? 0), $live['shooters']);
@@ -115,6 +128,22 @@ class ImpactLiveImportService
 
             $shooterId = (int) ($shooter['id'] ?? 0);
             $stageDetail = $stagesByShooter[$shooterId] ?? [];
+            foreach ($stageDetail as &$stageRow) {
+                $stageId = (int) ($stageRow['id'] ?? 0);
+                $stageRow['day'] = $dayByStageId[$stageId]
+                    ?? ImpactStageDays::dayNumber((string) ($stageRow['name'] ?? ''))
+                    ?? 1;
+            }
+            unset($stageRow);
+
+            // The match-level total covers every day. When that field is 0,
+            // add each stage score instead of storing a zero.
+            if ($impacts <= 0 && $stageDetail !== []) {
+                $impacts = 0.0;
+                foreach ($stageDetail as $stageRow) {
+                    $impacts += (float) ($stageRow['hits'] ?? 0);
+                }
+            }
 
             $day1Total = $this->sumStages($stageDetail, $day1StageIds);
             $membershipKind = $this->classifyImpactShooter($impactName, $linkedReg);
@@ -151,7 +180,9 @@ class ImpactLiveImportService
             'impact_stages' => array_map(fn ($s) => [
                 'id' => (int) ($s['id'] ?? 0),
                 'name' => (string) ($s['name'] ?? 'Stage'),
+                'day' => $dayByStageId[(int) ($s['id'] ?? 0)] ?? 1,
             ], $stages),
+            'stage_days' => $this->stageDaySummary($idsByDay),
             'saprf_match_id' => $match->id,
             'saprf_match_name' => $match->name,
             'is_two_day_national' => $isTwoDayNational,
@@ -201,10 +232,6 @@ class ImpactLiveImportService
             throw new RuntimeException('Choose Day 1 or Overall for a 2-day national.');
         }
 
-        if ($selectedMatch->isTwoDayNational() && $scoreScope === 'day1' && $day1StageIds === []) {
-            throw new RuntimeException('Select which Impact stages count as Day 1 for the provincial score.');
-        }
-
         $preview = $this->preview(
             $selectedMatch,
             $impactRef,
@@ -212,6 +239,20 @@ class ImpactLiveImportService
             $day1StageIds,
             includeStages: true,
         );
+
+        if ($scoreScope === 'day1') {
+            $resolvedDay1 = array_values(array_filter(array_map(
+                'intval',
+                $preview['day1_stage_ids'] ?? []
+            )));
+            if ($resolvedDay1 !== []) {
+                $day1StageIds = $resolvedDay1;
+            }
+        }
+
+        if ($selectedMatch->isTwoDayNational() && $scoreScope === 'day1' && $day1StageIds === []) {
+            throw new RuntimeException('Impact did not return any Day 1 stages to add up.');
+        }
 
         $targetMatch = $selectedMatch;
         $notes = ['Impact live pull #'.$preview['impact_match_id'].' ('.$preview['impact_match_name'].').'];
@@ -255,10 +296,12 @@ class ImpactLiveImportService
                 // Fuzzy without confirmation → skip (audit)
                 if ($row['match_status'] === 'fuzzy' && ($link === null || $link === '' || $link === 'auto')) {
                     $auditRows[] = $this->auditRow($row, 'skipped_fuzzy');
+
                     continue;
                 }
                 if ($link === 'skip') {
                     $auditRows[] = $this->auditRow($row, 'skipped');
+
                     continue;
                 }
 
@@ -279,15 +322,24 @@ class ImpactLiveImportService
                     ?? [];
                 $impactTotal = (float) $row['impacts'];
                 $impactDay1 = (float) $row['day1_impacts'];
-                $adjustedTotal = array_key_exists('impacts', $override) && is_numeric($override['impacts'])
-                    ? (float) $override['impacts']
-                    : $impactTotal;
-                $adjustedDay1 = array_key_exists('day1_impacts', $override) && is_numeric($override['day1_impacts'])
-                    ? (float) $override['day1_impacts']
-                    : $impactDay1;
+                $overrideNote = trim((string) ($override['note'] ?? ''));
+                $sentTotal = array_key_exists('impacts', $override) && is_numeric($override['impacts']);
+                $sentDay1 = array_key_exists('day1_impacts', $override) && is_numeric($override['day1_impacts']);
+                $adjustedTotal = $sentTotal ? (float) $override['impacts'] : $impactTotal;
+                $adjustedDay1 = $sentDay1 ? (float) $override['day1_impacts'] : $impactDay1;
+                // A posted 0 with no note is the old preview (day total left at
+                // zero). The stage-by-stage total is the score that counts.
+                if ($overrideNote === '') {
+                    if ($sentTotal && $adjustedTotal == 0.0 && $impactTotal > 0) {
+                        $adjustedTotal = $impactTotal;
+                    }
+                    if ($sentDay1 && $adjustedDay1 == 0.0 && $impactDay1 > 0) {
+                        $adjustedDay1 = $impactDay1;
+                    }
+                }
                 $wasAdjusted = abs($adjustedTotal - $impactTotal) > 0.0001
                     || abs($adjustedDay1 - $impactDay1) > 0.0001;
-                $adjustNote = trim((string) ($override['note'] ?? ''));
+                $adjustNote = $overrideNote;
                 if ($wasAdjusted && $adjustNote === '') {
                     $adjustNote = 'adjusted from Impact';
                 }
@@ -356,7 +408,7 @@ class ImpactLiveImportService
                     ]);
                 }
 
-                $score = new Score();
+                $score = new Score;
                 $score->fill([
                     'match_id' => $targetMatch->id,
                     'score_import_id' => $import->id,
@@ -638,6 +690,20 @@ class ImpactLiveImportService
         } catch (\Throwable) {
             // leave orphan stub if FK prevents delete
         }
+    }
+
+    /**
+     * @param  array<int, list<int>>  $idsByDay
+     * @return list<array{day:int,count:int}>
+     */
+    private function stageDaySummary(array $idsByDay): array
+    {
+        $summary = [];
+        foreach ($idsByDay as $day => $ids) {
+            $summary[] = ['day' => (int) $day, 'count' => count($ids)];
+        }
+
+        return $summary;
     }
 
     /**

@@ -54,12 +54,6 @@ class StoreImpactLiveImportRequest extends FormRequest
                 );
             }
 
-            if ($this->input('score_scope') === 'day1' && empty($this->input('day1_stage_ids'))) {
-                $validator->errors()->add(
-                    'day1_stage_ids',
-                    'Select which Impact stages were shot on Day 1.'
-                );
-            }
         });
     }
 }

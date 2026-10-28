@@ -3,9 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\MatchEvent;
+use App\Services\ImpactScoring\ImpactScoringClient;
 use App\Support\MatchName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class UpdateMatchRequest extends FormRequest
 {
@@ -62,6 +64,24 @@ class UpdateMatchRequest extends FormRequest
             'also_counts_for_provincial' => ['boolean'],
             'everyone_counts' => ['boolean'],
             'provincial_stage_columns' => ['nullable', 'string', 'max:1000'],
+            'impact_live_sync' => ['boolean'],
+            'impact_ref' => [
+                'nullable',
+                'string',
+                'max:500',
+                Rule::requiredIf(fn () => $this->boolean('impact_live_sync')),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (blank($value)) {
+                        return;
+                    }
+
+                    try {
+                        app(ImpactScoringClient::class)->parseMatchId((string) $value);
+                    } catch (RuntimeException) {
+                        $fail('Paste the Impact match link (/match/view?id=…) or the match number.');
+                    }
+                },
+            ],
         ];
     }
 
@@ -69,6 +89,7 @@ class UpdateMatchRequest extends FormRequest
     {
         return [
             'whatsapp_invite_url.regex' => 'The invite must be a WhatsApp group link starting with https://chat.whatsapp.com/',
+            'impact_ref.required' => 'Paste the Impact match link to turn live scores on.',
         ];
     }
 }
