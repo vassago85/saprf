@@ -227,7 +227,8 @@ class MatchRegistration extends Model
 
     /**
      * Card payments plus any account credit redeemed against this entry,
-     * less surcharge already given back — i.e. what SAPRF actually holds for it.
+     * less partial credits already given back (surcharge or base-fee
+     * reductions) — i.e. what SAPRF actually holds for it.
      */
     public function amountPaidOnPlatform(): float
     {
@@ -244,7 +245,17 @@ class MatchRegistration extends Model
 
         $paid = $cardPaid + $creditRedeemed;
 
-        return $paid > 0 ? round(max(0, $paid - $this->surchargeCreditIssued()), 2) : 0.0;
+        return $paid > 0 ? round(max(0, $paid - $this->adjustmentCreditIssued()), 2) : 0.0;
+    }
+
+    /**
+     * Partial credits already returned on this entry (surcharge drop and
+     * base-fee drop). A later withdrawal or cancellation must not pay
+     * these amounts out a second time.
+     */
+    public function adjustmentCreditIssued(): float
+    {
+        return round($this->surchargeCreditIssued() + $this->feeAdjustmentCreditIssued(), 2);
     }
 
     /**
@@ -255,6 +266,19 @@ class MatchRegistration extends Model
         return round((float) AccountCredit::query()
             ->where('adjusted_registration_id', $this->id)
             ->where('type', AccountCredit::TYPE_SURCHARGE_ADJUSTMENT)
+            ->where('status', AccountCredit::STATUS_POSTED)
+            ->sum('amount'), 2);
+    }
+
+    /**
+     * Base fee credited back to the payer after the entry fee was lowered
+     * (for example a junior fee cut after the entry was already paid).
+     */
+    public function feeAdjustmentCreditIssued(): float
+    {
+        return round((float) AccountCredit::query()
+            ->where('fee_adjusted_registration_id', $this->id)
+            ->where('type', AccountCredit::TYPE_FEE_ADJUSTMENT)
             ->where('status', AccountCredit::STATUS_POSTED)
             ->sum('amount'), 2);
     }

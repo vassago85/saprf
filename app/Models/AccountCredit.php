@@ -28,6 +28,9 @@ class AccountCredit extends Model
     /** Part of a paid surcharge given back after the surcharge was lowered. */
     public const TYPE_SURCHARGE_ADJUSTMENT = 'surcharge_adjustment';
 
+    /** Part of a paid entry fee given back after the base fee was lowered. */
+    public const TYPE_FEE_ADJUSTMENT = 'fee_adjustment';
+
     protected $fillable = [
         'user_id',
         'amount',
@@ -39,6 +42,7 @@ class AccountCredit extends Model
         'issued_for_registration_id',
         'applied_to_registration_id',
         'adjusted_registration_id',
+        'fee_adjusted_registration_id',
         'payment_id',
         'description',
         'created_by',
@@ -76,6 +80,11 @@ class AccountCredit extends Model
     public function adjustedRegistration(): BelongsTo
     {
         return $this->belongsTo(MatchRegistration::class, 'adjusted_registration_id');
+    }
+
+    public function feeAdjustedRegistration(): BelongsTo
+    {
+        return $this->belongsTo(MatchRegistration::class, 'fee_adjusted_registration_id');
     }
 
     public function payment(): BelongsTo
