@@ -258,4 +258,93 @@ class RegistrationPricingService
             'cancelled_payments' => $cancelled,
         ];
     }
+
+    /**
+     * Drop an unpaid entry's base fee to $targetBase. The surcharge already
+     * on the row stays. SAPRF, platform and gateway are recalculated on the
+     * new total, and any in-flight PayFast checkout is cancelled so the next
+     * Pay Now uses the new amount. Returns null when the entry is not an
+     * unpaid charge above the target.
+     *
+     * @return array{old: array<string, mixed>, new: array<string, mixed>, cancelled_payments: int}|null
+     */
+    public function reduceUnpaidBaseFee(MatchRegistration $registration, float $targetBase, string $reason): ?array
+    {
+        $targetBase = round($targetBase, 2);
+        $registration->loadMissing(['match', 'user']);
+
+        if ($registration->registration_status === 'cancelled'
+            || $registration->registration_source === 'walk_in'
+            || in_array($registration->payment_status, ['paid', 'waived'], true)
+            || $registration->match === null) {
+            return null;
+        }
+
+        if (round((float) $registration->match->junior_fee, 2) !== $targetBase) {
+            throw new \InvalidArgumentException(
+                'Unpaid junior reprice target must match the match junior fee.'
+            );
+        }
+
+        $surcharge = round((float) $registration->surcharge_amount, 2);
+        $credit = round((float) $registration->fee_amount - $surcharge - $targetBase, 2);
+        if ($credit <= 0) {
+            return null;
+        }
+
+        $category = in_array($registration->membership_fee_category, self::CATEGORIES, true)
+            ? $registration->membership_fee_category
+            : 'active_member';
+
+        $breakdown = $this->calculateBreakdown(
+            $registration->match,
+            $registration->user,
+            $registration->match->match_date ?: now(),
+            'junior',
+            $category,
+            $registration->registered_at,
+        );
+
+        $newFee = round($targetBase + $surcharge, 2);
+        $saprf = round((float) $breakdown['saprf_fee'], 2);
+        $platform = round((float) $breakdown['platform_fee'], 2);
+        $gateway = round(
+            $newFee * (((float) $breakdown['rates']['gateway_pct']) / 100) + (float) $breakdown['rates']['gateway_flat'],
+            2,
+        );
+        $mdNet = round($newFee - $saprf - $platform - $surcharge - $gateway, 2);
+        $note = 'Junior fee reduced to R'.number_format($targetBase, 2);
+
+        $tracked = [
+            'fee_amount',
+            'saprf_fee',
+            'platform_fee',
+            'gateway_fee',
+            'md_net_amount',
+            'fee_override_reason',
+        ];
+        $old = $registration->only($tracked);
+
+        $registration->update([
+            'fee_amount' => $newFee,
+            'saprf_fee' => $saprf,
+            'platform_fee' => $platform,
+            'gateway_fee' => $gateway,
+            'md_net_amount' => $mdNet,
+            'fee_override_reason' => trim(
+                ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '').$note
+            ),
+        ]);
+
+        $cancelled = $registration->payments()
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
+
+        return [
+            'old' => $old,
+            'new' => $registration->only($tracked),
+            'cancelled_payments' => $cancelled,
+            'reason' => $reason,
+        ];
+    }
 }

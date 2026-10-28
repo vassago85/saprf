@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\EntryRemovedCreditNotification;
 use App\Notifications\MatchCancellationCreditNotification;
+use App\Notifications\JuniorFeeCreditNotification;
 use App\Notifications\SurchargeAdjustmentCreditNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -122,7 +123,7 @@ class AccountCreditService
                     ?? $registration->user_id;
 
                 $amount = $completed->isNotEmpty()
-                    ? round(max(0, (float) $completed->sum('amount') - $registration->surchargeCreditIssued()), 2)
+                    ? round(max(0, (float) $completed->sum('amount') - $registration->adjustmentCreditIssued()), 2)
                     : round((float) $registration->fee_amount, 2);
 
                 if (! $holderId || $amount <= 0) {
@@ -352,6 +353,114 @@ class AccountCreditService
 
             return $credit;
         });
+    }
+
+    /**
+     * Give back the difference when a paid entry's base fee was lowered
+     * after payment (a junior fee cut). The credit goes to whoever paid on
+     * the platform, or to the shooter when the entry was paid off the
+     * platform. The entry fee and the match director's net drop by the same
+     * amount. Surcharge, SAPRF levy, platform fee and the card fee already
+     * taken stay as they were. Returns null when there is nothing to credit.
+     */
+    public function issueJuniorFeeCredit(MatchRegistration $registration, float $targetBase, string $reason, ?User $actor = null): ?AccountCredit
+    {
+        $registration->loadMissing('match');
+        $targetBase = round($targetBase, 2);
+
+        $credit = DB::transaction(function () use ($registration, $targetBase, $reason, $actor) {
+            $locked = MatchRegistration::query()->whereKey($registration->id)->lockForUpdate()->first();
+
+            if (! $locked
+                || $locked->registration_status === 'cancelled'
+                || $locked->registration_source === 'walk_in'
+                || ! in_array($locked->payment_status, ['paid', 'waived'], true)
+                || $locked->hasIssuedCredit()
+                || AccountCredit::query()->where('fee_adjusted_registration_id', $locked->id)->exists()) {
+                return null;
+            }
+
+            $locked->loadMissing('match');
+            if ($locked->match === null || round((float) $locked->match->junior_fee, 2) !== $targetBase) {
+                throw new \InvalidArgumentException(
+                    'Junior fee credit target must match the match junior fee.'
+                );
+            }
+
+            $amount = round((float) $locked->fee_amount - (float) $locked->surcharge_amount - $targetBase, 2);
+            $holderId = $locked->withdrawalCreditHolderId();
+
+            if (! $holderId || $amount <= 0) {
+                return null;
+            }
+
+            $matchName = $registration->match?->name ?? 'event';
+            $old = $locked->only(['fee_amount', 'md_net_amount', 'fee_override_reason']);
+            $note = 'Junior fee reduced to R'.number_format($targetBase, 2);
+
+            $credit = AccountCredit::query()->create([
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'status' => AccountCredit::STATUS_POSTED,
+                'type' => AccountCredit::TYPE_FEE_ADJUSTMENT,
+                'match_id' => $locked->match_id,
+                'fee_adjusted_registration_id' => $locked->id,
+                'description' => 'Junior fee credit: '.$matchName.' ('.$locked->shooter_name.')',
+                'created_by' => $actor?->id,
+            ]);
+
+            $locked->update([
+                'fee_amount' => round((float) $locked->fee_amount - $amount, 2),
+                'md_net_amount' => round((float) $locked->md_net_amount - $amount, 2),
+                'fee_override_reason' => trim(
+                    ($locked->fee_override_reason ? $locked->fee_override_reason.' | ' : '').$note
+                ),
+            ]);
+
+            FinancialTransaction::query()->create([
+                'type' => 'refund',
+                'source_type' => 'match_registration',
+                'source_id' => $locked->id,
+                'user_id' => $holderId,
+                'amount' => $amount,
+                'description' => 'Junior fee credit issued — '.$matchName,
+                'meta' => [
+                    'account_credit_id' => $credit->id,
+                    'shooter_name' => $locked->shooter_name,
+                    'match_id' => $locked->match_id,
+                    'target_base_fee' => $targetBase,
+                    'reason' => $reason,
+                ],
+            ]);
+
+            $this->auditLogService->log(
+                $actor,
+                'registration.junior_fee_credit.issued',
+                'MatchRegistration',
+                $locked->id,
+                $old,
+                [
+                    'fee_amount' => (float) $locked->fee_amount,
+                    'md_net_amount' => (float) $locked->md_net_amount,
+                    'account_credit_id' => $credit->id,
+                    'credited_user_id' => $holderId,
+                    'amount' => $amount,
+                    'target_base_fee' => $targetBase,
+                ],
+                $reason,
+            );
+
+            $credit->setAttribute('shooter_name', $locked->shooter_name);
+
+            return $credit;
+        });
+
+        if ($credit) {
+            $registration->refresh();
+            $this->notifyJuniorFeeCredit($registration, $credit, $targetBase);
+        }
+
+        return $credit;
     }
 
     /**
@@ -651,6 +760,30 @@ class AccountCreditService
             ));
         } catch (\Throwable $e) {
             Log::warning('Failed to send entry removal credit notification', [
+                'user_id' => $user->id,
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyJuniorFeeCredit(MatchRegistration $registration, AccountCredit $credit, float $targetBase): void
+    {
+        $user = User::query()->find($credit->user_id);
+        if (! $user) {
+            return;
+        }
+
+        try {
+            $user->notify(new JuniorFeeCreditNotification(
+                $registration->match?->name ?? 'event',
+                (string) $registration->shooter_name,
+                (float) $credit->amount,
+                $targetBase,
+                $this->summary($user)['posted'],
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send junior fee credit notification', [
                 'user_id' => $user->id,
                 'registration_id' => $registration->id,
                 'error' => $e->getMessage(),
