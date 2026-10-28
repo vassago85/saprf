@@ -91,7 +91,18 @@ it('shows the MD their expenses and estimated profit on the finances tab', funct
     $this->actingAs($this->md)
         ->get(route('matches.finances', $this->match))
         ->assertOk()
-        ->assertSee('Estimated profit')
+        ->assertSee('Profit after costs')
+        ->assertSee('Estimated')
+        ->assertSee('Adult entry fee')
+        ->assertSee('Full adult fees')
+        ->assertSee('Registered shooters')
+        ->assertSee('Net after SAPRF, platform and gateway')
+        ->assertSee('Fixed costs')
+        ->assertSee('Per-shooter costs')
+        ->assertSee('Left after costs')
+        ->assertSee('R 500.00')
+        ->assertSee('R 380.00')
+        ->assertSee('R 180.00')
         ->assertSee('Match expenses')
         ->assertSee('Steel targets rental')
         ->assertSee('Only you see this');
@@ -106,7 +117,9 @@ it('hides expenses and profit from owner viewing the finances tab', function () 
         ->assertOk();
 
     $response->assertDontSee('Steel targets rental');
-    $response->assertDontSee('Estimated profit');
+    $response->assertDontSee('Profit after costs');
+    $response->assertDontSee('Fixed costs');
+    $response->assertDontSee('Left after costs');
     $response->assertDontSee('Match expenses');
     // Payout number must still be visible.
     $response->assertSee('Net payout to you');
@@ -121,7 +134,9 @@ it('hides expenses and profit from exco viewing the finances tab', function () {
         ->assertOk();
 
     $response->assertDontSee('Steel targets rental');
-    $response->assertDontSee('Estimated profit');
+    $response->assertDontSee('Profit after costs');
+    $response->assertDontSee('Fixed costs');
+    $response->assertDontSee('Left after costs');
     $response->assertSee('Net payout to you');
 });
 
@@ -135,7 +150,9 @@ it('hides expenses and profit from admin and developer viewing the finances tab'
             ->assertOk();
 
         $response->assertDontSee('Steel targets rental', "role={$role}");
-        $response->assertDontSee('Estimated profit', "role={$role}");
+        $response->assertDontSee('Profit after costs', "role={$role}");
+        $response->assertDontSee('Fixed costs', "role={$role}");
+        $response->assertDontSee('Left after costs', "role={$role}");
         $response->assertSee('Net payout to you');
     }
 });
@@ -194,4 +211,83 @@ it('refuses to show the finances tab to an ordinary member', function () {
         ->get(route('matches.finances', $this->match));
 
     expect($response->getStatusCode())->not->toBe(200);
+});
+
+// ── Cost estimator lives on Finances, not Settings ───────────────────
+
+it('shows an editable cost estimator on the finances tab', function () {
+    $this->actingAs($this->md)
+        ->get(route('matches.finances', $this->match))
+        ->assertOk()
+        ->assertSee('Cost Estimator')
+        ->assertSee('name="estimated_shooters"', false)
+        ->assertSee('Save estimate');
+});
+
+it('does not render the cost estimator on the settings tab', function () {
+    $this->actingAs($this->md)
+        ->get(route('matches.settings', $this->match))
+        ->assertOk()
+        ->assertDontSee('Cost Estimator');
+});
+
+it('lets the match director save the expected shooter count from finances', function () {
+    $this->actingAs($this->md)
+        ->put(route('matches.estimated-shooters.update', $this->match), [
+            'estimated_shooters' => 42,
+        ])
+        ->assertRedirect(route('matches.finances', $this->match))
+        ->assertSessionHas('success');
+
+    expect($this->match->fresh()->estimated_shooters)->toBe(42);
+});
+
+it('refuses a foreign match director saving the expected shooter count', function () {
+    $otherMd = User::factory()->create();
+    $otherMd->assignRole('match_director');
+
+    $this->actingAs($otherMd)
+        ->put(route('matches.estimated-shooters.update', $this->match), [
+            'estimated_shooters' => 42,
+        ])
+        ->assertForbidden();
+
+    expect($this->match->fresh()->estimated_shooters)->toBeNull();
+});
+
+it('extends per-shooter match costs by the registered headcount', function () {
+    $second = User::factory()->create();
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $second->id,
+        'shooter_name' => $second->name,
+        'email' => $second->email,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 500,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 20,
+        'surcharge_amount' => 0,
+        'md_net_amount' => 380,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now()->subDay(),
+    ]);
+
+    $this->match->update(['estimated_shooters' => 40]);
+
+    MatchExpense::create([
+        'match_id' => $this->match->id,
+        'description' => 'Lunch per shooter',
+        'amount' => 25,
+        'cost_type' => 'per_shooter',
+        'category' => 'catering',
+        'created_by' => $this->md->id,
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.finances', $this->match))
+        ->assertOk()
+        ->assertSee('R 25.00 × 2')
+        ->assertSee('R 50.00');
 });

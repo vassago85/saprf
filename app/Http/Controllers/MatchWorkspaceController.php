@@ -311,6 +311,27 @@ class MatchWorkspaceController extends Controller
         ]));
     }
 
+    /**
+     * The cost estimator lives on the Finances tab. Saving here only
+     * updates the planning headcount — entry fees stay on Settings.
+     */
+    public function updateEstimatedShooters(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $validated = $request->validate([
+            'estimated_shooters' => ['required', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        $match->update([
+            'estimated_shooters' => $validated['estimated_shooters'],
+        ]);
+
+        return redirect()
+            ->route('matches.finances', $match)
+            ->with('success', 'Expected shooter count saved.');
+    }
+
     // ── Messages ──
 
     public function messages(Request $request, MatchEvent $match): View

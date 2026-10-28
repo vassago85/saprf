@@ -144,11 +144,9 @@
                     <div>
                         <label for="estimated_shooters" class="block text-sm font-medium text-stone-700 mb-1">Estimated Shooters</label>
                         <input type="number" name="estimated_shooters" id="estimated_shooters" min="1" max="999" value="{{ old('estimated_shooters', $match->estimated_shooters) }}" placeholder="e.g. 30" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                        <p class="mt-1 text-xs text-stone-400">Drives the Cost Estimator below and per-shooter expense / revenue projections after saving.</p>
+                        <p class="mt-1 text-xs text-stone-400">Used by the cost estimator on the Finances tab, and for per-shooter expense projections.</p>
                     </div>
                 </div>
-
-                @include('matches._cost-estimator')
 
                 {{-- Per-match fee overrides. Restricted to exco + developer
                      because touching these directly rewrites the split

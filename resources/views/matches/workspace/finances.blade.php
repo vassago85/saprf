@@ -1,6 +1,21 @@
 <x-layouts.app :title="$match->name . ' — Finances'">
     @include('matches.workspace._chrome')
 
+    @php
+        $registeredShooters = (int) ($counts['counted'] ?? 0);
+        $registeredRows = $match->registrations->where('registration_status', '!=', 'cancelled');
+        $registeredFees = round((float) $registeredRows->sum('fee_amount'), 2);
+        $registeredSaprf = round((float) $registeredRows->sum('saprf_fee'), 2);
+        $registeredPlatform = round((float) $registeredRows->sum('platform_fee'), 2);
+        $registeredGateway = round((float) $registeredRows->sum('gateway_fee'), 2);
+        $registeredSurcharges = round((float) $registeredRows->sum('surcharge_amount'), 2);
+        $registeredNet = round((float) $registeredRows->sum('md_net_amount'), 2);
+        $actualMatchCosts = $viewerIsMatchDirector
+            ? round((float) $expenses->sum(fn ($expense) => $expense->effectiveAmount($registeredShooters)), 2)
+            : 0.0;
+        $profitAfterCosts = round($registeredNet - $actualMatchCosts, 2);
+    @endphp
+
     <div class="mt-6 space-y-4">
         <div class="grid gap-4 lg:grid-cols-3">
             {{-- Payout ledger --}}
@@ -131,7 +146,7 @@
                             @foreach($expenses as $exp)
                                 <li class="flex items-center justify-between gap-3 py-2">
                                     <span class="min-w-0 flex-1 truncate text-stone-700">{{ $exp->description }}</span>
-                                    <span class="shrink-0 tabular-nums text-stone-900">R {{ number_format($exp->effectiveAmount($counts['paid']), 2) }}</span>
+                                    <span class="shrink-0 tabular-nums text-stone-900">R {{ number_format($exp->effectiveAmount($registeredShooters), 2) }}</span>
                                 </li>
                             @endforeach
                         </ul>
@@ -139,9 +154,9 @@
                     <table class="mt-4 w-full text-sm">
                         <tbody>
                             <tr class="border-t-2 border-stone-900">
-                                <td class="pt-3 text-base font-semibold text-stone-900">Estimated profit</td>
-                                <td class="pt-3 text-right text-base font-bold tabular-nums text-stone-900">
-                                    R {{ number_format((float) $money['profit_loss'], 2) }}
+                                <td class="pt-3 text-base font-semibold text-stone-900">Profit after costs</td>
+                                <td class="pt-3 text-right text-base font-bold tabular-nums {{ $profitAfterCosts >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                                    R {{ number_format($profitAfterCosts, 2) }}
                                 </td>
                             </tr>
                         </tbody>
@@ -149,6 +164,10 @@
                 </div>
             @endif
         </div>
+
+        @can('update', $match)
+            @include('matches._cost-estimator', ['standalone' => true])
+        @endcan
 
         {{-- Per-entry breakdown --}}
         @php
