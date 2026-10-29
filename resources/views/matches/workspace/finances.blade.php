@@ -124,6 +124,19 @@
                     </p>
                 @endif
 
+                @if(! $payout && $match->registrationsAreClosed() && auth()->user()?->can('update', $match))
+                    <div class="mt-4">
+                        <a href="{{ route('matches.request-payout', $match) }}" wire:navigate
+                           class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                            <flux:icon.banknotes class="size-4" />
+                            Request payout
+                        </a>
+                        <p class="mt-2 text-xs text-stone-500">
+                            Registration is closed, so you can request this now. If walk-ins still need their scores tracked, they start off negative on the next payout.
+                        </p>
+                    </div>
+                @endif
+
                 @if($payout)
                     <div class="mt-4 flex gap-2">
                         <a href="{{ route('my-payouts.pdf', $payout) }}"
@@ -217,10 +230,19 @@
                     </thead>
                     <tbody class="divide-y divide-stone-100">
                         @foreach($money['paid_entries'] as $reg)
-                            <tr>
+                            @php $collectedOffPlatform = $reg->collected_off_platform ?? false; @endphp
+                            <tr @class(['bg-emerald-50/30' => $collectedOffPlatform])>
                                 <td class="px-3 py-2 text-stone-900">{{ $reg->shooter_name ?: $reg->user?->name }}</td>
                                 <td class="px-3 py-2 text-stone-600">{{ $reg->feeCategoryLabel() }}</td>
-                                <td class="px-3 py-2 text-stone-600">{{ $reg->paymentMethodLabel() }}</td>
+                                <td class="px-3 py-2 text-stone-600">
+                                    @if($collectedOffPlatform)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                                            You collected
+                                        </span>
+                                    @else
+                                        {{ $reg->paymentMethodLabel() }}
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2 text-right tabular-nums">{{ number_format((float) $reg->fee_amount, 2) }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->surcharge_amount, 2) }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums text-stone-500">{{ number_format((float) $reg->saprf_fee, 2) }}</td>
@@ -230,7 +252,7 @@
                             </tr>
                         @endforeach
                         <tr class="bg-stone-50">
-                            <td class="px-3 py-2 font-semibold" colspan="3">Total settled · {{ $money['paid_registrations'] }} through the platform</td>
+                            <td class="px-3 py-2 font-semibold" colspan="3">Total settled · {{ $money['platform_collected_count'] }} through the platform</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['gross_revenue'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['surcharges'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['saprf_fees'], 2) }}</td>
@@ -238,6 +260,37 @@
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['gateway_fees'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-bold tabular-nums">{{ number_format((float) $money['md_net'], 2) }}</td>
                         </tr>
+                        {{-- Off-platform cash: entries the director collected
+                             by hand (manual non-members / club cash). The money
+                             went straight to the director, so every money
+                             column is R0 on the payout side — but the entry
+                             still shows on the breakdown so it is clear who
+                             paid, and that the platform is not paying it out
+                             a second time. --}}
+                        @php
+                            $offPlatformCashRows = collect($money['excluded_entries'] ?? [])
+                                ->filter(fn ($reg) => $reg->payment_status === 'paid'
+                                    && ! $reg->isWalkIn()
+                                    && (float) $reg->md_net_amount >= 0);
+                        @endphp
+                        @foreach($offPlatformCashRows as $reg)
+                            <tr class="bg-emerald-50/30">
+                                <td class="px-3 py-2 text-stone-800">{{ $reg->shooter_name ?: $reg->user?->name }}</td>
+                                <td class="px-3 py-2 text-stone-600">{{ $reg->feeCategoryLabel() }}</td>
+                                <td class="px-3 py-2 text-stone-600">
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                                        You collected
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">0.00</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">0.00</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">0.00</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">0.00</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-stone-500">0.00</td>
+                                <td class="px-3 py-2 text-right font-semibold tabular-nums text-stone-800">0.00</td>
+                            </tr>
+                        @endforeach
+
                         {{-- Projected pending rows: same shape as the paid rows
                              above, visually muted + flagged "projected" so an
                              MD doesn't mistake them for money already in the

@@ -442,6 +442,49 @@ class MatchEvent extends Model
         return $this->registration_status === 'open';
     }
 
+    /**
+     * Entries are finished: the match was closed, registration's close
+     * date has passed, or the match date itself is in the past. A draft
+     * or a cancelled match is not a payout candidate.
+     */
+    public function registrationsAreClosed(): bool
+    {
+        if (in_array($this->status, ['draft', 'cancelled'], true)) {
+            return false;
+        }
+
+        if (in_array($this->status, ['closed', 'completed'], true)) {
+            return true;
+        }
+
+        return ($this->registration_close_date !== null && $this->registration_close_date->isPast())
+            || ($this->match_date !== null && $this->match_date->isPast());
+    }
+
+    /**
+     * Walk-ins the director still has to score. They are not in a payout
+     * raised before that score lands, so the levies open as a negative
+     * on the next payout.
+     *
+     * @return Collection<int, MatchRegistration>
+     */
+    public function walkInsNeedingScores(): Collection
+    {
+        $scoredUserIds = $this->scores()->whereNotNull('user_id')->pluck('user_id');
+
+        return $this->registrations()
+            ->where('registration_source', 'walk_in')
+            ->where(function (Builder $query) {
+                $query->whereNull('registration_status')
+                    ->orWhere('registration_status', '!=', 'cancelled');
+            })
+            ->orderBy('shooter_name')
+            ->get()
+            ->filter(fn (MatchRegistration $registration) => $registration->user_id === null
+                || ! $scoredUserIds->contains($registration->user_id))
+            ->values();
+    }
+
     public function isWaitlistOpen(): bool
     {
         return $this->registration_status === 'waitlist';
@@ -791,7 +834,7 @@ class MatchEvent extends Model
      * @return array{
      *     stage: MatchStage,
      *     steps: list<array{stage: MatchStage, label: string, detail: ?string, done: bool, current: bool}>,
-     *     next: ?array{label: string, detail: ?string, route: ?string, params: array<string, mixed>, variant: string}
+     *     next: ?array{label: string, detail: ?string, route: ?string, params: array<string, mixed>, variant: string, secondary?: array{label: string, route: string, params: array<string, mixed>}}
      * }
      */
     public function stageContext(): array
@@ -883,20 +926,20 @@ class MatchEvent extends Model
                 'params' => ['match' => $this->id],
                 'variant' => 'primary',
             ],
-            MatchStage::EntriesClosed => [
+            MatchStage::EntriesClosed => $this->withPayoutOffer([
                 'label' => 'Export entries for Impact',
-                'detail' => 'Download the CSV, score the match in Impact, then import results.',
+                'detail' => 'Download the CSV, score the match in Impact, then import results. You can request the payout now that registration is closed.',
                 'route' => 'matches.export-impact-scoring',
                 'params' => ['match' => $this->id],
                 'variant' => 'primary',
-            ],
-            MatchStage::Scores => [
+            ]),
+            MatchStage::Scores => $this->withPayoutOffer([
                 'label' => 'Import scores from Impact',
-                'detail' => 'Upload the Impact export to publish results and finalise the payout.',
+                'detail' => 'Upload the Impact export to publish results. You can request the payout now that registration is closed.',
                 'route' => 'matches.scores',
                 'params' => ['match' => $this->id],
                 'variant' => 'primary',
-            ],
+            ]),
             MatchStage::Results => $payout
                 ? [
                     'label' => 'View payout statement',
@@ -922,5 +965,31 @@ class MatchEvent extends Model
                 ]
                 : null,
         };
+    }
+
+    /**
+     * Registration is closed, so the director can raise the payout before
+     * scores land. The primary step (export or import) stays in place.
+     *
+     * @param  array{label: string, detail: ?string, route: ?string, params: array<string, mixed>, variant: string}  $action
+     * @return array{label: string, detail: ?string, route: ?string, params: array<string, mixed>, variant: string, secondary?: array{label: string, route: string, params: array<string, mixed>}}
+     */
+    private function withPayoutOffer(array $action): array
+    {
+        if ($this->status === 'cancelled') {
+            return $action;
+        }
+
+        if ($this->payouts()->where('payee_type', 'match_director')->exists()) {
+            return $action;
+        }
+
+        $action['secondary'] = [
+            'label' => 'Request MD payout',
+            'route' => 'matches.request-payout',
+            'params' => ['match' => $this->id],
+        ];
+
+        return $action;
     }
 }

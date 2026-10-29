@@ -457,3 +457,108 @@ it('shows both settled and projected totals on the request-payout form when a pe
         ->assertSee('Payout now (settled entries)')
         ->assertSee('Projected total');
 });
+
+it('lets the match director request a payout once registration is closed', function () {
+    $this->actingAs($this->md)
+        ->get(route('matches.finances', $this->match))
+        ->assertOk()
+        ->assertSee('Request payout')
+        ->assertSee(route('matches.request-payout', $this->match));
+
+    $this->actingAs($this->md)
+        ->get(route('matches.overview', $this->match))
+        ->assertOk()
+        ->assertSee('Request MD payout');
+});
+
+it('refuses a payout request while registration is still open', function () {
+    $open = MatchEvent::create([
+        'name' => 'Still Open Match',
+        'match_type' => 'PRS',
+        'series_level' => 'provincial',
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => now()->addMonth(),
+        'status' => 'open',
+        'published' => true,
+        'active_member_fee' => 500,
+        'non_member_fee' => 750,
+        'lapsed_member_fee' => 650,
+        'created_by' => $this->md->id,
+        'match_director' => $this->md->name,
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $open))
+        ->assertRedirect(route('matches.finances', $open))
+        ->assertSessionHas('error');
+
+    $this->actingAs($this->md)
+        ->post(route('matches.complete-and-request-payout', $open), [
+            'account_holder' => 'Marco Director',
+            'bank_name' => 'Standard Bank',
+            'account_number' => '0123456789',
+            'branch_code' => '051001',
+        ])
+        ->assertRedirect(route('matches.finances', $open));
+
+    expect(Payout::where('match_id', $open->id)->exists())->toBeFalse();
+});
+
+it('warns that an unscored walk-in starts negative on the next payout', function () {
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Walk In Wian',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 0,
+        'md_net_amount' => -100,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registration_source' => 'walk_in',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertSee('Walk-ins start off negative next time')
+        ->assertSee('Walk In Wian')
+        ->assertSee('come off your next payout');
+});
+
+it('drops the walk-in warning once scores are in and every walk-in has one', function () {
+    $shooter = User::factory()->create();
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => 'Scored Walk In',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 0,
+        'md_net_amount' => -100,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registration_source' => 'walk_in',
+        'registered_at' => now(),
+    ]);
+    \App\Models\Score::create([
+        'match_id' => $this->match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => 'Scored Walk In',
+        'raw_score' => 100,
+        'adjusted_score' => 100,
+        'match_date' => $this->match->match_date,
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertDontSee('Walk-ins start off negative next time');
+});

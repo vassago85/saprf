@@ -205,6 +205,14 @@ it('logs member levies on a manual payment without paying the cash back out', fu
         ->and((float) $financials['saprf_fees'])->toBe(100.0)
         ->and((float) $financials['platform_fees'])->toBe(100.0)
         ->and((float) $financials['md_net'])->toBe(300.0);
+
+    // The manual member row shows R0 collected on the per-entry breakdown,
+    // not the R600 cash they handed the director.
+    $manualRow = $financials['paid_entries']->firstWhere('shooter_name', 'Cash Member');
+    expect($manualRow)->not->toBeNull()
+        ->and((float) $manualRow->fee_amount)->toBe(0.0)
+        ->and((float) $manualRow->md_net_amount)->toBe(-100.0)
+        ->and($manualRow->collected_off_platform)->toBeTrue();
 });
 
 it('drops every charge on a manual non-member entry', function () {

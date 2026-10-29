@@ -403,6 +403,12 @@ class MatchController extends Controller
     ): View|RedirectResponse {
         $this->authorize('update', $match);
 
+        if (! $match->registrationsAreClosed()) {
+            return redirect()
+                ->route('matches.finances', $match)
+                ->with('error', 'You can request the payout once registration is closed.');
+        }
+
         $existingPayout = $match->payouts()
             ->where('payee_type', 'match_director')
             ->latest('id')
@@ -428,6 +434,8 @@ class MatchController extends Controller
             'summary' => $summary,
             'money' => $money,
             'banking' => $banking,
+            'walkInsNeedingScores' => $match->walkInsNeedingScores(),
+            'scoresNotImported' => ! $match->scores()->exists(),
         ]);
     }
 
@@ -452,6 +460,12 @@ class MatchController extends Controller
         FinancialService $financials,
     ): RedirectResponse {
         $this->authorize('update', $match);
+
+        if (! $match->registrationsAreClosed()) {
+            return redirect()
+                ->route('matches.finances', $match)
+                ->with('error', 'You can request the payout once registration is closed.');
+        }
 
         $back = url()->previous() ?: route('matches.show', $match);
 

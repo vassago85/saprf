@@ -157,14 +157,23 @@
                 @endif
             </div>
             @if($nextUrl)
-                {{-- Every next-action route is a plain GET; the actual payout POST
-                     lives on its own form page. `matches.export-impact-scoring`
-                     is excluded from wire:navigate because it streams a CSV. --}}
-                <a href="{{ $nextUrl }}"
-                   @if(! in_array($next['route'], ['matches.export-impact-scoring'])) wire:navigate @endif
-                   class="shrink-0 inline-flex items-center rounded-md px-3.5 py-2 text-sm font-semibold shadow-sm {{ $next['variant'] === 'ghost' ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
-                    {{ $next['label'] }}
-                </a>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    @if(! empty($next['secondary']['route']))
+                        <a href="{{ route($next['secondary']['route'], $next['secondary']['params']) }}"
+                           wire:navigate
+                           class="inline-flex items-center rounded-md border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                            {{ $next['secondary']['label'] }}
+                        </a>
+                    @endif
+                    {{-- Every next-action route is a plain GET; the actual payout POST
+                         lives on its own form page. `matches.export-impact-scoring`
+                         is excluded from wire:navigate because it streams a CSV. --}}
+                    <a href="{{ $nextUrl }}"
+                       @if(! in_array($next['route'], ['matches.export-impact-scoring'])) wire:navigate @endif
+                       class="inline-flex items-center rounded-md px-3.5 py-2 text-sm font-semibold shadow-sm {{ $next['variant'] === 'ghost' ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
+                        {{ $next['label'] }}
+                    </a>
+                </div>
             @endif
         </div>
     @endif
