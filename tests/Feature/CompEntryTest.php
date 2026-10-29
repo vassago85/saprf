@@ -3,6 +3,7 @@
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Province;
 use App\Models\Setting;
@@ -101,10 +102,23 @@ it('comps a pending entry: zeroes fees, sets negative md_net, flags waived', fun
         ->and((float) $reg->md_net_amount)->toBe(-100.00); // -(saprf + platform)
 });
 
+function payThroughPayfast(MatchRegistration $registration): void
+{
+    Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => $registration->id,
+        'user_id' => $registration->user_id,
+        'amount' => $registration->fee_amount,
+        'm_payment_id' => 'REG-'.$registration->id,
+        'status' => 'completed',
+        'gateway' => 'payfast',
+    ]);
+}
+
 it('rolls a comp into the MD payout as a negative line against the net', function () {
     // Baseline: one normal paid entry → MD takes R400 (fee 500 - saprf 50 - platform 50).
     $normalShooter = User::factory()->create();
-    MatchRegistration::create([
+    $paid = MatchRegistration::create([
         'match_id' => $this->match->id,
         'user_id' => $normalShooter->id,
         'shooter_name' => $normalShooter->name,
@@ -120,6 +134,7 @@ it('rolls a comp into the MD payout as a negative line against the net', functio
         'registration_status' => 'confirmed',
         'registered_at' => now()->subDays(5),
     ]);
+    payThroughPayfast($paid);
 
     // Comp'd entry: MD covers R100 (saprf+platform) → net to MD = 400 - 100 = 300.
     $comped = makePendingEntry($this->match, $this->shooter);
@@ -139,7 +154,7 @@ it('rolls a comp into the MD payout as a negative line against the net', functio
 });
 
 it('includes the comp row with zeros + negative net in a frozen payout statement', function () {
-    MatchRegistration::create([
+    $paid = MatchRegistration::create([
         'match_id' => $this->match->id,
         'user_id' => User::factory()->create()->id,
         'shooter_name' => 'Paying Shooter',
@@ -149,6 +164,7 @@ it('includes the comp row with zeros + negative net in a frozen payout statement
         'md_net_amount' => 400, 'payment_status' => 'paid',
         'registration_status' => 'confirmed', 'registered_at' => now()->subDays(5),
     ]);
+    payThroughPayfast($paid);
 
     $comped = makePendingEntry($this->match, $this->shooter);
     $this->actingAs($this->md)->post(route('registrations.comp', $comped), [
@@ -245,7 +261,7 @@ it('shows the Comp this entry card to the owning MD on an unpaid registration', 
 it('auto-refreshes the frozen payout snapshot when an entry is comped after the payout was raised', function () {
     // One normal paid entry: R400 net to MD.
     $normalShooter = User::factory()->create();
-    MatchRegistration::create([
+    $paid = MatchRegistration::create([
         'match_id' => $this->match->id,
         'user_id' => $normalShooter->id,
         'shooter_name' => $normalShooter->name,
@@ -256,6 +272,7 @@ it('auto-refreshes the frozen payout snapshot when an entry is comped after the 
         'md_net_amount' => 400, 'payment_status' => 'paid',
         'registration_status' => 'confirmed', 'registered_at' => now()->subDays(5),
     ]);
+    payThroughPayfast($paid);
 
     // MD raises the payout BEFORE comping the pending shooter. The frozen
     // snapshot captures 1 billable entry at R400 net.

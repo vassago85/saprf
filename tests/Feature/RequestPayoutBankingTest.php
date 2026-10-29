@@ -12,6 +12,7 @@
 
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Province;
 use App\Models\User;
@@ -48,7 +49,7 @@ beforeEach(function () {
 
     // One paid registration so the payout has a real amount to raise.
     $shooter = User::factory()->create();
-    MatchRegistration::create([
+    $paid = MatchRegistration::create([
         'match_id' => $this->match->id,
         'user_id' => $shooter->id,
         'shooter_name' => $shooter->name,
@@ -63,6 +64,15 @@ beforeEach(function () {
         'payment_status' => 'paid',
         'registration_status' => 'confirmed',
         'registered_at' => now()->subDay(),
+    ]);
+    Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => $paid->id,
+        'user_id' => $shooter->id,
+        'amount' => 500,
+        'm_payment_id' => 'REG-'.$paid->id,
+        'status' => 'completed',
+        'gateway' => 'payfast',
     ]);
 });
 

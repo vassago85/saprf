@@ -18,7 +18,7 @@
             <div class="rounded-xl border border-stone-200 bg-white p-5">
                 <div class="text-xs font-semibold uppercase tracking-wide text-stone-500">Collected</div>
                 <div class="mt-1 text-2xl font-bold tabular-nums text-stone-900">R {{ number_format((float) $money['gross_revenue'], 0) }}</div>
-                <div class="mt-0.5 text-xs text-stone-500">From {{ $counts['paid'] }} paid entries</div>
+                <div class="mt-0.5 text-xs text-stone-500">From {{ $money['platform_collected_count'] }} entries paid through the platform</div>
             </div>
 
             <div class="rounded-xl border border-stone-200 bg-white p-5">

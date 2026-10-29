@@ -220,6 +220,26 @@ class MatchRegistration extends Model
         return $this->payments()->where('status', 'completed')->exists();
     }
 
+    /**
+     * The platform actually holds this entry fee. Cash, EFT at the range,
+     * and a row simply marked paid do not — those must not be paid out
+     * to the match director a second time.
+     */
+    public function settledOnPlatform(): bool
+    {
+        $completed = fn ($payment) => $payment->status === 'completed'
+            && in_array($payment->gateway, ['payfast', 'account_credit'], true);
+
+        if ($this->relationLoaded('payments')) {
+            return $this->payments->contains($completed);
+        }
+
+        return $this->payments()
+            ->where('status', 'completed')
+            ->whereIn('gateway', ['payfast', 'account_credit'])
+            ->exists();
+    }
+
     public function hasIssuedCredit(): bool
     {
         return AccountCredit::query()->where('issued_for_registration_id', $this->id)->exists();

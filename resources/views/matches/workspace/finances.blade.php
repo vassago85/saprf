@@ -61,7 +61,7 @@
                 <table class="mt-4 w-full text-sm">
                     <tbody>
                         <tr>
-                            <td class="py-1.5 text-stone-700">Collected from {{ $counts['paid'] }} paid entries</td>
+                            <td class="py-1.5 text-stone-700">Collected from {{ $money['platform_collected_count'] }} paid entries</td>
                             <td class="py-1.5 text-right tabular-nums text-stone-900">R {{ number_format((float) $money['gross_revenue'], 2) }}</td>
                         </tr>
                         @if($money['surcharges'] > 0)
@@ -80,7 +80,7 @@
                         @endif
                         <tr>
                             <td class="py-1.5 text-stone-700">
-                                SAPRF levy ({{ $counts['paid'] }} entries)
+                                SAPRF levy ({{ $money['saprf_levy_count'] }} entries)
                             </td>
                             <td class="py-1.5 text-right tabular-nums text-stone-500">
                                 − R {{ number_format((float) $money['saprf_fees'], 2) }}
@@ -88,7 +88,7 @@
                         </tr>
                         <tr>
                             <td class="py-1.5 text-stone-700">
-                                Platform fee ({{ $counts['paid'] }} entries)
+                                Platform fee ({{ $money['platform_fee_count'] }} entries)
                             </td>
                             <td class="py-1.5 text-right tabular-nums text-stone-500">
                                 − R {{ number_format((float) $money['platform_fee_total'], 2) }}
@@ -110,6 +110,19 @@
                         @endif
                     </tbody>
                 </table>
+                @php
+                    $offPlatformPaid = collect($money['excluded_entries'] ?? [])
+                        ->filter(fn ($reg) => $reg->payment_status === 'paid')
+                        ->count();
+                @endphp
+                @if($offPlatformPaid > 0)
+                    <p class="mt-3 text-xs text-stone-500">
+                        {{ $offPlatformPaid }} {{ \Illuminate\Support\Str::plural('entry', $offPlatformPaid) }}
+                        {{ $offPlatformPaid === 1 ? 'was' : 'were' }} collected by you, not through PayFast.
+                        {{ $offPlatformPaid === 1 ? 'That entry fee is' : 'Those entry fees are' }} not paid out.
+                        A manual non-member has no surcharge and no levies. A paid member still logs the R50 SAPRF levy and R50 platform fee, deducted above.
+                    </p>
+                @endif
 
                 @if($payout)
                     <div class="mt-4 flex gap-2">
@@ -151,7 +164,7 @@
                     </li>
                     <li>
                         <strong>You collect the money (cash / EFT at the range).</strong>
-                        No gateway involved, so SAPRF, platform, and gateway are all zero on the row. You keep the full club fee.
+                        The shooter stays on the entry list. The fee is not paid out again, and a club entry has no SAPRF or platform levy on that cash.
                     </li>
                 </ul>
                 <p class="mt-2 text-xs text-emerald-800">
@@ -217,7 +230,7 @@
                             </tr>
                         @endforeach
                         <tr class="bg-stone-50">
-                            <td class="px-3 py-2 font-semibold" colspan="3">Total settled · {{ $counts['paid'] }} paid</td>
+                            <td class="px-3 py-2 font-semibold" colspan="3">Total settled · {{ $money['paid_registrations'] }} through the platform</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['gross_revenue'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['surcharges'], 2) }}</td>
                             <td class="px-3 py-2 text-right font-semibold tabular-nums">{{ number_format((float) $money['saprf_fees'], 2) }}</td>

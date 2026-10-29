@@ -566,7 +566,7 @@ it('tells the add-shooter search which fee bracket a member is in', function () 
 
 it('labels the payout surcharge from the amounts stored on the entries', function () {
     foreach ([0, 1] as $i) {
-        MatchRegistration::create([
+        $registration = MatchRegistration::create([
             'match_id' => $this->match->id,
             'user_id' => User::factory()->create()->id,
             'shooter_name' => 'Paid Shooter '.$i,
@@ -580,6 +580,15 @@ it('labels the payout surcharge from the amounts stored on the entries', functio
             'payment_status' => 'paid',
             'registration_status' => 'confirmed',
             'registered_at' => now(),
+        ]);
+        \App\Models\Payment::create([
+            'payable_type' => MatchRegistration::class,
+            'payable_id' => $registration->id,
+            'user_id' => $registration->user_id,
+            'amount' => 750,
+            'm_payment_id' => 'REG-'.$registration->id,
+            'status' => 'completed',
+            'gateway' => 'payfast',
         ]);
     }
 

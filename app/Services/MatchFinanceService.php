@@ -115,6 +115,10 @@ class MatchFinanceService
             'total_expenses' => $financials['total_expenses'],
             'profit_loss' => $financials['profit_loss'],
             'refunds' => $financials['refunds'],
+            'paid_registrations' => $financials['paid_registrations'],
+            'platform_collected_count' => $financials['platform_collected_count'],
+            'saprf_levy_count' => $financials['saprf_levy_count'],
+            'platform_fee_count' => $financials['platform_fee_count'],
             'paid_entries' => $financials['paid_entries'],
             'excluded_entries' => $financials['excluded_entries'],
             'projected_entries' => $projectedEntries,
@@ -150,7 +154,7 @@ class MatchFinanceService
         $gatewayFlat = (float) $this->settings->get('estimated_gateway_flat_fee', 2.00);
 
         return $excluded
-            ->filter(fn ($reg) => (float) $reg->fee_amount > 0)
+            ->filter(fn ($reg) => (float) $reg->fee_amount > 0 && $reg->payment_status !== 'paid')
             ->map(function ($reg) use ($match, $saprfType, $saprfValue, $platformType, $platformValue, $gatewayPct, $gatewayFlat) {
                 $fee = (float) $reg->fee_amount;
                 $surchargeStored = (float) $reg->surcharge_amount;

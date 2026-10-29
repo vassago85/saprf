@@ -246,23 +246,55 @@ class FinancialService
             ->sortBy(fn ($r) => strtolower($r->shooter_name ?? $r->user?->name ?? ''))
             ->values();
 
-        // Billable rows contribute to money totals: anything paid (normal
-        // online + MD-added-cash + walk-ins which carry payment_status=paid
-        // with a negative md_net) PLUS any waived row with a non-zero
-        // deduction (that's a comp — MD covers SAPRF+platform out of own
-        // pocket, stored as negative md_net). Legacy waived rows with
-        // md_net=0 (grace-period imports) stay excluded — summing them in
-        // would add nothing anyway but we filter explicitly so the
-        // excluded_entries bucket still shows them as "did not transact".
-        $billable = $registrations->filter(function ($reg) {
-            if ($reg->payment_status === 'paid') {
-                return true;
+        // PayFast and account-credit rows are paid out in full: the platform
+        // holds the fee. Comps and walk-ins with a negative md_net stay in
+        // too, because the director owes those levies.
+        //
+        // A manual payment (cash / EFT) already went to the director, so the
+        // entry fee is not paid out again. A paid member still logs the R50
+        // SAPRF levy and R50 platform fee. A manual non-member does not:
+        // the non-member surcharge and both levies come off, and the row
+        // is not paid out.
+        $platformSettled = $registrations->filter(function ($reg) {
+            return $reg->payment_status === 'paid' && $reg->settledOnPlatform();
+        });
+
+        $directorOwes = $registrations->filter(function ($reg) {
+            if ($reg->settledOnPlatform()) {
+                return false;
             }
+
             if ($reg->payment_status === 'waived' && (float) $reg->md_net_amount < 0) {
                 return true;
             }
-            return false;
-        })->values();
+
+            return $reg->payment_status === 'paid' && (float) $reg->md_net_amount < 0;
+        });
+
+        $manualLevies = $registrations->filter(function ($reg) {
+            if ($reg->payment_status !== 'paid' || $reg->settledOnPlatform() || $reg->isWalkIn()) {
+                return false;
+            }
+
+            if ($reg->membership_fee_category !== 'active_member') {
+                return false;
+            }
+
+            return (float) $reg->saprf_fee + (float) $reg->platform_fee > 0;
+        })->each(function ($reg) {
+            $levy = round((float) $reg->saprf_fee + (float) $reg->platform_fee, 2);
+            $reg->fee_amount = 0;
+            $reg->surcharge_amount = 0;
+            $reg->gateway_fee = 0;
+            $reg->md_net_amount = -$levy;
+            $reg->collected_off_platform = true;
+        });
+
+        $billable = $platformSettled
+            ->concat($directorOwes)
+            ->concat($manualLevies)
+            ->unique('id')
+            ->values();
         $paid = $billable;
         $excluded = $registrations->reject(function ($reg) use ($billable) {
             return $billable->contains(fn ($b) => $b->id === $reg->id);
@@ -282,6 +314,9 @@ class FinancialService
         return [
             'total_registrations' => $registrations->count(),
             'paid_registrations' => $paid->count(),
+            'platform_collected_count' => $platformSettled->count(),
+            'saprf_levy_count' => $paid->filter(fn ($reg) => (float) $reg->saprf_fee > 0)->count(),
+            'platform_fee_count' => $paid->filter(fn ($reg) => (float) $reg->platform_fee > 0)->count(),
             'pending_registrations' => $excluded->count(),
             'member_entries' => $registrations->where('membership_fee_category', 'active_member')->count(),
             'lapsed_entries' => $registrations->where('membership_fee_category', 'lapsed_member')->count(),
@@ -430,7 +465,9 @@ class FinancialService
                     'gateway_fee' => $excluded ? 0 : (float) $reg->gateway_fee,
                     'net_amount' => $excluded ? 0 : (float) $reg->md_net_amount,
                     'excluded' => $excluded,
-                    'excluded_reason' => $excluded ? ($reg->payment_status ?: 'pending') : null,
+                    'excluded_reason' => $excluded
+                        ? ($reg->payment_status === 'paid' ? 'collected off platform' : ($reg->payment_status ?: 'pending'))
+                        : null,
                     'sort_order' => $sort++,
                 ]);
             }

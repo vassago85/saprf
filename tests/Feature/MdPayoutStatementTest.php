@@ -66,7 +66,7 @@ beforeEach(function () {
 
 function makePaidEntry(MatchEvent $match, User $shooter, string $category = 'active_member', float $fee = 500.0, float $surcharge = 0.0, float $gateway = 0.0): MatchRegistration
 {
-    return MatchRegistration::create([
+    $registration = MatchRegistration::create([
         'match_id' => $match->id,
         'user_id' => $shooter->id,
         'shooter_name' => $shooter->name,
@@ -82,6 +82,19 @@ function makePaidEntry(MatchEvent $match, User $shooter, string $category = 'act
         'registration_status' => 'confirmed',
         'registered_at' => now()->subDays(3),
     ]);
+
+    Payment::create([
+        'payable_type' => MatchRegistration::class,
+        'payable_id' => $registration->id,
+        'user_id' => $shooter->id,
+        'amount' => $fee,
+        'm_payment_id' => 'PF-'.$registration->id,
+        'status' => 'completed',
+        'gateway' => 'payfast',
+        'gateway_response' => ['payment_method' => 'cc'],
+    ]);
+
+    return $registration;
 }
 
 function makeUnpaidEntry(MatchEvent $match, User $shooter): MatchRegistration
@@ -136,6 +149,92 @@ it('matches summary totals and payout net to the cent for mixed entries', functi
 
     expect(round((float) $payout->net_amount, 2))->toBe(round($financials['md_net'], 2))
         ->and(round($payout->items()->where('excluded', false)->sum('net_amount'), 2))->toBe(round($financials['md_net'], 2));
+});
+
+it('leaves cash entries out of the payout', function () {
+    $online = User::factory()->create(['name' => 'Online Shooter']);
+    makePaidEntry($this->match, $online, 'active_member', 500);
+
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Cash Shooter',
+        'membership_fee_category' => 'club_entry',
+        'fee_amount' => 600,
+        'surcharge_amount' => 0,
+        'saprf_fee' => 0,
+        'platform_fee' => 0,
+        'gateway_fee' => 0,
+        'md_net_amount' => 600,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $financials = app(FinancialService::class)->matchFinancials($this->match->fresh());
+
+    expect($financials['paid_registrations'])->toBe(1)
+        ->and((float) $financials['gross_revenue'])->toBe(500.0)
+        ->and((float) $financials['md_net'])->toBe(400.0)
+        ->and($financials['excluded_entries']->pluck('shooter_name'))->toContain('Cash Shooter');
+});
+
+it('logs member levies on a manual payment without paying the cash back out', function () {
+    $online = User::factory()->create(['name' => 'Online Shooter']);
+    makePaidEntry($this->match, $online, 'active_member', 500);
+
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Cash Member',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 600,
+        'surcharge_amount' => 0,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 0,
+        'md_net_amount' => 500,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $financials = app(FinancialService::class)->matchFinancials($this->match->fresh());
+
+    expect((float) $financials['gross_revenue'])->toBe(500.0)
+        ->and((float) $financials['saprf_fees'])->toBe(100.0)
+        ->and((float) $financials['platform_fees'])->toBe(100.0)
+        ->and((float) $financials['md_net'])->toBe(300.0);
+});
+
+it('drops every charge on a manual non-member entry', function () {
+    $online = User::factory()->create(['name' => 'Online Shooter']);
+    makePaidEntry($this->match, $online, 'active_member', 500);
+
+    MatchRegistration::create([
+        'match_id' => $this->match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Rennie Brink',
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 700,
+        'surcharge_amount' => 100,
+        'saprf_fee' => 50,
+        'platform_fee' => 50,
+        'gateway_fee' => 0,
+        'md_net_amount' => 500,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $financials = app(FinancialService::class)->matchFinancials($this->match->fresh());
+
+    expect((float) $financials['gross_revenue'])->toBe(500.0)
+        ->and((float) $financials['surcharges'])->toBe(0.0)
+        ->and((float) $financials['saprf_fees'])->toBe(50.0)
+        ->and((float) $financials['platform_fees'])->toBe(50.0)
+        ->and((float) $financials['md_net'])->toBe(400.0)
+        ->and($financials['excluded_entries']->pluck('shooter_name'))->toContain('Rennie Brink');
 });
 
 it('shows unpaid rows as excluded with zeros', function () {
