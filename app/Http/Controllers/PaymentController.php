@@ -321,19 +321,47 @@ class PaymentController extends Controller
             return response('NOT FOUND', 404)->header('Content-Type', 'text/plain');
         }
 
-        if ($payment->isCompleted() || $payment->status === 'cancelled') {
-            if ($payment->status === 'cancelled') {
-                Log::info('PayFast ITN ignored for cancelled payment', [
-                    'm_payment_id' => $payment->m_payment_id,
-                ]);
-            }
-
+        if ($payment->isCompleted()) {
             return response('OK', 200)->header('Content-Type', 'text/plain');
         }
 
         $pfPaymentStatus = $data['payment_status'] ?? '';
+        $reopenedFromCancelled = false;
 
-        if ($pfPaymentStatus === 'COMPLETE' && ! $this->itnAmountMatchesPayment($payment, $data)) {
+        // A late ITN can arrive on a payment we already cancelled — the member
+        // hit the cancel URL mid-checkout, or RegistrationPricingService
+        // dropped the pending row to reprice an unpaid entry. If PayFast
+        // still collected the money (COMPLETE + matching gross), the ITN is
+        // authoritative: PayFast has the funds, so we have to activate the
+        // membership / registration. The signature was validated above, so
+        // this cannot be forged by a replay.
+        if ($payment->status === 'cancelled') {
+            $amountMatches = isset($data['amount_gross'])
+                && $this->itnAmountMatchesPayment($payment, $data);
+
+            if ($pfPaymentStatus !== 'COMPLETE' || ! $amountMatches) {
+                Log::info('PayFast ITN ignored for cancelled payment', [
+                    'm_payment_id' => $payment->m_payment_id,
+                    'pf_status' => $pfPaymentStatus,
+                    'amount_matches' => $amountMatches,
+                ]);
+
+                return response('OK', 200)->header('Content-Type', 'text/plain');
+            }
+
+            Log::warning('PayFast ITN re-opened a cancelled payment', [
+                'm_payment_id' => $payment->m_payment_id,
+                'pf_payment_id' => $data['pf_payment_id'] ?? null,
+                'amount_gross' => $data['amount_gross'] ?? null,
+                'payable_type' => $payment->payable_type,
+                'payable_id' => $payment->payable_id,
+            ]);
+            $reopenedFromCancelled = true;
+        }
+
+        if (! $reopenedFromCancelled
+            && $pfPaymentStatus === 'COMPLETE'
+            && ! $this->itnAmountMatchesPayment($payment, $data)) {
             Log::warning('PayFast ITN amount does not match the pending payment', [
                 'm_payment_id' => $payment->m_payment_id,
                 'expected' => $payment->amount,
@@ -344,9 +372,16 @@ class PaymentController extends Controller
         }
 
         $settlement = Payment::settlementFromItn($data);
+        $extraResponse = [];
+        if ($sandboxOverride) {
+            $extraResponse['sandbox_override'] = true;
+        }
+        if ($reopenedFromCancelled) {
+            $extraResponse['reopened_from_cancelled'] = true;
+        }
         $payment->update([
             'gateway_payment_id' => $data['pf_payment_id'] ?? null,
-            'gateway_response' => array_merge($data, $sandboxOverride ? ['sandbox_override' => true] : []),
+            'gateway_response' => array_merge($data, $extraResponse),
             'status' => $pfPaymentStatus === 'COMPLETE' ? 'completed' : 'failed',
             'paid_at' => $pfPaymentStatus === 'COMPLETE' ? now() : null,
             'amount_gross' => $settlement['gross'],
@@ -364,6 +399,7 @@ class PaymentController extends Controller
             'm_payment_id' => $payment->m_payment_id,
             'status' => $payment->status,
             'sandbox_override' => $sandboxOverride,
+            'reopened_from_cancelled' => $reopenedFromCancelled,
         ]);
 
         return response('OK', 200)->header('Content-Type', 'text/plain');
