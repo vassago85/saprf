@@ -417,6 +417,10 @@
                             <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
                                 Non-member scores may not count towards season standings. Consider becoming a paid SAPRF member for full benefits.
                             </p>
+                        @elseif($pricing['category'] === 'club_entry')
+                            <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                                Club entries don't count for season standings. Become a paid SAPRF member to unlock stats, your certificate, firearm tracking, and more.
+                            </p>
                         @endif
                     </div>
 
@@ -462,8 +466,12 @@
                         </div>
                     @else
                         <div class="rounded-xl border border-dashed border-stone-300 p-4 text-center">
-                            <p class="text-sm text-stone-500">No rifle configurations set up yet.</p>
-                            <a href="{{ route('rifle-configurations.create') }}" class="text-xs text-emerald-700 font-medium hover:text-emerald-800">Add a rifle &rarr;</a>
+                            @if(auth()->user()?->isActiveMember())
+                                <p class="text-sm text-stone-500">No rifle configurations set up yet.</p>
+                                <a href="{{ route('rifle-configurations.create') }}" class="text-xs text-emerald-700 font-medium hover:text-emerald-800">Add a rifle &rarr;</a>
+                            @else
+                                <p class="text-sm text-stone-500">Rifle tracking is part of a paid SAPRF membership. You can still register without one.</p>
+                            @endif
                         </div>
                     @endif
 

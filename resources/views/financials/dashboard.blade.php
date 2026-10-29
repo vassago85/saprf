@@ -233,7 +233,7 @@
                         <dd class="font-semibold text-stone-900">{{ number_format($summary['match_revenue']['total_entries']) }}</dd>
                     </div>
                     <div class="flex justify-between text-xs text-stone-400">
-                        <dt>Members: {{ $summary['match_revenue']['member_entries'] }} | Lapsed: {{ $summary['match_revenue']['lapsed_entries'] }} | Non-member: {{ $summary['match_revenue']['non_member_entries'] }}</dt>
+                        <dt>Members: {{ $summary['match_revenue']['member_entries'] }} | Lapsed: {{ $summary['match_revenue']['lapsed_entries'] }} | Non-member: {{ $summary['match_revenue']['non_member_entries'] }} | Club: {{ $summary['match_revenue']['club_entry_entries'] ?? 0 }}</dt>
                     </div>
                     <div class="flex justify-between border-t border-stone-100 pt-2">
                         <dt class="text-stone-600">Gross Revenue</dt>

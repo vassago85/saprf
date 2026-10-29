@@ -74,8 +74,23 @@ it('renders the provincial admin dashboard shell', function () {
 it('renders the dual-discipline shooter dashboard for members', function () {
     $member = User::factory()->create(['name' => 'Eve Shooter']);
     $member->assignRole('member');
+    // Full member dashboard is gated on an active membership record.
+    // Non-active members get a trimmed "Join SAPRF" dashboard instead.
+    \App\Models\Membership::create([
+        'user_id' => $member->id,
+        'saprf_number' => 'T-DS-EVE',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
 
+    // Skip the profile-complete middleware — once a factory member is
+    // "active + paid", that gate kicks in and redirects to /profile.
+    // Covered by its own tests; irrelevant to the dashboard shell check.
     $this->actingAs($member)
+        ->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertSee('Welcome back')
@@ -85,6 +100,20 @@ it('renders the dual-discipline shooter dashboard for members', function () {
         ->assertSee('Recent results')
         ->assertDontSee('Pricing & rules')
         ->assertDontSee('Season Stats');
+});
+
+it('renders the join-SAPRF dashboard for members without an active membership', function () {
+    $prospect = User::factory()->create(['name' => 'Nina Non-Member']);
+    $prospect->assignRole('member');
+
+    $this->actingAs($prospect)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Nina Non-Member')
+        ->assertSee('Join SAPRF')
+        ->assertSee('Browse matches')
+        ->assertDontSee('Next matches')
+        ->assertDontSee('Recent results');
 });
 
 it('keeps the developer dashboard unchanged', function () {

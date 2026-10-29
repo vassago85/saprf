@@ -749,6 +749,7 @@ final class SidebarMenu
                         'icon' => 'wrench-screwdriver',
                         'contexts' => [self::CONTEXT_SHOOTER],
                         'roles' => null,
+                        'requires_active_member' => true,
                         'current_route_is' => ['rifle-configurations.*'],
                     ],
                     [
@@ -758,6 +759,7 @@ final class SidebarMenu
                         'icon' => 'fire',
                         'contexts' => [self::CONTEXT_SHOOTER],
                         'roles' => null,
+                        'requires_active_member' => true,
                         'current_route_is' => ['ammo-loads.*'],
                     ],
                     [
@@ -767,6 +769,7 @@ final class SidebarMenu
                         'icon' => 'cube',
                         'contexts' => [self::CONTEXT_SHOOTER],
                         'roles' => null,
+                        'requires_active_member' => true,
                         'current_route_is' => ['barrels.*'],
                     ],
                     [
@@ -776,6 +779,7 @@ final class SidebarMenu
                         'icon' => 'beaker',
                         'contexts' => [self::CONTEXT_SHOOTER],
                         'roles' => null,
+                        'requires_active_member' => true,
                         'current_route_is' => ['load-tools.*', 'ladder-sessions.*', 'ammo-strings.*'],
                     ],
                 ],
@@ -834,6 +838,14 @@ final class SidebarMenu
                 }
 
                 if (is_array($item['roles']) && ! $user->hasAnyRole($item['roles'])) {
+                    continue;
+                }
+
+                // Member-only items — kit trackers, certificate etc. —
+                // disappear from the sidebar for lapsed / non-members. The
+                // route-level middleware is still the hard gate; this just
+                // keeps dead links out of their nav.
+                if (! empty($item['requires_active_member']) && ! $user->isActiveMember()) {
                     continue;
                 }
 

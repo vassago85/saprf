@@ -50,6 +50,7 @@ class MatchEvent extends Model
         'non_member_fee',
         'lapsed_member_fee',
         'junior_fee',
+        'club_entry_fee',
         'platform_fee_type',
         'platform_fee_value',
         'saprf_fee_type',
@@ -83,6 +84,7 @@ class MatchEvent extends Model
             'non_member_fee' => 'decimal:2',
             'lapsed_member_fee' => 'decimal:2',
             'junior_fee' => 'decimal:2',
+            'club_entry_fee' => 'decimal:2',
             'platform_fee_value' => 'decimal:2',
             'saprf_fee_value' => 'decimal:2',
             'max_competitors' => 'integer',
@@ -420,6 +422,19 @@ class MatchEvent extends Model
     public function hasRequiredSetup(): bool
     {
         return filled($this->match_director) && $this->active_member_fee !== null;
+    }
+
+    /**
+     * Club and provincial matches offer a "club entry" fee bracket for
+     * non-members: they pay the match-director-set club price (or the
+     * active-member fee when no club price is set) with no non-member
+     * surcharge, and the platform takes a small percentage for the
+     * payment service. Nationals, finals, and internationals keep today's
+     * non-member surcharge instead.
+     */
+    public function supportsClubEntry(): bool
+    {
+        return in_array($this->series_level, ['club', 'provincial'], true);
     }
 
     public function isRegistrationOpen(): bool

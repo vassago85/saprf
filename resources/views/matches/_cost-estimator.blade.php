@@ -9,6 +9,11 @@
     $gatewayFlat = (float) $settings->get('estimated_gateway_flat_fee', 2);
     $nmSurcharge = (float) $settings->get('non_member_surcharge', 0);
     $lmSurcharge = (float) $settings->get('lapsed_member_surcharge', 0);
+    // Club-entry split applies to non-members on club and provincial
+    // matches. The two percents live in site settings so ExCo can tune
+    // them without a deploy; defaults match the proposal (3% + 3%).
+    $clubSaprfPct = (float) $settings->get('club_entry_saprf_percent', 3);
+    $clubPlatformPct = (float) $settings->get('club_entry_platform_percent', 3);
 
     $rateMatch = isset($match) ? $match : null;
     if ($rateMatch && $rateMatch->saprf_fee_type !== null && $rateMatch->saprf_fee_value !== null) {
@@ -19,6 +24,9 @@
         $platformType = (string) $rateMatch->platform_fee_type;
         $platformValue = (float) $rateMatch->platform_fee_value;
     }
+
+    $supportsClubEntry = $rateMatch?->supportsClubEntry() ?? false;
+    $clubEntryFee = $rateMatch?->club_entry_fee !== null ? (float) $rateMatch->club_entry_fee : null;
 
     $initialFee = $standalone ? (float) ($rateMatch->active_member_fee ?? 0) : 0;
     $initialShooters = $standalone ? (int) old('estimated_shooters', $rateMatch->estimated_shooters ?? 0) : 0;
@@ -43,6 +51,10 @@
          gatewayFlat: {{ $gatewayFlat }},
          nmSurcharge: {{ $nmSurcharge }},
          lmSurcharge: {{ $lmSurcharge }},
+         supportsClubEntry: {{ $supportsClubEntry ? 'true' : 'false' }},
+         clubEntryFee: {{ $clubEntryFee !== null ? $clubEntryFee : 'null' }},
+         clubSaprfPct: {{ $clubSaprfPct }},
+         clubPlatformPct: {{ $clubPlatformPct }},
          fixedCosts: {{ $fixedCosts }},
          variableUnit: {{ $variableUnit }},
      })"
@@ -54,6 +66,15 @@
 
         const feeEl = document.getElementById('active_member_fee');
         if(feeEl) feeEl.addEventListener('input', () => calculate());
+
+        const clubFeeEl = document.getElementById('club_entry_fee');
+        if(clubFeeEl) clubFeeEl.addEventListener('input', () => calculate());
+
+        const seriesEl = document.getElementById('series_level');
+        if(seriesEl) seriesEl.addEventListener('change', () => {
+            supportsClubEntry = ['club','provincial'].includes(seriesEl.value);
+            calculate();
+        });
 
         const shootersEl = document.getElementById('estimated_shooters');
         if(shootersEl) {
@@ -231,10 +252,20 @@
                             <span class="text-stone-600">Base entry fee</span>
                             <span class="font-semibold text-stone-900">R <span x-text="fmt(fee)"></span></span>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-stone-500">Non-member fee</span>
-                            <span class="text-stone-700">R <span x-text="fmt(fee + nmSurcharge)"></span></span>
-                        </div>
+                        <template x-if="supportsClubEntry">
+                            {{-- Club and provincial matches advertise the club price,
+                                 not the non-member surcharge price. --}}
+                            <div class="flex justify-between">
+                                <span class="text-stone-500">Club entry fee</span>
+                                <span class="text-stone-700">R <span x-text="fmt(clubFee)"></span></span>
+                            </div>
+                        </template>
+                        <template x-if="! supportsClubEntry">
+                            <div class="flex justify-between">
+                                <span class="text-stone-500">Non-member fee</span>
+                                <span class="text-stone-700">R <span x-text="fmt(fee + nmSurcharge)"></span></span>
+                            </div>
+                        </template>
                         <div class="flex justify-between">
                             <span class="text-stone-500">Lapsed member fee</span>
                             <span class="text-stone-700">R <span x-text="fmt(fee + lmSurcharge)"></span></span>
@@ -258,9 +289,17 @@
                         <hr class="border-stone-200 my-1">
 
                         <div class="flex justify-between font-semibold">
-                            <span class="text-stone-700">Net to Match Director</span>
+                            <span class="text-stone-700">Net to Match Director <span class="text-xs font-normal text-stone-400">(member rate)</span></span>
                             <span class="text-emerald-700">R <span x-text="fmt(netMd)"></span></span>
                         </div>
+
+                        <template x-if="supportsClubEntry">
+                            <div class="mt-2 rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-500 space-y-1">
+                                <p class="font-semibold text-stone-700">Club entry (per shooter)</p>
+                                <p>Online payment: SAPRF <span x-text="clubSaprfPct"></span>% + platform <span x-text="clubPlatformPct"></span>% + gateway at cost. MD net on R<span x-text="fmt(clubFee)"></span> = <span class="text-emerald-700 font-semibold">R <span x-text="fmt(clubNetOnline)"></span></span>.</p>
+                                <p>You collect the money: SAPRF, platform, and gateway are all zero. MD keeps the full <span class="text-emerald-700 font-semibold">R <span x-text="fmt(clubFee)"></span></span>.</p>
+                            </div>
+                        </template>
                     </div>
 
                     <template x-if="shooters > 0">
@@ -309,6 +348,10 @@
             gatewayFlat: config.gatewayFlat,
             nmSurcharge: config.nmSurcharge,
             lmSurcharge: config.lmSurcharge,
+            supportsClubEntry: !!config.supportsClubEntry,
+            clubEntryFee: config.clubEntryFee ?? null,
+            clubSaprfPct: config.clubSaprfPct || 0,
+            clubPlatformPct: config.clubPlatformPct || 0,
             fixedCosts: config.fixedCosts || 0,
             variableUnit: config.variableUnit || 0,
             shooters: config.initialShooters > 0 ? config.initialShooters : (config.standalone ? null : 30),
@@ -317,16 +360,36 @@
             platformFee: 0,
             gatewayFee: 0,
             netMd: 0,
+            clubFee: 0,
+            clubNetOnline: 0,
             calculate() {
                 if (!this.standalone) {
                     const el = document.getElementById('active_member_fee');
                     this.fee = el ? parseFloat(el.value) || 0 : 0;
+                    // Club entry fee lives on its own input and falls back to
+                    // the member fee when blank. Only present on club /
+                    // provincial matches, so guard the lookup.
+                    if (this.supportsClubEntry) {
+                        const clubEl = document.getElementById('club_entry_fee');
+                        const raw = clubEl ? parseFloat(clubEl.value) : NaN;
+                        this.clubFee = !isNaN(raw) && raw > 0 ? raw : this.fee;
+                    }
+                } else if (this.supportsClubEntry) {
+                    this.clubFee = this.clubEntryFee !== null ? this.clubEntryFee : this.fee;
                 }
                 this.saprfFee = this.saprfType === 'fixed' ? this.saprfValue : this.fee * (this.saprfValue / 100);
                 this.platformFee = this.platformType === 'fixed' ? this.platformValue : this.fee * (this.platformValue / 100);
                 this.gatewayFee = this.fee > 0 ? this.fee * (this.gatewayPct / 100) + this.gatewayFlat : 0;
                 this.netMd = this.fee - this.saprfFee - this.platformFee - this.gatewayFee;
                 if (this.netMd < 0) this.netMd = 0;
+
+                if (this.supportsClubEntry) {
+                    const base = this.clubFee || 0;
+                    const clubSaprf = base * (this.clubSaprfPct / 100);
+                    const clubPlatform = base * (this.clubPlatformPct / 100);
+                    const clubGateway = base > 0 ? base * (this.gatewayPct / 100) + this.gatewayFlat : 0;
+                    this.clubNetOnline = Math.max(0, base - clubSaprf - clubPlatform - clubGateway);
+                }
             },
             estimatedLeft() {
                 const count = parseInt(this.shooters, 10) || 0;

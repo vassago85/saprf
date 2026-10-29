@@ -10,6 +10,8 @@ beforeEach(function () {
     seedRoles();
     $this->user = User::factory()->create();
     $this->user->assignRole('member');
+    giveActiveMembership($this->user);
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 it('creates a session, applies the paste, and toggles a step out of the fit', function () {

@@ -6,6 +6,7 @@ use App\Models\User;
 
 beforeEach(function () {
     seedRoles();
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 it('rejects another member trying to view someone else\'s ladder session', function () {
@@ -71,6 +72,7 @@ it('rejects developer for the same reason', function () {
 it('lets the owner view, delete, and export their own ladder session', function () {
     $owner = User::factory()->create();
     $owner->assignRole('member');
+    giveActiveMembership($owner);
     $session = LadderSession::factory()->for($owner)->create();
 
     $this->actingAs($owner)->get(route('ladder-sessions.show', $session))->assertOk();

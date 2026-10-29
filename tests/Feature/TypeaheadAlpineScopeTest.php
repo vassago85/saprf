@@ -7,6 +7,8 @@ beforeEach(function () {
 
     $this->member = User::factory()->create();
     $this->member->assignRole('member');
+    giveActiveMembership($this->member);
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 it('keeps required typeahead alpine data intact so results stays in scope', function () {

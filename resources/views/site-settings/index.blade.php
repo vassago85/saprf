@@ -266,6 +266,40 @@
                     <p class="mt-1 text-xs text-stone-400">Registrations with <code>registered_at</code> before this date have the platform fee waived (SAPRF still takes its R50 per shooter). Leave blank to always charge the platform fee. Existing rows can be backfilled with <code>php artisan saprf:waive-fees-before-date</code>.</p>
                 </div>
 
+                {{-- Club-entry percentages. Developer-only writes so an owner save
+                     cannot silently zero them. These apply to non-members on club
+                     and provincial matches: the shooter pays the match-director-set
+                     club fee, SAPRF and the platform each take this percent of it. --}}
+                @role('developer')
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
+                    <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                        <div>
+                            <h3 class="text-sm font-semibold text-emerald-900">Club Entry Fees</h3>
+                            <p class="mt-0.5 text-xs text-emerald-700">
+                                Non-members on club and provincial matches pay the club price with no surcharge.
+                                SAPRF and the platform each take a small percentage of the club match fee when the shooter pays through PayFast —
+                                nothing when the match director collects the money.
+                            </p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-300">Developer</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="club_entry_saprf_percent" class="block text-xs font-medium text-stone-700">SAPRF share (%)</label>
+                            <input type="number" step="0.1" min="0" max="20" name="club_entry_saprf_percent" id="club_entry_saprf_percent"
+                                   value="{{ old('club_entry_saprf_percent', $settings['club_entry_saprf_percent'] ?? '3') }}"
+                                   class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label for="club_entry_platform_percent" class="block text-xs font-medium text-stone-700">Platform share (%)</label>
+                            <input type="number" step="0.1" min="0" max="20" name="club_entry_platform_percent" id="club_entry_platform_percent"
+                                   value="{{ old('club_entry_platform_percent', $settings['club_entry_platform_percent'] ?? '3') }}"
+                                   class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                    </div>
+                </div>
+                @endrole
+
                 <div class="rounded-lg bg-stone-50 border border-stone-200 p-4 text-sm text-stone-600 space-y-1">
                     <p><strong class="text-stone-900">How it works:</strong></p>
                     <p>SAPRF fee and platform fee are calculated on the <strong>base match fee</strong> (active member rate). Non-member and lapsed-member surcharges go 100% to SAPRF. The gateway estimate is used until PayFast reports the real fee, then MD net is recalculated.</p>

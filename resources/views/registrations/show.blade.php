@@ -760,6 +760,9 @@
                                 <option value="active_member" @selected($registration->membership_fee_category === 'active_member')>Active Member</option>
                                 <option value="lapsed_member" @selected($registration->membership_fee_category === 'lapsed_member')>Lapsed Member</option>
                                 <option value="non_member" @selected($registration->membership_fee_category === 'non_member')>Non-member</option>
+                                @if($registration->match?->supportsClubEntry())
+                                    <option value="club_entry" @selected($registration->membership_fee_category === 'club_entry')>Club entry</option>
+                                @endif
                             </select>
                         </div>
 

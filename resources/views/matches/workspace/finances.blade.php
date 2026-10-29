@@ -14,6 +14,18 @@
             ? round((float) $expenses->sum(fn ($expense) => $expense->effectiveAmount($registeredShooters)), 2)
             : 0.0;
         $profitAfterCosts = round($registeredNet - $actualMatchCosts, 2);
+
+        // Club-entry diagnostics for the MD. Hide the block entirely when
+        // the match level doesn't support club entries so national match
+        // directors don't see a cryptic 0/0/0 panel.
+        $supportsClubEntry = $match->supportsClubEntry();
+        $clubEntryRows = $supportsClubEntry
+            ? $registeredRows->where('fee_category', 'club_entry')
+            : collect();
+        $clubEntryCount = $clubEntryRows->count();
+        $clubSettings = app(\App\Services\SettingsService::class);
+        $clubSaprfPct = (float) $clubSettings->get('club_entry_saprf_percent', 3);
+        $clubPlatformPct = (float) $clubSettings->get('club_entry_platform_percent', 3);
     @endphp
 
     <div class="mt-6 space-y-4">
@@ -123,6 +135,30 @@
             </div>
 
         </div>
+
+        @if($supportsClubEntry && $viewerIsMatchDirector)
+            {{-- Club-entry explainer for match directors. Shooters never see
+                 this split — they see one club price — but the MD needs to
+                 understand why platform/SAPRF/gateway columns are zero on
+                 off-platform club entries, and why they're ~3%+3% on online
+                 ones. --}}
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
+                <h3 class="text-sm font-semibold">Club entry — how the split works</h3>
+                <ul class="mt-2 space-y-1 text-xs leading-relaxed">
+                    <li>
+                        <strong>Shooter pays online (PayFast).</strong>
+                        SAPRF takes {{ rtrim(rtrim(number_format($clubSaprfPct, 2, '.', ''), '0'), '.') }}% and the platform takes {{ rtrim(rtrim(number_format($clubPlatformPct, 2, '.', ''), '0'), '.') }}% of the club fee. Gateway fee is deducted at cost. The remainder is your net.
+                    </li>
+                    <li>
+                        <strong>You collect the money (cash / EFT at the range).</strong>
+                        No gateway involved, so SAPRF, platform, and gateway are all zero on the row. You keep the full club fee.
+                    </li>
+                </ul>
+                <p class="mt-2 text-xs text-emerald-800">
+                    Club entries on this match so far: <strong>{{ $clubEntryCount }}</strong>. Set the club fee under the match settings tab; leave it blank to charge the member rate.
+                </p>
+            </div>
+        @endif
 
         {{-- Full expense editor (add / edit / delete). MD-only; replaces
              the read-only list that used to live inside the payout card

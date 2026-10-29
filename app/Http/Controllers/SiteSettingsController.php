@@ -76,6 +76,8 @@ class SiteSettingsController extends Controller
             'saprf_fee_value' => ['required', 'numeric', 'min:0', 'max:99999.99'],
             'platform_fee_type' => ['nullable', 'in:percentage,fixed'],
             'platform_fee_value' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'club_entry_saprf_percent' => ['nullable', 'numeric', 'min:0', 'max:20'],
+            'club_entry_platform_percent' => ['nullable', 'numeric', 'min:0', 'max:20'],
             'billing_start_date' => ['nullable', 'date_format:Y-m-d'],
             'platform_operator_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'membership_platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:50'],
@@ -153,6 +155,26 @@ class SiteSettingsController extends Controller
         if ($request->user()->hasRole('developer') && isset($validated['platform_fee_type'], $validated['platform_fee_value'])) {
             $this->settingsService->set('platform_fee_type', $validated['platform_fee_type'], 'Platform fee type: percentage of match fee or fixed rand amount per shooter');
             $this->settingsService->set('platform_fee_value', $validated['platform_fee_value'], 'Platform fee value (interpreted by platform_fee_type)');
+        }
+
+        // Club-entry percentages are developer-managed, same reasoning:
+        // they override SAPRF's cut for non-members on club/provincial
+        // matches so an accidental owner save shouldn't wipe them.
+        if ($request->user()->hasRole('developer')) {
+            if (array_key_exists('club_entry_saprf_percent', $validated)) {
+                $this->settingsService->set(
+                    'club_entry_saprf_percent',
+                    $validated['club_entry_saprf_percent'] ?? 3,
+                    'Club entry: SAPRF fee as a percent of the club match fee (default 3)',
+                );
+            }
+            if (array_key_exists('club_entry_platform_percent', $validated)) {
+                $this->settingsService->set(
+                    'club_entry_platform_percent',
+                    $validated['club_entry_platform_percent'] ?? 3,
+                    'Club entry: platform fee as a percent of the club match fee (default 3)',
+                );
+            }
         }
 
         // Billing start date — the cut-off before which the platform fee is

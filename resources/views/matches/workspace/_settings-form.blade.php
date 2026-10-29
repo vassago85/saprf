@@ -196,6 +196,14 @@
                 </div>
             </div>
 
+            @if($match->supportsClubEntry())
+                <div class="sm:col-span-2">
+                    <label for="club_entry_fee" class="block text-xs font-medium text-stone-600 mb-1">Club entry fee (ZAR)</label>
+                    <input type="number" name="club_entry_fee" id="club_entry_fee" step="0.01" min="0" value="{{ old('club_entry_fee', $match->club_entry_fee) }}" placeholder="Blank = same as entry fee" class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500" />
+                    <p class="mt-1 text-xs text-stone-400">Shooters who are not SAPRF members pay this price with no non-member surcharge. Leave blank and they pay the same as members. SAPRF and the platform each take a small percentage of the fee when the shooter pays through PayFast — nothing when you collect the money yourself.</p>
+                </div>
+            @endif
+
             @if($canSeeFeeOverrides)
                 <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50 p-4">
                     <div class="flex flex-wrap items-start justify-between gap-2">

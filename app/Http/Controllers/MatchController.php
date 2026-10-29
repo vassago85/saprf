@@ -89,6 +89,14 @@ class MatchController extends Controller
 
         $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
         $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
+
+        // Club entry is a club/provincial-only concept. Drop the value on
+        // nationals/finals/internationals so a stale form field can't book a
+        // club price on a match that is supposed to charge the surcharge.
+        if (! in_array($validated['series_level'] ?? null, ['club', 'provincial'], true)) {
+            $validated['club_entry_fee'] = null;
+        }
+
         $validated['series'] = $validated['match_type'];
         $validated['season'] = (string) now()->year;
         $validated['created_by'] = $request->user()->id;
@@ -254,6 +262,15 @@ class MatchController extends Controller
 
         $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
         $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
+
+        // Keep the club_entry_fee column honest if the series level moved off
+        // club/provincial on this edit. For club/provincial the submitted value
+        // is accepted as-is (including blank, which means "fall back to the
+        // active-member fee"); other series levels always clear it.
+        $effectiveLevel = $validated['series_level'] ?? $match->series_level;
+        if (! in_array($effectiveLevel, ['club', 'provincial'], true)) {
+            $validated['club_entry_fee'] = null;
+        }
 
         // Fee overrides are exco/developer only. Silently drop the fields for
         // anyone else so an ordinary MD tampering with the payload can't
@@ -1349,13 +1366,25 @@ class MatchController extends Controller
         $division = Division::findOrFail($validated['division_id']);
         $divisionSlug = $division->slug;
 
+        // A match-director-seeded entry never passes through PayFast, so the
+        // pricing service is told the money was collected by the director.
+        // On a club_entry row that drops SAPRF, platform, and gateway to
+        // zero — the platform did not provide the payment service. On every
+        // other bracket the breakdown is unchanged, and we still have to
+        // manually zero the gateway below because the card-rate estimate
+        // would otherwise silently shave ~3.5% + R2 off the MD's payout for
+        // money that was handed to them in cash / EFT.
         $breakdown = app(RegistrationPricingService::class)
-            ->calculateBreakdown($match, $shooter, $match->match_date ?: now(), $divisionSlug, $forcedCategory);
+            ->calculateBreakdown(
+                $match,
+                $shooter,
+                $match->match_date ?: now(),
+                $divisionSlug,
+                $forcedCategory,
+                null,
+                RegistrationPricingService::COLLECTED_BY_DIRECTOR,
+            );
 
-        // Manually seeded entries never pass through PayFast, so we must not
-        // book the card-rate gateway estimate — otherwise the MD's payout for
-        // this entry would silently be short by ~3.5% + R2 for money that was
-        // handed to them in cash / EFT. Rebalance md_net accordingly.
         $gatewayFee = 0.00;
         $mdNet = round(
             (float) $breakdown['total_fee']

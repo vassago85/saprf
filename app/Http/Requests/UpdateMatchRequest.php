@@ -47,6 +47,7 @@ class UpdateMatchRequest extends FormRequest
             'registration_close_date' => ['nullable', 'date', 'after_or_equal:registration_open_date'],
             'active_member_fee' => ['nullable', 'numeric', 'min:0'],
             'junior_fee' => ['nullable', 'numeric', 'min:0'],
+            'club_entry_fee' => ['nullable', 'numeric', 'min:0'],
             // Fee overrides: must come as a matched pair (either both set or
             // both blank) so we never mix a match-level type with a global
             // value. Only exco/developer are allowed to submit these — the

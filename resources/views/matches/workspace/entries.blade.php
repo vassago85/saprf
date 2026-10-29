@@ -32,6 +32,7 @@
                     <option value="active_member" @selected($filters['category']==='active_member')>Member</option>
                     <option value="lapsed_member" @selected($filters['category']==='lapsed_member')>Lapsed</option>
                     <option value="non_member" @selected($filters['category']==='non_member')>Non-member</option>
+                    <option value="club_entry" @selected($filters['category']==='club_entry')>Club entry</option>
                 </select>
             </div>
             <div class="flex gap-2">

@@ -333,6 +333,7 @@ class MatchRegistration extends Model
             'active_member' => 'Active Member',
             'lapsed_member' => 'Lapsed Member',
             'non_member' => 'Non-member',
+            'club_entry' => 'Club entry',
             default => $this->membership_fee_category
                 ? str_replace('_', ' ', $this->membership_fee_category)
                 : '—',

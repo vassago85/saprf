@@ -581,7 +581,24 @@
                                     <dt class="text-xs text-stone-400">Member Fee</dt>
                                     <dd class="text-sm font-semibold text-emerald-700">R {{ number_format($match->active_member_fee, 2) }}</dd>
                                 </div>
-                                @if($match->non_member_fee > 0)
+                                @if($match->supportsClubEntry())
+                                    {{-- Club and provincial matches: non-members pay the
+                                         match-director-set club price (or the member fee
+                                         when no club price is set), not the surcharge
+                                         price. Only surface the row if it is a different
+                                         number from the member fee. --}}
+                                    @php
+                                        $clubFee = $match->club_entry_fee !== null
+                                            ? (float) $match->club_entry_fee
+                                            : (float) $match->active_member_fee;
+                                    @endphp
+                                    @if($clubFee > 0 && $clubFee != (float) $match->active_member_fee)
+                                        <div class="flex items-center justify-between">
+                                            <dt class="text-xs text-stone-400">Club Entry Fee</dt>
+                                            <dd class="text-sm font-medium text-stone-700">R {{ number_format($clubFee, 2) }}</dd>
+                                        </div>
+                                    @endif
+                                @elseif($match->non_member_fee > 0)
                                     <div class="flex items-center justify-between">
                                         <dt class="text-xs text-stone-400">Non-Member Fee</dt>
                                         <dd class="text-sm font-medium text-stone-700">R {{ number_format($match->non_member_fee, 2) }}</dd>
@@ -624,7 +641,9 @@
                                 @endif
                             @endauth
 
-                            @if($match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
+                            @if($match->supportsClubEntry())
+                                <p class="mt-3 text-[11px] text-stone-400 text-center">Club entries may not count for season logs. Full members unlock stats, certificate, and firearm tracking.</p>
+                            @elseif($match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
                                 <p class="mt-3 text-[11px] text-stone-400 text-center">Non-member scores may not count for season logs.</p>
                             @endif
                         </div>

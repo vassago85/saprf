@@ -86,7 +86,8 @@ class FinancialService
             COALESCE(SUM(md_net_amount), 0) as md_net,
             SUM(CASE WHEN membership_fee_category = "active_member" THEN 1 ELSE 0 END) as member_entries,
             SUM(CASE WHEN membership_fee_category = "lapsed_member" THEN 1 ELSE 0 END) as lapsed_entries,
-            SUM(CASE WHEN membership_fee_category = "non_member" THEN 1 ELSE 0 END) as non_member_entries
+            SUM(CASE WHEN membership_fee_category = "non_member" THEN 1 ELSE 0 END) as non_member_entries,
+            SUM(CASE WHEN membership_fee_category = "club_entry" THEN 1 ELSE 0 END) as club_entry_entries
         ')->first();
 
         // Withdrawal fees kept on cash refunds: the entry is cancelled, but
@@ -116,6 +117,7 @@ class FinancialService
             'member_entries' => (int) $agg->member_entries,
             'lapsed_entries' => (int) $agg->lapsed_entries,
             'non_member_entries' => (int) $agg->non_member_entries,
+            'club_entry_entries' => (int) $agg->club_entry_entries,
         ];
     }
 
@@ -284,6 +286,7 @@ class FinancialService
             'member_entries' => $registrations->where('membership_fee_category', 'active_member')->count(),
             'lapsed_entries' => $registrations->where('membership_fee_category', 'lapsed_member')->count(),
             'non_member_entries' => $registrations->where('membership_fee_category', 'non_member')->count(),
+            'club_entry_entries' => $registrations->where('membership_fee_category', 'club_entry')->count(),
             'gross_revenue' => $gross,
             'saprf_fees' => $saprf,
             'platform_fees' => $platform,

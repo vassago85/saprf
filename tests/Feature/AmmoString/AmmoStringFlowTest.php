@@ -9,6 +9,9 @@ beforeEach(function () {
     seedRoles();
     $this->user = User::factory()->create();
     $this->user->assignRole('member');
+    // Kit routes require an active SAPRF membership.
+    giveActiveMembership($this->user);
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 it('creates a string, applies a paste, and computes stats', function () {

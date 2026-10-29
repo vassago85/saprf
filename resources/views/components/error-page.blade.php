@@ -35,22 +35,24 @@
                     <p class="mt-2 text-sm text-stone-500">{{ $message }}</p>
                 </div>
 
-                {{ $slot ?? '' }}
-
-                <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="{{ url('/') }}" class="px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition">
-                        Return home
-                    </a>
-                    @auth
-                        <a href="{{ url('/dashboard') }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">
-                            Go to dashboard
+                @if (isset($slot) && ! $slot->isEmpty())
+                    {{ $slot }}
+                @else
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <a href="{{ url('/') }}" class="px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition">
+                            Return home
                         </a>
-                    @else
-                        <a href="{{ url('/events') }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">
-                            Browse events
-                        </a>
-                    @endauth
-                </div>
+                        @auth
+                            <a href="{{ url('/dashboard') }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">
+                                Go to dashboard
+                            </a>
+                        @else
+                            <a href="{{ url('/events') }}" class="px-5 py-2.5 rounded-xl bg-stone-100 text-stone-700 text-sm font-semibold hover:bg-stone-200 transition">
+                                Browse events
+                            </a>
+                        @endauth
+                    </div>
+                @endif
             </div>
 
             <p class="mt-6 text-xs text-stone-400">South African Precision Rifle Federation</p>

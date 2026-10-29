@@ -149,9 +149,23 @@
 
         {{-- Pricing --}}
         @if($match->status !== 'completed' && $regStatus !== 'closed' && $match->active_member_fee > 0)
+            @php
+                // Club and provincial matches advertise the match-director-set
+                // club price (or the member fee when no club price is set)
+                // instead of the surcharge-inflated non-member fee.
+                $showClubEntry = $match->supportsClubEntry();
+                $clubEntryFee = $showClubEntry
+                    ? ($match->club_entry_fee !== null
+                        ? (float) $match->club_entry_fee
+                        : (float) $match->active_member_fee)
+                    : null;
+            @endphp
             <div class="flex items-center gap-3 text-xs text-stone-500 mb-3">
                 <span>Member <strong class="text-emerald-700">R{{ number_format($match->active_member_fee, 0) }}</strong></span>
-                @if($match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
+                @if($showClubEntry && $clubEntryFee > 0 && $clubEntryFee != (float) $match->active_member_fee)
+                    <span class="text-stone-300">|</span>
+                    <span>Club entry <strong class="text-stone-700">R{{ number_format($clubEntryFee, 0) }}</strong></span>
+                @elseif(! $showClubEntry && $match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
                     <span class="text-stone-300">|</span>
                     <span>Non-member <strong class="text-stone-700">R{{ number_format($match->non_member_fee, 0) }}</strong></span>
                 @endif

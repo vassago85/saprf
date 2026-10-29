@@ -442,10 +442,18 @@ it('lets the MD add a brand-new shooter (no user_id, name only) as paid + confir
     $registration = MatchRegistration::where('user_id', $stub->id)->firstOrFail();
     expect($registration->registration_status)->toBe('confirmed')
         ->and($registration->payment_status)->toBe('paid')
-        // Fresh stub has a free-type membership → classifies as non_member,
-        // so the R750 non-member rate applies at seed time.
-        ->and($registration->membership_fee_category)->toBe('non_member')
-        ->and((float) $registration->fee_amount)->toBe(750.0)
+        // Fresh stub has a free-type membership → non-member. On a club or
+        // provincial match that routes onto the club_entry bracket: the
+        // shooter is charged the match fee with no surcharge, and because
+        // the MD collected the money off-platform the SAPRF/platform/gateway
+        // all stay at zero (nothing was handled by PayFast).
+        ->and($registration->membership_fee_category)->toBe('club_entry')
+        ->and((float) $registration->fee_amount)->toBe(550.0)
+        ->and((float) $registration->surcharge_amount)->toBe(0.0)
+        ->and((float) $registration->saprf_fee)->toBe(0.0)
+        ->and((float) $registration->platform_fee)->toBe(0.0)
+        ->and((float) $registration->gateway_fee)->toBe(0.0)
+        ->and((float) $registration->md_net_amount)->toBe(550.0)
         ->and($registration->registered_by_user_id)->toBe($this->md->id);
 });
 

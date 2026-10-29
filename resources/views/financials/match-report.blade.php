@@ -58,6 +58,12 @@
                         <dt class="text-stone-600">Non-Member Entries</dt>
                         <dd class="font-semibold text-red-600">{{ $financials['non_member_entries'] }}</dd>
                     </div>
+                    @if(($financials['club_entry_entries'] ?? 0) > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-stone-600">Club Entries</dt>
+                            <dd class="font-semibold text-stone-800">{{ $financials['club_entry_entries'] }}</dd>
+                        </div>
+                    @endif
                 </dl>
             </div>
 

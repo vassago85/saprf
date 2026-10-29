@@ -561,6 +561,15 @@ class RegistrationController extends Controller
             'fee_override_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
+        // Club entry is a per-match concept — only club and provincial
+        // matches offer the bracket. Reject the correction before touching
+        // the row so an operator cannot force a national entry onto the
+        // 3% + 3% split that the pricing service would then throw on.
+        if ($validated['membership_fee_category'] === 'club_entry'
+            && ! $registration->match?->supportsClubEntry()) {
+            return back()->with('error', 'Club entry is only available on club or provincial matches.');
+        }
+
         // Staff can still correct a bracket. A match director cannot move a
         // non-member onto a cheaper bracket — that surcharge stays with SAPRF.
         $dropsNonMemberSurcharge = $registration->membership_fee_category === 'non_member'
@@ -777,7 +786,10 @@ class RegistrationController extends Controller
             default => 'Other proof',
         };
 
-        $old = $registration->only(['payment_status', 'registration_status', 'fee_override_reason', 'gateway_fee', 'md_net_amount']);
+        $old = $registration->only([
+            'payment_status', 'registration_status', 'fee_override_reason',
+            'gateway_fee', 'saprf_fee', 'platform_fee', 'md_net_amount',
+        ]);
 
         $note = trim(
             ($registration->fee_override_reason ? $registration->fee_override_reason.' | ' : '')
@@ -794,11 +806,30 @@ class RegistrationController extends Controller
         // just never got the ITN that would have booked it automatically.
         $gatewayRefund = 0.0;
         $newGatewayFee = (float) $registration->gateway_fee;
+        $newSaprfFee = (float) $registration->saprf_fee;
+        $newPlatformFee = (float) $registration->platform_fee;
         $newMdNet = (float) $registration->md_net_amount;
-        if ($validated['settlement_proof'] !== 'payfast_screenshot' && $newGatewayFee > 0) {
+        $offPlatform = $validated['settlement_proof'] !== 'payfast_screenshot';
+
+        if ($offPlatform && $newGatewayFee > 0) {
             $gatewayRefund = $newGatewayFee;
             $newGatewayFee = 0.0;
             $newMdNet = round($newMdNet + $gatewayRefund, 2);
+        }
+
+        // Club-entry rows settled off-platform: the shooter never paid the
+        // platform, so SAPRF and the platform cannot charge the 3% + 3%
+        // either. Zero both and credit the MD so the row reflects what
+        // actually happened — the MD collected the whole club fee. The
+        // non-member/lapsed/member brackets keep their SAPRF levy (that
+        // levy is federation money, not a platform service fee).
+        if ($offPlatform && $registration->membership_fee_category === 'club_entry') {
+            $recovered = round($newSaprfFee + $newPlatformFee, 2);
+            if ($recovered > 0) {
+                $newSaprfFee = 0.0;
+                $newPlatformFee = 0.0;
+                $newMdNet = round($newMdNet + $recovered, 2);
+            }
         }
 
         $registration->update([
@@ -808,6 +839,8 @@ class RegistrationController extends Controller
                 : $registration->registration_status,
             'fee_override_reason' => $note,
             'gateway_fee' => $newGatewayFee,
+            'saprf_fee' => $newSaprfFee,
+            'platform_fee' => $newPlatformFee,
             'md_net_amount' => $newMdNet,
         ]);
 
@@ -823,6 +856,8 @@ class RegistrationController extends Controller
                 'settlement_proof' => $validated['settlement_proof'],
                 'settlement_note' => $validated['settlement_note'],
                 'gateway_fee' => $newGatewayFee,
+                'saprf_fee' => $newSaprfFee,
+                'platform_fee' => $newPlatformFee,
                 'md_net_amount' => $newMdNet,
                 'gateway_refunded_to_md' => $gatewayRefund,
             ],

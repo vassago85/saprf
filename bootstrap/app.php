@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveMember;
 use App\Http\Middleware\EnsureProfileComplete;
 use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\RedirectToCanonicalHost;
@@ -28,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'profile.complete' => EnsureProfileComplete::class,
             'force_password_change' => ForcePasswordChange::class,
+            // Gate that locks member-only tooling (certificate, firearm
+            // record, kit trackers, dashboard stats) to active members
+            // only. Non-members can still register for matches.
+            'active_member' => EnsureActiveMember::class,
         ]);
 
         $middleware->appendToGroup('web', ForcePasswordChange::class);

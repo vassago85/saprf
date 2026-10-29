@@ -10,6 +10,23 @@ beforeEach(function () {
 
     $this->owner = User::factory()->create(['email' => 'test-owner@saprf.co.za']);
     $this->owner->syncRoles(['owner', 'member']);
+
+    // Smoke-tested kit routes (rifle configurations) now require an active
+    // SAPRF membership. Give the owner one so the smoke test keeps covering
+    // its own routes rather than exercising the member-gate 403 path.
+    \App\Models\Membership::create([
+        'user_id' => $this->owner->id,
+        'saprf_number' => 'T-SMOKE',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+
+    // Profile-complete has its own tests; skipping it here keeps the smoke
+    // suite focused on URL reachability.
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 test('public pages return 200', function (string $url) {

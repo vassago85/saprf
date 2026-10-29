@@ -5,6 +5,10 @@ use App\Models\User;
 
 beforeEach(function () {
     seedRoles();
+    // Kit routes are member-gated. Profile-complete redirect has its own
+    // tests; skip it so the authorization checks aren't masked by a
+    // /profile redirect for factory users with blank SASCOC fields.
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 /**
@@ -74,6 +78,7 @@ it('rejects developer for the same reason', function () {
 it('lets the owner view, delete, and export their own string', function () {
     $owner = User::factory()->create();
     $owner->assignRole('member');
+    giveActiveMembership($owner);
     $string = AmmoString::factory()->for($owner)->create();
 
     $this->actingAs($owner)->get(route('ammo-strings.show', $string))->assertOk();
@@ -84,6 +89,7 @@ it('lets the owner view, delete, and export their own string', function () {
 it('only lists the caller\'s own strings on the index', function () {
     $owner = User::factory()->create();
     $owner->assignRole('member');
+    giveActiveMembership($owner);
     $stranger = User::factory()->create();
     $stranger->assignRole('member');
     AmmoString::factory()->for($owner)->create(['label' => 'Owner load']);

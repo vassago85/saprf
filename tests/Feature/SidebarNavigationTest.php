@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Cache;
 beforeEach(function () {
     seedRoles();
     Cache::flush();
+    // Giving sidebar test users an active membership (required for the Kit
+    // group to appear) also activates the EnsureProfileComplete redirect;
+    // that gate has its own tests.
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 function staffUser(string $role): User
@@ -18,7 +22,21 @@ function staffUser(string $role): User
     $user->assignRole($role);
     $user->assignRole('member');
 
-    return $user;
+    // Sidebar items in the Kit group (rifles, ammo, barrels, load tools) are
+    // only shown to active SAPRF members. The staff users in this suite are
+    // expected to see the full shooter nav, so give each one a paid
+    // membership. Non-active cases are covered by a dedicated test below.
+    \App\Models\Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'T-SIDEBAR-'.$user->id,
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+
+    return $user->fresh(['membership']);
 }
 
 it('lists the expected shooter items for a member', function () {
@@ -202,8 +220,7 @@ it('keeps every expandable group collapsed except the one that owns the active r
 });
 
 it('starts shooter groups collapsed unless they own the active route', function () {
-    $member = User::factory()->create();
-    $member->assignRole('member');
+    $member = staffUser('member');
 
     $onDashboard = SidebarMenu::sectionsFor($member, 'shooter', requestForRoute('dashboard'));
     $onEvents = SidebarMenu::sectionsFor($member, 'shooter', requestForRoute('events.index'));
@@ -223,6 +240,22 @@ it('starts shooter groups collapsed unless they own the active route', function 
 
     expect($competitionOnEvents['expanded'])->toBeTrue()
         ->and(collect($onEvents)->firstWhere('key', 'me')['expanded'])->toBeFalse();
+});
+
+it('hides Kit items from a member without an active membership', function () {
+    // Non-active member (no Membership row at all): the Kit group should
+    // disappear entirely because every item in it is gated.
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $labels = sidebarLabels($member, 'shooter');
+
+    expect($labels)->not->toContain('My rifles')
+        ->and($labels)->not->toContain('My ammo')
+        ->and($labels)->not->toContain('My barrels')
+        ->and($labels)->not->toContain('Load tools')
+        ->and($labels)->toContain('Events')
+        ->and($labels)->toContain('My registrations');
 });
 
 it('shows Kit and Load tools in shooter mode without any admin groups', function () {

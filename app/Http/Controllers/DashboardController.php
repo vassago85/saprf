@@ -148,6 +148,18 @@ class DashboardController extends Controller
 
     private function memberDashboard(User $user): View
     {
+        // Non-active members (lapsed, free-tier, legacy no-membership-row
+        // accounts) get a trimmed dashboard that leads with a Join /
+        // Renew CTA instead of the stats-heavy ShooterDashboard livewire
+        // component — the data on the full dashboard mostly lives behind
+        // "active membership required" rules anyway.
+        if (! $user->isActiveMember()) {
+            return view('dashboard.non-member', [
+                'user' => $user,
+                'membership' => $user->membership,
+            ]);
+        }
+
         return view('dashboard.member', [
             'user' => $user,
         ]);

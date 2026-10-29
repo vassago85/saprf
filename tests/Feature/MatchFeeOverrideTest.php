@@ -48,10 +48,14 @@ beforeEach(function () {
     $this->md = User::factory()->create();
     $this->md->assignRole('match_director');
 
+    // National match: non-members pay the surcharge price here, so this
+    // suite keeps testing the SAPRF/platform override contract against
+    // the base pricing path (not the club_entry bracket introduced for
+    // club and provincial matches).
     $this->match = MatchEvent::create([
         'name' => 'Override Test Match',
         'match_type' => 'PRS',
-        'series_level' => 'provincial',
+        'series_level' => 'national',
         'series' => 'PRS',
         'season' => '2026',
         'province_id' => $this->province->id,

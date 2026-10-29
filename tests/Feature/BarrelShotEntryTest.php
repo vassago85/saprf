@@ -6,6 +6,10 @@ use App\Models\User;
 
 beforeEach(function () {
     seedRoles();
+    // Profile-complete middleware has its own tests; disable it here so a
+    // factory-created paid member doesn't bounce to /profile before the
+    // kit routes we actually want to exercise.
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 function barrelOwner(): User
@@ -13,7 +17,19 @@ function barrelOwner(): User
     $user = User::factory()->create(['email_verified_at' => now()]);
     $user->assignRole('member');
 
-    return $user;
+    // Kit routes require an active SAPRF membership. Give the test user a
+    // paid membership so the EnsureActiveMember middleware doesn't 403.
+    \App\Models\Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => 'T-BRL-'.$user->id,
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+
+    return $user->fresh(['membership']);
 }
 
 it('lets the owner log a practice shot entry and recalculates round_count', function () {

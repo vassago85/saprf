@@ -8,14 +8,19 @@ use Carbon\Carbon;
 
 beforeEach(function () {
     seedRoles();
+    // Rifle configurations are kit routes, gated by EnsureActiveMember. The
+    // profile-complete gate has its own tests; skip it so a factory member
+    // with blank SASCOC fields doesn't bounce to /profile.
+    $this->withoutMiddleware(\App\Http\Middleware\EnsureProfileComplete::class);
 });
 
 function rifleMember(): User
 {
     $user = User::factory()->create(['email_verified_at' => now()]);
     $user->assignRole('member');
+    giveActiveMembership($user);
 
-    return $user;
+    return $user->fresh(['membership']);
 }
 
 function makeRifle(User $user, array $overrides = []): RifleConfiguration

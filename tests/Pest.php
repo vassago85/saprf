@@ -35,6 +35,25 @@ function seedRoles(): void
 }
 
 /**
+ * Give the user an active, paid SAPRF membership record. Required by the
+ * EnsureActiveMember middleware that gates kit routes, the certificate, and
+ * the activity report. Returns the created Membership so tests can tweak
+ * dates / status if they need.
+ */
+function giveActiveMembership(User $user, ?string $saprfNumber = null): \App\Models\Membership
+{
+    return \App\Models\Membership::create([
+        'user_id' => $user->id,
+        'saprf_number' => $saprfNumber ?? ('T-'.strtoupper(Illuminate\Support\Str::random(6))),
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => now()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+}
+
+/**
  * Sidebar helpers used by SidebarNavigationTest and MatchWorkspaceTest.
  * Defined here (not in a single feature test file) so Pest's parallel
  * runner can call them from any process.

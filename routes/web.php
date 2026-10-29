@@ -531,8 +531,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::get('/invoices', [PaymentController::class, 'invoicesIndex'])->name('invoices.index');
     Route::get('/payments/{payment}/invoice', [PaymentController::class, 'downloadInvoice'])->name('payments.invoice');
     Route::get('/my-membership', [MembershipController::class, 'myMembership'])->name('my-membership');
-    Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])->name('membership.certificate');
-    Route::get('/my-membership/activity-report', [MembershipController::class, 'activityReport'])->name('membership.activity-report');
+    // Certificate and activity report are "proof of membership" artefacts;
+    // non-members have nothing to prove. Gate them explicitly so a lapsed
+    // renewal that forgets to pay doesn't still hand out a valid-looking
+    // certificate PDF.
+    Route::get('/my-membership/certificate', [MembershipController::class, 'certificate'])
+        ->middleware('active_member')
+        ->name('membership.certificate');
+    Route::get('/my-membership/activity-report', [MembershipController::class, 'activityReport'])
+        ->middleware('active_member')
+        ->name('membership.activity-report');
 
     Route::get('/account/refund', [CreditRefundController::class, 'create'])->name('account.refund');
     Route::post('/account/refund', [CreditRefundController::class, 'store'])->name('account.refund.store');
@@ -551,52 +559,59 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/registrations/{registration}/mark-settled', [RegistrationController::class, 'markPaymentSettled'])->name('registrations.mark-settled');
     Route::post('/registrations/{registration}/comp', [RegistrationController::class, 'compEntry'])->name('registrations.comp');
 
-    // Rifle Configurations — any authenticated user
-    Route::resource('rifle-configurations', RifleConfigurationController::class)
-        ->names('rifle-configurations');
+    // Kit trackers (rifles, loads, barrels, ladder + confirmation-string
+    // analysers) are member-only. Non-members can still shoot the matches —
+    // they just can't bank a cumulative shooting record on the platform.
+    // Gating the whole kit section in one middleware group keeps future
+    // route additions (practice logs, factory ammo tracking) consistent.
+    Route::middleware('active_member')->group(function (): void {
+        // Rifle Configurations
+        Route::resource('rifle-configurations', RifleConfigurationController::class)
+            ->names('rifle-configurations');
 
-    // Ammo Loads — nested under rifles for create, flat for edit/update/destroy
-    Route::get('/ammo-loads', [AmmoLoadController::class, 'index'])->name('ammo-loads.index');
-    Route::get('/rifle-configurations/{rifleConfiguration}/ammo-loads/create', [AmmoLoadController::class, 'create'])->name('ammo-loads.create');
-    Route::post('/rifle-configurations/{rifleConfiguration}/ammo-loads', [AmmoLoadController::class, 'store'])->name('ammo-loads.store');
-    Route::get('/ammo-loads/{ammoLoad}/edit', [AmmoLoadController::class, 'edit'])->name('ammo-loads.edit');
-    Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
-    Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
+        // Ammo Loads — nested under rifles for create, flat for edit/update/destroy
+        Route::get('/ammo-loads', [AmmoLoadController::class, 'index'])->name('ammo-loads.index');
+        Route::get('/rifle-configurations/{rifleConfiguration}/ammo-loads/create', [AmmoLoadController::class, 'create'])->name('ammo-loads.create');
+        Route::post('/rifle-configurations/{rifleConfiguration}/ammo-loads', [AmmoLoadController::class, 'store'])->name('ammo-loads.store');
+        Route::get('/ammo-loads/{ammoLoad}/edit', [AmmoLoadController::class, 'edit'])->name('ammo-loads.edit');
+        Route::put('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'update'])->name('ammo-loads.update');
+        Route::delete('/ammo-loads/{ammoLoad}', [AmmoLoadController::class, 'destroy'])->name('ammo-loads.destroy');
 
-    // Barrels — physical barrels, owner-only. Round count travels with the
-    // barrel rather than the rifle so ladder sessions and future truing data
-    // can attach cleanly. Practice and non-SAPRF shot entries live nested
-    // under a barrel and feed its cached lifetime round_count.
-    Route::resource('barrels', BarrelController::class)->names('barrels');
-    Route::post('/barrels/{barrel}/shot-entries', [BarrelShotEntryController::class, 'store'])
-        ->name('barrels.shot-entries.store');
-    Route::put('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'update'])
-        ->name('barrels.shot-entries.update');
-    Route::delete('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'destroy'])
-        ->name('barrels.shot-entries.destroy');
+        // Barrels — physical barrels, owner-only. Round count travels with the
+        // barrel rather than the rifle so ladder sessions and future truing data
+        // can attach cleanly. Practice and non-SAPRF shot entries live nested
+        // under a barrel and feed its cached lifetime round_count.
+        Route::resource('barrels', BarrelController::class)->names('barrels');
+        Route::post('/barrels/{barrel}/shot-entries', [BarrelShotEntryController::class, 'store'])
+            ->name('barrels.shot-entries.store');
+        Route::put('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'update'])
+            ->name('barrels.shot-entries.update');
+        Route::delete('/barrels/{barrel}/shot-entries/{shotEntry}', [BarrelShotEntryController::class, 'destroy'])
+            ->name('barrels.shot-entries.destroy');
 
-    // Load tools hub — tiny landing page that links to the Ladder Analyser
-    // and the Confirmation-string analyser. Lets the sidebar collapse those
-    // two tools under a single "Load tools" entry without hiding either.
-    Route::view('/load-tools', 'load-tools.index')->name('load-tools.index');
+        // Load tools hub — tiny landing page that links to the Ladder Analyser
+        // and the Confirmation-string analyser. Lets the sidebar collapse those
+        // two tools under a single "Load tools" entry without hiding either.
+        Route::view('/load-tools', 'load-tools.index')->name('load-tools.index');
 
-    // Ladder Analyser — index/store/destroy live on the controller; the
-    // show/edit surface is a Volt component that recomputes on every wire
-    // update. Owner-only via LadderSessionPolicy.
-    Route::get('/ladder-sessions', [LadderSessionController::class, 'index'])->name('ladder-sessions.index');
-    Route::post('/ladder-sessions', [LadderSessionController::class, 'store'])->name('ladder-sessions.store');
-    Route::get('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'show'])->name('ladder-sessions.show');
-    Route::delete('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'destroy'])->name('ladder-sessions.destroy');
-    Route::get('/ladder-sessions/{ladderSession}/export.csv', [LadderSessionController::class, 'exportCsv'])->name('ladder-sessions.export.csv');
+        // Ladder Analyser — index/store/destroy live on the controller; the
+        // show/edit surface is a Volt component that recomputes on every wire
+        // update. Owner-only via LadderSessionPolicy.
+        Route::get('/ladder-sessions', [LadderSessionController::class, 'index'])->name('ladder-sessions.index');
+        Route::post('/ladder-sessions', [LadderSessionController::class, 'store'])->name('ladder-sessions.store');
+        Route::get('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'show'])->name('ladder-sessions.show');
+        Route::delete('/ladder-sessions/{ladderSession}', [LadderSessionController::class, 'destroy'])->name('ladder-sessions.destroy');
+        Route::get('/ladder-sessions/{ladderSession}/export.csv', [LadderSessionController::class, 'exportCsv'])->name('ladder-sessions.export.csv');
 
-    // Confirmation-string analyser — one load, N shots, in fire order. Same
-    // controller-plus-Volt-view shape as ladders. Owner-only via
-    // AmmoStringPolicy which the developer/exco global gate bypass carves out.
-    Route::get('/ammo-strings', [AmmoStringController::class, 'index'])->name('ammo-strings.index');
-    Route::post('/ammo-strings', [AmmoStringController::class, 'store'])->name('ammo-strings.store');
-    Route::get('/ammo-strings/{ammoString}', [AmmoStringController::class, 'show'])->name('ammo-strings.show');
-    Route::delete('/ammo-strings/{ammoString}', [AmmoStringController::class, 'destroy'])->name('ammo-strings.destroy');
-    Route::get('/ammo-strings/{ammoString}/export.csv', [AmmoStringController::class, 'exportCsv'])->name('ammo-strings.export.csv');
+        // Confirmation-string analyser — one load, N shots, in fire order. Same
+        // controller-plus-Volt-view shape as ladders. Owner-only via
+        // AmmoStringPolicy which the developer/exco global gate bypass carves out.
+        Route::get('/ammo-strings', [AmmoStringController::class, 'index'])->name('ammo-strings.index');
+        Route::post('/ammo-strings', [AmmoStringController::class, 'store'])->name('ammo-strings.store');
+        Route::get('/ammo-strings/{ammoString}', [AmmoStringController::class, 'show'])->name('ammo-strings.show');
+        Route::delete('/ammo-strings/{ammoString}', [AmmoStringController::class, 'destroy'])->name('ammo-strings.destroy');
+        Route::get('/ammo-strings/{ammoString}/export.csv', [AmmoStringController::class, 'exportCsv'])->name('ammo-strings.export.csv');
+    });
 
     // Venues — match directors can browse + submit new ones (auto goes to approval
     // queue); edits/deletes require federation admin or owner sign-off.

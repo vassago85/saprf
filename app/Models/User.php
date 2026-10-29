@@ -333,6 +333,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->membership?->membershipStatus();
     }
 
+    /**
+     * Convenience sugar for the "paid, non-expired" check that gates
+     * member-only tooling (dashboard stats, membership certificate, firearm
+     * record, kit trackers). Returns false for guests and for anyone whose
+     * `membership` row is missing, free, lapsed, or expired.
+     */
+    public function isActiveMember(): bool
+    {
+        return (bool) $this->membership?->isActiveMember();
+    }
+
     public function createdMatches(): HasMany
     {
         return $this->hasMany(MatchEvent::class, 'created_by');

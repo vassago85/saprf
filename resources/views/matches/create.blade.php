@@ -7,7 +7,7 @@
         @csrf
 
         <div class="rounded-xl border border-stone-200 bg-white shadow-sm p-6">
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2" x-data="{ matchType: '{{ old('match_type', '') }}' }">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2" x-data="{ matchType: '{{ old('match_type', '') }}', seriesLevel: '{{ old('series_level', '') }}' }">
                 <div class="sm:col-span-2">
                     <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Match Name <span class="text-red-500">*</span></label>
                     <input type="text" name="name" id="name" value="{{ old('name') }}" required placeholder="e.g. Centrefire WC 2-Day National" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
@@ -25,7 +25,7 @@
 
                 <div>
                     <label for="series_level" class="block text-sm font-medium text-stone-700 mb-1">Series Level <span class="text-red-500">*</span></label>
-                    <select name="series_level" id="series_level" required class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="series_level" id="series_level" required x-model="seriesLevel" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
                         <option value="">Select level…</option>
                         <option value="national" @selected(old('series_level') === 'national')>National</option>
                         <option value="provincial" @selected(old('series_level') === 'provincial')>Provincial</option>
@@ -125,6 +125,14 @@
                         <input type="number" name="estimated_shooters" id="estimated_shooters" min="1" max="999" value="{{ old('estimated_shooters') }}" placeholder="e.g. 30" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                         <p class="mt-1 text-xs text-stone-400">Drives the Cost Estimator below and per-shooter expense / revenue projections after saving.</p>
                     </div>
+                </div>
+
+                {{-- Club entry fee: visible on club and provincial matches. Non-members
+                     pay this instead of the member fee + non-member surcharge. --}}
+                <div x-show="['club','provincial'].includes(seriesLevel)" x-cloak class="rounded-lg border border-stone-200 bg-stone-50/50 p-4">
+                    <label for="club_entry_fee" class="block text-sm font-medium text-stone-700 mb-1">Club Entry Fee (ZAR)</label>
+                    <input type="number" name="club_entry_fee" id="club_entry_fee" step="0.01" min="0" value="{{ old('club_entry_fee') }}" placeholder="Leave blank = same as entry fee" class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                    <p class="mt-1 text-xs text-stone-400">Charged to non-members entering through the platform. No non-member surcharge is added. SAPRF and the platform each take a small percentage of this fee when the shooter pays through PayFast — nothing when you collect the money yourself.</p>
                 </div>
 
                 @include('matches._cost-estimator')
