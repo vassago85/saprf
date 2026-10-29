@@ -16,7 +16,7 @@ class RepriceRegistrationCommand extends Command
 {
     protected $signature = 'registrations:reprice
                             {id : MatchRegistration ID}
-                            {--category= : Fee bracket (active_member|lapsed_member|non_member)}
+                            {--category= : Fee bracket (active_member|lapsed_member|non_member|club_entry)}
                             {--reason= : Why the category is being overridden (stored as fee_override_reason)}
                             {--apply : Persist the change (otherwise dry-run only)}';
 
