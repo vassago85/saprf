@@ -71,6 +71,8 @@
             </div>
         </div>
 
+        @include('matches.workspace._apply-club-entry')
+
         {{-- Entries table --}}
         <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
             @if($entries->isEmpty())

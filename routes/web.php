@@ -657,6 +657,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.scores.uncomplete');
             Route::post('/notify-unpaid', [MatchWorkspaceController::class, 'notifyUnpaid'])
                 ->name('matches.notify-unpaid');
+            Route::post('/apply-club-entry', [MatchWorkspaceController::class, 'applyClubEntry'])
+                ->name('matches.apply-club-entry');
             Route::get('/finances', [MatchWorkspaceController::class, 'finances'])->name('matches.finances');
             Route::put('/estimated-shooters', [MatchWorkspaceController::class, 'updateEstimatedShooters'])
                 ->name('matches.estimated-shooters.update');

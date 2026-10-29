@@ -5,6 +5,7 @@
         {{-- Main settings column: edit form --}}
         <div class="space-y-4 lg:col-span-2">
             @include('matches.workspace._settings-form')
+            @include('matches.workspace._apply-club-entry')
         </div>
 
         {{-- Sidebar: add shooter + change director + match tools --}}

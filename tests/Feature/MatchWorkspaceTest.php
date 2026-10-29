@@ -332,6 +332,90 @@ it('hides Registrations, Score imports and Scores from a pure match director', f
         ->and($labels)->not->toContain('Events');
 });
 
+it('lets the match director move unpaid non-members onto the club price from the match', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province, [
+        'club_entry_fee' => 200,
+        'active_member_fee' => 300,
+    ]);
+    $other = workspaceMatchOwnedBy($md, $this->province, ['name' => 'Other open match', 'club_entry_fee' => 200]);
+
+    $unpaid = MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Unpaid Club Shooter',
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 400,
+        'surcharge_amount' => 100,
+        'saprf_fee' => 50,
+        'platform_fee' => 0,
+        'gateway_fee' => 16,
+        'md_net_amount' => 234,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+    $paid = MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Already Paid',
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 650,
+        'surcharge_amount' => 0,
+        'saprf_fee' => 50,
+        'platform_fee' => 0,
+        'gateway_fee' => 0,
+        'md_net_amount' => 600,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+    $elsewhere = MatchRegistration::create([
+        'match_id' => $other->id,
+        'user_id' => User::factory()->create()->id,
+        'shooter_name' => 'Other Match',
+        'membership_fee_category' => 'non_member',
+        'fee_amount' => 400,
+        'payment_status' => 'unpaid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($md)
+        ->get(route('matches.settings', $match))
+        ->assertOk()
+        ->assertSee('Move unpaid non-members to club entry')
+        ->assertSee('R 200.00');
+
+    $this->actingAs($md)
+        ->post(route('matches.apply-club-entry', $match))
+        ->assertRedirect();
+
+    expect($unpaid->fresh()->membership_fee_category)->toBe('club_entry')
+        ->and((float) $unpaid->fresh()->fee_amount)->toBe(200.0)
+        ->and($paid->fresh()->membership_fee_category)->toBe('non_member')
+        ->and((float) $paid->fresh()->fee_amount)->toBe(650.0)
+        ->and($elsewhere->fresh()->membership_fee_category)->toBe('non_member');
+});
+
+it('hides the club-entry move on a finished match', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province, ['status' => 'completed', 'club_entry_fee' => 200]);
+
+    $this->actingAs($md)
+        ->get(route('matches.settings', $match))
+        ->assertOk()
+        ->assertDontSee('Move unpaid non-members to club entry');
+
+    $this->actingAs($md)
+        ->from(route('matches.settings', $match))
+        ->post(route('matches.apply-club-entry', $match))
+        ->assertRedirect(route('matches.settings', $match))
+        ->assertSessionHas('error');
+});
+
 it('keeps admin-level roles seeing the cross-match lists', function () {
     $admin = User::factory()->create();
     $admin->assignRole('admin');

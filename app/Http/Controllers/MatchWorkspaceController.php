@@ -13,10 +13,12 @@ use App\Models\Province;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\Venue;
+use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\MatchFinanceService;
 use App\Services\PaymentInquiryService;
+use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
 use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
@@ -160,6 +162,53 @@ class MatchWorkspaceController extends Controller
             ->get();
 
         return back()->with('success', $inquiries->sendOutstanding($request->user(), $registrations));
+    }
+
+    /**
+     * Move this match's unpaid non-members onto the club entry price.
+     * Current club and provincial matches only. Paid rows are never touched.
+     */
+    public function applyClubEntry(
+        Request $request,
+        MatchEvent $match,
+        RegistrationPricingService $pricing,
+        AuditLogService $audit,
+    ): RedirectResponse {
+        $this->authorize('update', $match);
+
+        if (! $match->supportsClubEntry()) {
+            return back()->with('error', 'Club entry is only available on club or provincial matches.');
+        }
+
+        if (in_array($match->status, ['completed', 'cancelled'], true)) {
+            return back()->with('error', 'Club entry can only be applied while the match is still open.');
+        }
+
+        $reason = 'Match director moved unpaid non-members onto the club entry price.';
+        $updated = 0;
+
+        foreach ($pricing->unpaidNonMembersEligibleForClubEntry($match) as $registration) {
+            $result = $pricing->applyCategory($registration, 'club_entry', $reason);
+            $audit->log(
+                $request->user(),
+                'registration.category.updated',
+                'MatchRegistration',
+                $registration->id,
+                $result['old'],
+                $result['new'],
+                $reason,
+            );
+            $updated++;
+        }
+
+        if ($updated === 0) {
+            return back()->with('success', 'No unpaid non-members on this match. Paid entries stay on the price already collected.');
+        }
+
+        return back()->with(
+            'success',
+            'Moved '.$updated.' unpaid '.($updated === 1 ? 'entry' : 'entries').' onto the club entry price. Paid entries were left unchanged.',
+        );
     }
 
     // ── Scores ──

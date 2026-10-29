@@ -314,6 +314,34 @@ class RegistrationPricingService
     }
 
     /**
+     * Unpaid non-members on one current club or provincial match. Paid and
+     * waived rows are left out so a match director can reprice only the
+     * shooters who have not paid yet.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, MatchRegistration>
+     */
+    public function unpaidNonMembersEligibleForClubEntry(MatchEvent $match)
+    {
+        if (! $match->supportsClubEntry() || in_array($match->status, ['completed', 'cancelled'], true)) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        return MatchRegistration::query()
+            ->with(['match', 'user', 'division'])
+            ->where('match_id', $match->id)
+            ->where('membership_fee_category', 'non_member')
+            ->where('registration_status', '!=', 'cancelled')
+            ->where(function ($query) {
+                $query->whereNull('registration_source')
+                    ->orWhere('registration_source', '!=', 'walk_in');
+            })
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (MatchRegistration $registration) => $registration->canCorrectCategory())
+            ->values();
+    }
+
+    /**
      * Recalculate and persist an unpaid registration at a chosen fee bracket.
      * Cancels in-flight PayFast checkouts so the next Pay Now uses the new
      * amount. The caller must record WHY via $reason (stored on the row and
