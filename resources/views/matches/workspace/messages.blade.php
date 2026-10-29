@@ -36,7 +36,7 @@
                             </div>
                             <div class="shrink-0 text-xs">
                                 <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 font-semibold text-stone-600">
-                                    {{ \Illuminate\Support\Str::title($ann->status ?? 'draft') }}
+                                    {{ $ann->status?->label() ?? 'Draft' }}
                                 </span>
                             </div>
                         </li>

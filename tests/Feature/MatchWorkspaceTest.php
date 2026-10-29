@@ -13,7 +13,11 @@
  *                           /financials/match/{id} → /finances
  */
 
+use App\Enums\AnnouncementCategory;
+use App\Enums\AnnouncementRetention;
+use App\Enums\AnnouncementStatus;
 use App\Enums\MatchStage;
+use App\Models\Announcement;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
@@ -84,6 +88,32 @@ it('refuses every workspace tab to another match director', function () {
             ->get(route("matches.{$tab}", $match))
             ->assertForbidden();
     }
+});
+
+it('lists sent bulletins on the messages tab', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province);
+
+    Announcement::create([
+        'title' => 'Range closed Saturday',
+        'body' => 'We moved the start time.',
+        'category' => AnnouncementCategory::MatchBulletin->value,
+        'retention' => AnnouncementRetention::MatchScoped->value,
+        'match_id' => $match->id,
+        'priority' => 'normal',
+        'status' => AnnouncementStatus::Sent->value,
+        'requires_acknowledgement' => false,
+        'created_by' => $md->id,
+        'sent_at' => now(),
+        'recipient_count' => 12,
+    ]);
+
+    $this->actingAs($md)
+        ->get(route('matches.messages', $match))
+        ->assertOk()
+        ->assertSee('Range closed Saturday')
+        ->assertSee('Sent');
 });
 
 it('redirects an ordinary member away from the match workspace', function () {
