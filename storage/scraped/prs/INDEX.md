@@ -17,7 +17,6 @@ Catalogs: `matches.csv` (completed w/ scores), `upcoming.csv` (no results yet)
 | 2026-02-07 | — | provincial | Centre Fire LP Provincial | RedSands Safaris | Limpopo | Daniel Bekker | 50 | [#248](https://www.precisionrifle.co.za/events/248) | `storage/scraped/prs/provincial/2026-02-07_centre-fire-lp-provincial.csv` |
 | 2026-03-14 | — | provincial | Centrefire WC Provincial | Vlakkenheuwel _ Hermon | Western Cape | Tony Van Heerden | 18 | [#244](https://www.precisionrifle.co.za/events/244) | `storage/scraped/prs/provincial/2026-03-14_centrefire-wc-provincial.csv` |
 | 2026-03-21 | 2026-03-22 | national | Centrefire NW 2-Day National | NW Klerksdorp | North West | Dirk Van Staden | 45 | [#218](https://www.precisionrifle.co.za/events/218) | `storage/scraped/prs/national/2026-03-21_centrefire-nw-2-day-national.csv` |
-| 2026-04-18 | — | provincial | Centrefire FS Provincial | Bloemfontein | Free State | Francois Van wyk | 9 | [#251](https://www.precisionrifle.co.za/events/251) | `storage/scraped/prs/provincial/2026-04-18_centrefire-fs-provincial.csv` |
 | 2026-05-02 | — | provincial | Centre Fire GP Provincial | Marloo Shooting range | Gauteng | Dirk Pio | 27 | [#249](https://www.precisionrifle.co.za/events/249) | `storage/scraped/prs/provincial/2026-05-02_centre-fire-gp-provincial.csv` |
 | 2026-05-16 | 2026-05-17 | national | Centrefire WC 2-Day National | Romansrivier Wolseley | Western Cape | Ruan Zeeman | 32 | [#219](https://www.precisionrifle.co.za/events/219) | `storage/scraped/prs/national/2026-05-16_centrefire-wc-2-day-national.csv` |
 | 2026-06-20 | 2026-06-21 | national | Centrefire GP 2-Day National | Hippo Creek | Gauteng | Clive Mey | 42 | [#220](https://www.precisionrifle.co.za/events/220) | `storage/scraped/prs/national/2026-06-20_centrefire-gp-2-day-national.csv` |
@@ -25,6 +24,10 @@ Catalogs: `matches.csv` (completed w/ scores), `upcoming.csv` (no results yet)
 | 2026-07-11 | 2026-07-12 | national | Centrefire MP 2-Day National | Lydenburg | Mpumalanga | Wayne Lesch | 26 | [#223](https://www.precisionrifle.co.za/events/223) | `storage/scraped/prs/national/2026-07-11_centrefire-mp-2-day-national.csv` |
 | 2026-08-08 | 2026-08-09 | national | Centrefire LP 2-Day National | Marble Hall | Limpopo | Ian Grobler | 45 | [#221](https://www.precisionrifle.co.za/events/221) | `storage/scraped/prs/national/2026-08-08_centrefire-lp-2-day-national.csv` |
 | 2026-08-08 | — | provincial | CenterFire 1day | Marble Hall | Limpopo | Ian Grobler | 41 | [#256](https://www.precisionrifle.co.za/events/256) | `storage/scraped/prs/provincial/2026-08-08_centerfire-1day.csv` |
+
+## Did not take place
+
+Old-site event [#251](https://www.precisionrifle.co.za/events/251) (Centrefire FS Provincial, Bloemfontein, 18 Apr 2026) was listed with a results table, but the match did not take place. It is not in `matches.csv`. The leftover scrape is `storage/scraped/prs/provincial/2026-04-18_centrefire-fs-provincial.csv` and must not be imported.
 
 ## Upcoming / no results yet
 

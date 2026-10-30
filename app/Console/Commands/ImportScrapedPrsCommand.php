@@ -37,7 +37,7 @@ class ImportScrapedPrsCommand extends Command
 {
     protected $signature = 'prs:import-scraped
         {--dir=storage/scraped/prs : Directory containing matches.csv, upcoming.csv and per-match CSVs}
-        {--skip-source-ids=252 : Comma-separated source event IDs to skip (defaults to the resultless NW provincial placeholder)}
+        {--skip-source-ids=252,251 : Comma-separated source event IDs to skip (252 is the resultless NW provincial placeholder; 251 is Centrefire FS Provincial, which did not take place)}
         {--dry-run : Parse everything and print counts, but write nothing}
         {--skip-upcoming : Do not create the upcoming (score-less) matches}
         {--refresh : For matches that already exist, wipe their existing scores and re-import from the freshly-scraped CSVs (safe: only re-imports scores, never deletes a match)}
