@@ -17,10 +17,14 @@ php artisan view:cache
 php artisan event:cache
 
 # Queue and scheduler share this entrypoint and start after the web
-# container is healthy. Only the web process should publish the poster.
+# container is healthy. Only the web process should publish the poster
+# and fire one-off policy notices (both commands are idempotent).
 if [ "$1" = "/usr/bin/supervisord" ]; then
     echo "Featuring the 2028 Worlds poster on the homepage..."
     php artisan saprf:feature-worlds-2028-poster --sync
+
+    echo "Dispatching PRS 2028 selection-dates clarification (idempotent)..."
+    php artisan saprf:send-prs-2028-dates-clarification --force || true
 fi
 
 echo "Creating storage link..."

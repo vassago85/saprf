@@ -4,6 +4,8 @@
 
 *19 October 2026*
 
+> **See [Annexure A](#annexure-a-qualifying-period-dates) at the end of this document for the Qualifying Period calendar dates and the team-announcement date.**
+
 ## National team selection
 
 The 2027 Centrefire national series and SA Champs select the Centrefire National Team for the 2028 IPRF Precision Rifle World Championships. The SA Champs is a mandatory match and counts 25% of the selection score: 300 points from the best 3 nationals and 100 points from the SA Champs, 400 points in total.
@@ -120,6 +122,24 @@ Dr AJ Lategan
 Chairman
 
 South African Precision Rifle Federation (SAPRF)
+
+## Annexure A — Qualifying Period dates
+
+**Published 30 October 2026 under the *Power to amend* clause of this policy.**
+
+This annexure sets the calendar dates for the 2028 cycle. Wherever the signed body of this policy refers to the "Qualifying Period" or the timing of the team announcement, these are the dates that apply.
+
+| | Date |
+|---|---|
+| **Qualifying Period starts** | **1 January 2027** |
+| **Qualifying Period ends** | **31 December 2027** |
+| **National Team(s) announced** | **by 31 January 2028** |
+
+Only matches shot inside the Qualifying Period count toward 2028 team selection.
+
+Signed digitally and published on <https://saprf.co.za/selection/prs-policy>.
+
+Dr AJ Lategan — Chairman, SAPRF.
 
 ## National team eligibility form
 
