@@ -1,5 +1,8 @@
 <?php
 
+use App\Console\Commands\NationalSeries2027Command;
+use App\Models\Announcement;
+use App\Models\Club;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
@@ -15,9 +18,11 @@ use App\Support\DocumentSearch;
 use Illuminate\Support\Carbon;
 
 /**
- * 2027 national series final ranking (docs/rules/national-series-2027.md):
- *   best 3 nationals (max 2 from the home province) + 2-day championships
- *   (each day weighted separately, max 200) = max 500.
+ * 2027 national series (docs/rules/national-series-2027.md, 29 October 2026):
+ *   best 3 nationals or the PRS International (max 2 from the home province)
+ *   + SA Championships weighted as one match (max 200) = max 500.
+ *   Selection uses the same nationals and scores the championships out of
+ *   100 (max 400). The championships are mandatory for selection.
  */
 
 function ns27Match(string $name, string $level, string $date, ?Province $province = null, array $overrides = []): MatchEvent
@@ -113,8 +118,10 @@ it('counts the best 3 nationals with no more than 2 from the home province', fun
         ->and(collect($pb['regular'])->pluck('pct')->all())->toEqual([100.0, 95.0, 80.0])
         ->and($pb['home_counted'])->toBe(2)
         ->and($pb['out_of_province_counted'])->toBe(1)
-        ->and($pb['selection_eligible'])->toBeTrue()
-        ->and($pb['max'])->toBe(500);
+        ->and($pb['selection_eligible'])->toBeFalse()
+        ->and($pb['selection_note'])->toContain('mandatory')
+        ->and($pb['max'])->toBe(500)
+        ->and($pb['selection_max'])->toBe(400);
 });
 
 it('lets all 3 counting nationals come from outside the home province', function () {
@@ -127,7 +134,8 @@ it('lets all 3 counting nationals come from outside the home province', function
     ns27Recalc();
 
     expect((float) ns27Overall($shooter)->points)->toBe(255.0)
-        ->and(ns27Overall($shooter)->pool_breakdown['selection_eligible'])->toBeTrue();
+        ->and(ns27Overall($shooter)->pool_breakdown['selection_eligible'])->toBeFalse()
+        ->and(ns27Overall($shooter)->pool_breakdown['selection_note'])->toContain('mandatory');
 });
 
 it('keeps an all-home shooter on the log but marks them not eligible for selection', function () {
@@ -146,31 +154,38 @@ it('keeps an all-home shooter on the log but marks them not eligible for selecti
         ->and($standing->pool_breakdown['selection_note'])->toContain('home province');
 });
 
-it('weights each championship day against the highest raw score of that day', function () {
+it('weights the championships as one match, so equal combined scores tie', function () {
     $a = User::factory()->create(['province_id' => $this->gp->id]);
     $b = User::factory()->create(['province_id' => $this->gp->id]);
+    $winner = User::factory()->create(['province_id' => $this->gp->id]);
 
     $champs = ns27Match('SA Champs', 'final', '2027-11-01', $this->wc);
-    // Both total 80 raw, but day maxima are 50 (day 1) and 40 (day 2).
+    // A is 50+30 and B is 40+40. The 14 October draft ranked those days
+    // separately and put B ahead. The signed rules use the combined total,
+    // so A and B are equal and the 100+100 winner takes 200.
+    ns27Score($champs, $winner, 100.0, 100.0);
     ns27Score($champs, $a, 50.0, 30.0);
     ns27Score($champs, $b, 40.0, 40.0);
 
     ns27Recalc();
 
-    $aChamps = ns27Overall($a)->pool_breakdown['champs'];
-    $bChamps = ns27Overall($b)->pool_breakdown['champs'];
+    $aPb = ns27Overall($a)->pool_breakdown;
+    $bPb = ns27Overall($b)->pool_breakdown;
 
-    expect($aChamps['day1_pct'])->toEqual(100.0)
-        ->and($aChamps['day2_pct'])->toEqual(75.0)
-        ->and((float) ns27Overall($a)->points)->toBe(175.0)
-        ->and($bChamps['day1_pct'])->toEqual(80.0)
-        ->and($bChamps['day2_pct'])->toEqual(100.0)
-        ->and((float) ns27Overall($b)->points)->toBe(180.0)
-        ->and(ns27Overall($b)->rank)->toBe(1)
-        ->and(ns27Overall($b)->pool_breakdown['champs_max'])->toBe(200);
+    expect($aPb['champs']['weighting'])->toBe('whole_match')
+        ->and($aPb['champs']['match_pct'])->toEqual(40.0)
+        ->and($aPb['champs_pct'])->toEqual(80.0)
+        ->and($bPb['champs_pct'])->toEqual(80.0)
+        ->and((float) ns27Overall($a)->points)->toBe(80.0)
+        ->and((float) ns27Overall($b)->points)->toBe(80.0)
+        ->and((float) ns27Overall($winner)->points)->toBe(200.0)
+        ->and($aPb['selection_champs_pct'])->toEqual(40.0)
+        ->and($aPb['selection_points'])->toEqual(40.0)
+        ->and(ns27Overall($a)->rank)->toBe(ns27Overall($b)->rank)
+        ->and(ns27Overall($winner)->rank)->toBe(1);
 });
 
-it('falls back to the match percentage for both days when no day split was captured', function () {
+it('scales a single uploaded championship total onto the 200-point ranking', function () {
     $shooter = User::factory()->create(['province_id' => $this->gp->id]);
 
     $champs = ns27Match('SA Champs', 'final', '2027-11-01', $this->wc);
@@ -180,8 +195,10 @@ it('falls back to the match percentage for both days when no day split was captu
     ns27Recalc();
     $pb = ns27Overall($shooter)->pool_breakdown;
 
-    expect($pb['champs']['days_split'])->toBeFalse()
-        ->and($pb['champs_pct'])->toEqual(160.0);
+    expect($pb['champs']['weighting'])->toBe('whole_match')
+        ->and($pb['champs']['match_pct'])->toEqual(80.0)
+        ->and($pb['champs_pct'])->toEqual(160.0)
+        ->and($pb['selection_points'])->toEqual(80.0);
 });
 
 it('breaks ties on points with the higher championship score', function () {
@@ -269,11 +286,13 @@ it('renders the 500-point breakdown, championship days and selection note on the
         ->assertOk()
         ->assertSee('Best 3 nationals + 2-day championships (out of 500)')
         ->assertSee('Max 2 from your home province')
-        ->assertSee('Day 1 100.00%')
+        ->assertSee('Whole match 100.00%')
         ->assertSee('Not yet eligible for selection');
 
-    $this->get('/standings?series=PRS&season=2027')
+    $this->followingRedirects()->get('/standings?series=PRS&season=2027')
         ->assertOk()
+        ->assertSee('Best 3 nationals or the PRS International', false)
+        ->assertSee('Home Only')
         ->assertSee('Not selection eligible');
 });
 
@@ -286,8 +305,27 @@ it('requires 1 national and 1 provincial before entering the championships', fun
     ]);
     $champs->divisions()->attach($this->open->id);
 
-    $shooter = User::factory()->create(['email_verified_at' => now(), 'province_id' => $this->gp->id]);
+    $club = Club::create([
+        'name' => 'Entry Club',
+        'slug' => 'entry-club-'.uniqid(),
+        'abbreviation' => 'EC',
+        'province_id' => $this->gp->id,
+        'is_active' => true,
+    ]);
+    $shooter = User::factory()->create([
+        'email_verified_at' => now(),
+        'province_id' => $this->gp->id,
+        'club_id' => $club->id,
+        'date_of_birth' => '1990-01-01',
+        'gender' => 'male',
+        'ethnicity' => 'white',
+        'country_of_residence' => 'ZA',
+        'sa_id_number' => '9001015800085',
+        'sa_citizen' => true,
+        'previously_disadvantaged' => false,
+    ]);
     $shooter->assignRole('member');
+    giveActiveMembership($shooter);
 
     ns27National('WC1', '2027-03-01', $this->wc, $shooter, 90);
 
@@ -321,14 +359,14 @@ it('keeps the rules document parked until it is published', function () {
 
     $this->get(route('rules.national-series-2027'))->assertNotFound();
     $this->get(route('documents.index'))->assertDontSee(route('rules.national-series-2027'), false);
-    expect(collect((new DocumentSearch)->search('tiebreak stage'))->pluck('doc_url'))
+    expect(collect((new DocumentSearch)->search('skills stage'))->pluck('doc_url'))
         ->not->toContain(route('rules.national-series-2027'));
 
     $this->actingAs($admin)
         ->get(route('rules.national-series-2027'))
         ->assertOk()
         ->assertSee('Draft · not yet published')
-        ->assertSee('No more than 2 may come from their home province', false);
+        ->assertSee('maximum of two results from their home province', false);
 });
 
 it('shows the rules document publicly once published', function () {
@@ -339,7 +377,7 @@ it('shows the rules document publicly once published', function () {
         ->assertSee('highest raw score of the day) × 100', false)
         ->assertDontSee('not yet published');
     $this->get(route('documents.index'))->assertSee('href="'.route('rules.national-series-2027').'"', false);
-    expect(collect((new DocumentSearch)->search('tiebreak stage'))->pluck('doc_url'))
+    expect(collect((new DocumentSearch)->search('skills stage'))->pluck('doc_url'))
         ->toContain(route('rules.national-series-2027'));
 });
 
@@ -357,4 +395,117 @@ it('activates the 2027 rules for both disciplines from the command', function ()
 
     $this->artisan('saprf:national-series-2027', ['action' => 'publish'])->assertSuccessful();
     expect(app(SettingsService::class)->nationalSeries2027Published())->toBeTrue();
+});
+
+it('counts a PRS International result inside the best 3', function () {
+    $shooter = User::factory()->create(['province_id' => $this->gp->id]);
+
+    ns27National('GP1', '2027-02-01', $this->gp, $shooter, 100);
+    ns27National('GP2', '2027-03-01', $this->gp, $shooter, 90);
+    ns27National('WC1', '2027-04-01', $this->wc, $shooter, 60);
+
+    $international = ns27Match('PRS International', 'international', '2027-07-01', null);
+    ns27Score($international, User::factory()->create(), 100.0);
+    ns27Score($international, $shooter, 85.0);
+
+    $champs = ns27Match('SA Champs', 'final', '2027-11-01', $this->wc);
+    ns27Score($champs, User::factory()->create(), 100.0, 100.0);
+    ns27Score($champs, $shooter, 50.0, 50.0);
+
+    ns27Recalc();
+    $pb = ns27Overall($shooter)->pool_breakdown;
+
+    // Home cap keeps 100 and 90. The international 85 replaces the away 60.
+    expect(collect($pb['regular'])->pluck('pct')->all())->toEqual([100.0, 90.0, 85.0])
+        ->and($pb['international_counted'])->toBe(1)
+        ->and($pb['selection_eligible'])->toBeTrue()
+        ->and($pb['selection_points'])->toEqual(325.0)
+        ->and((float) ns27Overall($shooter)->points)->toBe(375.0);
+});
+
+it('blocks championship entry until the shooter is a paid-up member', function () {
+    $champs = ns27Match('SA Champs', 'final', '2027-11-01', $this->wc);
+    $shooter = User::factory()->create(['province_id' => $this->gp->id]);
+    ns27National('WC1', '2027-03-01', $this->wc, $shooter, 90);
+    $provincial = ns27Match('GP Prov', 'provincial', '2027-04-01', $this->gp);
+    ns27Score($provincial, $shooter, 70.0);
+
+    $status = app(QualificationService::class)->championshipEntryStatus($shooter, $champs);
+
+    expect($status['eligible'])->toBeFalse()
+        ->and($status['paid_up'])->toBeFalse()
+        ->and(app(QualificationService::class)->championshipEntryMessage($status, 'PRS'))
+        ->toContain('paid-up');
+});
+
+it('adds Hunter and Mil/LEO as divisions from the 2027 series', function () {
+    expect(Division::where('slug', 'hunter')->value('name'))->toBe('Hunter')
+        ->and(Division::where('slug', 'mil-leo')->value('name'))->toBe('Mil/LEO');
+});
+
+it('publishes the 2028 selection process', function () {
+    $this->get(route('selection.policy.public', ['series' => 'prs']))
+        ->assertOk()
+        ->assertSee('IPRF World Championships selection process')
+        ->assertSee('R5,000.00', false)
+        ->assertSee('Team Manager');
+
+    $this->get(route('selection.policy.public', ['series' => 'prs', 'season' => '2026']))
+        ->assertOk()
+        ->assertSee('Archived');
+
+    $this->get(route('documents.index'))
+        ->assertSee('IPRF World Championships selection (2028)');
+});
+
+it('archives the superseded rulebooks once the 2027 rules are published, keeping them readable', function () {
+    $this->get(route('rules.divisions'))->assertOk()->assertSee('Current')->assertDontSee('Current rules:');
+
+    app(SettingsService::class)->set(SettingsService::NATIONAL_SERIES_2027_PUBLISHED, '1');
+
+    foreach (['rules.divisions', 'rules.pr22-rimfire'] as $route) {
+        $this->get(route($route))
+            ->assertOk()
+            ->assertSee('Archived')
+            ->assertSee('Current rules: SAPRF 2027 National Series', false)
+            ->assertSee('href="'.route('rules.national-series-2027').'"', false)
+            ->assertSee('Download original PDF');
+    }
+
+    $this->get(route('rules.regulations'))->assertOk()->assertDontSee('Current rules:');
+
+    $this->get(route('documents.index'))
+        ->assertOk()
+        ->assertSeeInOrder([
+            'SAPRF Rules &amp; Regulations',
+            'SAPRF 2027 National Series',
+            'Archive',
+            'SAPRF Divisions',
+            'PR22 Rimfire Series Rules',
+            'PRS Team Selection (Centrefire)',
+        ], false)
+        ->assertSee('href="'.route('rules.divisions').'"', false)
+        ->assertSee('href="'.route('rules.pr22-rimfire').'"', false);
+});
+
+it('sends the signed rules to active members once', function () {
+    seedRoles();
+    $chair = User::factory()->create();
+    $chair->assignRole('chair');
+    $member = User::factory()->create();
+    giveActiveMembership($member);
+
+    $this->artisan('saprf:national-series-2027', ['action' => 'notify', '--force' => true])->assertSuccessful();
+
+    $announcement = Announcement::where('title', NationalSeries2027Command::NOTICE_TITLE)->first();
+    expect($announcement)->not->toBeNull()
+        ->and($announcement->attachments)->toHaveCount(2)
+        ->and($announcement->requires_acknowledgement)->toBeTrue()
+        ->and(app(SettingsService::class)->nationalSeries2027Published())->toBeTrue();
+
+    $this->artisan('saprf:national-series-2027', ['action' => 'notify', '--force' => true])
+        ->assertSuccessful()
+        ->expectsOutputToContain('Nothing sent');
+
+    expect(Announcement::where('title', NationalSeries2027Command::NOTICE_TITLE)->count())->toBe(1);
 });

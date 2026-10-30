@@ -22,13 +22,15 @@ class DivisionCategorySeeder extends Seeder
         $divisions = [
             // Equipment classes
             ['slug' => 'open',       'name' => 'Open',       'description' => 'Unrestricted equipment class',       'display_order' => 1],
-            ['slug' => 'factory',    'name' => 'Factory',    'description' => 'Factory-stock rifle, no modifications', 'display_order' => 2],
-            ['slug' => 'limited',    'name' => 'Limited',    'description' => 'Limited modifications allowed',      'display_order' => 3],
+            ['slug' => 'factory',    'name' => 'Factory',    'description' => 'Factory-manufactured rifle under the PRS Production rules and the SAPRF Factory Division rules (2027 series)', 'display_order' => 2],
+            ['slug' => 'limited',    'name' => 'Limited',    'description' => '.308 Win / 7.62x51 only; projectile maximum 185 gr; velocity maximum 3,200 fps (2027 series)', 'display_order' => 3],
             ['slug' => 'production', 'name' => 'Production', 'description' => 'Production-class rifle',             'display_order' => 4],
+            ['slug' => 'hunter',     'name' => 'Hunter',     'description' => 'South African division. Factory stock, no chassis, 2.5 lb minimum trigger. Centrefire rifle max US$3,000; PR22 rifle max US$2,500; optic max US$2,500', 'display_order' => 8],
+            ['slug' => 'mil-leo',    'name' => 'Mil/LEO',    'description' => 'IPRF: active full-time or part-time military or law enforcement. PRS Centrefire: full-time active duty or full-time LEO only', 'display_order' => 9],
 
             // Demographic classes (previously categories)
             ['slug' => 'ladies',     'name' => 'Ladies',     'description' => 'Female shooters',                    'display_order' => 5],
-            ['slug' => 'junior',     'name' => 'Junior',     'description' => 'Shooters under the junior age cut-off', 'display_order' => 6],
+            ['slug' => 'junior',     'name' => 'Junior',     'description' => 'Centrefire PRS: 17 or younger on 1 January. IPRF team selection: 14 to 20 at the start of the year. PR22: 12 to 18. Age checked against a government ID', 'display_order' => 6],
             ['slug' => 'senior',     'name' => 'Senior',     'description' => 'Shooters at or above the senior age threshold', 'display_order' => 7],
         ];
 

@@ -10,12 +10,15 @@ test('documents index is reachable without authentication', function () {
 test('documents index lists both selection policies with correct status badges', function () {
     $response = $this->get(route('documents.index'))->assertOk();
 
-    $response->assertSee('PR22 Team Selection (Rimfire)')
-        ->assertSee('2027 Cycle')
-        ->assertSee('Current')
-        ->assertSee('PRS Team Selection (Centrefire)')
-        ->assertSee('2026 Cycle')
-        ->assertSee('Historical');
+    $response->assertSeeInOrder([
+        'IPRF World Championships selection (2028)',
+        'Current',
+        'Archive',
+        'PR22 Team Selection (Rimfire)',
+        '2027 Cycle · Archived',
+        'PRS Team Selection (Centrefire)',
+        '2026 Cycle · Archived',
+    ]);
 });
 
 test('documents index lists the legal and governance documents', function () {

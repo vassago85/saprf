@@ -1,6 +1,8 @@
-# SAPRF 2027 national series, championships and selection
+# SAPRF 2027 national series, championships and qualifying for selection
 
-*14 October 2026 — Paul Charsley*
+**Centrefire and PR22 Rimfire**
+
+*29 October 2026*
 
 ## Scope
 
@@ -12,65 +14,72 @@ These rules govern the 2027 SAPRF national series and national championships for
 |---|---|---|
 | Centrefire | Open | Open to all; no additional equipment rules |
 | Centrefire | Ladies Open | Female shooters |
-| Centrefire | Junior Open | Aged 14 to 20 at the start of the calendar year |
+| Centrefire | Junior Open | PRS: 17 or younger on 1 January of the season. IPRF: aged 14 to 20 at the start of the calendar year, for IPRF team selection. Age verified by government issued ID; juniors must handle their rifle safely without hands-on assistance |
 | Centrefire | Senior Open | Over 55 |
-| Centrefire | Mil/LEO | Active full or part time military or law enforcement officers |
-| Centrefire | Limited | .308 Win/7.62x51 NATO only; projectile maximum 179 gr and 2,800 fps; no modified wildcat rounds |
-| Centrefire | Factory | Standard rifle from a single mainstream manufacturer; limited modifications |
+| Centrefire | Mil/LEO | IPRF — active full or part time military or law enforcement officers. PRS — active duty and full-time LEO: any shooter who is a full-time, active duty service member or a full-time law enforcement officer is eligible |
+| Centrefire | Limited | .308 Win/7.62x51 NATO only; projectile maximum 185 gr; velocity maximum 3,200 fps, the same as all Centrefire rifles |
+| Centrefire | Factory | A commercially available, complete factory-manufactured rifle, originally supplied in the manufacturer's standard configuration, subject to the applicable PRS Production Division requirements and any accessories or modifications expressly permitted under the SAPRF Factory Division rules |
+| Centrefire | Hunter | South African only division. Production rifle with its factory synthetic or wooden stock (no chassis); minimum 2.5 lb trigger pull; rifle maximum US$3,000 and optic maximum US$2,500, based on the manufacturer's advertised price, not the purchase price |
 | PR22 Rimfire | Open | Open to all; no additional equipment rules |
 | PR22 Rimfire | Ladies Open | Female shooters |
 | PR22 Rimfire | Junior Open | Aged 12 to 18 at the start of the calendar year |
 | PR22 Rimfire | Senior Open | Over 55 |
-| PR22 Rimfire | Mil/LEO | Active full or part time military or law enforcement officers |
-| PR22 Rimfire | Factory | Standard rifle from a single mainstream manufacturer; limited modifications |
+| PR22 Rimfire | Mil/LEO | Active full or part-time military or law enforcement officers |
+| PR22 Rimfire | Factory | A commercially available, complete factory-manufactured rifle, originally supplied in the manufacturer's standard configuration, subject to the applicable PRS Production Division requirements and any accessories or modifications expressly permitted under the SAPRF Factory Division rules |
+| PR22 Rimfire | Hunter | South African only division. Production rifle with its factory synthetic or wooden stock (no chassis); minimum 2.5 lb trigger pull; rifle maximum US$2,500 and optic maximum US$2,500, based on the manufacturer's advertised price, not the purchase price |
 
 All Centrefire rifles are limited to a maximum of .30 calibre and 3,200 fps.
 
 ## Nationals and scoring
 
-Each national is a 1 day, 100 round match. The number of nationals, their dates and venues are set by the SAPRF match calendar.
+Each National is a 1 day, minimum 100 round match. The number of nationals, their dates and venues are set by the SAPRF match calendar.
 
-Every match day is weighted against the highest overall score of that day, regardless of division. The top shooter receives 100 points and everyone else a proportional share.
+Every match day is weighted against the highest overall score of that day, regardless of division. The top shooter receives 100 percentage points and everyone else a proportional share.
 
 **Weighted score = (shooter's raw score ÷ highest raw score of the day) × 100**
 
 ## Championships
 
-To enter the championships, a shooter must complete 1 national and 1 provincial match listed on the SAPRF match calendar. This ensures everyone at the championships has enough match experience to compete at that level.
+To enter the championships, a shooter must be a fully paid up SAPRF member and have completed at least 1 national and 1 provincial match listed on the SAPRF match calendar. This ensures everyone at the championships has enough match experience to compete at that level.
 
-The championships are a 2 day match, each day weighted separately, for a maximum of 200 points. They always include a timed tiebreak stage, where more impacts wins and equal impacts go to the faster time.
+The SA Championships is a 2-day match, weighted as a whole match to a maximum of 200 points. The Centrefire SA Championships are a minimum of 15 stages and 150 rounds, and the PR22 SA Championships a minimum of 18 stages and 200 rounds, both set out according to PRS requirements. The PRS International Match is worth a maximum of 100 points. Ties are resolved on designated skills stages, following PRS practice: more impacts wins, and equal impacts go to the faster time. Tiebreak results do not add points to the score.
 
 ## Final ranking
 
+The SA Championships count 40% of the year score (200 of 500 points) and are weighted this way to determine the champion in each division.
+
 | Component | Maximum points |
 |---|---|
-| Best 3 national results (100 each) | 300 |
-| Championships (2 days) | 200 |
+| Best 3 national results (100 each) and/or PRS International match | 300 |
+| SA Championships (2 days) | 200 |
 | Total | 500 |
 
-A shooter's best 3 nationals count. No more than 2 may come from their home province and at least 1 must come from outside it; all 3 may come from outside. The championships do not count as an out of province result.
+For selection of the National Team, the SA Championships are a mandatory match and count 25% of the total score (300 points for the year and 100 points for the SA Championships, 400 points in total).
 
-Ties on final points go to the higher championship score, then to the championship tiebreak stage.
+| Component | Maximum points |
+|---|---|
+| Best 3 national results (100 each) and/or PRS International match | 300 |
+| SA Championships (2 days) | 100 |
+| Total | 400 |
+
+Only a shooter's best three national results will count towards the final ranking. These may include a maximum of two results from their home province, with the remaining result(s) coming from outside their home province. All 3 best scores may be from outside their home province. Dates and venues are published separately on the SAPRF calendar.
+
+International shooters must compete in at least three nationally qualifying PRS or IPRF National Selection Matches to be eligible for selection. Participation in the South African Championships (SA Champs) is also mandatory for selection eligibility.
+
+Ties on final points go to the higher SA championship score, then to the SA championship skills stage tiebreak.
 
 A shooter with fewer than 3 counting results, including one whose nationals were all in their home province, appears on the log wherever their points place them but is not eligible for selection.
 
-A shooter moving from Factory to Open keeps their scores, as a Factory rifle meets the Open rules. A shooter moving from Open to Factory starts again.
+A shooter moving from Factory to Open keeps their scores, as those rifles meet the Open rules. A shooter moving from Open to Factory starts again.
 
 ## Selection and colours
 
-The SAPRF selection committee decides national team selection for 2028, using the 2027 Centrefire final ranking, and the award of SAPRF colours, using the final rankings across all divisions in both disciplines. The committee makes the final decision on whether a shooter has shot enough matches and is of the standard to represent the country.
+Federation and Protea colours apply to Centrefire and PR22 on the same rules. The 2027 Centrefire ranking is used to select the Centrefire National Team for the 2028 IPRF Precision Rifle World Championships. See the SAPRF team selection process document.
 
-International shooters must compete in at least 3 nationally qualifying PRS or IPRF national selection matches and shoot the SA Champs to be eligible for selection. The committee decides how their results are considered.
+## Approved and signed
 
-## National team declaration
+Dr AJ Lategan
 
-To be considered for selection, a shooter must sign the SAPRF national team declaration form. By signing it, the shooter agrees to:
+Chairman
 
-- attend the international championships if selected;
-- inform SAPRF immediately of ill health or any other circumstance that may prevent them from attending;
-- make themselves available for any training, team building and competitions held before the championships;
-- participate in a manner that reflects true sportsmanship and helps build team spirit;
-- accept the financial implications of attending, and purchase any required team attire;
-- wear the national colours proudly and put the needs of the country and the team ahead of their own;
-- follow the instructions of, and abide by the decisions made by, the team captain;
-- accept that the decision of the selection committee is final.
+South African Precision Rifle Federation (SAPRF)

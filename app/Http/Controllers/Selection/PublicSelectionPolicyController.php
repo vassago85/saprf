@@ -31,6 +31,16 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class PublicSelectionPolicyController extends Controller
 {
     /**
+     * Signed PDFs, keyed by "{series}/{season}". Older cycles have no PDF
+     * on this site; the 2028 process does.
+     *
+     * @var array<string, string>
+     */
+    private const PDFS = [
+        'prs/2028' => 'publications/saprf-iprf-team-selection-2028.pdf',
+    ];
+
+    /**
      * Series catalog. `current_season` may be null (e.g. PRS between cycles);
      * in that case the default view is the most recent historical season.
      *
@@ -39,12 +49,12 @@ class PublicSelectionPolicyController extends Controller
     private const SERIES = [
         'pr22' => [
             'title' => 'PR22 Team Selection (Rimfire)',
-            'current_season' => '2027',
-            'historical_seasons' => [],
+            'current_season' => null,
+            'historical_seasons' => ['2027'],
         ],
         'prs' => [
             'title' => 'PRS Team Selection (Centrefire)',
-            'current_season' => null,
+            'current_season' => '2028',
             'historical_seasons' => ['2026'],
         ],
     ];
@@ -69,6 +79,7 @@ class PublicSelectionPolicyController extends Controller
 
         $rendered = MarkdownDocument::render((string) file_get_contents($mdPath));
         $isCurrent = $season === $meta['current_season'];
+        $pdf = self::PDFS["{$series}/{$season}"] ?? null;
 
         // Alternate cycles the reader might jump to. Rendered as pills in the
         // meta slot so someone landing on a historical policy can pivot to
@@ -94,16 +105,23 @@ class PublicSelectionPolicyController extends Controller
         return view('selection.public.policy', [
             'series_key' => $series,
             'series_title' => strtoupper($series),
-            'title' => $meta['title'],
+            'title' => ($series === 'prs' && $season === '2028')
+                ? 'IPRF World Championships selection process'
+                : $meta['title'],
             'season' => $season,
             'is_current' => $isCurrent,
-            'status_label' => $isCurrent ? 'Current' : 'Historical',
+            'status_label' => $isCurrent ? 'Current' : 'Archived',
             'status_tone' => $isCurrent ? 'emerald' : 'stone',
             'other_cycles' => $otherCycles,
             'html' => $rendered['html'],
             'toc' => $rendered['toc'],
             'last_updated' => \Carbon\Carbon::createFromTimestamp(filemtime($mdPath)),
             'source_path' => "docs/selection/{$series}/{$season}/policy.md",
+            'pdf_url' => $pdf && is_file(public_path($pdf)) ? asset($pdf) : null,
+            'superseded_by' => $isCurrent ? null : [
+                'title' => 'IPRF World Championships selection (2028)',
+                'url' => route('selection.policy.public', ['series' => 'prs', 'season' => '2028']),
+            ],
         ]);
     }
 }

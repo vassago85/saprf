@@ -11,11 +11,13 @@
     :source-path="$source_path"
     :current-doc-route="'selection-policy-' . $series_key"
 >
-    @if(! empty($other_cycles))
-        {{-- Series-switcher pills: land on 2026 PRS and there's a one-click
-             jump to any other cycle, so readers don't have to hunt through
-             the Documents index to compare seasons. --}}
+    @if(! empty($pdf_url) || ! empty($other_cycles) || ! empty($superseded_by))
+        {{-- Series-switcher pills: land on a historical cycle and there's a
+             one-click jump to the current one, so readers don't have to
+             hunt through the Documents index to compare seasons. --}}
         <x-slot:meta>
+            @include('rules._superseded')
+            @include('rules._pdf-download', ['pdf_url' => $pdf_url ?? null])
             @foreach($other_cycles as $cycle)
                 <a href="{{ $cycle['url'] }}"
                    class="inline-flex items-center gap-1 rounded-full bg-white text-stone-700 ring-1 ring-inset ring-stone-200 hover:bg-stone-50 hover:ring-stone-300 px-2.5 py-1 text-xs font-semibold transition">

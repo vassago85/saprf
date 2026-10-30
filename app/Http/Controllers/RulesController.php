@@ -41,7 +41,12 @@ class RulesController extends Controller
      *   md: string,
      *   pdf: string|null,
      *   view: string,
+     *   archived_by?: string,
      * }>
+     *
+     * `archived_by` names the rulebook that superseded this one. Once that
+     * rulebook is published, this page stays live at its URL but is marked
+     * Archived and links to its replacement.
      */
     private const RULEBOOKS = [
         'rules-and-regulations' => [
@@ -65,6 +70,7 @@ class RulesController extends Controller
             'md' => 'docs/rules/divisions.md',
             'pdf' => 'publications/saprf-divisions.pdf',
             'view' => 'rules.divisions',
+            'archived_by' => 'national-series-2027',
         ],
         'pr22-rimfire-series' => [
             'title' => 'PR22 Rimfire Series Rules',
@@ -76,14 +82,15 @@ class RulesController extends Controller
             'md' => 'docs/rules/pr22-rimfire-series.md',
             'pdf' => 'publications/pr22-rimfire-series-rules.pdf',
             'view' => 'rules.pr22-rimfire-series',
+            'archived_by' => 'national-series-2027',
         ],
         'national-series-2027' => [
-            'title' => 'SAPRF 2027 National Series, Championships and Selection',
+            'title' => 'SAPRF 2027 National Series, Championships and Qualifying for Selection',
             'kicker' => 'SAPRF · Sport Rules',
-            'subtitle' => 'Centrefire and PR22 Rimfire · divisions, nationals, championships, the 500-point final ranking and 2028 team selection.',
+            'subtitle' => 'Centrefire and PR22 Rimfire · divisions, nationals, the championships as one match, the 500-point ranking and the 400-point selection score.',
             'version' => null,
-            'effective_date' => '14 October 2026',
-            'blurb' => 'The rules governing the 2027 SAPRF national series and national championships for Centrefire and PR22 Rimfire, and how the final ranking feeds 2028 national team selection and SAPRF colours.',
+            'effective_date' => '29 October 2026',
+            'blurb' => 'Reproduced from the SAPRF 2027 national series rules signed on 29 October 2026. In case of any conflict with the official SAPRF publication, the original PDF is authoritative.',
             'md' => 'docs/rules/national-series-2027.md',
             'pdf' => 'publications/saprf-national-series-2027.pdf',
             'view' => 'rules.national-series-2027',
@@ -167,6 +174,30 @@ class RulesController extends Controller
     private function render(string $slug): View
     {
         $spec = self::RULEBOOKS[$slug];
-        return view($spec['view'], $this->props($slug));
+
+        return view($spec['view'], $this->props($slug) + $this->archiveState($spec));
+    }
+
+    /**
+     * Only the 2027 series supersedes anything today, and it counts as
+     * published once `saprf:national-series-2027 publish` has run.
+     *
+     * @return array{status: array{label: string, tone: string}, superseded_by: array{title: string, url: string}|null}
+     */
+    private function archiveState(array $spec): array
+    {
+        $replacement = $spec['archived_by'] ?? null;
+
+        if ($replacement !== 'national-series-2027' || ! app(SettingsService::class)->nationalSeries2027Published()) {
+            return ['status' => ['label' => 'Current', 'tone' => 'emerald'], 'superseded_by' => null];
+        }
+
+        return [
+            'status' => ['label' => 'Archived', 'tone' => 'stone'],
+            'superseded_by' => [
+                'title' => self::RULEBOOKS[$replacement]['title'],
+                'url' => route('rules.national-series-2027'),
+            ],
+        ];
     }
 }

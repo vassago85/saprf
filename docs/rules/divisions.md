@@ -4,6 +4,16 @@
 
 *Effective: August 2023*
 
+## 2027 season — where this document differs
+
+*Archived 29 October 2026. The August 2023 text below is unchanged and kept for reference. From the 2027 season the division table in the [2027 national series rules](/rules/national-series-2027) applies, and it prevails wherever the two differ.*
+
+- Limited: .308 Win / 7.62×51 NATO only; projectile maximum 185 gr; velocity maximum 3,200 fps, the same cap as every other Centrefire rifle. The 178 gr and 500 kgr/fps limits in section 7 do not apply to the 2027 series.
+- Factory: a commercially available, complete factory-manufactured rifle in the manufacturer's standard configuration, subject to the PRS Production Division requirements and any accessories or modifications the SAPRF Factory Division rules expressly permit. That definition replaces the single-manufacturer component test in section 8 for the 2027 series.
+- Hunter: new South African division, Centrefire and PR22. Production rifle with its factory synthetic or wooden stock (no chassis); minimum 2.5 lb trigger pull. Centrefire rifle maximum US$3,000 and optic maximum US$2,500. PR22 rifle maximum US$2,500 and optic maximum US$2,500. The cap is the manufacturer's advertised price, not the purchase price.
+- Junior Open, Centrefire: PRS — 17 or younger on 1 January of the season. IPRF team selection — aged 14 to 20 at the start of the calendar year. Age is verified from a government-issued ID, and the junior must handle the rifle safely without hands-on assistance. PR22 Junior Open is 12 to 18 at the start of the calendar year.
+- Mil/LEO, Centrefire: IPRF — active full-time or part-time military or law enforcement. PRS — full-time active duty or a full-time law enforcement officer only. PR22 Mil/LEO stays active full-time or part-time.
+
 ## 1. Introduction
 
 Precision Rifle competition is split into the following 4 Divisions in which athletes can choose to compete in.

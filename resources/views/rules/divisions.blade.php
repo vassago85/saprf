@@ -4,7 +4,7 @@
     :subtitle="$subtitle"
     :version="$version"
     :effective-date="$effective_date"
-    :status="['label' => 'Current', 'tone' => 'emerald']"
+    :status="$status"
     :blurb="$blurb"
     :html="$html"
     :toc="$toc"
@@ -12,6 +12,7 @@
     :source-path="$source_path"
 >
     <x-slot:meta>
+        @include('rules._superseded')
         @include('rules._pdf-download', ['pdf_url' => $pdf_url])
     </x-slot:meta>
 </x-legal-document>

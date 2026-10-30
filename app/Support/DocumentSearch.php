@@ -81,11 +81,18 @@ class DocumentSearch
             'md_path' => 'docs/rules/pr22-rimfire-series.md',
         ],
         [
-            'doc_title' => 'SAPRF 2027 National Series, Championships and Selection',
+            'doc_title' => 'SAPRF 2027 National Series, Championships and Qualifying for Selection',
             'kicker' => 'Sport Rules',
             'route' => 'rules.national-series-2027',
             'md_path' => 'docs/rules/national-series-2027.md',
             'published_setting' => SettingsService::NATIONAL_SERIES_2027_PUBLISHED,
+        ],
+        [
+            'doc_title' => 'IPRF World Championships selection — 2028',
+            'kicker' => 'Selection',
+            'route' => 'selection.policy.public',
+            'route_params' => ['series' => 'prs', 'season' => '2028'],
+            'md_path' => 'docs/selection/prs/2028/policy.md',
         ],
         [
             'doc_title' => 'PR22 Team Selection (Rimfire) — 2027',

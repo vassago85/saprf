@@ -61,10 +61,17 @@ class QualificationRule extends Model
     }
 
     /**
-     * 2027 national series final ranking (max 500): best 3 nationals with at
-     * most 2 from the shooter's home province, plus the 2-day championships
-     * with each day weighted separately (max 200). Ties go to the higher
-     * championship score, then the championship tiebreak stage.
+     * 2027 national series, signed 29 October 2026.
+     *
+     * Champion log (max 500): best 3 nationals and/or the PRS International,
+     * at most 2 from the home province, plus the SA Championships weighted
+     * as one match (max 200). The 14 October draft weighted each
+     * championship day separately and did not count the international.
+     *
+     * Selection log (max 400): the same best 3, plus the championships out
+     * of 100. The championships are mandatory for selection. Ties go to the
+     * higher championship score, then the skills-stage tiebreak, which
+     * does not add points.
      */
     public function isNationalSeries2027(): bool
     {

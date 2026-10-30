@@ -98,57 +98,90 @@ province).
 
 ---
 
-## 3a. 2027 National Series (both disciplines, parked until announced)
+## 3a. 2027 National Series (both disciplines)
 
-The 2027 rules ([`docs/rules/national-series-2027.md`](../rules/national-series-2027.md))
-replace both models above with one final ranking out of **500**, for
-Centrefire and PR22 alike. Scoring mode `national_series_2027`.
+The signed rules are [`docs/rules/national-series-2027.md`](../rules/national-series-2027.md)
+(29 October 2026) and the team process is
+[`docs/selection/prs/2028/policy.md`](prs/2028/policy.md) (19 October 2026).
+Scoring mode `national_series_2027`. The series page stays parked until
+`publish`; the 2028 selection page is public.
 
-| Component | What counts | Max |
-|---|---|---|
-| Nationals | Best 3 national %s — **no more than 2 from your home province** | 300 |
-| Championships | Day 1 % + day 2 %, each against the highest raw score **of that day** | 200 |
+There are two totals from the same matches:
 
-- A shooter with fewer than 3 counting nationals (e.g. all nationals at home)
-  stays on the log but is flagged **not selection eligible**.
-- Ties: higher championship score, then the championship tiebreak stage (more
-  impacts, then faster time — `scores.tiebreak_impacts` /
-  `scores.tiebreak_time_seconds`, importable as `Tiebreak` / `Tiebreak Time`
-  CSV columns).
+| Use | Nationals / PRS International | SA Championships | Max |
+|---|---|---|---|
+| Champion in each division | Best 3, each out of 100 | Whole match, out of 200 (40%) | 500 |
+| National team selection | Same best 3 | Same match, out of 100 (25%), and mandatory | 400 |
+
+The best 3 may include the PRS International match (`series_level = international`).
+No more than 2 of them may come from the shooter's home province. All 3 may
+come from outside it. A shooter with fewer than 3 counting results stays on
+the champion log but is not selection eligible. So does a shooter who has
+not shot the SA Championships.
+
+The championship percentage is the combined raw score (day 1 + day 2, or the
+single uploaded total) divided by the highest combined raw score of that
+match. `normalized_score` already stores that. Ranking points are that
+percentage times 2. Selection points are the percentage itself. Skills-stage
+tiebreaks (`tiebreak_impacts`, then the faster `tiebreak_time_seconds`) order
+equal totals and do not add points.
+
 - The Open table includes the Factory results of anyone who has shot Open
   that season (Factory → Open keeps scores); Factory only ever counts Factory.
-- Entering the championships needs 1 national + 1 provincial match in the
-  same discipline and season; self-registration is blocked until then.
-- If a championship was uploaded as a single total (no day 2 scores), the
-  match % stands in for both days and the breakdown is flagged
-  `days_split: false`.
+- Entering the championships needs a fully paid-up membership plus 1 national
+  and 1 provincial match in the same discipline and season.
 
-Switching it on:
+### What changed from the 14 October 2026 draft
+
+The draft was never the signed rule. The 29 October text changed the
+platform in these places, and the code comments on
+`aggregateNationalSeries2027()` name the same deltas:
+
+- Championships are one match out of 200, not day 1 % plus day 2 %.
+- The PRS International match can fill one of the best-3 slots.
+- Selection is a separate 400-point total, and the SA Championships are
+  mandatory for it.
+- Championship entry requires a paid-up membership, not only the two matches.
+- Limited is 185 gr and 3,200 fps (the draft said 179 gr and 2,800 fps).
+- Factory, Junior, Mil/LEO and the new Hunter division follow the signed
+  division table. August 2023 `docs/rules/divisions.md` and December 2025
+  `docs/rules/pr22-rimfire-series.md` keep their original text and carry a
+  dated note saying the 2027 rules prevail where they differ.
+- The eligibility form is nine declarations, including Team Manager rather
+  than team captain. They live on `DeclarationAttestations::FOR_2028_NATIONAL_TEAM`.
+
+Switching it on, and telling members:
 
 ```bash
 php artisan saprf:national-series-2027 status
 php artisan saprf:national-series-2027 publish     # rules page + /documents + search
 php artisan saprf:national-series-2027 activate    # PRS + PR22 2027 rules -> national_series_2027, rebuild standings
+php artisan saprf:national-series-2027 notify      # publish, then email active members both PDFs
 ```
+
+`notify` is safe to run again: if that announcement was already sent, it
+does nothing.
 
 ### National team declaration form
 
 Being on the log is not enough: a shooter must also sign the national team
-declaration on `/iprf` for the selection cycle (2028 team). The tick-boxes
-come from the cycle's policy JSON; cycles without a list keep the original
-four. When the 2028 cycle's policy is written, include:
+eligibility form on `/iprf` for the selection cycle. The tick-boxes come
+from the cycle's policy JSON; cycles without a list keep the original four
+(PRS 2026 and PR22 2027). When the 2028 cycle's policy is written, copy
+`DeclarationAttestations::FOR_2028_NATIONAL_TEAM`:
 
 ```json
 "declaration": {
     "attestations": [
-        {"key": "attend_if_selected", "text": "I will attend the :championship if selected."},
-        {"key": "report_unavailability", "text": "I will inform SAPRF immediately of ill health or any other circumstance that may prevent me from attending."},
-        {"key": "available_for_training", "text": "I will make myself available for any training, team building and competitions held before the championships."},
-        {"key": "sportsmanship", "text": "I will participate in a manner that reflects true sportsmanship and helps build team spirit."},
-        {"key": "financial_commitment", "text": "I accept the financial implications of attending, and will purchase any required team attire."},
-        {"key": "national_colours", "text": "I will wear the national colours proudly and put the needs of the country and the team ahead of my own."},
-        {"key": "abide_by_team_captain", "text": "I will follow the instructions of, and abide by the decisions made by, the team captain."},
-        {"key": "selectors_final", "text": "I accept that the decision of the selection committee is final."}
+        {"key": "attend_if_selected", "text": "In the event of my being selected, I will ensure that I will be able to attend the International Precision Rifle World Championships."},
+        {"key": "report_unavailability", "text": "In the event of ill health of myself, or any other circumstance that might prevent me from attending the Championships, I undertake to inform ExCo immediately."},
+        {"key": "available_for_training", "text": "I will make myself available to attend any training, team building and/or competitions to be held prior to the Championship."},
+        {"key": "sportsmanship", "text": "I agree to actively participate in a manner which reflects true sportsmanship and help build team spirit."},
+        {"key": "financial_commitment", "text": "I am aware of the financial implications of attending the championships and I am in a position to finance my attendance at this championship."},
+        {"key": "national_colours", "text": "In the event of my obtaining National Colours, I agree to wear these colours proudly and always put the needs of my Nation and my Team ahead of my own."},
+        {"key": "purchase_attire", "text": "I agree to purchase any required attire."},
+        {"key": "selectors_final", "text": "I accept that the decision of the selectors is final and that no further discussions will be entered into."},
+        {"key": "abide_by_team_manager", "text": "I agree to abide by the decisions made by the Team Manager."}
     ]
 }
 ```

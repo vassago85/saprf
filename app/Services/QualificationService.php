@@ -46,12 +46,14 @@ class QualificationService
     }
 
     /**
-     * 2027 rules: entering the championships (a final-level match) needs 1
-     * national and 1 provincial match in the same discipline and season.
-     * Any shot match counts, whatever the shooter's membership status was on
-     * the day. `applies` is false for every other match or scoring mode.
+     * 2027 rules (29 October 2026): entering the championships needs a
+     * fully paid-up SAPRF membership, plus 1 national and 1 provincial
+     * match in the same discipline and season. Any shot match counts
+     * toward the two matches, whatever the shooter's membership status
+     * was on the day. The paid-up check is the membership held now.
+     * `applies` is false for every other match or scoring mode.
      *
-     * @return array{applies:bool, national:int, provincial:int, eligible:bool}
+     * @return array{applies:bool, national:int, provincial:int, paid_up:bool, eligible:bool}
      */
     public function championshipEntryStatus(User $user, MatchEvent $match): array
     {
@@ -65,7 +67,7 @@ class QualificationService
                 ->exists();
 
         if (! $applies) {
-            return ['applies' => false, 'national' => 0, 'provincial' => 0, 'eligible' => true];
+            return ['applies' => false, 'national' => 0, 'provincial' => 0, 'paid_up' => true, 'eligible' => true];
         }
 
         $levels = $user->exists
@@ -84,13 +86,45 @@ class QualificationService
 
         $national = $levels->filter(fn ($level) => $level === 'national')->count();
         $provincial = $levels->filter(fn ($level) => $level === 'provincial')->count();
+        $paidUp = $user->isActiveMember();
 
         return [
             'applies' => true,
             'national' => $national,
             'provincial' => $provincial,
-            'eligible' => $national >= 1 && $provincial >= 1,
+            'paid_up' => $paidUp,
+            'eligible' => $paidUp && $national >= 1 && $provincial >= 1,
         ];
+    }
+
+    /**
+     * Sentence shown when championshipEntryStatus() blocks an entry.
+     * Names only the requirements the shooter has not met yet.
+     *
+     * @param  array{national?:int, provincial?:int, paid_up?:bool}  $status
+     */
+    public function championshipEntryMessage(array $status, string $series, string $who = 'You'): string
+    {
+        $parts = [];
+
+        if (array_key_exists('paid_up', $status) && $status['paid_up'] === false) {
+            $parts[] = 'a fully paid-up SAPRF membership';
+        }
+
+        if (($status['national'] ?? 0) < 1 || ($status['provincial'] ?? 0) < 1) {
+            $parts[] = sprintf(
+                '1 national and 1 provincial %s match (nationals shot: %d, provincials shot: %d)',
+                $series,
+                $status['national'] ?? 0,
+                $status['provincial'] ?? 0,
+            );
+        }
+
+        $need = $parts === []
+            ? 'the 2027 championship entry requirements'
+            : implode(' and ', $parts);
+
+        return "{$who} can’t enter the championships yet. The SAPRF rules require {$need}.";
     }
 
     /**
@@ -225,7 +259,7 @@ class QualificationService
     }
 
     /**
-     * @param  array{provincial:int, national:int, final:int}  $levelCounts
+     * @param  array{provincial:int, national:int, international:int, final:int}  $levelCounts
      * @return list<array{key:string, label:string, completed:int, required:int, detail:?string}>
      */
     private function buildProcessSteps(QualificationRule $rule, array $levelCounts): array
@@ -265,23 +299,23 @@ class QualificationService
                 [
                     'key' => 'national',
                     'label' => 'Best nationals',
-                    'completed' => $levelCounts['national'],
+                    'completed' => $levelCounts['national'] + ($levelCounts['international'] ?? 0),
                     'required' => $bestOf,
-                    'detail' => "Best {$bestOf} national %s · max {$homeCap} from your home province",
+                    'detail' => "Best {$bestOf} nationals or the PRS International · max {$homeCap} from your home province",
                 ],
                 [
                     'key' => 'champs_entry',
                     'label' => 'Championship entry',
                     'completed' => min(1, $levelCounts['national']) + min(1, $levelCounts['provincial']),
                     'required' => 2,
-                    'detail' => '1 national + 1 provincial match',
+                    'detail' => 'Paid-up member, plus 1 national and 1 provincial match',
                 ],
                 [
                     'key' => 'champs',
-                    'label' => 'Championships (2 days)',
+                    'label' => 'Championships (whole match)',
                     'completed' => $levelCounts['final'],
                     'required' => 1,
-                    'detail' => 'Each day weighted separately · max 200',
+                    'detail' => 'One match, max 200 on the log. Selection counts it as 100 and it is mandatory',
                 ],
             ];
         }
@@ -330,7 +364,7 @@ class QualificationService
         if ($rule->isNationalSeries2027()) {
             $n = $rule->regularBestOf();
 
-            return "2027 national series: best {$n} nationals (max ".QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP." from your home province) plus the 2-day championships, out of 500.";
+            return "2027 national series: best {$n} nationals or the PRS International (max ".QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP." from your home province) plus the SA Championships as one match, out of 500. Selection scores the championships out of 100 (400 total) and they are mandatory.";
         }
 
         if ($rule->isAnnualLogWithChamps()) {
@@ -380,7 +414,7 @@ class QualificationService
             $n = $rule->regularBestOf();
             $cap = QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP;
 
-            return "Best {$n} nationals (max {$cap} from your home province) plus the 2-day championships, out of 500.";
+            return "Best {$n} nationals or the PRS International (max {$cap} from your home province) plus the SA Championships weighted as one match, out of 500.";
         }
 
         if ($rule->isAnnualLogWithChamps()) {
@@ -445,7 +479,7 @@ class QualificationService
     }
 
     /**
-     * @return array{provincial:int, national:int, final:int}
+     * @return array{provincial:int, national:int, international:int, final:int}
      */
     private function countMatchesByLevel(User $user, string $series, string $season): array
     {
@@ -469,6 +503,7 @@ class QualificationService
         return [
             'provincial' => $levels->filter(fn ($level) => $level === 'provincial')->count(),
             'national' => $levels->filter(fn ($level) => $level === 'national')->count(),
+            'international' => $levels->filter(fn ($level) => $level === 'international')->count(),
             'final' => $levels->filter(fn ($level) => $level === 'final')->count(),
         ];
     }

@@ -93,6 +93,42 @@ class DocumentsController extends Controller
      */
     private function catalog(): array
     {
+        // The 2023 divisions and December 2025 PR22 rulebooks move to the
+        // archive once the 2027 series rules that replace them are public.
+        // Archived pages keep their URLs and stay readable.
+        $series2027Live = $this->settings->nationalSeries2027Published();
+
+        $divisions = [
+            'title' => 'SAPRF Divisions',
+            'subtitle' => $series2027Live ? 'August 2023 · Archived' : 'Open · Limited · Factory · Classic',
+            'description' => $series2027Live
+                ? 'The August 2023 division rules. From the 2027 season the division table in the 2027 national series rules applies. Kept for reference.'
+                : 'The equipment and eligibility rules for each SAPRF division and subdivision, including Ladies, Senior, Junior and Mil/LEO Open, together with Limited (.308), Factory and Classic Division definitions.',
+            'url' => route('rules.divisions'),
+            'badge' => $series2027Live ? ['label' => 'Archived', 'tone' => 'stone'] : ['label' => 'Current', 'tone' => 'emerald'],
+            'last_updated' => $this->docMtime('docs/rules/divisions.md'),
+        ];
+
+        $pr22Rules = [
+            'title' => 'PR22 Rimfire Series Rules',
+            'subtitle' => $series2027Live ? 'v1 · December 2025 · Archived' : 'v1 · December 2025',
+            'description' => $series2027Live
+                ? 'The December 2025 rimfire series rules (30% / 40% / 30% log). From the 2027 season the 2027 national series rules apply. Kept for reference.'
+                : 'The rimfire-specific overlay to the main SAPRF rulebook: divisions eligible for PR22, ammunition restrictions, National Provincial + National 2-day + SA Championship series structure, log-score weighting and national colours criteria.',
+            'url' => route('rules.pr22-rimfire'),
+            'badge' => $series2027Live ? ['label' => 'Archived', 'tone' => 'stone'] : ['label' => 'Current', 'tone' => 'emerald'],
+            'last_updated' => $this->docMtime('docs/rules/pr22-rimfire-series.md'),
+        ];
+
+        $prs2026 = [
+            'title' => 'PRS Team Selection (Centrefire)',
+            'subtitle' => '2026 Cycle · Archived',
+            'description' => 'The published selection process used to pick the SAPRF Centrefire (PRS) team for the 2026 IPRF Centrefire World Championships. Provided for reference; the team has already been selected.',
+            'url' => route('selection.policy.public', ['series' => 'prs', 'season' => '2026']),
+            'badge' => ['label' => 'Archived', 'tone' => 'stone'],
+            'last_updated' => $this->docMtime('docs/selection/prs/2026/policy.md'),
+        ];
+
         return [
             [
                 'heading' => 'Help & Information',
@@ -120,26 +156,11 @@ class DocumentsController extends Controller
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/rules/rules-and-regulations.md'),
                     ],
-                    [
-                        'title' => 'SAPRF Divisions',
-                        'subtitle' => 'Open · Limited · Factory · Classic',
-                        'description' => 'The equipment and eligibility rules for each SAPRF division and subdivision, including Ladies, Senior, Junior and Mil/LEO Open, together with Limited (.308), Factory and Classic Division definitions.',
-                        'url' => route('rules.divisions'),
-                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
-                        'last_updated' => $this->docMtime('docs/rules/divisions.md'),
-                    ],
-                    [
-                        'title' => 'PR22 Rimfire Series Rules',
-                        'subtitle' => 'v1 · December 2025',
-                        'description' => 'The rimfire-specific overlay to the main SAPRF rulebook: divisions eligible for PR22, ammunition restrictions, National Provincial + National 2-day + SA Championship series structure, log-score weighting and national colours criteria.',
-                        'url' => route('rules.pr22-rimfire'),
-                        'badge' => ['label' => 'Current', 'tone' => 'emerald'],
-                        'last_updated' => $this->docMtime('docs/rules/pr22-rimfire-series.md'),
-                    ],
-                    ...($this->settings->nationalSeries2027Published() ? [[
-                        'title' => 'SAPRF 2027 National Series, Championships and Selection',
-                        'subtitle' => 'Centrefire + PR22 Rimfire · October 2026',
-                        'description' => 'Divisions, 1-day nationals, the 2-day championships, the 500-point final ranking (best 3 nationals + championships, max 2 from your home province), tie-breaks, and how the ranking feeds 2028 team selection and SAPRF colours.',
+                    ...($series2027Live ? [] : [$divisions, $pr22Rules]),
+                    ...($series2027Live ? [[
+                        'title' => 'SAPRF 2027 National Series, Championships and Qualifying for Selection',
+                        'subtitle' => 'Centrefire + PR22 Rimfire · 29 October 2026',
+                        'description' => 'Divisions (including Hunter), 1-day nationals, the championships weighted as one match, the 500-point championship ranking and the 400-point selection score (best 3 nationals or the PRS International, max 2 from your home province, SA Champs mandatory).',
                         'url' => route('rules.national-series-2027'),
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/rules/national-series-2027.md'),
@@ -151,20 +172,12 @@ class DocumentsController extends Controller
                 'blurb' => 'How SAPRF selects South Africa\'s international precision-rifle teams for IPRF-sanctioned World Championships.',
                 'items' => [
                     [
-                        'title' => 'PR22 Team Selection (Rimfire)',
-                        'subtitle' => '2027 Cycle',
-                        'description' => 'Eligibility, participation and scoring rules for the SAPRF PR22 (Rimfire) team that will represent South Africa at the 2027 IPRF World Championships.',
-                        'url' => route('selection.policy.public', ['series' => 'pr22']),
+                        'title' => 'IPRF World Championships selection (2028)',
+                        'subtitle' => 'Centrefire team · colours for Centrefire and PR22 · 19 October 2026',
+                        'description' => 'How the 2027 Centrefire series selects the National Team for the 2028 IPRF Precision Rifle World Championships, including selectors, the 85% Protea threshold, appeals, and the online eligibility declarations. Federation and Protea colours apply to Centrefire and PR22.',
+                        'url' => route('selection.policy.public', ['series' => 'prs', 'season' => '2028']),
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
-                        'last_updated' => $this->docMtime('docs/selection/pr22/2027/policy.md'),
-                    ],
-                    [
-                        'title' => 'PRS Team Selection (Centrefire)',
-                        'subtitle' => '2026 Cycle · Historical',
-                        'description' => 'The published selection process used to pick the SAPRF Centrefire (PRS) team for the 2026 IPRF Centrefire World Championships. Provided for reference; the team has already been selected.',
-                        'url' => route('selection.policy.public', ['series' => 'prs', 'season' => '2026']),
-                        'badge' => ['label' => 'Historical', 'tone' => 'stone'],
-                        'last_updated' => $this->docMtime('docs/selection/prs/2026/policy.md'),
+                        'last_updated' => $this->docMtime('docs/selection/prs/2028/policy.md'),
                     ],
                 ],
             ],
@@ -228,6 +241,22 @@ class DocumentsController extends Controller
                         'badge' => ['label' => 'Current', 'tone' => 'emerald'],
                         'last_updated' => $this->docMtime('docs/legal/social-media-policy.md'),
                     ],
+                ],
+            ],
+            [
+                'heading' => 'Archive',
+                'blurb' => 'Superseded rulebooks and selection processes, kept for reference. They no longer apply to the current season.',
+                'items' => [
+                    ...($series2027Live ? [$divisions, $pr22Rules] : []),
+                    [
+                        'title' => 'PR22 Team Selection (Rimfire)',
+                        'subtitle' => '2027 Cycle · Archived',
+                        'description' => 'The selection process for the SAPRF PR22 (Rimfire) team at the 2027 IPRF World Championships. Replaced by the 2028 selection process; kept for reference.',
+                        'url' => route('selection.policy.public', ['series' => 'pr22', 'season' => '2027']),
+                        'badge' => ['label' => 'Archived', 'tone' => 'stone'],
+                        'last_updated' => $this->docMtime('docs/selection/pr22/2027/policy.md'),
+                    ],
+                    $prs2026,
                 ],
             ],
         ];

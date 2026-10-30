@@ -80,7 +80,7 @@
                 <input type="radio" name="scoring_mode" value="{{ \App\Models\QualificationRule::MODE_NATIONAL_SERIES_2027 }}" x-model="mode" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
                 <span class="text-sm">
                     <span class="block font-semibold text-stone-900">2027 National Series</span>
-                    <span class="block text-xs text-stone-500 mt-0.5">Best N nationals (max {{ \App\Models\QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP }} from the home province) plus 2-day championships, each day weighted separately (max N × 100 + 200). Ties: championship score, then tiebreak stage.</span>
+                    <span class="block text-xs text-stone-500 mt-0.5">Best N nationals or the PRS International (max {{ \App\Models\QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP }} from the home province) plus the SA Championships as one match (max N × 100 + 200). Selection scores the championships out of 100. Ties: championship score, then the skills stage.</span>
                 </span>
             </label>
         </div>

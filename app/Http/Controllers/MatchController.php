@@ -1119,14 +1119,13 @@ class MatchController extends Controller
             return back()->with('error', 'Registration is not available for this match.');
         }
 
-        $champsEntry = app(QualificationService::class)->championshipEntryStatus($shooter, $match);
+        $qualification = app(QualificationService::class);
+        $champsEntry = $qualification->championshipEntryStatus($shooter, $match);
         if (! $champsEntry['eligible']) {
-            return back()->with('error', sprintf(
-                '%s can’t enter the championships yet. The SAPRF rules require 1 national and 1 provincial %s match first (nationals shot: %d, provincials shot: %d).',
-                $shooter->id === $actor->id ? 'You' : $shooter->name,
+            return back()->with('error', $qualification->championshipEntryMessage(
+                $champsEntry,
                 $match->series,
-                $champsEntry['national'],
-                $champsEntry['provincial'],
+                $shooter->id === $actor->id ? 'You' : $shooter->name,
             ));
         }
 

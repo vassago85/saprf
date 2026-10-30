@@ -308,16 +308,22 @@ class StandingsCalculationService
             ->where('counts_for_season', true)
             ->whereNotNull('user_id')
             ->get()
-            ->filter(function (Score $score) use ($series, $season): bool {
+            ->filter(function (Score $score) use ($series, $season, $rule): bool {
                 $match = $score->match;
                 if (! $match) {
                     return false;
                 }
                 $matchSeason = $match->season ?: (string) $match->match_date->year;
 
+                // 2027 series: the PRS International match shares the best-3
+                // pool with nationals. Older annual logs stay national + final.
+                $levels = $rule->isNationalSeries2027()
+                    ? ['national', 'international', 'final']
+                    : ['national', 'final'];
+
                 return $match->series === $series
                     && $matchSeason === $season
-                    && in_array($match->series_level, ['national', 'final'], true);
+                    && in_array($match->series_level, $levels, true);
             });
 
         $regularBestOf = $rule->regularBestOf();
@@ -421,9 +427,7 @@ class StandingsCalculationService
      */
     private function persistNationalSeries2027(Collection $scores, string $series, string $season, int $bestOf): void
     {
-        $dayMaxima = $this->championshipDayMaxima($scores);
-
-        $overall = $this->aggregateNationalSeries2027($scores, $bestOf, $dayMaxima);
+        $overall = $this->aggregateNationalSeries2027($scores, $bestOf);
         $this->persistTieBrokenStandings($overall, $series, $season, null);
 
         $slugs = Division::query()
@@ -441,73 +445,54 @@ class StandingsCalculationService
                 );
             }
 
-            $divTotals = $this->aggregateNationalSeries2027($divScores, $bestOf, $dayMaxima);
+            $divTotals = $this->aggregateNationalSeries2027($divScores, $bestOf);
             $this->persistTieBrokenStandings($divTotals, $series, $season, (int) $divisionId);
         }
     }
 
     /**
-     * Highest day-1 and day-2 raw score at each championship (final) match,
-     * across every visible score regardless of division or membership — the
-     * same baseline calculateMatchRankings() uses for a match total.
+     * 29 October 2026 ranking (docs/rules/national-series-2027.md).
      *
-     * @return array<int, array{day1: float, day2: float}>
-     */
-    private function championshipDayMaxima(Collection $scores): array
-    {
-        $finalIds = $scores
-            ->filter(fn (Score $s) => $s->match?->series_level === 'final')
-            ->pluck('match_id')
-            ->unique()
-            ->values();
-
-        if ($finalIds->isEmpty()) {
-            return [];
-        }
-
-        return Score::query()
-            ->whereIn('match_id', $finalIds)
-            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
-            ->selectRaw('match_id, MAX(day1_raw_score) AS day1_max, MAX(day2_raw_score) AS day2_max')
-            ->groupBy('match_id')
-            ->get()
-            ->mapWithKeys(fn ($row) => [(int) $row->match_id => [
-                'day1' => (float) $row->day1_max,
-                'day2' => (float) $row->day2_max,
-            ]])
-            ->all();
-    }
-
-    /**
-     * total = best $bestOf national %s (at most HOME_PROVINCE_CAP of them
-     *         from the shooter's home province)
-     *       + championship day 1 % + day 2 % (each day weighted against the
-     *         highest raw score of that day; max 200)
+     * Champion log, max 500:
+     *   best $bestOf results from nationals and the PRS International
+     *   (each out of 100; at most HOME_PROVINCE_CAP from the home province)
+     *   + SA Championships weighted as one match, out of 200.
      *
-     * A shooter with fewer than $bestOf counting nationals (including one
-     * whose nationals were all at home) keeps their points on the log but
-     * is flagged selection_eligible = false.
+     * The 14 October draft weighted each championship day on its own and
+     * ignored the international match. The signed rules use the combined
+     * raw score against the highest combined raw score of the match.
      *
-     * The breakdown keeps the annual_log shape (regular[], champs, max) so
-     * the standings, profile and division views render it unchanged.
+     * Selection log, max 400: the same best-of results, plus the
+     * championships out of 100. The championships are mandatory, so a
+     * shooter without them stays on the champion log but is not
+     * selection eligible. Fewer than $bestOf counting results (including
+     * a shooter whose results were all at home) is the same.
      *
-     * @param  array<int, array{day1: float, day2: float}>  $dayMaxima
+     * The breakdown keeps the annual_log shape (regular[], champs, max)
+     * so the standings and profile views still render it. selection_points
+     * is the 400-point figure; points / total stay on the 500-point
+     * champion scale. Tiebreak stages order equal scores and add nothing.
+     *
      * @return Collection<int, array{user_id:int, points:float, pool_breakdown:array}>
      */
-    private function aggregateNationalSeries2027(Collection $scores, int $bestOf, array $dayMaxima): Collection
+    private function aggregateNationalSeries2027(Collection $scores, int $bestOf): Collection
     {
         $homeCap = QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP;
 
         return $scores
             ->groupBy('user_id')
-            ->map(function (Collection $userScores, int $userId) use ($bestOf, $homeCap, $dayMaxima): array {
+            ->map(function (Collection $userScores, int $userId) use ($bestOf, $homeCap): array {
                 $homeProvinceId = $userScores->first()?->user?->province_id;
 
+                // Nationals and the PRS International share one best-of pool.
+                // An international hosted in the home province still counts
+                // toward the home-province cap.
                 $nationals = $userScores
-                    ->filter(fn (Score $s) => $s->match?->series_level === 'national')
+                    ->filter(fn (Score $s) => in_array($s->match?->series_level, ['national', 'international'], true))
                     ->map(fn (Score $s) => [
                         'match_id' => $s->match_id,
                         'match_name' => $s->match?->name,
+                        'level' => $s->match?->series_level,
                         'pct' => round((float) ($s->normalized_score ?? 0), 2),
                         'home' => $homeProvinceId !== null && $s->match?->province_id === $homeProvinceId,
                     ])
@@ -535,17 +520,21 @@ class StandingsCalculationService
 
                 $champs = $userScores
                     ->filter(fn (Score $s) => $s->match?->series_level === 'final')
-                    ->map(fn (Score $s) => $this->championshipResult($s, $dayMaxima))
+                    ->map(fn (Score $s) => $this->championshipResult($s))
                     ->sortByDesc('pct')
                     ->values()
                     ->first();
                 $champsPct = $champs ? (float) $champs['pct'] : 0.0;
+                $selectionChampsPct = $champs ? (float) $champs['selection_pct'] : 0.0;
 
                 $total = round($regularTotal + $champsPct, 2);
+                $selectionTotal = round($regularTotal + $selectionChampsPct, 2);
 
-                $selectionEligible = $counted->count() >= $bestOf && $homeProvinceId !== null;
+                $hasChamps = $champs !== null;
+                $selectionEligible = $counted->count() >= $bestOf && $homeProvinceId !== null && $hasChamps;
                 $selectionNote = match (true) {
                     $homeProvinceId === null => 'No home province on the shooter profile, so the out-of-province rule cannot be checked.',
+                    $counted->count() >= $bestOf && ! $hasChamps => 'The SA Championships are a mandatory match for national team selection.',
                     $counted->count() >= $bestOf => null,
                     $nationals->isNotEmpty() && $nationals->every(fn (array $n) => $n['home']) => 'All nationals shot in the home province; at least 1 must be outside it.',
                     default => "Fewer than {$bestOf} counting national results.",
@@ -562,12 +551,16 @@ class StandingsCalculationService
                         'regular_best_of' => $bestOf,
                         'regular_total' => $regularTotal,
                         'nationals_shot' => $nationals->count(),
+                        'international_counted' => $counted->where('level', 'international')->count(),
                         'home_province_cap' => $homeCap,
                         'home_counted' => $homeCounted,
                         'out_of_province_counted' => $counted->count() - $homeCounted,
                         'champs' => $champs,
                         'champs_pct' => round($champsPct, 2),
                         'champs_max' => 200,
+                        'selection_champs_pct' => round($selectionChampsPct, 2),
+                        'selection_points' => $selectionTotal,
+                        'selection_max' => $bestOf * 100 + 100,
                         'selection_eligible' => $selectionEligible,
                         'selection_note' => $selectionNote,
                         'max' => $bestOf * 100 + 200,
@@ -579,33 +572,28 @@ class StandingsCalculationService
     }
 
     /**
-     * One championship score as day 1 % + day 2 %, each against the highest
-     * raw score of that day. When no day 2 scores were captured for the
-     * match (a single total was uploaded), the match % stands in for both
-     * days and the row is flagged days_split = false.
+     * One championship on the 29 October 2026 scale.
      *
-     * @param  array<int, array{day1: float, day2: float}>  $dayMaxima
+     * normalized_score is already the whole-match percentage: combined raw
+     * (day 1 + day 2, or the single uploaded total) divided by the highest
+     * combined raw score of that match. Ranking points double it, to a
+     * maximum of 200. Selection points keep the percentage, maximum 100.
+     * The skills-stage tiebreak is stored for ordering and is not added
+     * to either figure.
+     *
      * @return array<string, mixed>
      */
-    private function championshipResult(Score $score, array $dayMaxima): array
+    private function championshipResult(Score $score): array
     {
-        $max = $dayMaxima[$score->match_id] ?? ['day1' => 0.0, 'day2' => 0.0];
-        $daysSplit = $max['day2'] > 0;
-
-        if ($daysSplit) {
-            $day1 = $max['day1'] > 0 ? (float) ($score->day1_raw_score ?? 0) / $max['day1'] * 100 : 0.0;
-            $day2 = (float) ($score->day2_raw_score ?? 0) / $max['day2'] * 100;
-        } else {
-            $day1 = $day2 = (float) ($score->normalized_score ?? 0);
-        }
+        $matchPct = round((float) ($score->normalized_score ?? 0), 2);
 
         return [
             'match_id' => $score->match_id,
             'match_name' => $score->match?->name,
-            'day1_pct' => round($day1, 2),
-            'day2_pct' => round($day2, 2),
-            'pct' => round($day1 + $day2, 2),
-            'days_split' => $daysSplit,
+            'match_pct' => $matchPct,
+            'pct' => round($matchPct * 2, 2),
+            'selection_pct' => $matchPct,
+            'weighting' => 'whole_match',
             'tiebreak_impacts' => $score->tiebreak_impacts,
             'tiebreak_time_seconds' => $score->tiebreak_time_seconds !== null ? (float) $score->tiebreak_time_seconds : null,
         ];

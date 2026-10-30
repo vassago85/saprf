@@ -5,6 +5,15 @@
 
 *V.1 — dated 12 December 2025*
 
+## 2027 season — where this document differs
+
+*Archived 29 October 2026. Version 1 below is unchanged and kept for reference; it describes the series as published in December 2025. For the 2027 season, the [2027 national series rules](/rules/national-series-2027) and the [2028 IPRF team selection process](/selection/prs-policy/2028) apply, and they prevail wherever they differ, including:*
+
+- PR22 Junior Open is aged 12 to 18 at the start of the calendar year (section 2 says 14–18).
+- PR22 Hunter is a South African division: factory stock, no chassis, 2.5 lb minimum trigger, rifle maximum US$2,500, optic maximum US$2,500.
+- The 2027 year score is the best 3 one-day nationals (maximum 2 from the home province) plus the SA Championships weighted as one match, out of 500. Selection uses the same nationals and scores the championships out of 100, 400 points in total. That replaces the 30% / 40% / 30% log in sections 6 to 8 for 2027.
+- Federation and Protea colours for athletes who represent SAPRF at an IPRF World Championship follow the 2028 selection process (85% in the division for a Protea motivation). Section 9 remains the December 2025 colours rule for the cycle it was written for.
+
 ## 1. General principles
 
 - PR22 rules will follow the centrefire series guidelines and general principles for course of fire, course construction.

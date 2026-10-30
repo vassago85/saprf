@@ -9,7 +9,7 @@
  *   • the shared .legal-doc article wrapper (proves it's using the component
  *     and not a bespoke prose article),
  *   • a status pill that matches the corresponding badge on the /documents
- *     index (Current for pr22-2027, Historical for prs-2026),
+ *     index (Current for prs-2028, Archived for pr22-2027 and prs-2026),
  *   • heading anchor injection, table wrapping and Alpine scaffolding, so
  *     the shared markdown pipeline still runs.
  */
@@ -24,12 +24,11 @@ test('the pr22 public selection policy page renders through the shared legal-doc
         ->toContain('PR22 Team Selection (Rimfire)')           // title
         ->toContain('PR22 · 2027 Cycle');                      // subtitle
 
-    // Status pill = Current for the current cycle. The pill row sits under
-    // the title in the header block, so assert order title → pill.
-    $response->assertSee('Current')
-        ->assertSeeInOrder(['PR22 Team Selection (Rimfire)', 'Current']);
-    // And the pill carries the emerald tone that mirrors the /documents card.
-    expect($response->getContent())->toContain('bg-emerald-50 text-emerald-800 ring-emerald-200');
+    // The 2027 cycle is archived; the 2028 process replaces it. The pill
+    // row sits under the title in the header block, so assert order.
+    $response->assertSeeInOrder(['PR22 Team Selection (Rimfire)', 'Archived'])
+        ->assertSee('href="'.route('selection.policy.public', ['series' => 'prs', 'season' => '2028']).'"', false);
+    expect($response->getContent())->toContain('bg-stone-100 text-stone-700 ring-stone-200');
 
     // Shared pipeline ran: heading anchors + tables wrapped.
     expect($body)
@@ -46,12 +45,12 @@ test('the pr22 policy has verbatim policy content', function () {
         ->assertSee('Qualifying Period');
 });
 
-test('the prs 2026 historical policy renders with a Historical status pill', function () {
+test('the prs 2026 policy renders with an Archived status pill', function () {
     $response = $this->get(route('selection.policy.public', ['series' => 'prs', 'season' => '2026']))->assertOk();
 
     $response->assertSee('PRS Team Selection (Centrefire)')
         ->assertSee('PRS · 2026 Cycle')
-        ->assertSee('Historical');
+        ->assertSee('Archived');
 
     // The stone tone class fingerprint from the shared component's status map.
     expect($response->getContent())->toContain('bg-stone-100 text-stone-700 ring-stone-200');

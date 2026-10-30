@@ -34,6 +34,7 @@ class SitemapController extends Controller
             $this->url(route('legal.code-of-conduct'), 'yearly', '0.4'),
             $this->url(route('legal.conflict-of-interest'), 'yearly', '0.4'),
             $this->url(route('selection.policy.public', ['series' => 'prs']), 'monthly', '0.6'),
+            $this->url(route('selection.policy.public', ['series' => 'prs', 'season' => '2026']), 'yearly', '0.3'),
             $this->url(route('selection.policy.public', ['series' => 'pr22']), 'monthly', '0.6'),
         ];
 

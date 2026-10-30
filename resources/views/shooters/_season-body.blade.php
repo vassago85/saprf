@@ -116,12 +116,16 @@
                                             <span class="text-stone-400">&middot; {{ $matchDates[$pb['champs']['match_id']]->format('d M Y') }}</span>
                                         @endif
                                     </span>
-                                    @isset($pb['champs']['day1_pct'])
+                                    @if(($pb['champs']['weighting'] ?? null) === 'whole_match')
+                                        <div class="mt-1 font-mono">Whole match {{ number_format($pb['champs']['match_pct'] ?? 0, 2) }}%</div>
+                                    @elseif(isset($pb['champs']['day1_pct']))
+                                        {{-- 14 October draft stored a percentage per day. Rows
+                                             calculated before 29 October 2026 still show that. --}}
                                         <div class="mt-1 flex items-center justify-between gap-2 font-mono">
                                             <span>Day 1 {{ number_format($pb['champs']['day1_pct'], 2) }}%</span>
                                             <span>Day 2 {{ number_format($pb['champs']['day2_pct'], 2) }}%</span>
                                         </div>
-                                    @endisset
+                                    @endif
                                 @else
                                     <span class="text-stone-400">Champs not shot — fixed at 0 (cannot be replaced by a regular match).</span>
                                 @endif
@@ -132,6 +136,12 @@
                         <span class="text-xs font-semibold uppercase tracking-wider">Annual Total</span>
                         <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 1) }} / {{ $pb['max'] ?? 400 }}</span>
                     </div>
+                    @isset($pb['selection_points'])
+                        <p class="mt-2 text-[11px] text-stone-500">
+                            National team selection: {{ number_format($pb['selection_points'], 1) }} / {{ $pb['selection_max'] ?? 400 }}.
+                            The championships count 100 on that scale, and shooting them is mandatory.
+                        </p>
+                    @endisset
                     @if(($pb['selection_eligible'] ?? true) === false)
                         <p class="mt-2 text-[11px] text-amber-700">
                             Not yet eligible for selection: {{ $pb['selection_note'] ?? 'fewer than 3 counting national results.' }}

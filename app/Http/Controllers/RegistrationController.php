@@ -128,14 +128,10 @@ class RegistrationController extends Controller
                 ->with('error', $outstanding->outstandingBlocksNewEntryMessage(true));
         }
 
-        $champsEntry = app(QualificationService::class)->championshipEntryStatus($user, $match);
+        $qualification = app(QualificationService::class);
+        $champsEntry = $qualification->championshipEntryStatus($user, $match);
         if (! $champsEntry['eligible']) {
-            return back()->with('error', sprintf(
-                'You can’t enter the championships yet. The SAPRF rules require 1 national and 1 provincial %s match first (nationals shot: %d, provincials shot: %d).',
-                $match->series,
-                $champsEntry['national'],
-                $champsEntry['provincial'],
-            ));
+            return back()->with('error', $qualification->championshipEntryMessage($champsEntry, $match->series));
         }
 
         $breakdown = $this->pricingService->calculateBreakdown($match, $user, $match->match_date);
