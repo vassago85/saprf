@@ -181,6 +181,39 @@ it('lets a member open the add-family-member form', function () {
         ->assertSee('Add a Family Member');
 });
 
+it('shows each family member SAPRF number on the family list and profile', function () {
+    $junior = User::factory()->create([
+        'name' => 'Conner Britnell',
+        'parent_id' => $this->parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+        'province_id' => $this->province->id,
+        'date_of_birth' => now()->subYears(12)->toDateString(),
+    ]);
+    Membership::create([
+        'user_id' => $junior->id,
+        'saprf_number' => '1842',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2027-01-01',
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('family.index'))
+        ->assertOk()
+        ->assertSee('SAPRF number')
+        ->assertSee('1842');
+
+    $this->actingAs($this->parent)
+        ->get(route('family.show', $junior))
+        ->assertOk()
+        ->assertSee('SAPRF number')
+        ->assertSee('1842')
+        ->assertSee('Copy');
+});
+
 it('does not send members to the admin membership create page from a family profile', function () {
     $junior = User::factory()->create([
         'parent_id' => $this->parent->id,

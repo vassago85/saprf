@@ -49,7 +49,15 @@
                                 <span class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-100 shrink-0">{{ $junior->managedRelationshipLabel() }}</span>
                             @endif
                         </div>
-                        <p class="text-sm text-stone-500">
+                        <p class="mt-1.5 flex items-baseline gap-2">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">SAPRF number</span>
+                            @if($membership?->saprf_number)
+                                <span class="font-mono text-base font-bold tracking-wide text-stone-900">{{ $membership->saprf_number }}</span>
+                            @else
+                                <span class="text-sm text-stone-400">Not issued yet</span>
+                            @endif
+                        </p>
+                        <p class="mt-1 text-sm text-stone-500">
                             {{ $junior->province?->name ?? '—' }}
                             @if($age !== null) &middot; {{ $age }} yrs @endif
                         </p>

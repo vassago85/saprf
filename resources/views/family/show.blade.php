@@ -23,8 +23,21 @@
                         <p class="text-sm text-stone-500">
                             {{ $junior->province?->name ?? '—' }}
                             @if($age !== null) &middot; {{ $age }} years old @endif
-                            @if($membership?->saprf_number) &middot; <span class="font-mono">{{ $membership->saprf_number }}</span> @endif
                         </p>
+                        <div class="mt-1 flex flex-wrap items-center gap-2" @if($membership?->saprf_number) x-data="{ copied: false }" @endif>
+                            <p class="text-sm text-stone-500">
+                                SAPRF number
+                                <span class="ml-1.5 font-mono text-lg font-bold tracking-wide text-stone-900">{{ $membership?->saprf_number ?? '—' }}</span>
+                            </p>
+                            @if($membership?->saprf_number)
+                                <button type="button"
+                                    @click="navigator.clipboard.writeText(@js($membership->saprf_number)); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-600 hover:bg-stone-50">
+                                    <span x-show="!copied">Copy</span>
+                                    <span x-show="copied" x-cloak>Copied</span>
+                                </button>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
