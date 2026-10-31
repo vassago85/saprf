@@ -146,6 +146,10 @@
                     <dt class="text-xs uppercase text-stone-500">This Month ({{ now()->format('M Y') }})</dt>
                     <dd class="mt-1 text-xl font-bold text-stone-900">{{ money($mtdPreview['platform_fees']) }}</dd>
                     <dd class="text-xs text-stone-500">{{ $mtdPreview['entry_count'] }} paid registrations so far</dd>
+                    @if($platformOperatorConfigured && $mtdPreview['platform_fees'] > 0)
+                    <a href="{{ route('financials.payouts.platform.create', ['month' => now()->format('Y-m')]) }}"
+                       class="mt-2 inline-block text-xs font-semibold text-violet-700 hover:text-violet-900">Generate for this month &rarr;</a>
+                    @endif
                 </div>
                 @php
                     $unsettledTotal = collect($unsettledMonths)->sum('platform_fees');
