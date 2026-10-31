@@ -11,6 +11,7 @@ use App\Services\RankStandings;
 use App\Services\SeasonStandingsBoard;
 use App\Services\ShooterProfileService;
 use App\Services\ShooterStandingsSummaryService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -180,13 +181,19 @@ class StandingController extends Controller
         // The homepage asks for five rows but ranking ties needs the whole
         // filtered set. Cache the ranked slice, and include the row count
         // plus latest update so a recalculation is visible on the next hit.
+        //
+        // Store a plain list. cache.serializable_classes is false, so a
+        // cached Collection unserializes as __PHP_Incomplete_Class. The
+        // homepage fetches this endpoint twice (hero + national section);
+        // the second read was that broken object, and both widgets rendered
+        // blank because it is truthy but has no length.
         $stamp = (clone $query)
             ->setEagerLoads([])
             ->reorder()
             ->selectRaw('COUNT(*) as row_count, MAX(standings.updated_at) as row_updated')
             ->first();
 
-        $cacheKey = 'standings.api.'.sha1(json_encode([
+        $cacheKey = 'standings.api.list.'.sha1(json_encode([
             'series' => $request->input('series'),
             'season' => $request->input('season'),
             'province_id' => $request->input('province_id'),
@@ -196,35 +203,48 @@ class StandingController extends Controller
             'updated' => (string) ($stamp->row_updated ?? ''),
         ]));
 
-        $ordered = Cache::remember($cacheKey, 60, function () use ($query, $limit) {
-            // Deliberately NOT ordering by the stored rank — RankStandings
-            // produces the canonical display order (rank asc, then surname /
-            // first name / id), matching the standings page inside a tie.
-            $models = $query->get();
-            $ranker = app(RankStandings::class);
+        $ordered = Cache::get($cacheKey);
 
-            $payload = $models->map(fn (Standing $s) => [
-                'model' => $s,
-                'points' => (float) $s->points,
-                'name' => (string) ($s->user?->name ?? ''),
-                'id' => (int) ($s->user_id ?? $s->id),
-            ])->values();
-
-            return $ranker->rank($payload, null)
-                ->take($limit)
-                ->map(function (array $row): Standing {
-                    /** @var Standing $model */
-                    $model = $row['model'];
-                    $model->setAttribute('rank', $row['rank']);
-                    $model->setAttribute('rank_label', $row['rank_label']);
-                    $model->setAttribute('is_tied', $row['is_tied']);
-                    $model->setAttribute('points_display', points((float) $model->points));
-
-                    return $model;
-                })
-                ->values();
-        });
+        if (! is_array($ordered) || ! array_is_list($ordered)) {
+            $ordered = $this->rankedStandingsPayload($query, $limit);
+            Cache::put($cacheKey, $ordered, 60);
+        }
 
         return response()->json(['data' => $ordered]);
+    }
+
+    /**
+     * @param  Builder<Standing>  $query
+     * @return list<array<string, mixed>>
+     */
+    private function rankedStandingsPayload(Builder $query, int $limit): array
+    {
+        // Deliberately NOT ordering by the stored rank — RankStandings
+        // produces the canonical display order (rank asc, then surname /
+        // first name / id), matching the standings page inside a tie.
+        $models = $query->get();
+        $ranker = app(RankStandings::class);
+
+        $payload = $models->map(fn (Standing $s) => [
+            'model' => $s,
+            'points' => (float) $s->points,
+            'name' => (string) ($s->user?->name ?? ''),
+            'id' => (int) ($s->user_id ?? $s->id),
+        ])->values();
+
+        return $ranker->rank($payload, null)
+            ->take($limit)
+            ->map(function (array $row): array {
+                /** @var Standing $model */
+                $model = $row['model'];
+                $model->setAttribute('rank', $row['rank']);
+                $model->setAttribute('rank_label', $row['rank_label']);
+                $model->setAttribute('is_tied', $row['is_tied']);
+                $model->setAttribute('points_display', points((float) $model->points));
+
+                return $model->toArray();
+            })
+            ->values()
+            ->all();
     }
 }

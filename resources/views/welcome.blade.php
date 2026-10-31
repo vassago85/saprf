@@ -13,6 +13,9 @@
         loadingPrs: true,
         loadingPr22: true,
         activeTab: 'PRS',
+        rows(payload) {
+            return Array.isArray(payload?.data) ? payload.data : [];
+        },
         init() {
             fetch('/api/v1/matches/upcoming')
                 .then(r => r.json())
@@ -24,11 +27,11 @@
                 .catch(() => { this.loadingM = false; });
             fetch('/api/v1/standings?series=PRS&limit=5')
                 .then(r => r.json())
-                .then(data => { this.prsStandings = data.data || []; this.loadingPrs = false; })
+                .then(data => { this.prsStandings = this.rows(data); this.loadingPrs = false; })
                 .catch(() => { this.loadingPrs = false; });
             fetch('/api/v1/standings?series=PR22&limit=5')
                 .then(r => r.json())
-                .then(data => { this.pr22Standings = data.data || []; this.loadingPr22 = false; })
+                .then(data => { this.pr22Standings = this.rows(data); this.loadingPr22 = false; })
                 .catch(() => { this.loadingPr22 = false; });
         },
         get currentStandings() { return this.activeTab === 'PRS' ? this.prsStandings : this.pr22Standings; },
@@ -393,14 +396,17 @@
     {{-- NATIONAL STANDINGS --}}
     <section class="bg-white py-20" x-data="{
         prs: [], pr22: [], loadingPrs: true, loadingPr22: true,
+        rows(payload) {
+            return Array.isArray(payload?.data) ? payload.data : [];
+        },
         init() {
             fetch('/api/v1/standings?series=PRS&limit=5')
                 .then(r => r.json())
-                .then(data => { this.prs = data.data || []; this.loadingPrs = false; })
+                .then(data => { this.prs = this.rows(data); this.loadingPrs = false; })
                 .catch(() => { this.loadingPrs = false; });
             fetch('/api/v1/standings?series=PR22&limit=5')
                 .then(r => r.json())
-                .then(data => { this.pr22 = data.data || []; this.loadingPr22 = false; })
+                .then(data => { this.pr22 = this.rows(data); this.loadingPr22 = false; })
                 .catch(() => { this.loadingPr22 = false; });
         },
         rankIcon(idx) {
