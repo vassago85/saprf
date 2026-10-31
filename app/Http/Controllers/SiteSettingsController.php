@@ -414,7 +414,7 @@ class SiteSettingsController extends Controller
 
     public function invoicePreviousMonth(IssueCharsleyInvoice $issuer): RedirectResponse
     {
-        $previous = now()->timezone('Africa/Johannesburg')->subMonth();
+        $previous = now()->timezone('Africa/Johannesburg')->startOfMonth()->subMonthNoOverflow();
 
         try {
             $invoice = $issuer->issue($previous->year, $previous->month);

@@ -836,6 +836,6 @@ class FinancialController extends Controller
             return now()->timezone('Africa/Johannesburg')->startOfMonth();
         }
 
-        return now()->timezone('Africa/Johannesburg')->subMonth()->startOfMonth();
+        return now()->timezone('Africa/Johannesburg')->startOfMonth()->subMonthNoOverflow();
     }
 }

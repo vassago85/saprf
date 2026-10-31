@@ -18,7 +18,7 @@ class InvoiceCharsley extends Command
 
     public function handle(IssueCharsleyInvoice $issuer, CharsleyInvoiceSettings $settings): int
     {
-        $period = $this->argument('period') ?: now()->timezone('Africa/Johannesburg')->subMonth()->format('Y-m');
+        $period = $this->argument('period') ?: now()->timezone('Africa/Johannesburg')->startOfMonth()->subMonthNoOverflow()->format('Y-m');
 
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $period)) {
             $this->error('Period must be YYYY-MM.');

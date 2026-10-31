@@ -175,11 +175,11 @@ class PlatformPayoutService
      */
     public function unsettledMonths(int $lookbackMonths = 12): array
     {
-        $now = now();
+        $anchor = now()->startOfMonth();
         $months = [];
 
         for ($i = 1; $i <= $lookbackMonths; $i++) {
-            $month = $now->copy()->subMonths($i)->startOfMonth();
+            $month = $anchor->copy()->subMonthsNoOverflow($i);
             $preview = $this->preview($month);
 
             if ($preview['existing_payout'] || $preview['entry_count'] === 0) {
