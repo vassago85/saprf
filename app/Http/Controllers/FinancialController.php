@@ -79,11 +79,56 @@ class FinancialController extends Controller
         $charsleyPreview = app(IssueCharsleyInvoice::class)->preview($charsleyAt->year, $charsleyAt->month);
         $charsleyInvoice = CharsleyInvoice::query()->where('period', $charsleyPreview['period'])->first();
 
+        // Recent Charsley invoices (excluding the one currently previewed) so
+        // the operator can see what's outstanding and mark months as paid once
+        // the SAPRF bank transfer lands.
+        $charsleyHistory = CharsleyInvoice::query()
+            ->where('period', '!=', $charsleyPreview['period'])
+            ->orderByDesc('period')
+            ->limit(6)
+            ->get();
+
         return view('financials.dashboard', compact(
             'summary', 'matchBreakdown', 'monthlyTrend', 'seasons', 'from', 'to', 'settings',
             'mtdPreview', 'unsettledMonths', 'platformOperatorConfigured',
-            'charsleyPreview', 'charsleyInvoice',
+            'charsleyPreview', 'charsleyInvoice', 'charsleyHistory',
         ));
+    }
+
+    public function markCharsleyPaid(Request $request, CharsleyInvoice $invoice): RedirectResponse
+    {
+        if ($invoice->paid_at === null) {
+            $invoice->update(['paid_at' => now()]);
+
+            $this->audit->log(
+                $request->user(),
+                'charsley_invoice.marked_paid',
+                'charsley_invoice',
+                $invoice->id,
+                null,
+                ['period' => $invoice->period, 'total' => (float) $invoice->total, 'paid_at' => $invoice->paid_at?->toIso8601String()],
+            );
+        }
+
+        return back()->with('status', "Marked {$invoice->period} Charsley invoice as paid.");
+    }
+
+    public function unmarkCharsleyPaid(Request $request, CharsleyInvoice $invoice): RedirectResponse
+    {
+        if ($invoice->paid_at !== null) {
+            $invoice->update(['paid_at' => null]);
+
+            $this->audit->log(
+                $request->user(),
+                'charsley_invoice.unmarked_paid',
+                'charsley_invoice',
+                $invoice->id,
+                ['period' => $invoice->period],
+                null,
+            );
+        }
+
+        return back()->with('status', "Reverted {$invoice->period} Charsley invoice to unpaid.");
     }
 
     // ── Match Financial Report ──
@@ -824,7 +869,8 @@ class FinancialController extends Controller
 
     /**
      * The finance filter is a single calendar month when From and To share
-     * one. Otherwise show the previous month — the one the 1st invoices.
+     * one. Otherwise show the current month — the one accruing right now,
+     * which will be invoiced on the 1st of next month.
      */
     private function charsleyMonth(Request $request, ?Carbon $from, ?Carbon $to): Carbon
     {
@@ -832,10 +878,6 @@ class FinancialController extends Controller
             return $from->copy()->timezone('Africa/Johannesburg')->startOfMonth();
         }
 
-        if ($request->input('period') === 'month') {
-            return now()->timezone('Africa/Johannesburg')->startOfMonth();
-        }
-
-        return now()->timezone('Africa/Johannesburg')->startOfMonth()->subMonthNoOverflow();
+        return now()->timezone('Africa/Johannesburg')->startOfMonth();
     }
 }

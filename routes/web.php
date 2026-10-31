@@ -893,6 +893,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/payouts/platform/create', [FinancialController::class, 'createPlatformPayout'])->name('payouts.platform.create');
         Route::post('/payouts/platform', [FinancialController::class, 'storePlatformPayout'])->name('payouts.platform.store');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
+        Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
+        Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
         Route::post('/payouts/{payout}/regenerate-statement', [FinancialController::class, 'regeneratePayoutStatement'])->name('payouts.regenerate-statement');
         Route::get('/payouts/{payout}/statement.pdf', [FinancialController::class, 'downloadPayoutStatementPdf'])->name('payouts.statement-pdf');
         Route::get('/payouts/{payout}/statement.csv', [FinancialController::class, 'downloadPayoutStatementCsv'])->name('payouts.statement-csv');

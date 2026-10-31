@@ -24,6 +24,7 @@ class CharsleyInvoice extends Model
         'status',
         'error',
         'sent_at',
+        'paid_at',
     ];
 
     protected function casts(): array
@@ -33,6 +34,12 @@ class CharsleyInvoice extends Model
             'entries' => 'integer',
             'total' => 'decimal:2',
             'sent_at' => 'datetime',
+            'paid_at' => 'datetime',
         ];
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->paid_at !== null;
     }
 }

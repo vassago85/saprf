@@ -192,11 +192,10 @@
                 <div>
                     <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Charsley Digital</h2>
                     <p class="mt-1 text-xs text-stone-500">
-                        {{ $charsleyPreview['label'] }}: paid match entries, invoiced on the 1st of the following month.
+                        {{ $charsleyPreview['label'] }}: paid match entries accruing this month, invoiced on the 1st of
+                        {{ \Illuminate\Support\Carbon::create($charsleyPreview['year'], $charsleyPreview['month'], 1)->addMonthNoOverflow()->format('F Y') }}.
                         @if($from && $to && $from->format('Y-m') === $to->format('Y-m'))
                             This follows the month in the date filter.
-                        @else
-                            Showing the previous month. Filter to one calendar month to inspect another.
                         @endif
                     </p>
                 </div>
@@ -217,7 +216,9 @@
                     <dt class="text-xs uppercase text-emerald-700">Invoice total</dt>
                     <dd class="mt-1 text-xl font-bold text-emerald-900">{{ money($charsleyPreview['total']) }}</dd>
                     <dd class="text-xs text-emerald-700">
-                        @if($charsleyInvoice)
+                        @if($charsleyInvoice && $charsleyInvoice->isPaid())
+                            Paid {{ $charsleyInvoice->paid_at->format('d M Y') }}{{ $charsleyInvoice->invoice_number ? ' · '.$charsleyInvoice->invoice_number : '' }}
+                        @elseif($charsleyInvoice)
                             {{ ucfirst($charsleyInvoice->status) }}{{ $charsleyInvoice->invoice_number ? ' · '.$charsleyInvoice->invoice_number : '' }}
                         @else
                             Not invoiced yet
@@ -225,6 +226,64 @@
                     </dd>
                 </div>
             </dl>
+
+            @if($charsleyHistory->isNotEmpty())
+            <div class="mt-6 border-t border-stone-100 pt-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-semibold text-stone-700 uppercase tracking-wide">Recent invoices</h3>
+                    @php $outstanding = $charsleyHistory->whereNull('paid_at')->count(); @endphp
+                    @if($outstanding > 0)
+                    <span class="text-xs font-semibold text-amber-700">{{ $outstanding }} outstanding</span>
+                    @endif
+                </div>
+                <ul class="mt-3 divide-y divide-stone-100">
+                    @foreach($charsleyHistory as $past)
+                    @php
+                        $pastLabel = \Illuminate\Support\Carbon::createFromFormat('Y-m', $past->period)->format('F Y');
+                    @endphp
+                    <li class="flex items-center justify-between gap-4 py-2 text-sm">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-stone-800">{{ $pastLabel }}</p>
+                            <p class="text-xs text-stone-500">
+                                {{ number_format($past->entries) }} entries · {{ money($past->total) }}
+                                @if($past->invoice_number)
+                                    · <span class="font-mono">{{ $past->invoice_number }}</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            @if($past->isPaid())
+                                <span class="text-xs font-semibold text-emerald-700">Paid {{ $past->paid_at->format('d M Y') }}</span>
+                                <form method="POST" action="{{ route('financials.charsley.unmark-paid', $past) }}" class="inline">
+                                    @csrf
+                                    <button type="submit"
+                                            class="text-xs text-stone-400 hover:text-stone-700"
+                                            onclick="return confirm('Revert {{ $pastLabel }} to unpaid?');">
+                                        Undo
+                                    </button>
+                                </form>
+                            @else
+                                <span class="text-xs text-amber-700">{{ ucfirst($past->status) }}</span>
+                                <form method="POST" action="{{ route('financials.charsley.mark-paid', $past) }}" class="inline">
+                                    @csrf
+                                    <button type="submit"
+                                            class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition">
+                                        Mark paid
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </li>
+                    @endforeach
+                </ul>
+            </div>
+            @endif
+
+            @if(session('status'))
+            <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                {{ session('status') }}
+            </div>
+            @endif
         </div>
 
         {{-- Revenue Breakdown --}}
