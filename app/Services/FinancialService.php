@@ -571,10 +571,10 @@ class FinancialService
     public function monthlyTrend(int $months = 12): array
     {
         $results = [];
-        $now = now();
+        $anchor = now()->startOfMonth();
 
         for ($i = $months - 1; $i >= 0; $i--) {
-            $start = $now->copy()->subMonths($i)->startOfMonth();
+            $start = $anchor->copy()->subMonthsNoOverflow($i);
             $end = $start->copy()->endOfMonth();
             $label = $start->format('M Y');
 
