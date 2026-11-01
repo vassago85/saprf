@@ -56,6 +56,17 @@ class SecurityHeaders
 
     private const GOOGLE_TAG_CONNECT_SOURCES = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
 
+    /**
+     * Cloudflare Turnstile anti-bot widget. Needs to load `api.js` from
+     * challenges.cloudflare.com (script-src), render the actual challenge
+     * in a sandboxed iframe (frame-src — without this, default-src 'self'
+     * kills the iframe silently), and let that iframe call home for
+     * verification (connect-src). Everything is scoped to the one host.
+     *
+     * See https://developers.cloudflare.com/turnstile/reference/content-security-policy/
+     */
+    private const TURNSTILE_SOURCES = 'https://challenges.cloudflare.com';
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -85,11 +96,12 @@ class SecurityHeaders
 
         $directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' ".self::GOOGLE_TAG_SCRIPT_SOURCES.$dev,
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' ".self::GOOGLE_TAG_SCRIPT_SOURCES.' '.self::TURNSTILE_SOURCES.$dev,
             "style-src 'self' 'unsafe-inline' {$fonts}".$dev,
             "font-src 'self' data: {$fonts}",
             "img-src 'self' data: blob: ".self::GOOGLE_TAG_IMG_SOURCES,
-            "connect-src 'self' ".self::GOOGLE_TAG_CONNECT_SOURCES.$dev,
+            "connect-src 'self' ".self::GOOGLE_TAG_CONNECT_SOURCES.' '.self::TURNSTILE_SOURCES.$dev,
+            "frame-src 'self' ".self::TURNSTILE_SOURCES,
             "form-action 'self' ".self::PAYFAST_FORM_ACTION_SOURCES,
             "frame-ancestors 'none'",
             "base-uri 'self'",

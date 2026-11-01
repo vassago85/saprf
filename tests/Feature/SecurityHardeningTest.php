@@ -172,6 +172,21 @@ it('sends the hardening headers on public responses', function () {
         ->toContain('https://*.google-analytics.com');
 });
 
+it('whitelists Cloudflare Turnstile in script-src, frame-src and connect-src', function () {
+    // Turnstile needs api.js (script-src), the challenge iframe (frame-src —
+    // if omitted it falls back to default-src 'self' and the widget renders
+    // nothing), and the iframe's own XHRs home (connect-src). Breaking any
+    // of the three makes the login/register/forgot-password forms refuse
+    // every submission with "Please complete the anti-bot challenge below".
+    $csp = $this->get('/')->headers->get('Content-Security-Policy');
+
+    expect($csp)
+        ->toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://challenges.cloudflare.com")
+        ->toContain("frame-src 'self' https://challenges.cloudflare.com")
+        ->toContain('connect-src')
+        ->toContain('https://challenges.cloudflare.com');
+});
+
 it('allows form submissions anywhere inside Payfast infrastructure via wildcard', function () {
     // Payfast redirects the initial POST through a chain of internal hosts
     // that varies (redundancy hosts, CloudFront edges, the newer payfast.io
