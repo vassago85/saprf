@@ -399,7 +399,8 @@ it('shows the Add-a-Shooter panel on the match edit page for the MD', function (
     $this->actingAs($this->md)
         ->get(route('matches.settings', $this->match))
         ->assertOk()
-        ->assertSee('Add a Shooter')
+        // Workspace headings are sentence case — the panel's h3 reads "Add a shooter".
+        ->assertSee('Add a shooter')
         ->assertSee('Non-member surcharge is kept by SAPRF')
         ->assertDontSee('Ignored for active members and non-members')
         ->assertSee(route('matches.entries.store', $this->match), escape: false)

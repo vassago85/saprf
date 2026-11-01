@@ -82,11 +82,17 @@ it('renders the SA badge next to a shooter name on the public standings table', 
         'points' => 95.0, 'rank' => 1,
     ]);
 
-    $response = $this->get('/standings?season=2026&series=PRS&level=national');
+    // Standings are split by discipline; /standings 301s to /standings/prs.
+    // Hit the canonical PRS URL directly so this test asserts on the real page.
+    $response = $this->get('/standings/prs?season=2026&level=national');
 
     $response->assertOk();
     $response->assertSee('Protea Pete');
-    $response->assertSee('SA 2026');
+    // The discipline-board uses the badge in `compact` mode — a single
+    // "SA ×n" pill rather than a chip-per-year. The year lives in the
+    // screen-reader aria-label so assistive tech still gets it.
+    $response->assertSee('SA ×1');
+    $response->assertSee('Represented South Africa in 2026', escape: false);
 });
 
 it('does not render the SA badge for a shooter with no national-team appearance', function () {
@@ -99,11 +105,15 @@ it('does not render the SA badge for a shooter with no national-team appearance'
         'points' => 75.0, 'rank' => 1,
     ]);
 
-    $response = $this->get('/standings?season=2026&series=PRS&level=national');
+    // Standings are split by discipline; hit the canonical PRS URL directly
+    // instead of the legacy /standings 301.
+    $response = $this->get('/standings/prs?season=2026&level=national');
 
     $response->assertOk();
     $response->assertSee('Plain Patrick');
-    $response->assertDontSee('SA 2026');
+    // No appearance → no badge chip, pill, or screen-reader label at all.
+    $response->assertDontSee('SA ×', escape: false);
+    $response->assertDontSee('Represented South Africa', escape: false);
 });
 
 // ── Public shooter profile ──────────────────────────────────────────────

@@ -126,9 +126,10 @@ it('marks PRS counted matches with contributed points and shows others as droppe
     // The 4th-best national is valid but did NOT count — must render as DROPPED.
     $response->assertSee('DROPPED');
     // Counted matches render their contributed points prefixed with '+'.
-    $response->assertSee('+100.00');
-    $response->assertSee('+90.00');
-    $response->assertSee('+80.00');
+    // Standings formatting is one decimal (see Format::points / points()).
+    $response->assertSee('+100.0');
+    $response->assertSee('+90.0');
+    $response->assertSee('+80.0');
     // PRS uses the annual-log breakdown, not the weighted-pools ones. The
     // PR22-only breakdown labels must be absent so nothing implies this
     // shooter has a PR22 ranking mixed into their PRS ranking.

@@ -56,7 +56,9 @@ test('authenticated pages return 200', function (string $url) {
     '/dashboard?view_as=match_director',
     '/dashboard?view_as=member',
     '/profile',
-    '/standings',
+    // /standings is a 301 to the canonical discipline URL — smoke-test the
+    // discipline page itself so this stays a 200.
+    '/standings/prs',
     '/registrations',
     '/rifle-configurations',
     '/rifle-configurations/create',

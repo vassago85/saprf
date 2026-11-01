@@ -80,7 +80,10 @@ it('lists active divisions in display order', function () {
     Division::create(['slug' => 'b', 'name' => 'B', 'display_order' => 2]);
     Division::create(['slug' => 'a', 'name' => 'A', 'display_order' => 1]);
 
-    $divisions = Division::active()->ordered()->get();
+    // Scope to the two slugs this test creates so baseline divisions
+    // inserted by migrations (hunter, mil-leo, …) don't bleed into the
+    // count assertion.
+    $divisions = Division::active()->whereIn('slug', ['a', 'b'])->ordered()->get();
 
     expect($divisions)->toHaveCount(2);
     expect($divisions->first()->slug)->toBe('a');
@@ -96,8 +99,16 @@ it('supports demographic divisions alongside equipment divisions', function () {
     Division::create(['slug' => 'junior', 'name' => 'Junior', 'display_order' => 6]);
     Division::create(['slug' => 'senior', 'name' => 'Senior', 'display_order' => 7]);
 
-    expect(Division::active()->ordered()->pluck('slug')->toArray())
-        ->toBe(['open', 'ladies', 'junior', 'senior']);
+    // Scope to the slugs this test creates so baseline divisions inserted
+    // by migrations (hunter, mil-leo, …) don't change the ordering of the
+    // demographic-divisions assertion.
+    expect(
+        Division::active()
+            ->whereIn('slug', ['open', 'ladies', 'junior', 'senior'])
+            ->ordered()
+            ->pluck('slug')
+            ->toArray()
+    )->toBe(['open', 'ladies', 'junior', 'senior']);
 });
 
 it('allows a user to belong to one division only', function () {

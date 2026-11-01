@@ -26,6 +26,12 @@ it('points robots.txt at the sitemap and keeps authenticated areas out of the cr
 });
 
 it('injects the Google tag on public and app layouts', function () {
+    // The gtag component intentionally no-ops outside production so Laragon
+    // / Docker-dev don't pollute the GA4 property with localhost pageviews.
+    // Pretend we're in production for this one assertion so the test proves
+    // the tag is wired into both layouts.
+    app()->detectEnvironment(fn () => 'production');
+
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('https://www.googletagmanager.com/gtag/js?id=G-DESCP26KTX', false)
@@ -81,9 +87,13 @@ it('gives public listing pages their own meta descriptions', function () {
         ->assertOk()
         ->assertSee('Browse upcoming SAPRF PRS and PR22 matches', false);
 
-    $this->get(route('standings.public'))
+    // standings.public is now a 301 to the canonical discipline URL. Each
+    // discipline page carries its own meta description ("Official SAPRF
+    // PRS standings for the … season — Centrefire, national and provincial
+    // rankings, …") — assert on the discipline-neutral phrase it shares.
+    $this->get(route('standings.prs'))
         ->assertOk()
-        ->assertSee('Official SAPRF national and provincial standings', false);
+        ->assertSee('national and provincial rankings', false);
 
     $this->get(route('faq.index'))
         ->assertOk()
