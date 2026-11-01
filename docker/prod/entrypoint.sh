@@ -25,6 +25,9 @@ if [ "$1" = "/usr/bin/supervisord" ]; then
 
     echo "Dispatching PRS 2028 selection-dates clarification (idempotent)..."
     php artisan saprf:send-prs-2028-dates-clarification --force || true
+
+    echo "Dispatching 2027 national series division-move amendment (idempotent)..."
+    php artisan saprf:send-ns-2027-division-move-amendment --force || true
 fi
 
 echo "Creating storage link..."

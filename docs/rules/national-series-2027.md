@@ -83,3 +83,9 @@ Dr AJ Lategan
 Chairman
 
 South African Precision Rifle Federation (SAPRF)
+
+## Amendments
+
+| Date | Change |
+|---|---|
+| 1 November 2026 | Division-move clause simplified. The sentence *"A shooter moving from Open to Factory starts again, except if the rifle used to shoot in Open was a factory qualified rifle."* has been shortened to *"A shooter moving from Open to Factory starts again."* The exception has been removed so the rule is uniform regardless of which rifle was used in Open. All other wording is unchanged. Signed version re-published on this date. |
