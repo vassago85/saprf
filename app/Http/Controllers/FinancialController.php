@@ -77,15 +77,23 @@ class FinancialController extends Controller
 
         $charsleyAt = $this->charsleyMonth($request, $from, $to);
         $charsleyPreview = app(IssueCharsleyInvoice::class)->preview($charsleyAt->year, $charsleyAt->month);
-        $charsleyInvoice = CharsleyInvoice::query()->where('period', $charsleyPreview['period'])->first();
+        // The current preview card tracks the ACTIVE invoice (not voided) for
+        // the month. A voided row for the same period is history and shows up
+        // in the list below.
+        $charsleyInvoice = CharsleyInvoice::query()
+            ->where('period', $charsleyPreview['period'])
+            ->whereNull('voided_at')
+            ->first();
 
-        // Recent Charsley invoices (excluding the one currently previewed) so
-        // the operator can see what's outstanding and mark months as paid once
-        // the SAPRF bank transfer lands.
+        // Recent Charsley invoices for the operator to track payment and
+        // revisit voided bills. Everything is included so voided rows stay
+        // visible as an audit trail, but we skip the currently-active record
+        // for the previewed month (shown in the main tile) to avoid dupes.
         $charsleyHistory = CharsleyInvoice::query()
-            ->where('period', '!=', $charsleyPreview['period'])
+            ->when($charsleyInvoice, fn ($q) => $q->where('id', '!=', $charsleyInvoice->id))
             ->orderByDesc('period')
-            ->limit(6)
+            ->orderByDesc('id')
+            ->limit(8)
             ->get();
 
         return view('financials.dashboard', compact(
@@ -129,6 +137,52 @@ class FinancialController extends Controller
         }
 
         return back()->with('status', "Reverted {$invoice->period} Charsley invoice to unpaid.");
+    }
+
+    /**
+     * Void a previously-sent Charsley invoice. Used after the operator
+     * credited the invoice in Invoice Ninja (e.g. billed the wrong amount) —
+     * the SAPRF-side ledger records the void so the next "Issue invoice for
+     * this month" starts fresh at the current total. The voided row stays
+     * in history so the credit is auditable.
+     */
+    public function voidCharsleyInvoice(Request $request, CharsleyInvoice $invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'void_reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($invoice->voided_at !== null) {
+            return back()->with('status', "{$invoice->period} Charsley invoice is already voided.");
+        }
+
+        $before = $invoice->only(['period', 'status', 'total', 'invoice_number', 'paid_at']);
+
+        $invoice->update([
+            'voided_at' => now(),
+            'voided_reason' => $validated['void_reason'] ?? 'Credited in Invoice Ninja',
+            // Keep paid_at as-is: it's part of the historical record of what
+            // happened before the credit note was raised.
+        ]);
+
+        $this->audit->log(
+            $request->user(),
+            'charsley_invoice.voided',
+            'charsley_invoice',
+            $invoice->id,
+            $before,
+            [
+                'voided_at' => $invoice->voided_at?->toIso8601String(),
+                'voided_reason' => $invoice->voided_reason,
+            ],
+        );
+
+        return back()->with(
+            'status',
+            "Voided {$invoice->period} Charsley invoice"
+            .($invoice->invoice_number ? " ({$invoice->invoice_number})" : '')
+            .'. Press "Issue invoice for this month" to send a replacement at the current total.',
+        );
     }
 
     // ── Match Financial Report ──

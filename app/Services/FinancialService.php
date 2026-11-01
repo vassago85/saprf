@@ -141,7 +141,10 @@ class FinancialService
         ')->first();
 
         $gross = (float) $agg->gross;
-        $membershipPlatformPct = (float) $this->settings->get('membership_platform_fee_pct', 2.5) / 100;
+        // Default is 0 — SAPRF/Charsley does not take a cut on membership
+        // revenue unless an operator explicitly sets a non-zero percent in
+        // Site Settings.
+        $membershipPlatformPct = (float) $this->settings->get('membership_platform_fee_pct', 0) / 100;
         $gatewayPct = (float) $this->settings->get('estimated_gateway_fee_percentage', 3.5) / 100;
         $gatewayFlat = (float) $this->settings->get('estimated_gateway_flat_fee', 2);
 

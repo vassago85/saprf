@@ -895,6 +895,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
         Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
         Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
+        Route::post('/charsley/{invoice}/void', [FinancialController::class, 'voidCharsleyInvoice'])->name('charsley.void');
         Route::post('/payouts/{payout}/regenerate-statement', [FinancialController::class, 'regeneratePayoutStatement'])->name('payouts.regenerate-statement');
         Route::get('/payouts/{payout}/statement.pdf', [FinancialController::class, 'downloadPayoutStatementPdf'])->name('payouts.statement-pdf');
         Route::get('/payouts/{payout}/statement.csv', [FinancialController::class, 'downloadPayoutStatementCsv'])->name('payouts.statement-csv');

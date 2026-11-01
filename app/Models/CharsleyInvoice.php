@@ -25,6 +25,8 @@ class CharsleyInvoice extends Model
         'error',
         'sent_at',
         'paid_at',
+        'voided_at',
+        'voided_reason',
     ];
 
     protected function casts(): array
@@ -35,11 +37,22 @@ class CharsleyInvoice extends Model
             'total' => 'decimal:2',
             'sent_at' => 'datetime',
             'paid_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
     public function isPaid(): bool
     {
-        return $this->paid_at !== null;
+        return $this->paid_at !== null && ! $this->isVoided();
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('voided_at');
     }
 }

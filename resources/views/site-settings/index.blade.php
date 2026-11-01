@@ -316,8 +316,8 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
                         <label for="membership_platform_fee_pct" class="block text-sm font-medium text-stone-700">Platform Fee (%)</label>
-                        <input type="number" step="0.1" min="0" max="50" name="membership_platform_fee_pct" id="membership_platform_fee_pct" value="{{ old('membership_platform_fee_pct', $settings['membership_platform_fee_pct'] ?? '2.5') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <p class="mt-1 text-xs text-stone-400">Percentage allocated to platform costs on membership payments, donations, etc.</p>
+                        <input type="number" step="0.1" min="0" max="50" name="membership_platform_fee_pct" id="membership_platform_fee_pct" value="{{ old('membership_platform_fee_pct', $settings['membership_platform_fee_pct'] ?? '0') }}" required class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <p class="mt-1 text-xs text-stone-400">Percentage the platform takes on membership payments and other non-match transactions. Default is 0 — SAPRF keeps 100% of membership revenue and Charsley bills nothing for it.</p>
                     </div>
 
                     <div class="flex items-end pb-1">

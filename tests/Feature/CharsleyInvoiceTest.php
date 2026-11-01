@@ -35,6 +35,10 @@ function configureCharsleyInvoicing(bool $enabled = true, ?string $entryFee = nu
     $settings->set('invoice_ninja_api_url', 'https://invoice.charsley.co.za', 'test');
     $settings->set('invoice_ninja_api_token', 'test-token', 'test');
     $settings->set('invoice_ninja_client_id', 'SaprfClient', 'test');
+    // The migration zeroes membership_platform_fee_pct; most tests should
+    // see that default. Tests that want to exercise a non-zero percent set
+    // the setting themselves.
+    $settings->set('membership_platform_fee_pct', '0', 'test');
 
     if ($entryFee !== null) {
         $settings->set('invoice_ninja_entry_fee', $entryFee, 'test');
@@ -43,11 +47,14 @@ function configureCharsleyInvoicing(bool $enabled = true, ?string $entryFee = nu
 
 function charsleyEntry(MatchEvent $match, array $extra = []): MatchRegistration
 {
+    // Default platform_fee mirrors a normal paid online entry (R50). Tests
+    // that want a waived / off-platform / club row override it explicitly.
     return MatchRegistration::create(array_merge([
         'match_id' => $match->id,
         'shooter_name' => 'Paid Shooter',
         'membership_fee_category' => 'active_member',
         'fee_amount' => 250,
+        'platform_fee' => 50,
         'payment_status' => 'paid',
         'registration_status' => 'confirmed',
         'registered_at' => '2026-09-15 10:00:00',
@@ -69,28 +76,35 @@ function fakeInvoiceNinja(int $emailStatus = 200): void
     ]);
 }
 
-test('the monthly invoice is the configured fee for each paid entry', function () {
+test('the monthly invoice sums the actual platform_fee stored on paid rows', function () {
     charsleyEntry($this->match);
-    charsleyEntry($this->match, ['shooter_name' => 'Walk-in', 'fee_amount' => 0]);
+    charsleyEntry($this->match, ['shooter_name' => 'Walk-in', 'fee_amount' => 0, 'platform_fee' => 0]);
     charsleyEntry($this->match, ['registered_at' => '2026-09-30 23:59:59']);
     charsleyEntry($this->match, ['payment_status' => 'pending']);
     charsleyEntry($this->match, ['payment_status' => 'failed']);
-    charsleyEntry($this->match, ['payment_status' => 'unpaid', 'fee_amount' => 0]);
+    charsleyEntry($this->match, ['payment_status' => 'unpaid', 'fee_amount' => 0, 'platform_fee' => 0]);
     charsleyEntry($this->match, ['payment_status' => 'waived']);
     charsleyEntry($this->match, ['payment_status' => 'refunded']);
     charsleyEntry($this->match, ['registered_at' => '2026-08-31 23:00:00']);
     charsleyEntry($this->match, ['registered_at' => '2026-10-01 00:00:00']);
+    // Shooter the MD settled off-platform in September: platform fee was
+    // zeroed when they were marked paid, so Charsley must NOT bill them.
+    charsleyEntry($this->match, ['shooter_name' => 'Cash settled', 'platform_fee' => 0]);
+    // Per-match fee override: a national match with R30 platform fee still
+    // bills exactly R30, not the stock R50.
+    charsleyEntry($this->match, ['shooter_name' => 'Override', 'platform_fee' => 30]);
 
     $preview = app(IssueCharsleyInvoice::class)->preview(2026, 9);
 
     expect(app(CharsleyInvoiceSettings::class)->clientId())->toBe('')
         ->and(app(CharsleyInvoiceSettings::class)->entryFee())->toBe(50.0)
+        ->and($preview['match_entries'])->toBe(3)
         ->and($preview['entries'])->toBe(3)
-        ->and($preview['entry_fee'])->toBe(50.0)
-        ->and($preview['total'])->toBe(150.0);
+        ->and($preview['match_total'])->toBe(130.0)
+        ->and($preview['total'])->toBe(130.0);
 });
 
-test('membership payments in the month are billed with the match entries', function () {
+test('membership payments are billed at the configured percent of gross', function () {
     charsleyEntry($this->match);
 
     $member = User::factory()->create();
@@ -127,15 +141,21 @@ test('membership payments in the month are billed with the match entries', funct
     ]);
 
     configureCharsleyInvoicing();
+    // Override the default-zero to prove a non-zero percent still works end
+    // to end. Site Settings is the real-world knob operators would turn.
+    app(SettingsService::class)->set('membership_platform_fee_pct', '2.5', 'test');
     fakeInvoiceNinja();
 
     $preview = app(IssueCharsleyInvoice::class)->preview(2026, 9);
     app(IssueCharsleyInvoice::class)->issue(2026, 9);
 
+    // Match: R50 platform fee. Membership: R500 × 2.5% = R12.50.
     expect($preview['match_entries'])->toBe(1)
+        ->and($preview['match_total'])->toBe(50.0)
         ->and($preview['membership_payments'])->toBe(1)
-        ->and($preview['entries'])->toBe(2)
-        ->and($preview['total'])->toBe(100.0);
+        ->and($preview['membership_percent'])->toBe(2.5)
+        ->and($preview['membership_total'])->toBe(12.5)
+        ->and($preview['total'])->toBe(62.5);
 
     $creates = collect(Http::recorded())->filter(
         fn (array $pair) => $pair[0]->method() === 'POST' && str_ends_with($pair[0]->url(), '/api/v1/invoices')
@@ -144,12 +164,12 @@ test('membership payments in the month are billed with the match entries', funct
 
     expect($items)->toHaveCount(2)
         ->and($items[0]['product_key'])->toBe('SAPRF match entries')
-        ->and($items[0]['quantity'])->toBe(1)
+        ->and((float) $items[0]['cost'])->toBe(50.0)
         ->and($items[1]['product_key'])->toBe('SAPRF memberships')
-        ->and($items[1]['quantity'])->toBe(1);
+        ->and((float) $items[1]['cost'])->toBe(12.5);
 });
 
-test('club entries are billed at the club platform percent, not the flat fee', function () {
+test('club entries are billed at the stored platform_fee, with 0 excluded', function () {
     charsleyEntry($this->match);
     charsleyEntry($this->match, [
         'shooter_name' => 'Club shooter',
@@ -170,6 +190,7 @@ test('club entries are billed at the club platform percent, not the flat fee', f
     $preview = app(IssueCharsleyInvoice::class)->preview(2026, 9);
 
     expect($preview['match_entries'])->toBe(1)
+        ->and($preview['match_total'])->toBe(50.0)
         ->and($preview['club_entries'])->toBe(1)
         ->and($preview['club_percent'])->toBe(3.0)
         ->and($preview['club_total'])->toBe(6.0)
@@ -184,21 +205,92 @@ test('club entries are billed at the club platform percent, not the flat fee', f
 
     expect($items)->toHaveCount(2)
         ->and($items[0]['product_key'])->toBe('SAPRF match entries')
-        ->and($items[0]['quantity'])->toBe(1)
+        ->and((float) $items[0]['cost'])->toBe(50.0)
         ->and($items[1]['product_key'])->toBe('SAPRF club entries')
-        ->and($items[1]['quantity'])->toBe(1)
-        ->and((float) $items[1]['cost'])->toBe(6.0)
-        ->and($items[1]['notes'])->toContain('3%');
+        ->and((float) $items[1]['cost'])->toBe(6.0);
 });
 
-test('a changed entry fee is used instead of the default', function () {
+test('memberships add nothing when the platform percent is 0 (the default)', function () {
+    charsleyEntry($this->match);
+
+    $member = User::factory()->create();
+    $membership = Membership::create([
+        'user_id' => $member->id,
+        'saprf_number' => 'SAPRF-CHARSLEY-ZERO',
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-09-01',
+        'expiry_date' => '2027-09-01',
+    ]);
+    MembershipPayment::create([
+        'membership_id' => $membership->id,
+        'amount' => 500,
+        'payment_date' => '2026-09-12',
+        'payment_method' => 'payfast',
+        'status' => 'confirmed',
+    ]);
+
+    configureCharsleyInvoicing();
+    fakeInvoiceNinja();
+
+    $preview = app(IssueCharsleyInvoice::class)->preview(2026, 9);
+    app(IssueCharsleyInvoice::class)->issue(2026, 9);
+
+    expect($preview['membership_payments'])->toBe(1)
+        ->and($preview['membership_percent'])->toBe(0.0)
+        ->and($preview['membership_total'])->toBe(0.0)
+        ->and($preview['total'])->toBe(50.0);
+
+    $items = collect(Http::recorded())
+        ->first(fn (array $pair) => $pair[0]->method() === 'POST' && str_ends_with($pair[0]->url(), '/api/v1/invoices'))[0]
+        ->data()['line_items'];
+
+    expect($items)->toHaveCount(1)
+        ->and($items[0]['product_key'])->toBe('SAPRF match entries');
+});
+
+test('voiding an invoice lets issue() replace it in the same month', function () {
+    configureCharsleyInvoicing();
+    fakeInvoiceNinja();
+    charsleyEntry($this->match);
+
+    $issuer = app(IssueCharsleyInvoice::class);
+
+    $first = $issuer->issue(2026, 9);
+    expect($first->status)->toBe('sent')
+        ->and($first->period)->toBe('2026-09')
+        ->and((float) $first->total)->toBe(50.0);
+
+    // Operator credited the first invoice in Invoice Ninja — mark it voided
+    // on the SAPRF ledger. New paid rows arrive before we re-issue.
+    $first->update(['voided_at' => now(), 'voided_reason' => 'Credited']);
+
+    charsleyEntry($this->match, ['shooter_name' => 'Late paid', 'platform_fee' => 50]);
+    charsleyEntry($this->match, ['shooter_name' => 'Later paid', 'platform_fee' => 50]);
+
+    $preview = $issuer->preview(2026, 9);
+    expect($preview['total'])->toBe(150.0);
+
+    $second = $issuer->issue(2026, 9);
+
+    expect($second->id)->not->toBe($first->id)
+        ->and($second->period)->toBe('2026-09')
+        ->and($second->status)->toBe('sent')
+        ->and((float) $second->total)->toBe(150.0)
+        ->and(\App\Models\CharsleyInvoice::count())->toBe(2)
+        ->and(\App\Models\CharsleyInvoice::whereNull('voided_at')->where('period', '2026-09')->count())->toBe(1);
+});
+
+test('the entry fee setting is surfaced in the preview even though the total uses stored platform_fee', function () {
     configureCharsleyInvoicing(entryFee: '80');
-    charsleyEntry($this->match);
-    charsleyEntry($this->match);
+    charsleyEntry($this->match, ['platform_fee' => 80]);
+    charsleyEntry($this->match, ['platform_fee' => 80]);
 
     $preview = app(IssueCharsleyInvoice::class)->preview(2026, 9);
 
     expect($preview['entry_fee'])->toBe(80.0)
+        ->and($preview['match_total'])->toBe(160.0)
         ->and($preview['total'])->toBe(160.0);
 });
 
@@ -245,8 +337,11 @@ test('the invoice is created and emailed once for the month', function () {
         ->and($payload['po_number'])->toBe('SAPRF-2026-09')
         ->and($payload['public_notes'])->toContain('September 2026')
         ->and($item['product_key'])->toBe('SAPRF match entries')
-        ->and($item['quantity'])->toBe(2)
-        ->and((float) $item['cost'])->toBe(50.0)
+        // One summary line per category: quantity 1, cost = sum of stored
+        // platform_fee. Both charsleyEntry rows carry the R50 default, so
+        // the line totals R100.
+        ->and($item['quantity'])->toBe(1)
+        ->and((float) $item['cost'])->toBe(100.0)
         ->and((float) $item['tax_rate1'])->toBe(0.0)
         ->and((float) $item['tax_rate2'])->toBe(0.0)
         ->and((float) $item['tax_rate3'])->toBe(0.0)
@@ -297,7 +392,7 @@ test('the scheduled command invoices the previous month only when enabled', func
     configureCharsleyInvoicing();
 
     $this->artisan('saprf:invoice-charsley', ['period' => '2026-09', '--dry-run' => true])
-        ->expectsOutputToContain('1 match entry + 0 membership payments × R50.00 + 0 club entries at 3% (R0.00) = R50.00')
+        ->expectsOutputToContain('1 match (R50.00) + 0 club (R0.00) + 0 membership (R0.00) = R50.00')
         ->expectsOutputToContain('Dry run')
         ->assertSuccessful();
 

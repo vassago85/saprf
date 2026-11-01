@@ -192,7 +192,7 @@
                 <div>
                     <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Charsley Digital</h2>
                     <p class="mt-1 text-xs text-stone-500">
-                        {{ $charsleyPreview['label'] }}: match entries and membership payments at {{ money($charsleyPreview['entry_fee']) }}, club entries at {{ rtrim(rtrim(number_format($charsleyPreview['club_percent'], 2), '0'), '.') }}%. Invoiced on the 1st of
+                        {{ $charsleyPreview['label'] }}: platform fees the system actually booked this month — match entries at {{ money($charsleyPreview['entry_fee']) }} (per-match overrides respected), club entries at {{ rtrim(rtrim(number_format($charsleyPreview['club_percent'], 2), '0'), '.') }}%, memberships at {{ rtrim(rtrim(number_format($charsleyPreview['membership_percent'], 2), '0'), '.') }}% of the payment. Invoiced on the 1st of
                         {{ \Illuminate\Support\Carbon::create($charsleyPreview['year'], $charsleyPreview['month'], 1)->addMonthNoOverflow()->format('F Y') }}.
                         @if($from && $to && $from->format('Y-m') === $to->format('Y-m'))
                             This follows the month in the date filter.
@@ -205,14 +205,14 @@
             </div>
             <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-                    <dt class="text-xs uppercase text-stone-500">Transactions</dt>
+                    <dt class="text-xs uppercase text-stone-500">Billable transactions</dt>
                     <dd class="mt-1 text-xl font-bold text-stone-900">{{ number_format($charsleyPreview['entries']) }}</dd>
                     <dd class="text-xs text-stone-500">{{ number_format($charsleyPreview['match_entries']) }} match · {{ number_format($charsleyPreview['club_entries']) }} club · {{ number_format($charsleyPreview['membership_payments']) }} membership</dd>
                 </div>
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-                    <dt class="text-xs uppercase text-stone-500">Per entry</dt>
-                    <dd class="mt-1 text-xl font-bold text-stone-900">{{ money($charsleyPreview['entry_fee']) }}</dd>
-                    <dd class="text-xs text-stone-500">Club entries at {{ rtrim(rtrim(number_format($charsleyPreview['club_percent'], 2), '0'), '.') }}%</dd>
+                    <dt class="text-xs uppercase text-stone-500">Breakdown</dt>
+                    <dd class="mt-1 text-sm font-semibold text-stone-900">{{ money($charsleyPreview['match_total']) }} match · {{ money($charsleyPreview['club_total']) }} club</dd>
+                    <dd class="text-xs text-stone-500">{{ money($charsleyPreview['membership_total']) }} memberships</dd>
                 </div>
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                     <dt class="text-xs uppercase text-emerald-700">Invoice total</dt>
@@ -229,6 +229,28 @@
                             Not invoiced yet
                         @endif
                     </dd>
+                    @role('developer')
+                        @if($charsleyInvoice && abs((float) $charsleyInvoice->total - (float) $charsleyPreview['total']) >= 0.01)
+                        <form method="POST" action="{{ route('financials.charsley.void', $charsleyInvoice) }}" class="mt-2">
+                            @csrf
+                            <input type="hidden" name="void_reason" value="Credited in Invoice Ninja — re-issuing at correct total">
+                            <button type="submit"
+                                    class="text-xs font-semibold text-red-700 hover:text-red-900"
+                                    onclick="return confirm('Void invoice {{ $charsleyInvoice->invoice_number ?: $charsleyInvoice->period }} (sent at {{ money($charsleyInvoice->total) }})? Press \'Issue invoice for this month\' afterwards to send a replacement at the current {{ money($charsleyPreview['total']) }}.');">
+                                Void &amp; re-issue &rarr;
+                            </button>
+                        </form>
+                        @elseif(! $charsleyInvoice && $charsleyPreview['total'] > 0)
+                        <form method="POST" action="{{ route('site-settings.invoice-ninja.issue') }}" class="mt-2">
+                            @csrf
+                            <button type="submit"
+                                    class="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                                    onclick="return confirm('Create and email the {{ $charsleyPreview['label'] }} SAPRF invoice ({{ money($charsleyPreview['total']) }}) in Invoice Ninja?');">
+                                Issue invoice for this month &rarr;
+                            </button>
+                        </form>
+                        @endif
+                    @endrole
                 </div>
             </dl>
 
@@ -236,7 +258,7 @@
             <div class="mt-6 border-t border-stone-100 pt-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-semibold text-stone-700 uppercase tracking-wide">Recent invoices</h3>
-                    @php $outstanding = $charsleyHistory->whereNull('paid_at')->count(); @endphp
+                    @php $outstanding = $charsleyHistory->filter(fn ($i) => ! $i->isVoided() && $i->paid_at === null)->count(); @endphp
                     @if($outstanding > 0)
                     <span class="text-xs font-semibold text-amber-700">{{ $outstanding }} outstanding</span>
                     @endif
@@ -246,18 +268,28 @@
                     @php
                         $pastLabel = \Illuminate\Support\Carbon::createFromFormat('Y-m', $past->period)->format('F Y');
                     @endphp
-                    <li class="flex items-center justify-between gap-4 py-2 text-sm">
+                    <li class="flex items-center justify-between gap-4 py-2 text-sm {{ $past->isVoided() ? 'opacity-70' : '' }}">
                         <div class="min-w-0 flex-1">
-                            <p class="font-medium text-stone-800">{{ $pastLabel }}</p>
+                            <p class="font-medium text-stone-800">
+                                {{ $pastLabel }}
+                                @if($past->isVoided())
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">Voided</span>
+                                @endif
+                            </p>
                             <p class="text-xs text-stone-500">
                                 {{ number_format($past->entries) }} entries · {{ money($past->total) }}
                                 @if($past->invoice_number)
                                     · <span class="font-mono">{{ $past->invoice_number }}</span>
                                 @endif
+                                @if($past->isVoided())
+                                    · voided {{ $past->voided_at->format('d M Y') }}{{ $past->voided_reason ? ' — '.$past->voided_reason : '' }}
+                                @endif
                             </p>
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
-                            @if($past->isPaid())
+                            @if($past->isVoided())
+                                <span class="text-xs text-stone-500">No action</span>
+                            @elseif($past->isPaid())
                                 <span class="text-xs font-semibold text-emerald-700">Paid {{ $past->paid_at->format('d M Y') }}</span>
                                 <form method="POST" action="{{ route('financials.charsley.unmark-paid', $past) }}" class="inline">
                                     @csrf
@@ -354,7 +386,7 @@
                         <dd class="font-semibold">{{ money($summary['membership_revenue']['gross']) }}</dd>
                     </div>
                     <div class="flex justify-between">
-                        <dt class="text-stone-500">Platform Cost ({{ $settings['membership_platform_fee_pct'] ?? '2.5' }}%)</dt>
+                        <dt class="text-stone-500">Platform Cost ({{ $settings['membership_platform_fee_pct'] ?? '0' }}%)</dt>
                         <dd class="text-orange-600">{{ money_delta(-1 * (float) $summary['membership_revenue']['platform_cost']) }}</dd>
                     </div>
                     <div class="flex justify-between">
