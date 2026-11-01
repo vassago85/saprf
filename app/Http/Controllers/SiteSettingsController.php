@@ -362,7 +362,7 @@ class SiteSettingsController extends Controller
         $this->settingsService->set(
             'invoice_ninja_entry_fee',
             $validated['invoice_ninja_entry_fee'],
-            'Rand amount Charsley Digital charges SAPRF per paid match entry',
+            'Rand amount Charsley Digital charges SAPRF per paid transaction',
         );
 
         if (filled($validated['invoice_ninja_api_token'] ?? null)) {

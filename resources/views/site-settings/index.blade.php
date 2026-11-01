@@ -700,7 +700,7 @@
                         Invoice Ninja
                         <span class="ml-1 inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">Developer</span>
                     </h2>
-                    <p class="mt-1 text-sm text-stone-500">Charsley Digital bills SAPRF on the 1st at 07:00 for every paid match entry in the previous month. Create a SAPRF client in Invoice Ninja first. Invoicing stays off until you turn it on.</p>
+                    <p class="mt-1 text-sm text-stone-500">Charsley Digital bills SAPRF on the 1st at 07:00 for the previous month: the fee below for each match entry and membership payment, and the club platform percent for each club entry. Create a SAPRF client in Invoice Ninja first. Invoicing stays off until you turn it on.</p>
                 </div>
             </div>
 
@@ -757,11 +757,11 @@
                 </div>
 
                 <div>
-                    <label for="invoice_ninja_entry_fee" class="block text-sm font-medium text-stone-700">Fee per paid entry (ZAR)</label>
+                    <label for="invoice_ninja_entry_fee" class="block text-sm font-medium text-stone-700">Fee per transaction (ZAR)</label>
                     <input type="number" name="invoice_ninja_entry_fee" id="invoice_ninja_entry_fee" required step="0.01" min="0" max="99999.99"
                            value="{{ old('invoice_ninja_entry_fee', $settings['invoice_ninja_entry_fee'] ?? '50') }}"
                            class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <p class="mt-1 text-xs text-stone-400">Charged once for each match entry paid during the month. Default is R50.</p>
+                    <p class="mt-1 text-xs text-stone-400">Charged once for each match entry and each membership payment. Club entries use the club platform percent (3% by default) of the club fee instead. Default is R50.</p>
                     @error('invoice_ninja_entry_fee') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 

@@ -14,7 +14,7 @@ class InvoiceCharsley extends Command
         {--dry-run : Print the invoice without sending it}
         {--no-email : Create the invoice in Invoice Ninja without emailing it}';
 
-    protected $description = 'Invoice SAPRF in Invoice Ninja for paid match entries in a month';
+    protected $description = 'Invoice SAPRF in Invoice Ninja for paid transactions in a month';
 
     public function handle(IssueCharsleyInvoice $issuer, CharsleyInvoiceSettings $settings): int
     {
@@ -29,14 +29,25 @@ class InvoiceCharsley extends Command
         [$year, $month] = array_map('intval', explode('-', (string) $period));
         $preview = $issuer->preview($year, $month);
 
-        $entryLabel = $preview['entries'] === 1 ? 'entry' : 'entries';
+        $matchLabel = $preview['match_entries'] === 1 ? 'match entry' : 'match entries';
+        $membershipLabel = $preview['membership_payments'] === 1 ? 'membership payment' : 'membership payments';
+        $clubLabel = $preview['club_entries'] === 1 ? 'club entry' : 'club entries';
+        $clubPercent = abs($preview['club_percent'] - round($preview['club_percent'])) < 0.001
+            ? (string) (int) round($preview['club_percent'])
+            : rtrim(rtrim(number_format($preview['club_percent'], 2, '.', ''), '0'), '.');
 
         $this->info(sprintf(
-            '%s: %d %s × R%s = R%s',
+            '%s: %d %s + %d %s × R%s + %d %s at %s%% (R%s) = R%s',
             $preview['label'],
-            $preview['entries'],
-            $entryLabel,
+            $preview['match_entries'],
+            $matchLabel,
+            $preview['membership_payments'],
+            $membershipLabel,
             number_format($preview['entry_fee'], 2),
+            $preview['club_entries'],
+            $clubLabel,
+            $clubPercent,
+            number_format($preview['club_total'], 2),
             number_format($preview['total'], 2),
         ));
 

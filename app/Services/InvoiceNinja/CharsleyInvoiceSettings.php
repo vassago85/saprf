@@ -49,6 +49,17 @@ class CharsleyInvoiceSettings
         return round((float) ($stored === '' || $stored === null ? self::DEFAULT_ENTRY_FEE : $stored), 2);
     }
 
+    /**
+     * Platform cut on a club entry. Match entries and memberships use
+     * entryFee(); club entries use this percent of the club fee.
+     */
+    public function clubPlatformPercent(): float
+    {
+        $stored = $this->settings->get('club_entry_platform_percent', 3);
+
+        return round((float) ($stored === '' || $stored === null ? 3 : $stored), 2);
+    }
+
     public function isConfigured(): bool
     {
         return $this->apiUrl() !== ''

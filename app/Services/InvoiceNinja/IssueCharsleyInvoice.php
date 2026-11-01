@@ -4,6 +4,7 @@ namespace App\Services\InvoiceNinja;
 
 use App\Models\CharsleyInvoice;
 use App\Models\MatchRegistration;
+use App\Models\MembershipPayment;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
@@ -17,8 +18,10 @@ class IssueCharsleyInvoice
     ) {}
 
     /**
-     * Paid match entries whose registered_at falls in the calendar month.
-     * Pending, failed, unpaid, waived, and refunded rows are not transactions.
+     * Paid transactions whose date falls in the calendar month: match
+     * registrations by registered_at, and confirmed membership payments by
+     * payment_date. Pending, failed, unpaid, waived, and refunded rows are
+     * not transactions.
      *
      * @return array{
      *     period: string,
@@ -26,6 +29,11 @@ class IssueCharsleyInvoice
      *     year: int,
      *     month: int,
      *     entries: int,
+     *     match_entries: int,
+     *     membership_payments: int,
+     *     club_entries: int,
+     *     club_percent: float,
+     *     club_total: float,
      *     entry_fee: float,
      *     total: float
      * }
@@ -33,17 +41,23 @@ class IssueCharsleyInvoice
     public function preview(int $year, int $month): array
     {
         $periodStart = Carbon::create($year, $month, 1, 0, 0, 0, 'Africa/Johannesburg');
-        $entries = $this->paidEntries($periodStart);
+        $counts = $this->transactions($periodStart);
         $fee = $this->settings->entryFee();
+        $flatEntries = $counts['match_entries'] + $counts['membership_payments'];
 
         return [
             'period' => sprintf('%04d-%02d', $year, $month),
             'label' => $periodStart->format('F Y'),
             'year' => $year,
             'month' => $month,
-            'entries' => $entries,
+            'entries' => $flatEntries + $counts['club_entries'],
+            'match_entries' => $counts['match_entries'],
+            'membership_payments' => $counts['membership_payments'],
+            'club_entries' => $counts['club_entries'],
+            'club_percent' => $counts['club_percent'],
+            'club_total' => $counts['club_total'],
             'entry_fee' => $fee,
-            'total' => round($entries * $fee, 2),
+            'total' => round(($flatEntries * $fee) + $counts['club_total'], 2),
         ];
     }
 
@@ -54,7 +68,7 @@ class IssueCharsleyInvoice
         $preview = $this->preview($year, $month);
         $existing = CharsleyInvoice::query()->where('period', $preview['period'])->first();
 
-        if ($preview['entries'] === 0 && ! $existing?->invoice_ninja_id) {
+        if (! $this->billable($preview) && ! $existing?->invoice_ninja_id) {
             return null;
         }
 
@@ -96,15 +110,57 @@ class IssueCharsleyInvoice
         return $sent;
     }
 
-    private function paidEntries(Carbon $periodStart): int
+    /**
+     * @return array{match_entries: int, membership_payments: int, club_entries: int, club_percent: float, club_total: float}
+     */
+    private function transactions(Carbon $periodStart): array
     {
         $start = $periodStart->copy()->startOfMonth();
         $end = $periodStart->copy()->endOfMonth();
+        $percent = $this->settings->clubPlatformPercent();
 
-        return MatchRegistration::query()
+        $matches = MatchRegistration::query()
             ->where('payment_status', 'paid')
             ->whereBetween('registered_at', [$start, $end])
+            ->where(function ($query) {
+                $query->whereNull('membership_fee_category')
+                    ->orWhere('membership_fee_category', '!=', 'club_entry');
+            })
             ->count();
+
+        $clubFees = MatchRegistration::query()
+            ->where('payment_status', 'paid')
+            ->where('membership_fee_category', 'club_entry')
+            ->where('platform_fee', '>', 0)
+            ->whereBetween('registered_at', [$start, $end])
+            ->pluck('fee_amount');
+
+        $clubTotal = round($clubFees->sum(
+            fn ($fee) => round((float) $fee * ($percent / 100), 2)
+        ), 2);
+
+        $memberships = MembershipPayment::query()
+            ->where('status', 'confirmed')
+            ->whereBetween('payment_date', [$start->toDateString(), $end->toDateString()])
+            ->count();
+
+        return [
+            'match_entries' => $matches,
+            'membership_payments' => $memberships,
+            'club_entries' => $clubFees->count(),
+            'club_percent' => $percent,
+            'club_total' => $clubTotal,
+        ];
+    }
+
+    /**
+     * @param  array{match_entries: int, membership_payments: int, club_total: float}  $preview
+     */
+    private function billable(array $preview): bool
+    {
+        return $preview['match_entries'] > 0
+            || $preview['membership_payments'] > 0
+            || $preview['club_total'] > 0;
     }
 
     private function assertReady(): void
@@ -125,6 +181,11 @@ class IssueCharsleyInvoice
      *     year: int,
      *     month: int,
      *     entries: int,
+     *     match_entries: int,
+     *     membership_payments: int,
+     *     club_entries: int,
+     *     club_percent: float,
+     *     club_total: float,
      *     entry_fee: float,
      *     total: float
      * }  $preview
@@ -141,7 +202,7 @@ class IssueCharsleyInvoice
             return $sendEmail ? $this->email($invoice) : $invoice;
         }
 
-        if ($preview['entries'] === 0) {
+        if (! $this->billable($preview)) {
             return $invoice;
         }
 
@@ -190,6 +251,11 @@ class IssueCharsleyInvoice
      *     year: int,
      *     month: int,
      *     entries: int,
+     *     match_entries: int,
+     *     membership_payments: int,
+     *     club_entries: int,
+     *     club_percent: float,
+     *     club_total: float,
      *     entry_fee: float,
      *     total: float
      * }  $preview
@@ -254,6 +320,11 @@ class IssueCharsleyInvoice
      *     year: int,
      *     month: int,
      *     entries: int,
+     *     match_entries: int,
+     *     membership_payments: int,
+     *     club_entries: int,
+     *     club_percent: float,
+     *     club_total: float,
      *     entry_fee: float,
      *     total: float
      * }  $preview
@@ -265,22 +336,47 @@ class IssueCharsleyInvoice
             ->addMonth()
             ->startOfDay();
         $feeLabel = $this->money($preview['entry_fee']);
-        $entryLabel = $preview['entries'] === 1 ? 'paid entry' : 'paid entries';
+        $percentLabel = $this->percentLabel($preview['club_percent']);
+
+        $lines = [];
+
+        if ($preview['match_entries'] > 0) {
+            $matchLabel = $preview['match_entries'] === 1 ? 'paid match entry' : 'paid match entries';
+            $lines[] = $this->line(
+                'SAPRF match entries',
+                $preview['label'].': '.$preview['match_entries'].' '.$matchLabel.' at '.$feeLabel.' each.',
+                $preview['entry_fee'],
+                $preview['match_entries'],
+            );
+        }
+
+        if ($preview['club_total'] > 0) {
+            $clubLabel = $preview['club_entries'] === 1 ? 'club entry' : 'club entries';
+            $lines[] = $this->line(
+                'SAPRF club entries',
+                $preview['label'].': '.$preview['club_entries'].' '.$clubLabel.' at '.$percentLabel.' of the club fee.',
+                $preview['club_total'],
+                1,
+            );
+        }
+
+        if ($preview['membership_payments'] > 0) {
+            $membershipLabel = $preview['membership_payments'] === 1 ? 'membership payment' : 'membership payments';
+            $lines[] = $this->line(
+                'SAPRF memberships',
+                $preview['label'].': '.$preview['membership_payments'].' '.$membershipLabel.' at '.$feeLabel.' each.',
+                $preview['entry_fee'],
+                $preview['membership_payments'],
+            );
+        }
 
         return [
             'client_id' => $this->settings->clientId(),
             'date' => $invoiceDate->toDateString(),
             'due_date' => $invoiceDate->copy()->addDays(CharsleyInvoiceSettings::PAYMENT_TERMS_DAYS)->toDateString(),
             'po_number' => 'SAPRF-'.$preview['period'],
-            'public_notes' => 'SAPRF platform for '.$preview['label'].'. '.$feeLabel.' for each paid entry in the month.',
-            'line_items' => [
-                $this->line(
-                    'SAPRF entries',
-                    $preview['label'].': '.$preview['entries'].' '.$entryLabel.' at '.$feeLabel.' each.',
-                    $preview['entry_fee'],
-                    $preview['entries'],
-                ),
-            ],
+            'public_notes' => 'SAPRF platform for '.$preview['label'].'. '.$feeLabel.' for each match entry and membership payment. Club entries at '.$percentLabel.' of the club fee.',
+            'line_items' => $lines,
         ];
     }
 
@@ -308,5 +404,15 @@ class IssueCharsleyInvoice
         $decimals = abs($amount - round($amount)) < 0.001 ? 0 : 2;
 
         return 'R'.number_format($amount, $decimals, '.', '');
+    }
+
+    private function percentLabel(float $percent): string
+    {
+        $rounded = round($percent, 2);
+        $text = abs($rounded - round($rounded)) < 0.001
+            ? (string) (int) round($rounded)
+            : rtrim(rtrim(number_format($rounded, 2, '.', ''), '0'), '.');
+
+        return $text.'%';
     }
 }

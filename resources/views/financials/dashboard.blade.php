@@ -192,7 +192,7 @@
                 <div>
                     <h2 class="text-sm font-semibold text-stone-700 uppercase tracking-wide">Charsley Digital</h2>
                     <p class="mt-1 text-xs text-stone-500">
-                        {{ $charsleyPreview['label'] }}: paid match entries accruing this month, invoiced on the 1st of
+                        {{ $charsleyPreview['label'] }}: match entries and membership payments at {{ money($charsleyPreview['entry_fee']) }}, club entries at {{ rtrim(rtrim(number_format($charsleyPreview['club_percent'], 2), '0'), '.') }}%. Invoiced on the 1st of
                         {{ \Illuminate\Support\Carbon::create($charsleyPreview['year'], $charsleyPreview['month'], 1)->addMonthNoOverflow()->format('F Y') }}.
                         @if($from && $to && $from->format('Y-m') === $to->format('Y-m'))
                             This follows the month in the date filter.
@@ -205,12 +205,14 @@
             </div>
             <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-                    <dt class="text-xs uppercase text-stone-500">Paid entries</dt>
+                    <dt class="text-xs uppercase text-stone-500">Transactions</dt>
                     <dd class="mt-1 text-xl font-bold text-stone-900">{{ number_format($charsleyPreview['entries']) }}</dd>
+                    <dd class="text-xs text-stone-500">{{ number_format($charsleyPreview['match_entries']) }} match · {{ number_format($charsleyPreview['club_entries']) }} club · {{ number_format($charsleyPreview['membership_payments']) }} membership</dd>
                 </div>
                 <div class="rounded-lg border border-stone-200 bg-stone-50 p-4">
                     <dt class="text-xs uppercase text-stone-500">Per entry</dt>
                     <dd class="mt-1 text-xl font-bold text-stone-900">{{ money($charsleyPreview['entry_fee']) }}</dd>
+                    <dd class="text-xs text-stone-500">Club entries at {{ rtrim(rtrim(number_format($charsleyPreview['club_percent'], 2), '0'), '.') }}%</dd>
                 </div>
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                     <dt class="text-xs uppercase text-emerald-700">Invoice total</dt>
@@ -220,6 +222,9 @@
                             Paid {{ $charsleyInvoice->paid_at->format('d M Y') }}{{ $charsleyInvoice->invoice_number ? ' · '.$charsleyInvoice->invoice_number : '' }}
                         @elseif($charsleyInvoice)
                             {{ ucfirst($charsleyInvoice->status) }}{{ $charsleyInvoice->invoice_number ? ' · '.$charsleyInvoice->invoice_number : '' }}
+                            @if(abs((float) $charsleyInvoice->total - (float) $charsleyPreview['total']) >= 0.01)
+                                · invoiced {{ money($charsleyInvoice->total) }}
+                            @endif
                         @else
                             Not invoiced yet
                         @endif
