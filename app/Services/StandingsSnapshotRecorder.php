@@ -33,12 +33,17 @@ class StandingsSnapshotRecorder
         $season = $match->season ?: (string) $match->match_date->year;
 
         // Finalisation timestamp is the authoritative "as of" marker when
-        // present. For admin recalcs that fire without a fresh finalise
-        // (e.g. membership activation flipping a shooter paid), we fall
-        // back to now() so movement still progresses.
+        // present. If the match has not been formally finalised yet, use
+        // its match_date (end of competition day) so backfills and
+        // automatic snapshots on import land in the correct chronological
+        // spot. Only fall back to now() if the match has neither a
+        // finalisation stamp nor a match_date — i.e. nothing to anchor
+        // against.
         $takenAt = $match->scores_finalized_at
             ? Carbon::parse($match->scores_finalized_at)
-            : Carbon::now();
+            : ($match->match_date
+                ? Carbon::parse($match->match_date)->endOfDay()
+                : Carbon::now());
 
         $takenAtStr = $takenAt->format('Y-m-d H:i:s');
 

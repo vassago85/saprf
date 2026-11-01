@@ -67,6 +67,16 @@ class StandingsMovement
         // trip. We mirror the base's WHERE clauses manually below.
         unset($base);
 
+        // Compare match-to-match, not edit-to-edit. Every import path now
+        // writes a snapshot, so a match can accrue several rows during
+        // the day (CSV import → shooter rename → Impact live tick). The
+        // outer window pass collapses those down to one representative
+        // row per (user_id, triggered_by_match_id) — the latest state
+        // for that match — before the inner pass picks the two most
+        // recent matches. Null triggered_by_match_id values (legacy rows
+        // from before this column existed) fall through to a per-row
+        // identity so they are not accidentally merged.
+        //
         // `rank` is a reserved word in MySQL 8+ / MariaDB 10+ (it's the
         // SQL:2003 RANK() window function). Backtick it everywhere it
         // appears outside the ROW_NUMBER() call, otherwise the parser
@@ -74,11 +84,18 @@ class StandingsMovement
         $rows = DB::select(
             'SELECT user_id, `rank`, taken_at FROM (
                 SELECT user_id, `rank`, taken_at, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY taken_at DESC) AS rn
-                FROM standings_snapshots
-                WHERE season = ? AND series = ? AND level = ?'
+                FROM (
+                    SELECT user_id, `rank`, taken_at, triggered_by_match_id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY user_id, COALESCE(triggered_by_match_id, -id)
+                               ORDER BY taken_at DESC
+                           ) AS mn
+                    FROM standings_snapshots
+                    WHERE season = ? AND series = ? AND level = ?'
             .($provinceId !== null ? ' AND province_id = ?' : ' AND province_id IS NULL')
             .($divisionId !== null ? ' AND division_id = ?' : ' AND division_id IS NULL')
             .' AND user_id IN ('.implode(',', array_fill(0, count($userIds), '?')).')
+                ) per_match WHERE mn = 1
             ) ranked
             WHERE rn <= 2
             ORDER BY user_id, taken_at DESC',
@@ -132,33 +149,44 @@ class StandingsMovement
             $bindings[] = $divisionId;
         }
 
-        $times = DB::select(
-            'SELECT DISTINCT taken_at FROM standings_snapshots
-             WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL '.$divisionSql.'
-             ORDER BY taken_at DESC
+        // Compare match-to-match: pick the two most recent matches that
+        // produced snapshots in this scope, not the two most recent raw
+        // timestamps. Prevents intra-day import noise (CSV → correction
+        // → Impact live tick) from showing up as fake rank movement.
+        $matches = DB::select(
+            'SELECT triggered_by_match_id, MAX(taken_at) AS last_taken_at
+             FROM standings_snapshots
+             WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL AND triggered_by_match_id IS NOT NULL '.$divisionSql.'
+             GROUP BY triggered_by_match_id
+             ORDER BY last_taken_at DESC
              LIMIT 2',
             $bindings,
         );
 
         $blank = array_fill_keys($userIds, null);
-        if (count($times) < 2) {
+        if (count($matches) < 2) {
             return $blank;
         }
 
-        $currentAt = Carbon::parse($times[0]->taken_at)->format('Y-m-d H:i:s');
-        $previousAt = Carbon::parse($times[1]->taken_at)->format('Y-m-d H:i:s');
+        $currentMatchId = (int) $matches[0]->triggered_by_match_id;
+        $previousMatchId = (int) $matches[1]->triggered_by_match_id;
+        $currentAt = Carbon::parse($matches[0]->last_taken_at)->format('Y-m-d H:i:s');
+        $previousAt = Carbon::parse($matches[1]->last_taken_at)->format('Y-m-d H:i:s');
 
+        // Pull every snapshot for those two matches at their representative
+        // (latest) taken_at. Keyed by (match_id, taken_at) so the loop can
+        // bucket them regardless of province ordering.
         $rows = DB::select(
-            'SELECT user_id, points, taken_at FROM standings_snapshots
+            'SELECT user_id, points, triggered_by_match_id, taken_at FROM standings_snapshots
              WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL '.$divisionSql.'
-             AND taken_at IN (?, ?)',
-            array_merge($bindings, [$currentAt, $previousAt]),
+             AND (triggered_by_match_id, taken_at) IN ((?, ?), (?, ?))',
+            array_merge($bindings, [$currentMatchId, $currentAt, $previousMatchId, $previousAt]),
         );
 
         $current = [];
         $previous = [];
         foreach ($rows as $row) {
-            $bucket = Carbon::parse($row->taken_at)->format('Y-m-d H:i:s') === $currentAt ? 'current' : 'previous';
+            $bucket = (int) $row->triggered_by_match_id === $currentMatchId ? 'current' : 'previous';
             if ($bucket === 'current') {
                 $current[(int) $row->user_id] = (float) $row->points;
             } else {

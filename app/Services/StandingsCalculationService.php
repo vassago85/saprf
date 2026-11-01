@@ -63,12 +63,17 @@ class StandingsCalculationService
         }
 
         // Snapshot AFTER the standings are rebuilt so the recorded ranks
-        // are the ones the public page will render next time. Idempotent
-        // on taken_at: a completeScores → recalculateForMatch chain in the
-        // same request will record once, not twice.
-        if ($match->scoresAreFinalized()) {
-            $this->snapshots->recordForMatch($match->fresh());
-        }
+        // are the ones the public page will render next time. Always
+        // snapshot — not just on explicit finalisation — so that every
+        // import path (CSV, Impact live sync, bulk import) produces an
+        // automatic comparison point for the movement arrows. The recorder
+        // is idempotent on taken_at + ranks: redundant calls where nothing
+        // moved are a no-op, so a completeScores → recalculateForMatch
+        // chain in the same request still writes a single row. Multiple
+        // edits across the day collapse to one effective snapshot per
+        // match via the triggered_by_match_id column (StandingsMovement
+        // picks the latest row per match, not per timestamp).
+        $this->snapshots->recordForMatch($match->fresh());
     }
 
     /**

@@ -268,6 +268,13 @@ it('shows place arrows on the all-provinces board', function () {
     $riser = User::factory()->create(['name' => 'Blair Provincial Riser']);
     $faller = User::factory()->create(['name' => 'Alex Provincial Faller']);
 
+    // Phase 7: arrows compare match-to-match, so the two snapshot batches
+    // have to be tagged with distinct triggered_by_match_id values. Build
+    // a yesterday match and a today match to stand in for the real pair
+    // the recorder would produce in production.
+    $match1 = arrowMatch('Yesterday Provincial', '2026-04-30', now()->subDay());
+    $match2 = arrowMatch('Today Provincial', '2026-05-01', now());
+
     Standing::create([
         'user_id' => $riser->id,
         'series' => 'PRS',
@@ -290,11 +297,11 @@ it('shows place arrows on the all-provinces board', function () {
     // Stored rank is each province's own place (both 1st at home). The
     // all-provinces board has to rebuild the combined order from points.
     foreach ([
-        [$riser, $gp, 80.0, now()->subDay()],
-        [$faller, $wc, 100.0, now()->subDay()],
-        [$riser, $gp, 120.0, now()],
-        [$faller, $wc, 100.0, now()],
-    ] as [$shooter, $province, $points, $at]) {
+        [$riser, $gp, 80.0, now()->subDay(), $match1->id],
+        [$faller, $wc, 100.0, now()->subDay(), $match1->id],
+        [$riser, $gp, 120.0, now(), $match2->id],
+        [$faller, $wc, 100.0, now(), $match2->id],
+    ] as [$shooter, $province, $points, $at, $matchId]) {
         StandingsSnapshot::create([
             'season' => '2026',
             'series' => 'PRS',
@@ -305,6 +312,7 @@ it('shows place arrows on the all-provinces board', function () {
             'rank' => 1,
             'points' => $points,
             'taken_at' => $at,
+            'triggered_by_match_id' => $matchId,
         ]);
     }
 
@@ -327,7 +335,159 @@ it('shows place arrows on the all-provinces board', function () {
         ->assertSee('▼1');
 });
 
-it('writes a fresh snapshot when standings change after the match was already finalised', function () {
+it('writes a snapshot even when the match has NOT been finalised', function () {
+    // Phase 7: the "scores_finalized_at" gate was removed from
+    // StandingsCalculationService::recalculateForMatch. Every recalc now
+    // snapshots so an import that never goes through the finalise wizard
+    // still contributes a comparison point for the arrows.
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 4,
+        'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create();
+
+    $match = MatchEvent::create([
+        'name' => 'Unfinalised Match',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'match_date' => '2026-03-01',
+        'status' => 'completed',
+        'published' => true,
+        'created_by' => User::factory()->create()->id,
+        'active_member_fee' => 100,
+        // scores_finalized_at deliberately NULL — never ran the wizard.
+    ]);
+    arrowScore($match, $shooter, $open->id, 50);
+
+    app(StandingsCalculationService::class)->recalculateForMatch($match);
+
+    expect(StandingsSnapshot::query()
+        ->where('user_id', $shooter->id)
+        ->whereNull('division_id')
+        ->count())->toBe(1);
+});
+
+it('falls back to match_date (end of day) for taken_at on an un-finalised match', function () {
+    // Phase 7: the recorder used to fall back to now() when
+    // scores_finalized_at was null. For a backfill walker that iterates
+    // matches in match_date order, that collapsed the whole season to
+    // the same effective moment — useless for arrow comparison. The
+    // fallback is now match_date->endOfDay() so historical ordering is
+    // preserved.
+    $shooter = User::factory()->create();
+
+    $match = MatchEvent::create([
+        'name' => 'Legacy Match',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'match_date' => '2026-06-15',
+        'status' => 'completed',
+        'published' => true,
+        'created_by' => User::factory()->create()->id,
+        'active_member_fee' => 100,
+    ]);
+
+    Standing::create([
+        'user_id' => $shooter->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => null,
+        'division_id' => null,
+        'points' => 42,
+        'rank' => 10,
+    ]);
+
+    app(StandingsSnapshotRecorder::class)->recordForMatch($match);
+
+    $snap = StandingsSnapshot::query()->where('user_id', $shooter->id)->first();
+    expect($snap)->not->toBeNull();
+    expect($snap->taken_at->format('Y-m-d H:i:s'))->toBe('2026-06-15 23:59:59');
+});
+
+it('ignores within-match edit noise when comparing match-to-match', function () {
+    // Phase 7: a CSV import then a shooter rename then a live-sync tick
+    // can produce three snapshots for one match on one day. The arrow
+    // between match N and match N+1 must still read as "change since
+    // match N", not "change since the last keystroke". Verified by
+    // creating three edits for match 1 (ranks jumping around), then one
+    // snapshot for match 2, and checking the delta is match1→match2 only.
+    $open = Division::create(['slug' => 'open', 'name' => 'Open', 'display_order' => 1]);
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'scoring_mode' => 'best_n_plus_champs',
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 4,
+        'min_out_of_province_matches' => 0,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create();
+    $match1 = arrowMatch('Match 1', '2026-03-01', now()->subDays(10));
+    $match2 = arrowMatch('Match 2', '2026-04-01', now()->subDay());
+
+    // Match 1 — three edits, final rank = 5.
+    foreach ([
+        ['rank' => 9, 'taken_at' => now()->subDays(10)->setTime(9, 0)],
+        ['rank' => 7, 'taken_at' => now()->subDays(10)->setTime(10, 0)],
+        ['rank' => 5, 'taken_at' => now()->subDays(10)->setTime(11, 0)],
+    ] as $edit) {
+        StandingsSnapshot::create([
+            'season' => '2026',
+            'series' => 'PRS',
+            'level' => 'national',
+            'province_id' => null,
+            'division_id' => null,
+            'user_id' => $shooter->id,
+            'rank' => $edit['rank'],
+            'points' => 100,
+            'taken_at' => $edit['taken_at'],
+            'triggered_by_match_id' => $match1->id,
+        ]);
+    }
+
+    // Match 2 — single snapshot, rank = 2.
+    StandingsSnapshot::create([
+        'season' => '2026',
+        'series' => 'PRS',
+        'level' => 'national',
+        'province_id' => null,
+        'division_id' => null,
+        'user_id' => $shooter->id,
+        'rank' => 2,
+        'points' => 150,
+        'taken_at' => now()->subDay(),
+        'triggered_by_match_id' => $match2->id,
+    ]);
+
+    $move = app(StandingsMovement::class)->for([$shooter->id], '2026', 'PRS', 'national', null, null);
+
+    // Match 1's representative rank is the LATEST edit (5), not the
+    // earliest (9) — so delta = 5 - 2 = 3 (▲3). If the collapse were
+    // broken and the two most recent raw snapshots were compared, we
+    // would see 7 - 5 = 2 instead.
+    expect($move[$shooter->id])->toBe(3);
+});
+
+it('collapses multiple edits of the same match into one representative snapshot', function () {
+    // Phase 7: every recalc writes a snapshot, so a single match may
+    // accrue several rows during the day (CSV import → shooter rename →
+    // Impact live tick). Movement must compare match-to-match, which
+    // means those within-match edits collapse to a single representative
+    // row (the latest one). With only one match in play, the arrows have
+    // nothing to diff against and the service returns null — exactly
+    // the "·" placeholder state the view renders when there is no prior.
     $shooter = User::factory()->create();
     $match = arrowMatch('Corrected National', '2026-05-01', now()->subHour());
 
@@ -349,7 +509,7 @@ it('writes a fresh snapshot when standings change after the match was already fi
     expect($recorder->recordForMatch($match->fresh()))->toBe(1);
 
     $move = app(StandingsMovement::class)->for([$shooter->id], '2026', 'PRS', 'national', null, null);
-    expect($move[$shooter->id])->toBe(3);
+    expect($move[$shooter->id])->toBeNull();
 });
 
 function arrowMatch(string $name, string $date, Carbon $finalizedAt): MatchEvent
