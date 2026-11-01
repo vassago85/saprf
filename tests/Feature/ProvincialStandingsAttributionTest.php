@@ -2,6 +2,7 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\Membership;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\Standing;
@@ -34,6 +35,21 @@ function provincialMatch(Province $host): MatchEvent
 
 function provincialScore(MatchEvent $match, User $user, float $raw, int $divisionId): Score
 {
+    // The standings builder now gates on membership_type (only full/paid/junior
+    // appear on the leaderboard), so a bare User::factory() shooter needs a
+    // paid membership stamped in before their status='valid' score counts.
+    Membership::firstOrCreate(
+        ['user_id' => $user->id],
+        [
+            'saprf_number' => 'SAPRF-TEST-'.$user->id,
+            'membership_type' => 'paid',
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => $match->match_date->copy()->subMonth(),
+            'expiry_date' => $match->match_date->copy()->addYear(),
+        ]
+    );
+
     return Score::create([
         'match_id' => $match->id,
         'shooter_name' => $user->name,
@@ -188,18 +204,11 @@ it('records per-match provincial contribution in the standings pool_breakdown', 
             'published' => true,
         ]);
         // Sole shooter → normalized = 100. Add a bench shooter so we can
-        // control the shooter's normalized pct.
+        // control the shooter's normalized pct. provincialScore() takes care
+        // of the paid-membership stamping that the standings gate now needs.
         $top = User::factory()->create();
-        Score::create([
-            'match_id' => $match->id, 'user_id' => $top->id, 'shooter_name' => $top->name,
-            'raw_score' => 100, 'division_id' => $this->division->id,
-            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
-        ]);
-        Score::create([
-            'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
-            'raw_score' => $normalized, 'division_id' => $this->division->id,
-            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
-        ]);
+        provincialScore($match, $top, 100, $this->division->id);
+        provincialScore($match, $shooter, $normalized, $this->division->id);
         $matches[$suffix] = $match;
         $this->service->recalculateForMatch($match);
     }
@@ -275,18 +284,11 @@ it('uses the best 3 provincial scores for a weighted-pools PR22 rule (best_of_co
             'published' => true,
         ]);
         // Bench shooter at 100 raw so the tracked shooter's normalized pct
-        // equals $normalized.
+        // equals $normalized. provincialScore() stamps the paid memberships
+        // the standings gate needs.
         $top = User::factory()->create();
-        Score::create([
-            'match_id' => $match->id, 'user_id' => $top->id, 'shooter_name' => $top->name,
-            'raw_score' => 100, 'division_id' => $this->division->id,
-            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
-        ]);
-        Score::create([
-            'match_id' => $match->id, 'user_id' => $shooter->id, 'shooter_name' => $shooter->name,
-            'raw_score' => $normalized, 'division_id' => $this->division->id,
-            'status' => 'valid', 'counts_for_season' => true, 'match_date' => $match->match_date->toDateString(),
-        ]);
+        provincialScore($match, $top, 100, $this->division->id);
+        provincialScore($match, $shooter, $normalized, $this->division->id);
         $matches[$suffix] = $match;
         $this->service->recalculateForMatch($match);
     }

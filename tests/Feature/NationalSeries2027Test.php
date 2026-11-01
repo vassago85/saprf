@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Membership;
 use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
@@ -44,6 +45,20 @@ function ns27Match(string $name, string $level, string $date, ?Province $provinc
 
 function ns27Score(MatchEvent $match, User $user, float $day1, ?float $day2 = null, ?int $divisionId = null, array $extra = []): Score
 {
+    // Standings builder gates on membership_type — stamp a paid membership so
+    // these full-member fixtures count on the leaderboard.
+    Membership::firstOrCreate(
+        ['user_id' => $user->id],
+        [
+            'saprf_number' => 'SAPRF-TEST-'.$user->id,
+            'membership_type' => 'paid',
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => $match->match_date->copy()->subMonth(),
+            'expiry_date' => $match->match_date->copy()->addYear(),
+        ]
+    );
+
     return Score::create(array_merge([
         'match_id' => $match->id,
         'shooter_name' => $user->name,
@@ -429,6 +444,12 @@ it('blocks championship entry until the shooter is a paid-up member', function (
     ns27National('WC1', '2027-03-01', $this->wc, $shooter, 90);
     $provincial = ns27Match('GP Prov', 'provincial', '2027-04-01', $this->gp);
     ns27Score($provincial, $shooter, 70.0);
+
+    // ns27Score() auto-seeds a paid membership so the standings gate counts
+    // its fixtures. This test is specifically about the "shooter has no
+    // paid-up membership" entry refusal — strip the membership back out so
+    // the championship entry gate sees an unpaid shooter.
+    Membership::where('user_id', $shooter->id)->delete();
 
     $status = app(QualificationService::class)->championshipEntryStatus($shooter, $champs);
 

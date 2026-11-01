@@ -326,13 +326,23 @@ class StandingsCalculationService
         // status='valid' is set by ScoreValidationService when the shooter was
         // an active + paid member on the match date. That's a historical fact
         // captured per-score, so we DO NOT re-filter by current membership
-        // state here — otherwise a member whose membership expires later in
+        // window here — otherwise a member whose membership expires later in
         // the season would lose all their earlier valid scores retroactively.
+        //
+        // Membership *type* is a separate gate: only full federation members
+        // (paid / full / junior) appear on the season leaderboard. Associates,
+        // club members and other non-full tiers keep their scores on the match
+        // page but drop out of the standings cohort. This filter lives on the
+        // query, not on the historical status, so the match page remains
+        // unchanged while the leaderboard shows only full members.
         $allScores = Score::query()
             ->with(['match', 'user:id,province_id'])
             ->where('status', 'valid')
             ->where('counts_for_season', true)
             ->whereNotNull('user_id')
+            ->whereHas('user.membership', fn ($q) =>
+                $q->whereIn('membership_type', MembershipValidationService::STANDINGS_ELIGIBLE_TYPES)
+            )
             ->get();
 
         if ($isProvincial) {
@@ -434,11 +444,17 @@ class StandingsCalculationService
      */
     public function recalculateAnnualLogStandings(string $series, string $season, QualificationRule $rule): void
     {
+        // Same full-member-only gate as recalculateSeasonStandings — the
+        // annual-log path (PRS national + 2027 series) must honour the same
+        // "only full federation members rank" rule.
         $scores = Score::query()
             ->with(['match', 'user:id,province_id'])
             ->where('status', 'valid')
             ->where('counts_for_season', true)
             ->whereNotNull('user_id')
+            ->whereHas('user.membership', fn ($q) =>
+                $q->whereIn('membership_type', MembershipValidationService::STANDINGS_ELIGIBLE_TYPES)
+            )
             ->get()
             ->filter(function (Score $score) use ($series, $season, $rule): bool {
                 $match = $score->match;

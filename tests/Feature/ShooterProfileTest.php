@@ -228,6 +228,14 @@ it('shows every division a shooter placed in — not just the first', function (
     // Match 1 — Kevin shoots Open. A rival in Open beats him.
     $m1 = makeMatch('PRS Open Match', 'PRS', 'national', '2026-02-15');
     $openRival = User::factory()->create();
+    // Standings builder now gates on membership_type; the rival needs a paid
+    // membership too, otherwise he's silently filtered out and Kevin ends up
+    // #1 in Open rather than #2.
+    Membership::create([
+        'user_id' => $openRival->id, 'saprf_number' => 'T-301', 'membership_type' => 'paid',
+        'status' => 'active', 'payment_status' => 'paid',
+        'start_date' => '2026-01-01', 'expiry_date' => '2026-12-31',
+    ]);
     Score::create([
         'match_id' => $m1->id, 'user_id' => $openRival->id, 'shooter_name' => 'Open Rival',
         'division_id' => $open->id, 'raw_score' => 100,

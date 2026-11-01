@@ -21,6 +21,23 @@ class MembershipValidationService
      */
     public const LAPSED_CUTOFF_DAYS = 90;
 
+    /**
+     * Only full federation members may appear on the season standings. The
+     * match page keeps showing every valid shot — including associates and
+     * other non-full tiers — but the leaderboard, podium, and movement
+     * arrows are a full-member-only cohort.
+     *
+     * `paid` is the historical label still carried by the vast majority of
+     * imported memberships; `full` matches the admin membership form; and
+     * `junior` is a tier of full membership (juniors ARE full federation
+     * members, just under 21).
+     *
+     * Associates, club members, free registrants, and anything else introduced
+     * later must be added here explicitly before they rank — the default is
+     * "does not rank".
+     */
+    public const STANDINGS_ELIGIBLE_TYPES = ['paid', 'full', 'junior'];
+
     public function isMembershipValidOnDate(?Membership $membership, CarbonInterface $date): bool
     {
         if (! $membership) {
@@ -182,7 +199,7 @@ class MembershipValidationService
             return false;
         }
 
-        return $user->membership->membership_type === 'paid'
+        return in_array($user->membership->membership_type, self::STANDINGS_ELIGIBLE_TYPES, true)
             && $user->membership->status === 'active';
     }
 }

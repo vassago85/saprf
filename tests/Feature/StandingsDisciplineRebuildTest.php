@@ -2,6 +2,7 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\Membership;
 use App\Models\Province;
 use App\Models\QualificationRule;
 use App\Models\Score;
@@ -532,6 +533,20 @@ function arrowMatch(string $name, string $date, Carbon $finalizedAt): MatchEvent
 
 function arrowScore(MatchEvent $match, User $shooter, int $divisionId, float $raw): Score
 {
+    // Standings builder gates on membership_type now — stamp a paid membership
+    // so these ranking-arrow fixtures count as full federation members.
+    Membership::firstOrCreate(
+        ['user_id' => $shooter->id],
+        [
+            'saprf_number' => 'SAPRF-TEST-'.$shooter->id,
+            'membership_type' => 'paid',
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => $match->match_date->copy()->subMonth(),
+            'expiry_date' => $match->match_date->copy()->addYear(),
+        ]
+    );
+
     return Score::create([
         'match_id' => $match->id,
         'user_id' => $shooter->id,

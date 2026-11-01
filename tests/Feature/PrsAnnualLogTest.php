@@ -2,6 +2,7 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\Membership;
 use App\Models\QualificationRule;
 use App\Models\Score;
 use App\Models\User;
@@ -44,6 +45,21 @@ function prsMatch(string $name, string $level, string $date): MatchEvent
 
 function prsScore(MatchEvent $match, User $user, float $raw, int $divisionId): Score
 {
+    // Standings builder gates on membership_type now — stamp a paid membership
+    // so bare User::factory() shooters are recognised as full federation
+    // members and are counted into the leaderboard.
+    Membership::firstOrCreate(
+        ['user_id' => $user->id],
+        [
+            'saprf_number' => 'SAPRF-TEST-'.$user->id,
+            'membership_type' => 'paid',
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => $match->match_date->copy()->subMonth(),
+            'expiry_date' => $match->match_date->copy()->addYear(),
+        ]
+    );
+
     return Score::create([
         'match_id' => $match->id,
         'shooter_name' => $user->name,
