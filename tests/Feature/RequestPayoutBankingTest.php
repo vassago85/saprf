@@ -74,6 +74,31 @@ beforeEach(function () {
         'status' => 'completed',
         'gateway' => 'payfast',
     ]);
+
+    // These tests exercise the banking-form half of the close-out flow;
+    // the wizard gate (import → names → walk-ins → mark complete) is now
+    // covered separately by MatchCloseoutWizardTest. Pre-complete the
+    // earlier steps so the GET and POST payout actions aren't blocked
+    // by the gate on every assertion.
+    $division = \App\Models\Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 1],
+    );
+    \App\Models\Score::create([
+        'match_id' => $this->match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => $shooter->name,
+        'raw_score' => 100,
+        'status' => 'valid',
+        'match_date' => $this->match->match_date,
+        'division_id' => $division->id,
+    ]);
+    $this->match->forceFill([
+        'walkin_fees_acknowledged_at' => now(),
+        'walkin_fees_acknowledged_by' => $this->md->id,
+        'scores_finalized_at' => now(),
+        'scores_finalized_by' => $this->md->id,
+    ])->save();
 });
 
 // ─── GET /matches/{match}/request-payout ──────────────────────────────
@@ -459,11 +484,13 @@ it('shows both settled and projected totals on the request-payout form when a pe
 });
 
 it('lets the match director request a payout once registration is closed', function () {
+    // Finances now funnels the MD through the Scores wizard first; the
+    // button text changed to reflect that walkthrough.
     $this->actingAs($this->md)
         ->get(route('matches.finances', $this->match))
         ->assertOk()
-        ->assertSee('Request payout')
-        ->assertSee(route('matches.request-payout', $this->match));
+        ->assertSee('Close out the match')
+        ->assertSee(route('matches.scores', $this->match));
 
     $this->actingAs($this->md)
         ->get(route('matches.overview', $this->match))
@@ -548,6 +575,10 @@ it('drops the walk-in warning once scores are in and every walk-in has one', fun
         'registration_source' => 'walk_in',
         'registered_at' => now(),
     ]);
+    $division = \App\Models\Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 1],
+    );
     \App\Models\Score::create([
         'match_id' => $this->match->id,
         'user_id' => $shooter->id,
@@ -555,6 +586,7 @@ it('drops the walk-in warning once scores are in and every walk-in has one', fun
         'raw_score' => 100,
         'adjusted_score' => 100,
         'match_date' => $this->match->match_date,
+        'division_id' => $division->id,
     ]);
 
     $this->actingAs($this->md)

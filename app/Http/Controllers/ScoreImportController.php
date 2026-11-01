@@ -142,8 +142,8 @@ class ScoreImportController extends Controller
             }
 
             return redirect()
-                ->route('score-imports.show', $import)
-                ->with('success', 'CSV scores imported. Link anyone still unassigned, and email unpaid shooters from the audit below.');
+                ->route('matches.scores', $targetMatch)
+                ->with('success', 'CSV scores imported. Link anyone still unassigned and acknowledge walk-in fees to continue closing out.');
         }
 
         if ($replaceExisting) {
@@ -182,7 +182,11 @@ class ScoreImportController extends Controller
                 ? 'Existing scores cleared. Import queued for processing.'
                 : 'Score import queued for processing.');
 
-        return redirect()->route('score-imports.show', $import)
+        // Background-queued imports land back on the match's wizard too,
+        // so an MD doesn't bounce between a per-import audit screen and
+        // the match itself. The import log is reachable from the wizard's
+        // Import step card.
+        return redirect()->route('matches.scores', $targetMatch)
             ->with('success', $success);
     }
 
@@ -315,9 +319,13 @@ class ScoreImportController extends Controller
                 ->with('error', $e->getMessage());
         }
 
+        // Land the MD back on the match's close-out wizard so the review
+        // (link names, pick divisions, confirm zeros) is the obvious
+        // next step. The full import audit is still available from the
+        // Imports table on the wizard's "Import" step card.
         return redirect()
-            ->route('score-imports.show', $import)
-            ->with('success', 'Impact scores imported — review the audit report below.');
+            ->route('matches.scores', $match)
+            ->with('success', 'Impact scores imported — review names, allocations and walk-in fees to finish closing out.');
     }
 
     /**

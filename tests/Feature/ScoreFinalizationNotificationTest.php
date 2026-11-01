@@ -70,7 +70,20 @@ it('lets the owning MD mark their match scores complete and dispatches the notif
     $md->assignRole('match_director');
     $match = makeMatchFor($md, $this->province);
     $shooter = User::factory()->create();
-    recordScore($match, $shooter);
+    $division = \App\Models\Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 1],
+    );
+    recordScore($match, $shooter)->update(['division_id' => $division->id]);
+
+    // The wizard gate wants walk-in fees acknowledged before complete-scores
+    // will fire. This match has no walk-ins so the only thing missing is
+    // the explicit "none to agree to" tick — stamp it directly so the
+    // long-standing complete-scores assertion keeps working.
+    $match->forceFill([
+        'walkin_fees_acknowledged_at' => now(),
+        'walkin_fees_acknowledged_by' => $md->id,
+    ])->save();
 
     $this->actingAs($md)
         ->post(route('matches.scores.complete', $match))

@@ -230,7 +230,11 @@
     @endif
 
     @if ($canRequestMdPayout)
-        @php $alreadyCompleted = $scoreImport->match->status === 'completed'; @endphp
+        {{-- Payout request now lives on the match close-out wizard (Scores tab).
+             We nudge the MD back there instead of offering the banking form
+             straight from the import page — the wizard enforces that names,
+             allocations, walk-in fee agreement and the "mark complete" step
+             are all done before the banking form opens. --}}
         <div
             x-data="{ dismissed: false }"
             x-show="!dismissed"
@@ -244,30 +248,17 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="text-base font-semibold text-emerald-900">
-                        @if ($alreadyCompleted)
-                            Match closed — request your payout?
-                        @else
-                            Scores are in — close out this match?
-                        @endif
+                        Scores are in — close out this match
                     </h3>
                     <p class="mt-1 text-sm text-emerald-800">
-                        @if ($alreadyCompleted)
-                            <span class="font-medium">{{ $scoreImport->match->name }}</span> was
-                            auto-completed when the scores landed. File your match-director payout
-                            request now — an admin will review it and settle payment.
-                        @else
-                            Mark <span class="font-medium">{{ $scoreImport->match->name }}</span> as
-                            <span class="font-medium">completed</span> and file your match-director payout request in one step.
-                            An admin will review it and settle payment.
-                        @endif
+                        Finish the review on <span class="font-medium">{{ $scoreImport->match->name }}</span>:
+                        confirm names and allocations, agree the walk-in fees, mark scores complete, then
+                        enter your banking details.
                     </p>
                     <div class="mt-4 flex flex-wrap items-center gap-3">
-                        {{-- Payout flow is a two-step: this link opens the form
-                             where the MD enters their banking details, and the
-                             form POSTs to matches.complete-and-request-payout. --}}
-                        <a href="{{ route('matches.request-payout', $scoreImport->match) }}"
+                        <a href="{{ route('matches.scores', $scoreImport->match) }}"
                            class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition">
-                            {{ $alreadyCompleted ? 'Request match director payout' : 'Complete match & request payout' }}
+                            Continue match close-out
                         </a>
                         <button type="button" @click="dismissed = true"
                             class="text-sm font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2">

@@ -138,7 +138,7 @@ it('scheduled job completes any match whose last day has passed', function () {
         ->and($cancelled->fresh()->status)->toBe('cancelled');
 });
 
-it('shows a request-payout prompt on the import page after auto-completion', function () {
+it('shows a close-out prompt on the import page after auto-completion', function () {
     $match = makeAutoCompletionMatch(['status' => 'open']);
 
     $this->actingAs($this->admin)->post(route('score-imports.store'), [
@@ -149,9 +149,13 @@ it('shows a request-payout prompt on the import page after auto-completion', fun
 
     $import = \App\Models\ScoreImport::latest('id')->first();
 
+    // The payout CTA on the import page now funnels the MD through the
+    // match's close-out wizard instead of jumping straight to the banking
+    // form. The wizard enforces the names → walk-ins → mark complete
+    // sequence before the banking form opens.
     $this->actingAs($this->admin)
         ->get(route('score-imports.show', $import))
         ->assertOk()
-        ->assertSee('Match closed — request your payout?')
-        ->assertSee('Request match director payout');
+        ->assertSee('Scores are in — close out this match')
+        ->assertSee('Continue match close-out');
 });

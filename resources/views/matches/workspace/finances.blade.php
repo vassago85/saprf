@@ -126,13 +126,19 @@
 
                 @if(! $payout && $match->registrationsAreClosed() && auth()->user()?->can('update', $match))
                     <div class="mt-4">
-                        <a href="{{ route('matches.request-payout', $match) }}" wire:navigate
+                        {{-- Route through the Scores wizard: it computes the first unfinished
+                             step (import → names → walk-ins → complete → request payout) and
+                             enforces the same gate on the server side. If everything is
+                             already clear, the MD lands on the "enter banking details" screen
+                             in one more click. --}}
+                        <a href="{{ route('matches.scores', $match) }}" wire:navigate
                            class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
                             <flux:icon.banknotes class="size-4" />
-                            Request payout
+                            Close out the match &amp; request payout
                         </a>
                         <p class="mt-2 text-xs text-stone-500">
-                            Registration is closed, so you can request this now. If walk-ins still need their scores tracked, they start off negative on the next payout.
+                            Walks you through import, name corrections, walk-in fee agreement,
+                            marking scores complete, then the banking form.
                         </p>
                     </div>
                 @endif

@@ -87,6 +87,17 @@ class WalkInRegistrationService
         return DB::transaction(function () use ($match, $name, $email, $division, $forcedCategory, $note, $confirmedBy) {
             $user = $this->resolveUser($name, $email);
 
+            // A fresh walk-in changes the amount the MD agreed would be
+            // deducted from their payout — reset the acknowledgement so
+            // the wizard's "agree walk-ins" step shows the new row and
+            // forces a re-tick before the payout gate reopens.
+            if ($match->walkin_fees_acknowledged_at !== null) {
+                $match->forceFill([
+                    'walkin_fees_acknowledged_at' => null,
+                    'walkin_fees_acknowledged_by' => null,
+                ])->save();
+            }
+
             // Break the fee breakdown out of the pricing service so we
             // reuse SAPRF-fee + platform-fee logic that respects per-match
             // overrides. We deliberately IGNORE the total_fee / md_net

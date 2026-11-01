@@ -226,6 +226,15 @@ it('keeps live scores unverified until the match director marks them complete', 
         ->assertOk()
         ->assertSee('Incomplete — unverified');
 
+    // Complete-scores is gated behind the walk-in acknowledgement in the
+    // close-out wizard. There are no walk-ins on this match, so stamp the
+    // "nothing to agree to" acknowledgement directly before the MD hits
+    // the complete button.
+    $this->match->forceFill([
+        'walkin_fees_acknowledged_at' => now(),
+        'walkin_fees_acknowledged_by' => $this->admin->id,
+    ])->save();
+
     $this->actingAs($this->admin)
         ->post(route('matches.scores.complete', $this->match))
         ->assertRedirect(route('matches.scores', $this->match));
@@ -664,10 +673,20 @@ it('keeps an unconfirmed live score off the season and the official log until th
         ->assertDontSee('Live Season Shooter')
         ->assertSee('Already Counted Shooter');
 
+    // The scores workspace is now the close-out wizard. With names
+    // already clean and no walk-ins, the next unfinished step is the
+    // walk-in agreement — tick it, then assert the complete-scores
+    // affordance that still gates whether the live score counts for
+    // the season.
+    $this->match->forceFill([
+        'walkin_fees_acknowledged_at' => now(),
+        'walkin_fees_acknowledged_by' => $this->admin->id,
+    ])->save();
+
     $this->actingAs($this->admin)
         ->get(route('matches.scores', $this->match))
         ->assertOk()
-        ->assertSee('incomplete — unverified', false);
+        ->assertSee('Mark scores complete');
 
     $this->actingAs($this->admin)
         ->post(route('matches.scores.complete', $this->match))

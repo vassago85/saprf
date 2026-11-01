@@ -22,6 +22,7 @@ use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
 use App\Services\ImpactScoring\ImpactScoringClient;
+use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
@@ -30,6 +31,8 @@ use App\Services\RegistrationPricingService;
 use App\Services\ScoreValidationService;
 use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
+use App\Support\ScoreFormat;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -400,6 +403,7 @@ class MatchController extends Controller
         MatchEvent $match,
         FinancialService $financials,
         MatchFinanceService $workspaceMoney,
+        MatchCloseoutWizard $wizard,
     ): View|RedirectResponse {
         $this->authorize('update', $match);
 
@@ -418,6 +422,15 @@ class MatchController extends Controller
             return redirect()
                 ->route('my-payouts.show', $existingPayout)
                 ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
+        }
+
+        // Wizard gate: scores must be marked complete and (if there are
+        // walk-ins) the MD must have ticked the fee acknowledgement. We
+        // bounce back to the Scores tab, which renders the first unfinished
+        // step automatically.
+        $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
+        if ($redirect !== null) {
+            return $redirect;
         }
 
         // `matchFinancials` gives us the settled numbers; `matchMoney` adds
@@ -458,6 +471,7 @@ class MatchController extends Controller
         Request $request,
         MatchEvent $match,
         FinancialService $financials,
+        MatchCloseoutWizard $wizard,
     ): RedirectResponse {
         $this->authorize('update', $match);
 
@@ -475,6 +489,14 @@ class MatchController extends Controller
 
         if ($alreadyHasPayout) {
             return redirect($back)->with('success', 'A match director payout has already been requested for this match.');
+        }
+
+        // Server-side mirror of the wizard gate — a crafted POST shouldn't
+        // sneak past the UI and raise a payout before names, walk-ins
+        // and the complete-scores step have all passed.
+        $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
+        if ($redirect !== null) {
+            return $redirect;
         }
 
         $banking = $request->validate([
@@ -524,6 +546,50 @@ class MatchController extends Controller
             'success',
             "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.',
         );
+    }
+
+    /**
+     * Shared wizard gate for both halves of the payout flow.
+     *
+     * Returns a redirect back to the Scores tab (which will render the
+     * first unfinished step) when either names/allocations are still
+     * open, walk-in fees haven't been acknowledged, or scores aren't
+     * marked complete. Returns null when the match is clear to raise.
+     *
+     * Admins and owners don't bypass — a payout raised before scores
+     * are complete still breaks downstream (notifications never fire,
+     * standings aren't snapshotted), so the gate is the same for every
+     * role that can call these actions.
+     */
+    private function ensureWizardReadyForPayout(MatchEvent $match, MatchCloseoutWizard $wizard): ?RedirectResponse
+    {
+        $state = $wizard->state($match);
+
+        if ($state['current'] === MatchCloseoutWizard::STEP_IMPORT) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Import scores before requesting a payout.');
+        }
+
+        if ($state['current'] === MatchCloseoutWizard::STEP_NAMES) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Finish the names and allocations check before requesting a payout.');
+        }
+
+        if ($state['current'] === MatchCloseoutWizard::STEP_WALKINS) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Acknowledge the walk-in fees before requesting a payout.');
+        }
+
+        if ($state['current'] === MatchCloseoutWizard::STEP_COMPLETE) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Mark scores complete before requesting a payout.');
+        }
+
+        return null;
     }
 
     /**
@@ -738,9 +804,17 @@ class MatchController extends Controller
         $view = $request->input('view', 'list');
         $season = $request->input('season', (string) now()->year);
 
+        // Phase 2.5: nest Day-1 provincial siblings under their parent
+        // 2-day national. Children (rows with a source_national_match_id)
+        // are hidden from the main grid; the card component shows them
+        // nested under the parent instead. `?include_children=1` is an
+        // audit escape hatch so the full flat list is still reachable.
+        $includeChildren = $request->boolean('include_children');
+
         $baseQuery = MatchEvent::query()
             ->published()
             ->with(['province', 'creator:id,name'])
+            ->when(! $includeChildren, fn ($q) => $q->whereNull('source_national_match_id'))
             ->withCount('registrations')
             ->forDiscipline($discipline)
             ->forLevel($type)
@@ -760,9 +834,19 @@ class MatchController extends Controller
                 $query->forStatus($status);
             }
         } else {
+            // Results tab: load every visible score with its division so the
+            // card can render overall top-3 AND one line per division winner.
+            // Also eager-load the day-1 provincial sibling for 2-day nationals
+            // so parent cards can advertise the paired provincial event.
             $query = (clone $baseQuery)
                 ->past()
-                ->with(['scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->orderBy('overall_rank')->limit(3)])
+                ->with([
+                    'scores' => fn ($q) => $q
+                        ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+                        ->with('division:id,name,display_order')
+                        ->orderBy('overall_rank'),
+                    'provincialDay1Match:id,name,source_national_match_id,match_date',
+                ])
                 ->when($season, fn ($q) => $q->where('season', $season));
         }
 
@@ -812,7 +896,10 @@ class MatchController extends Controller
             abort(404);
         }
 
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->with(['division'])->orderBy('overall_rank')]);
+        // Phase 4.8: eager-load each score's user + membership so the view can
+        // link shooter names to their canonical profile (SAPRF number when
+        // available, legacy user-id fallback otherwise).
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->with(['division', 'user:id,name', 'user.membership:id,user_id,saprf_number'])->orderBy('overall_rank')]);
         // "Registered" must exclude withdrawn/cancelled entries so the stat matches
         // the public entrant list (which already hides cancelled registrations).
         $match->loadCount([
@@ -876,10 +963,134 @@ class MatchController extends Controller
             ->all();
         $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers($saBadgeUserIds);
 
+        // Phase 4.2: admin-only import attribution. Only load the trail when
+        // the viewer is actually an admin (saves N+1 for every anon visitor),
+        // and the view guards the whole block with the same role check.
+        $scoreImports = $viewer !== null && $viewer->hasRole(['owner', 'admin', 'exco', 'developer'])
+            ? $match->scoreImports()->with('uploader:id,name')->orderByDesc('created_at')->get()
+            : collect();
+
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
-            'viewerCanRemoveZeroScores', 'saBadgesByUser',
+            'viewerCanRemoveZeroScores', 'saBadgesByUser', 'scoreImports',
         ));
+    }
+
+    /**
+     * Phase 4.9: public CSV export of a match's visible scores. Honours
+     * `?division=` so a shooter can share a specific division's board as a
+     * direct download URL. The CSV includes the same columns the on-page
+     * table shows (plus the raw score for anyone pivoting in Excel).
+     */
+    public function publicExportCsv(Request $request, MatchEvent $match): StreamedResponse
+    {
+        if ($match->status === 'draft' || ! $match->published) {
+            abort(404);
+        }
+
+        $divisionFilter = $request->filled('division') ? (int) $request->input('division') : null;
+
+        $scores = $match->scores()
+            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+            ->when($divisionFilter, fn ($q) => $q->where('division_id', $divisionFilter))
+            ->with(['division:id,name,display_order', 'user:id,name'])
+            ->orderByRaw('overall_rank IS NULL, overall_rank ASC')
+            ->orderByDesc('raw_score')
+            ->get();
+
+        $divisionLeaderRaw = $match->scores
+            ->filter(fn ($s) => $s->division_id !== null && $s->raw_score !== null)
+            ->groupBy('division_id')
+            ->map(fn ($rows) => (float) $rows->max('raw_score'));
+        $overallLeaderRaw = (float) ($match->scores->max('raw_score') ?: 0.0);
+
+        $filename = str($match->name)->slug().'-results'
+            .($divisionFilter ? '-'.str($scores->first()?->division?->name ?? 'division')->slug() : '')
+            .'.csv';
+
+        return response()->streamDownload(function () use ($scores, $divisionLeaderRaw, $overallLeaderRaw, $match) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, [
+                'Overall rank',
+                'Division rank',
+                'Shooter',
+                'Division',
+                'Score',
+                'Match %',
+                'Division %',
+                'Status',
+            ]);
+
+            foreach ($scores as $score) {
+                $divLeader = $score->division_id ? ($divisionLeaderRaw[$score->division_id] ?? 0.0) : 0.0;
+                $matchPct = $overallLeaderRaw > 0 && $score->raw_score !== null
+                    ? round(((float) $score->raw_score) / $overallLeaderRaw * 100, 2)
+                    : null;
+                $divPct = $divLeader > 0 && $score->raw_score !== null
+                    ? round(((float) $score->raw_score) / $divLeader * 100, 2)
+                    : null;
+
+                fputcsv($out, [
+                    $score->overall_rank_label ?? '—',
+                    $score->division_rank_label ?? '—',
+                    $score->shooter_name,
+                    $score->division?->name ?? '',
+                    ScoreFormat::format($score->raw_score, $match->match_type, $match->series),
+                    $matchPct !== null ? number_format($matchPct, 2) : '',
+                    $divPct !== null ? number_format($divPct, 2) : '',
+                    $score->status,
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    /**
+     * Phase 4.9: public PDF export mirroring the CSV layout. DomPDF is already
+     * a project dep so we reuse it rather than inventing a new one; `?division=`
+     * works the same way so an MD can share a one-click division printout.
+     */
+    public function publicExportPdf(Request $request, MatchEvent $match)
+    {
+        if ($match->status === 'draft' || ! $match->published) {
+            abort(404);
+        }
+
+        $divisionFilter = $request->filled('division') ? (int) $request->input('division') : null;
+
+        $scores = $match->scores()
+            ->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+            ->when($divisionFilter, fn ($q) => $q->where('division_id', $divisionFilter))
+            ->with(['division:id,name,display_order', 'user:id,name'])
+            ->orderByRaw('overall_rank IS NULL, overall_rank ASC')
+            ->orderByDesc('raw_score')
+            ->get();
+
+        $divisionName = $divisionFilter ? ($scores->first()?->division?->name ?? 'Division') : null;
+
+        $overallLeaderRaw = (float) ($match->scores->max('raw_score') ?: 0.0);
+        $divisionLeaderRaw = $match->scores
+            ->filter(fn ($s) => $s->division_id !== null && $s->raw_score !== null)
+            ->groupBy('division_id')
+            ->map(fn ($rows) => (float) $rows->max('raw_score'));
+
+        $pdf = Pdf::loadView('events.results-pdf', [
+            'match' => $match,
+            'scores' => $scores,
+            'divisionName' => $divisionName,
+            'overallLeaderRaw' => $overallLeaderRaw,
+            'divisionLeaderRaw' => $divisionLeaderRaw,
+        ])->setPaper('A4', 'portrait');
+
+        $filename = str($match->name)->slug().'-results'
+            .($divisionFilter ? '-'.str($divisionName ?? 'division')->slug() : '')
+            .'.pdf';
+
+        return $pdf->download($filename);
     }
 
     public function publicCalendarData(Request $request): JsonResponse

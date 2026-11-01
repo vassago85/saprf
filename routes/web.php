@@ -142,6 +142,9 @@ Route::post('/contact', [ContactController::class, 'store'])->name('contact.stor
 Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('contact.thanks');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
+// Phase 4.9: public results exports — anyone with the URL can download.
+Route::get('/events/{match}/results.csv', [MatchController::class, 'publicExportCsv'])->name('events.results.csv');
+Route::get('/events/{match}/results.pdf', [MatchController::class, 'publicExportPdf'])->name('events.results.pdf');
 // Public standings — split by discipline so each one has its own URL,
 // title, canonical, counting-rule line and live/next-match strip. The
 // bare /standings URL stays live and 301s to /standings/prs (or

@@ -2,17 +2,20 @@
     @include('matches.workspace._chrome')
 
     @php
-        $scoresFinalized = $match->scoresAreFinalized();
-        $notifiedAt = $match->scores_finalized_notified_at;
+        $current = $wizard['current'];
+        $isDone = $current === \App\Services\MatchCloseoutWizard::STEP_DONE;
     @endphp
 
+    {{-- Unpaid-shooter banner stays on every step of the wizard: the MD may want
+         to chase payments at any point, independent of the close-out flow. --}}
     @can('update', $match)
         @if(($counts['pending_payment'] ?? 0) > 0)
             <div class="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p class="text-sm font-semibold text-amber-950">
-                            {{ $counts['pending_payment'] }} {{ \Illuminate\Support\Str::plural('shooter', $counts['pending_payment']) }} still {{ $counts['pending_payment'] === 1 ? 'owes' : 'owe' }} an entry fee
+                            {{ $counts['pending_payment'] }} {{ \Illuminate\Support\Str::plural('shooter', $counts['pending_payment']) }}
+                            still {{ $counts['pending_payment'] === 1 ? 'owes' : 'owe' }} an entry fee
                         </p>
                         <p class="mt-0.5 text-xs text-amber-800">Send the payment email from here. Each shooter can pay now or reply with proof of payment.</p>
                     </div>
@@ -29,6 +32,7 @@
         @endif
     @endcan
 
+    {{-- Live-sync hint (unchanged from the pre-wizard view). --}}
     @if($match->impact_live_sync && $match->impact_match_id)
         <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
             <p class="font-semibold">Live scores are on</p>
@@ -48,112 +52,87 @@
         </div>
     @endif
 
-    @if($hasAnyScores)
-        <div class="mt-6 rounded-xl border p-4 {{ $scoresFinalized ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50' }}">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="min-w-0 flex-1">
-                    @if($scoresFinalized)
-                        <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900">
-                            <flux:icon.check-badge class="size-5 text-emerald-700" />
-                            Scores marked complete
-                            @if($notifiedAt)
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                                    Shooters notified
-                                </span>
+    {{-- Wizard stepper + the current step's panel. --}}
+    @include('matches.workspace._wizard-stepper', ['wizard' => $wizard])
+
+    <div class="mt-6">
+        @switch($current)
+            @case(\App\Services\MatchCloseoutWizard::STEP_IMPORT)
+                @include('matches.workspace._wizard-step-import')
+                @break
+
+            @case(\App\Services\MatchCloseoutWizard::STEP_NAMES)
+                @include('matches.workspace._wizard-step-names')
+                @break
+
+            @case(\App\Services\MatchCloseoutWizard::STEP_WALKINS)
+                @include('matches.workspace._wizard-step-walkins')
+                @break
+
+            @case(\App\Services\MatchCloseoutWizard::STEP_COMPLETE)
+                @include('matches.workspace._wizard-step-complete')
+                @break
+
+            @case(\App\Services\MatchCloseoutWizard::STEP_PAYOUT)
+                @include('matches.workspace._wizard-step-payout')
+                @break
+
+            @default
+                {{-- All five steps are done: the match is fully closed out. --}}
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+                    <div class="flex items-start gap-3">
+                        <flux:icon.check-badge class="mt-0.5 size-6 text-emerald-700" />
+                        <div class="flex-1">
+                            <h2 class="font-heading text-lg font-semibold text-emerald-950">Match closed out</h2>
+                            <p class="mt-1 text-sm text-emerald-800">
+                                Scores are final, walk-in fees are acknowledged, and your payout
+                                has been requested. There is nothing left to do on this match.
+                            </p>
+                            @if($wizard['payout'])
+                                <div class="mt-3">
+                                    <a href="{{ route('my-payouts.show', $wizard['payout']) }}"
+                                       class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                                        <flux:icon.banknotes class="size-4" />
+                                        View payout {{ $wizard['payout']->reference }}
+                                    </a>
+                                </div>
                             @endif
                         </div>
-                        <p class="mt-1 text-xs text-emerald-800">
-                            Finalised {{ $match->scores_finalized_at?->diffForHumans() }}
-                            @if($match->scoresFinalizer)
-                                by {{ $match->scoresFinalizer->name }}
-                            @endif.
-                            Shooters who opted in have been (or will shortly be) emailed and pushed.
-                        </p>
-                    @else
-                        <div class="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                            <flux:icon.bell-alert class="size-5 text-amber-700" />
-                            Scores imported — not yet marked complete
-                        </div>
-                        <p class="mt-1 text-xs text-amber-800">
-                            @if($match->impact_live_sync || $match->impact_live_synced_at)
-                                Live scores are on the public page as <strong>incomplete — unverified</strong>.
-                                They do not count for the season until you confirm them.
-                            @else
-                                Results are already visible on the public page as provisional. Shooters
-                                will <strong>only</strong> be notified once you confirm the names and
-                                entries are checked.
-                            @endif
-                        </p>
-                    @endif
+                    </div>
                 </div>
-                <div class="shrink-0">
-                    @if($scoresFinalized)
-                        <form method="POST" action="{{ route('matches.scores.uncomplete', $match) }}">
-                            @csrf
-                            <button type="submit"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
-                                <flux:icon.arrow-uturn-left class="size-4" />
-                                Unmark
-                            </button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('matches.scores.complete', $match) }}"
-                              onsubmit="return confirm('Mark these scores as complete and notify opted-in shooters? This fires emails and push notifications once.');">
-                            @csrf
-                            <button type="submit"
-                                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
-                                <flux:icon.check class="size-4" />
-                                Mark scores complete
-                            </button>
-                        </form>
-                    @endif
+        @endswitch
+    </div>
+
+    {{-- Persistent Imports footer: re-importing (because scores changed, or a
+         CSV correction landed) is valid at any step, so the import links and
+         the history table stay reachable regardless of the current step. --}}
+    @if($current !== \App\Services\MatchCloseoutWizard::STEP_IMPORT)
+        <div class="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <h3 class="text-sm font-semibold text-stone-900">Imports on this match</h3>
+                    <p class="mt-0.5 text-xs text-stone-500">
+                        Re-importing replaces the previous import but the audit record stays.
+                    </p>
                 </div>
-            </div>
-        </div>
-    @endif
-
-    <div class="mt-6 grid gap-4 lg:grid-cols-3">
-        <div class="rounded-xl border border-stone-200 bg-white p-5 lg:col-span-2">
-            <h3 class="text-sm font-semibold text-stone-900">Scores</h3>
-            <p class="mt-1 text-sm text-stone-500">
-                One place to get scores in: import from Impact Scoring or enter manually. Re-importing
-                replaces the previous import and keeps a history.
-            </p>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-                <a href="{{ route('matches.impact-import', $match) }}" wire:navigate
-                   class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
-                    <flux:icon.arrow-up-tray class="size-4" />
-                    Import from Impact
-                </a>
-                <a href="{{ route('score-imports.create', ['match_id' => $match->id, 'mode' => 'csv']) }}" wire:navigate
-                   class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                    <flux:icon.arrow-up-tray class="size-4" />
-                    Upload CSV
-                </a>
-                <a href="{{ route('scores.entry', $match) }}" wire:navigate
-                   class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                    <flux:icon.pencil-square class="size-4" />
-                    Enter manually
-                </a>
-                @if($hasAnyScores)
-                    <a href="{{ route('events.show', $match) }}#results" target="_blank"
-                       class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                        <flux:icon.arrow-top-right-on-square class="size-4" />
-                        View results
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('matches.impact-import', $match) }}" wire:navigate
+                       class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                        <flux:icon.arrow-up-tray class="size-3.5" />
+                        Import from Impact
                     </a>
-                @endif
+                    <a href="{{ route('score-imports.create', ['match_id' => $match->id, 'mode' => 'csv']) }}" wire:navigate
+                       class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                        <flux:icon.arrow-up-tray class="size-3.5" />
+                        Upload CSV
+                    </a>
+                </div>
             </div>
 
-            @if($imports->isEmpty())
-                <div class="mt-6 rounded-lg border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-500">
-                    No imports yet. Export the entry list, score the match in Impact,
-                    then upload the CSV here.
-                </div>
-            @else
-                <div class="mt-6 overflow-x-auto">
+            @if($imports->isNotEmpty())
+                <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-stone-200 text-sm">
-                        <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
+                        <thead class="text-xs uppercase tracking-wide text-stone-500">
                             <tr>
                                 <th class="px-3 py-2 text-left font-semibold">Import</th>
                                 <th class="px-3 py-2 text-left font-semibold">Uploader</th>
@@ -164,7 +143,7 @@
                         </thead>
                         <tbody class="divide-y divide-stone-100">
                             @foreach($imports as $import)
-                                <tr class="hover:bg-stone-50/60">
+                                <tr>
                                     <td class="px-3 py-2">
                                         <div class="font-medium text-stone-900">{{ $import->created_at?->format('j M Y H:i') }}</div>
                                         <div class="text-xs text-stone-500">{{ $import->original_filename ?: 'manual' }}</div>
@@ -195,31 +174,5 @@
                 </div>
             @endif
         </div>
-
-        <div class="rounded-xl border border-stone-200 bg-white p-5">
-            <h3 class="text-sm font-semibold text-stone-900">Checklist</h3>
-            <ul class="mt-3 space-y-2 text-sm">
-                @php
-                    $items = [
-                        'entries_exported' => 'Entry list exported to Impact',
-                        'scores_imported' => 'Scores imported',
-                        'all_shooters_matched' => 'All shooters matched',
-                        'results_published' => 'Results published',
-                        'scores_finalized' => 'Scores marked complete (shooters notified)',
-                    ];
-                @endphp
-                @foreach($items as $key => $label)
-                    @php $done = (bool) ($checklist[$key] ?? false); @endphp
-                    <li class="flex items-center gap-2 {{ $done ? 'text-stone-700' : 'text-stone-500' }}">
-                        @if($done)
-                            <flux:icon.check-circle class="size-5 text-emerald-600" />
-                        @else
-                            <span class="size-5 rounded-full border-2 border-stone-200"></span>
-                        @endif
-                        {{ $label }}
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-    </div>
+    @endif
 </x-layouts.app>

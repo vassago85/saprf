@@ -29,9 +29,14 @@ class MatchEvent extends Model
         'province_id',
         'venue_name',
         'venue_location',
+        'venue_details',
+        'schedule_json',
+        'squadding_json',
+        'attachments_json',
         'city',
         'match_director',
         'match_director_contact',
+        'show_md_contact_publicly',
         'whatsapp_invite_url',
         'description',
         'banner_path',
@@ -45,6 +50,8 @@ class MatchEvent extends Model
         'scores_finalized_at',
         'scores_finalized_by',
         'scores_finalized_notified_at',
+        'walkin_fees_acknowledged_at',
+        'walkin_fees_acknowledged_by',
         'created_by',
         'active_member_fee',
         'non_member_fee',
@@ -80,6 +87,7 @@ class MatchEvent extends Model
             'registration_close_notified_at' => 'datetime',
             'scores_finalized_at' => 'datetime',
             'scores_finalized_notified_at' => 'datetime',
+            'walkin_fees_acknowledged_at' => 'datetime',
             'active_member_fee' => 'decimal:2',
             'non_member_fee' => 'decimal:2',
             'lapsed_member_fee' => 'decimal:2',
@@ -97,6 +105,14 @@ class MatchEvent extends Model
             'impact_live_sync' => 'boolean',
             'impact_live_synced_at' => 'datetime',
             'impact_live_ended_at' => 'datetime',
+            // Phase 3.3: structured match-day details. Each JSON blob is
+            // optional and the UI only renders cards when its payload is
+            // non-empty — see the matching accessors below for shape.
+            'schedule_json' => 'array',
+            'squadding_json' => 'array',
+            'attachments_json' => 'array',
+            // Phase 3.4: default-false privacy guard for the MD phone.
+            'show_md_contact_publicly' => 'boolean',
         ];
     }
 
@@ -255,6 +271,112 @@ class MatchEvent extends Model
     protected function directorName(): Attribute
     {
         return Attribute::get(fn () => $this->match_director ?: $this->creator?->name);
+    }
+
+    /**
+     * Phase 3.4: decide whether the MD phone number is safe to render for
+     * the given viewer. Admins and the owning MD always see it; everyone
+     * else only sees it when the MD has explicitly opted-in with
+     * `show_md_contact_publicly`. A null or anonymous viewer gets the
+     * public-opt-in rule applied with no owner-override.
+     */
+    public function canShowDirectorContactTo(?User $viewer): bool
+    {
+        if (! filled($this->match_director_contact)) {
+            return false;
+        }
+
+        if ($viewer !== null) {
+            if ($viewer->hasRole('admin')) {
+                return true;
+            }
+            if ($this->created_by !== null && (int) $this->created_by === (int) $viewer->id) {
+                return true;
+            }
+        }
+
+        return (bool) $this->show_md_contact_publicly;
+    }
+
+    /**
+     * Phase 3.3: normalise the schedule JSON into an ordered list of
+     * `{time, label}` rows. Empty rows are dropped so the UI card is
+     * only rendered when at least one real line is present.
+     */
+    protected function scheduleItems(): Attribute
+    {
+        return Attribute::get(function (): array {
+            $raw = $this->schedule_json ?? [];
+            if (! is_array($raw)) {
+                return [];
+            }
+
+            return collect($raw)
+                ->map(fn ($row) => is_array($row) ? [
+                    'time' => isset($row['time']) ? trim((string) $row['time']) : '',
+                    'label' => isset($row['label']) ? trim((string) $row['label']) : '',
+                ] : null)
+                ->filter(fn ($row) => $row !== null && ($row['time'] !== '' || $row['label'] !== ''))
+                ->values()
+                ->all();
+        });
+    }
+
+    /**
+     * Phase 3.3: squadding list — each entry is `{squad_name, members[]}`.
+     * Members is a free-form list of strings (names, member numbers, free
+     * text) so match directors aren't forced to pre-match-register everyone.
+     */
+    protected function squaddingItems(): Attribute
+    {
+        return Attribute::get(function (): array {
+            $raw = $this->squadding_json ?? [];
+            if (! is_array($raw)) {
+                return [];
+            }
+
+            return collect($raw)
+                ->map(function ($row) {
+                    if (! is_array($row)) {
+                        return null;
+                    }
+                    $members = isset($row['members']) && is_array($row['members'])
+                        ? collect($row['members'])->map(fn ($m) => trim((string) $m))->filter()->values()->all()
+                        : [];
+
+                    return [
+                        'squad_name' => isset($row['squad_name']) ? trim((string) $row['squad_name']) : '',
+                        'members' => $members,
+                    ];
+                })
+                ->filter(fn ($row) => $row !== null && ($row['squad_name'] !== '' || ! empty($row['members'])))
+                ->values()
+                ->all();
+        });
+    }
+
+    /**
+     * Phase 3.3: attachments list — each `{label, url}` is validated at
+     * form-boundary; here we just drop empties and leave URL rendering
+     * to the view (which already escapes).
+     */
+    protected function attachmentItems(): Attribute
+    {
+        return Attribute::get(function (): array {
+            $raw = $this->attachments_json ?? [];
+            if (! is_array($raw)) {
+                return [];
+            }
+
+            return collect($raw)
+                ->map(fn ($row) => is_array($row) ? [
+                    'label' => isset($row['label']) ? trim((string) $row['label']) : '',
+                    'url' => isset($row['url']) ? trim((string) $row['url']) : '',
+                ] : null)
+                ->filter(fn ($row) => $row !== null && $row['url'] !== '')
+                ->values()
+                ->all();
+        });
     }
 
     protected function registrationStatus(): Attribute
@@ -483,6 +605,42 @@ class MatchEvent extends Model
             ->filter(fn (MatchRegistration $registration) => $registration->user_id === null
                 || ! $scoredUserIds->contains($registration->user_id))
             ->values();
+    }
+
+    /**
+     * Every active walk-in on this match (regardless of whether a score has
+     * landed yet). Used by the wizard's "agree walk-ins" step so the MD
+     * sees exactly which rows are going to be deducted from the payout.
+     *
+     * @return Collection<int, MatchRegistration>
+     */
+    public function walkInRegistrations(): Collection
+    {
+        return $this->registrations()
+            ->where('registration_source', 'walk_in')
+            ->where(function (Builder $query) {
+                $query->whereNull('registration_status')
+                    ->orWhere('registration_status', '!=', 'cancelled');
+            })
+            ->with(['user:id,name', 'division:id,name'])
+            ->orderBy('shooter_name')
+            ->get();
+    }
+
+    public function walkinFeesAcknowledger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'walkin_fees_acknowledged_by');
+    }
+
+    /**
+     * The MD has ticked the "I agree the platform fee and SAPRF levy come
+     * off my payout for these walk-ins" box on the wizard. Adding a new
+     * walk-in after that point clears both columns (see
+     * WalkInRegistrationService) so the MD re-confirms the fresh total.
+     */
+    public function walkInFeesAreAcknowledged(): bool
+    {
+        return $this->walkin_fees_acknowledged_at !== null;
     }
 
     public function isWaitlistOpen(): bool

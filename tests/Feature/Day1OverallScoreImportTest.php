@@ -77,7 +77,10 @@ it('creates a provincial Day 1 sibling and imports totals-only scores onto it', 
         ->and($sibling->match_end_date)->toBeNull();
 
     $import = \App\Models\ScoreImport::latest('id')->first();
-    $response->assertRedirect(route('score-imports.show', $import));
+    // Successful imports now land back on the match's close-out wizard
+    // (Scores tab of the sibling). The per-import audit page is still
+    // reachable from the wizard's "Import" step card.
+    $response->assertRedirect(route('matches.scores', $sibling));
 
     expect($import->import_status)->toBe('completed')
         ->and(Score::where('match_id', $sibling->id)->count())->toBe(1)

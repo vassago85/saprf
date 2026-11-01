@@ -603,7 +603,7 @@ it('imports assign-later as an invalid stub until linked to a real registration'
                 '28' => 'assign_later',
             ],
         ])
-        ->assertRedirect(route('score-imports.show', ScoreImport::latest('id')->first()));
+        ->assertRedirect(route('matches.scores', $this->match));
 
     $score = Score::where('match_id', $this->match->id)->first();
     expect($score)->not->toBeNull()
@@ -833,7 +833,10 @@ it('exposes Impact import on the match page and shows the audit after import', f
         ]);
 
     $import = ScoreImport::where('source_type', 'impact_live')->latest('id')->first();
-    $response->assertRedirect(route('score-imports.show', $import));
+    // The success redirect now points at the match wizard; the import audit
+    // page is still available (and still shows the post-import panel) via
+    // a direct visit from the wizard's Import step.
+    $response->assertRedirect(route('matches.scores', $this->match));
 
     $this->actingAs($this->admin)
         ->get(route('score-imports.show', $import))

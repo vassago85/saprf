@@ -16,10 +16,12 @@ use App\Models\Venue;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
+use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\PaymentInquiryService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
+use App\Services\StandingsCalculationService;
 use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,6 +46,7 @@ class MatchWorkspaceController extends Controller
         private readonly MatchFinanceService $matchFinance,
         private readonly FinancialService $financials,
         private readonly SettingsService $settings,
+        private readonly MatchCloseoutWizard $wizard,
     ) {}
 
     // ── Overview ──
@@ -211,7 +214,7 @@ class MatchWorkspaceController extends Controller
         );
     }
 
-    // ── Scores ──
+    // ── Scores (wizard-driven close-out) ──
 
     public function scores(Request $request, MatchEvent $match): View
     {
@@ -228,25 +231,95 @@ class MatchWorkspaceController extends Controller
         $hasAnyScores = $scoresCount > 0;
 
         $counts = $this->matchFinance->entryCounts($match);
+        $wizard = $this->wizard->state($match);
 
-        $checklist = [
-            'entries_exported' => $counts['counted'] > 0,
-            'scores_imported' => $imports->isNotEmpty(),
-            'all_shooters_matched' => $hasAnyScores && Score::query()
-                ->where('match_id', $match->id)
-                ->whereNull('user_id')
-                ->doesntExist(),
-            'results_published' => $hasAnyScores,
-            'scores_finalized' => $match->scoresAreFinalized(),
-        ];
+        // Candidates for linking an assign-later Impact row to a real
+        // match entry. Mirrors the picker on the import show page: all
+        // live entries on the match (members and non-members) sorted by
+        // display name.
+        $linkRegistrations = MatchRegistration::query()
+            ->with(['user:id,name', 'division:id,name,slug'])
+            ->where('match_id', $match->id)
+            ->where(function ($q) {
+                $q->whereNull('registration_status')
+                    ->orWhereNotIn('registration_status', ['cancelled']);
+            })
+            ->orderByRaw('COALESCE(shooter_name, "")')
+            ->get()
+            ->sortBy(fn (MatchRegistration $r) => \Illuminate\Support\Str::lower($r->user?->name ?: (string) $r->shooter_name))
+            ->values();
+
+        $divisions = $match->availableDivisions();
 
         return view('matches.workspace.scores', $this->workspaceData($match, 'scores', [
             'imports' => $imports,
             'scoresCount' => $scoresCount,
             'hasAnyScores' => $hasAnyScores,
             'counts' => $counts,
-            'checklist' => $checklist,
+            'wizard' => $wizard,
+            'pendingLinkScores' => $this->wizard->pendingLinkScores($match),
+            'missingDivisionScores' => $this->wizard->missingDivisionScores($match),
+            'unconfirmedZeroScores' => $this->wizard->unconfirmedZeroScores($match),
+            'walkInRegistrations' => $match->walkInRegistrations(),
+            'walkinAcknowledger' => $match->walkInFeesAreAcknowledged() ? $match->walkinFeesAcknowledger : null,
+            'linkRegistrations' => $linkRegistrations,
+            'divisions' => $divisions,
         ]));
+    }
+
+    /**
+     * Override the division on an individual score from the names &
+     * allocations step. For a stub / unlinked row this is the only way
+     * to pick a division when the CSV didn't carry one. For a linked
+     * row it also overwrites the entry-derived division — the MD takes
+     * the write explicitly from the wizard, so we trust the choice.
+     */
+    public function updateScoreAllocation(Request $request, MatchEvent $match, Score $score): RedirectResponse
+    {
+        $this->authorize('update', $match);
+        abort_unless((int) $score->match_id === (int) $match->id, 404);
+
+        $data = $request->validate([
+            'division_id' => ['required', 'exists:divisions,id'],
+        ]);
+
+        $divisionId = (int) $data['division_id'];
+        $available = $match->availableDivisions()->pluck('id')->all();
+        if (! in_array($divisionId, $available, true)) {
+            return back()->with('error', 'That division is not on this match.');
+        }
+
+        $score->update(['division_id' => $divisionId]);
+
+        app(StandingsCalculationService::class)->recalculateForMatch($match);
+
+        return redirect()
+            ->route('matches.scores', $match)
+            ->with('success', 'Division updated for '.($score->shooter_name ?: 'score').'.');
+    }
+
+    /**
+     * Step 3 of the wizard. The MD ticks the box that the platform fee and
+     * the SAPRF levy are deducted from their payout for each walk-in on
+     * this match — including the "no walk-ins on this match" explicit
+     * acknowledgement so the gate is unambiguous for every path.
+     */
+    public function acknowledgeWalkinFees(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $request->validate([
+            'agreed' => ['required', 'accepted'],
+        ]);
+
+        $match->forceFill([
+            'walkin_fees_acknowledged_at' => now(),
+            'walkin_fees_acknowledged_by' => $request->user()->id,
+        ])->save();
+
+        return redirect()
+            ->route('matches.scores', $match)
+            ->with('success', 'Walk-in fees acknowledged. You can now mark scores complete.');
     }
 
     /**
@@ -256,6 +329,10 @@ class MatchWorkspaceController extends Controller
      * from `matches.status = completed` (which can flip automatically on
      * import / payout) and from "results published" (which happens the
      * moment any score row exists).
+     *
+     * The wizard puts this behind the names/allocations and walk-in
+     * acknowledgement steps so a half-reviewed match can't accidentally
+     * fire shooter notifications. Server-side guard mirrors the UI gate.
      *
      * We guard behind `update` (owning MD / staff). The notify job is only
      * dispatched if we haven't already fanned out for this match — if the
@@ -270,6 +347,13 @@ class MatchWorkspaceController extends Controller
             return redirect()
                 ->route('matches.scores', $match)
                 ->with('error', 'Import or enter scores before marking the match complete.');
+        }
+
+        $wizard = $this->wizard->state($match);
+        if (in_array($wizard['current'], [MatchCloseoutWizard::STEP_NAMES, MatchCloseoutWizard::STEP_WALKINS], true)) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', 'Finish the names and walk-in steps before marking scores complete.');
         }
 
         $wasFinalized = $match->scoresAreFinalized();
