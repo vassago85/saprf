@@ -11,6 +11,7 @@ use App\Models\ScoreImport;
 use App\Models\ShooterLog;
 use App\Models\User;
 use App\Services\ImpactScoring\ImpactNameMatcher;
+use App\Support\NameNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -437,7 +438,7 @@ class CsvScoreAssignmentService
             return null;
         }
 
-        return User::query()->whereRaw('LOWER(name) = ?', [Str::lower($name)])->first();
+        return User::query()->whereRaw('LOWER(name) = ?', [NameNormalizer::canonical($name)])->first();
     }
 
     private function membershipKind(?User $user, MatchEvent $match): string

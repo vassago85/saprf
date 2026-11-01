@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\User;
+use App\Support\NameNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -52,8 +53,15 @@ class ScoreImportService
 
                     // Day-tagged imports upsert onto the same score row for this shooter
                     // in this match, so day-1 and day-2 CSVs merge cleanly.
-                    // Untagged (null day) imports create a fresh row (legacy behaviour).
-                    if ($day !== null && $userId !== null) {
+                    // Untagged (whole-match) imports used to create a fresh row every
+                    // time — if the same CSV got uploaded twice, or an MD re-imported
+                    // after fixing a column, the shooter picked up a ghost second score.
+                    // Phase 1.1 now routes those uploads through the same firstOrNew
+                    // upsert as the day-tagged branch so (match_id, user_id) is
+                    // deterministically unique. Rows with no resolved user_id still
+                    // produce a fresh Score (one orphan per CSV row is correct — a
+                    // scoreboard entry we can't link yet).
+                    if ($userId !== null) {
                         $score = Score::firstOrNew([
                             'match_id' => $match->id,
                             'user_id' => $userId,
@@ -381,7 +389,7 @@ class ScoreImportService
 
         // Priority 3: name match (case-insensitive, whitespace-normalized)
         if (! empty($row['shooter_name'])) {
-            $name = Str::lower(preg_replace('/\s+/', ' ', trim((string) $row['shooter_name'])));
+            $name = NameNormalizer::canonical((string) $row['shooter_name']);
             if ($name !== '') {
                 $exact = $this->exactNameLookup($name);
                 if ($exact) {
@@ -456,7 +464,7 @@ class ScoreImportService
         }
 
         $users = User::query()->get(['id', 'name'])->map(function (User $u): array {
-            $normalized = Str::lower(preg_replace('/\s+/', ' ', trim((string) $u->name)));
+            $normalized = NameNormalizer::canonical((string) $u->name);
             $stripped = $this->stripHonorificSuffixes($normalized);
 
             return [
@@ -540,7 +548,7 @@ class ScoreImportService
         $candidates = User::query()
             ->get(['id', 'name'])
             ->filter(function (User $user) use ($key): bool {
-                $normalized = Str::lower(preg_replace('/\s+/', ' ', trim((string) $user->name)));
+                $normalized = NameNormalizer::canonical((string) $user->name);
                 $userKey = collect(explode(' ', $this->stripHonorificSuffixes($normalized)))
                     ->filter()->sort()->values()->implode(' ');
 

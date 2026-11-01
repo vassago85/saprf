@@ -170,10 +170,18 @@ class NationalSeries2027Command extends Command
 
         $chair = User::role('chair')->orderBy('id')->first();
         if (! $chair) {
-            $this->error('No Chair account found. A policy notice has to be sent by the Chair.');
+            // Announcement approval checks the Chair role, not the ExCo
+            // position text, so a Chair by position alone cannot send.
+            $byPosition = User::query()->whereRaw('LOWER(TRIM(exco_position)) IN (?, ?, ?)', ['chair', 'chairman', 'chairperson'])->first();
+
+            $this->error($byPosition
+                ? "{$byPosition->name} ({$byPosition->email}) is ExCo Chair by position but does not have the Chair role. Give them the Chair role under Users, then run this again."
+                : 'No Chair account found. A policy notice has to be sent by the Chair.');
 
             return self::FAILURE;
         }
+
+        $this->line("Sending as {$chair->name} (Chair).");
 
         if (! $this->option('force') && ! $this->confirm('Publish the 2027 rules and email them to active members?')) {
             $this->warn('Nothing sent.');

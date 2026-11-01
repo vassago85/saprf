@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Membership;
 use App\Models\User;
+use App\Support\NameNormalizer;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -97,7 +98,11 @@ class GuestShooterService
             }
         }
 
-        $viaName = User::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        // Phase 1.3: compare via NameNormalizer so "Terblanche De Jager"
+        // reunites with "Terblanche de Jager" even when the CSV cell carries
+        // a punctuation or combining-accent quirk. LOWER(name) alone used to
+        // let those drift apart and spawn a second stub.
+        $viaName = User::whereRaw('LOWER(name) = ?', [NameNormalizer::canonical($name)])->first();
         if ($viaName && $this->isStub($viaName)) {
             return $viaName;
         }

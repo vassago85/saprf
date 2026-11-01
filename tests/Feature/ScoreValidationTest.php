@@ -64,10 +64,16 @@ test('active + paid member on match date → status=valid', function () {
 });
 
 test('shooter with NO membership record → status=non_member (no grace)', function () {
-    $user = User::factory()->create();
+    // Two distinct users so the Phase 1.1 (match_id, user_id) uniqueness
+    // constraint doesn't block the second insert. Both represent the same
+    // scenario — a shooter with no membership record at all — but at
+    // different match dates to prove neither branch grants the grace
+    // window reserved for lapsed-but-recently-active members.
+    $withinGraceUser = User::factory()->create();
+    $pastGraceUser = User::factory()->create();
 
-    $withinGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', Carbon::today()->subDays(2)));
-    $pastGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $user, 'pending', Carbon::today()->subDays(30)));
+    $withinGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $withinGraceUser, 'pending', Carbon::today()->subDays(2)));
+    $pastGrace = $this->service->evaluateScoreStatus(makeScore($this->match, $pastGraceUser, 'pending', Carbon::today()->subDays(30)));
 
     expect($withinGrace->status)->toBe('non_member')
         ->and($pastGrace->status)->toBe('non_member')

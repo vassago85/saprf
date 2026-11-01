@@ -13,6 +13,14 @@ class SettingsService
 
     public const NATIONAL_SERIES_2027_PUBLISHED = 'national_series_2027_published';
 
+    /**
+     * Phase 4.7: whether non-member scores are eligible for podium /
+     * division-winner callouts on the public match page. Default is false
+     * so a casual non-member walk-in doesn't appear "above" a paid-up
+     * provincial on the overview card. Admin opt-in via Site Settings.
+     */
+    public const SHOW_NON_MEMBERS_ON_PODIUM = 'show_non_members_on_podium';
+
     public function get(string $key, mixed $default = null): mixed
     {
         $settings = $this->all();

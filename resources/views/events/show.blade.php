@@ -55,7 +55,11 @@
                     <span class="inline-flex items-center gap-1.5">
                         <svg class="size-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
                         @if($match->isMultiDay())
-                            {{ $match->match_date->format('l, j') }}–{{ $match->match_end_date->format('j F Y') }}
+                            {{-- Phase 4.1: explicit day-by-day header so a shooter can see
+                                 both match-day boundaries without parsing a shorthand range. --}}
+                            Day 1 {{ $match->match_date->format('l, j M') }}
+                            <span class="text-stone-300">·</span>
+                            Day 2 {{ $match->match_end_date->format('l, j M Y') }}
                         @else
                             {{ $match->match_date->format('l, j F Y') }}
                         @endif
@@ -76,6 +80,12 @@
                         <span class="inline-flex items-center gap-1.5">
                             <svg class="size-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
                             MD: {{ $match->director_name }}
+                            {{-- Phase 3.4: phone only when the MD has opted-in or the
+                                 viewer is admin / owning MD. canShowDirectorContactTo()
+                                 handles the entire policy; blade just renders. --}}
+                            @if($match->canShowDirectorContactTo(auth()->user()))
+                                <span class="text-stone-400">· {{ $match->match_director_contact }}</span>
+                            @endif
                         </span>
                     @endif
                     @if($match->impact_match_id)
@@ -134,7 +144,8 @@
                                 <div>
                                     <dt class="text-xs text-stone-400">Match Director</dt>
                                     <dd class="mt-0.5 text-sm text-stone-700">{{ $match->director_name }}</dd>
-                                    @if($match->match_director_contact)
+                                    {{-- Phase 3.4: same visibility policy as the hero. --}}
+                                    @if($match->canShowDirectorContactTo(auth()->user()))
                                         <dd class="text-xs text-stone-400">{{ $match->match_director_contact }}</dd>
                                     @endif
                                 </div>
@@ -148,36 +159,222 @@
                         </dl>
                     </div>
 
+                    {{-- Phase 3.3: optional venue details card. Only renders when
+                         the MD has written something — a null column means no card. --}}
+                    @if(filled($match->venue_details))
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Venue Details</h2>
+                            <div class="prose prose-sm prose-stone max-w-none">
+                                {!! nl2br(e($match->venue_details)) !!}
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Phase 3.3: schedule card. Rendered as a time-labelled list. --}}
+                    @php $scheduleItems = $match->schedule_items; @endphp
+                    @if(! empty($scheduleItems))
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Schedule</h2>
+                            <ol class="space-y-2 text-sm">
+                                @foreach($scheduleItems as $item)
+                                    <li class="flex items-baseline gap-3">
+                                        <span class="min-w-[60px] font-mono text-xs text-emerald-700 font-semibold tabular-nums">{{ $item['time'] ?: '—' }}</span>
+                                        <span class="text-stone-700">{{ $item['label'] }}</span>
+                                    </li>
+                                @endforeach
+                            </ol>
+                        </div>
+                    @endif
+
+                    {{-- Phase 3.3: squadding card. Each squad is its own small block. --}}
+                    @php $squaddingItems = $match->squadding_items; @endphp
+                    @if(! empty($squaddingItems))
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-4">Squadding</h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                @foreach($squaddingItems as $squad)
+                                    <div class="rounded-xl border border-stone-100 bg-stone-50/60 p-4">
+                                        <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+                                            {{ $squad['squad_name'] ?: 'Squad' }}
+                                            <span class="text-stone-400 font-normal">· {{ count($squad['members']) }}</span>
+                                        </p>
+                                        @if(! empty($squad['members']))
+                                            <ol class="space-y-1 text-sm text-stone-700">
+                                                @foreach($squad['members'] as $member)
+                                                    <li class="flex items-baseline gap-2">
+                                                        <span class="text-xs text-stone-400 tabular-nums w-5 text-right">{{ $loop->iteration }}.</span>
+                                                        <span>{{ $member }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ol>
+                                        @else
+                                            <p class="text-xs text-stone-400 italic">No members listed yet.</p>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Phase 3.3: attachments card — PDFs, course-of-fire docs, maps. --}}
+                    @php $attachmentItems = $match->attachment_items; @endphp
+                    @if(! empty($attachmentItems))
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Attachments</h2>
+                            <ul class="space-y-2">
+                                @foreach($attachmentItems as $attach)
+                                    <li>
+                                        <a href="{{ $attach['url'] }}"
+                                           target="_blank"
+                                           rel="noopener"
+                                           class="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800">
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                            </svg>
+                                            {{ $attach['label'] ?: $attach['url'] }}
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     {{-- Results Sponsor Strip (above results) --}}
                     @if($match->scores->isNotEmpty())
                         <x-sponsors-strip placement="results_pages" class="bg-white border border-stone-200 rounded-2xl shadow-sm !py-4 mb-4" />
                     @endif
 
+                    {{-- Phase 4.2: admin-only import attribution. Lists who uploaded
+                         each CSV / Impact pull and when, so an auditor doesn't have
+                         to open the workspace scores screen to find out. Collection
+                         is empty for non-admins, so this block renders nothing. --}}
+                    @if(($scoreImports ?? collect())->isNotEmpty())
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-5" x-data="{ open: false }">
+                            <button type="button" @click="open = !open" class="flex w-full items-center justify-between text-left" :aria-expanded="open.toString()">
+                                <div>
+                                    <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400">Import attribution <span class="font-normal text-stone-400">(admin)</span></h2>
+                                    <p class="mt-0.5 text-xs text-stone-500" x-text="open ? 'Hide trail' : 'Show ' + {{ $scoreImports->count() }} + ' entry' + ({{ $scoreImports->count() }} === 1 ? '' : 'ies')">Show entries</p>
+                                </div>
+                                <svg class="size-4 text-stone-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                            </button>
+                            <div x-show="open" x-cloak class="mt-3">
+                                <ul class="divide-y divide-stone-100 text-sm">
+                                    @foreach($scoreImports as $import)
+                                        <li class="flex items-start justify-between gap-3 py-2">
+                                            <div class="min-w-0">
+                                                <p class="font-medium text-stone-900">
+                                                    {{ $import->original_filename ?: ucfirst(str_replace('_', ' ', (string) $import->source_type)) }}
+                                                </p>
+                                                <p class="text-xs text-stone-500">
+                                                    By {{ $import->uploader?->name ?? 'system' }}
+                                                    · {{ $import->created_at->format('j M Y, H:i') }}
+                                                    @if($import->day)
+                                                        · Day {{ $import->day }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset
+                                                @switch($import->import_status)
+                                                    @case('complete') bg-emerald-50 text-emerald-700 ring-emerald-600/20 @break
+                                                    @case('failed')   bg-rose-50 text-rose-700 ring-rose-600/20 @break
+                                                    @default          bg-stone-100 text-stone-600 ring-stone-500/20
+                                                @endswitch
+                                            ">{{ $import->import_status ?: 'pending' }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
                         @php
-                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores, $saBadgesByUser) {
+                            // Phase 4.4: precompute division-leader raws so each row can
+                            // show its own-class percentage (score / division leader × 100)
+                            // without a client-side second pass over the full set.
+                            $divisionLeaderRaw = $match->scores
+                                ->filter(fn ($s) => $s->division_id !== null && $s->raw_score !== null)
+                                ->groupBy('division_id')
+                                ->map(fn ($rows) => (float) $rows->max('raw_score'));
+
+                            $overallLeaderRaw = (float) ($match->scores->max('raw_score') ?: 0.0);
+                        @endphp
+                        @php
+                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores, $saBadgesByUser, $match, $divisionLeaderRaw, $overallLeaderRaw) {
+                                // Phase 4.8: canonical profile URL per shooter. Prefer the
+                                // SAPRF-number-keyed route when the user carries one; otherwise
+                                // fall back to the legacy user-id route that the controller
+                                // still accepts. Guest / unlinked scores have no destination.
+                                $saprfNumber = $score->user?->membership?->saprf_number;
+                                $profileUrl = null;
+                                if ($score->user_id !== null) {
+                                    $profileUrl = $saprfNumber
+                                        ? route('shooters.show', ['saprfNumber' => $saprfNumber])
+                                        : route('standings.shooter', ['season' => $match->season ?? now()->year, 'user' => $score->user_id]);
+                                }
                                 $saBadge = $saBadgesByUser[$score->user_id] ?? null;
                                 return [
                                     'id' => $score->id,
                                     'name' => $score->shooter_name,
                                     'raw' => (float) $score->raw_score,
+                                    // Phase 2.3: pre-format the display value server-side so the
+                                    // integer PRS / PR22 rule lives in one helper, and the Alpine
+                                    // row stays dumb (no JS format table of discipline codes).
+                                    'raw_display' => \App\Support\ScoreFormat::format($score->raw_score, $match->match_type, $match->series),
                                     'norm' => $score->normalized_score ? round((float) $score->normalized_score, 2) : null,
                                     'div_norm' => $score->division_normalized_score ? round((float) $score->division_normalized_score, 2) : null,
+                                    // Phase 4.4: percentage of the match winner (overall %) and of
+                                    // the division winner (div %). Guard against div-by-zero when
+                                    // a match is still being imported and the leader is zero.
+                                    'match_pct' => $overallLeaderRaw > 0 && $score->raw_score !== null
+                                        ? round(((float) $score->raw_score) / $overallLeaderRaw * 100, 2)
+                                        : null,
+                                    'div_pct' => $score->division_id !== null
+                                        && isset($divisionLeaderRaw[$score->division_id])
+                                        && $divisionLeaderRaw[$score->division_id] > 0
+                                        && $score->raw_score !== null
+                                        ? round(((float) $score->raw_score) / $divisionLeaderRaw[$score->division_id] * 100, 2)
+                                        : null,
                                     'overall_rank' => $score->overall_rank,
                                     'div_rank' => $score->division_rank,
+                                    // Phase 1.4: carry the persisted tie flags so the Alpine row
+                                    // can render "T2" without re-grouping the whole set client-side.
+                                    'is_tied_overall' => (bool) $score->is_tied_overall,
+                                    'is_tied_division' => (bool) $score->is_tied_division,
                                     'div_id' => $score->division_id,
                                     'div_name' => $score->division?->name ?? '—',
                                     'status' => $score->status,
+                                    // Phase 4.8: resolved profile link (null = no profile).
+                                    'profile_url' => $profileUrl,
                                     // Only zero-score rows are eligible for inline removal, and only when
                                     // the current viewer is an admin or the MD who owns this match.
                                     'can_remove' => $viewerCanRemoveZeroScores && (float) $score->raw_score === 0.0,
                                     'badge' => match ($score->status) {
-                                        'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200'],
-                                        'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
-                                        'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
+                                        'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200', 'tip' => 'This shooter was not a SAPRF member on the match date — their score is displayed but does not contribute to season standings.'],
+                                        'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200', 'tip' => 'This shooter had a lapsed membership on the match date — their score is displayed but does not contribute to season standings.'],
+                                        'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200', 'tip' => 'The match director has not yet confirmed this score. It will update when verified.'],
                                         default      => null,
                                     },
+                                    // Phase 4.5: per-stage breakdown parsed from the raw Impact
+                                    // payload. Keeps the Alpine row dumb — null means "no stage
+                                    // detail available", a list of {label, points} drives the
+                                    // expand/collapse accordion inside the row.
+                                    'stages' => (function () use ($score) {
+                                        $stages = $score->raw_meta['impact']['stages'] ?? null;
+                                        if (! is_array($stages) || empty($stages)) {
+                                            return null;
+                                        }
+
+                                        return collect($stages)
+                                            ->map(fn ($s) => is_array($s) ? [
+                                                'label' => (string) ($s['name'] ?? $s['label'] ?? ''),
+                                                'points' => isset($s['points']) ? (float) $s['points'] : null,
+                                            ] : null)
+                                            ->filter(fn ($s) => $s !== null && $s['label'] !== '')
+                                            ->values()
+                                            ->all();
+                                    })(),
                                     // "SA 2026" chip data for the Alpine row — null means render nothing.
                                     'sa_years' => $saBadge['years'] ?? [],
                                     'sa_tooltip' => $saBadge['tooltip'] ?? null,
@@ -198,10 +395,40 @@
                                     @method('DELETE')
                                 </form>
                             @endif
+                            @php
+                                // Phase 1.4: show the "T = tied placement" legend only when there
+                                // is actually a tie in this match, so the normal case stays uncluttered.
+                                $hasAnyTie = $match->scores->contains(fn ($s) => $s->is_tied_overall || $s->is_tied_division);
+                            @endphp
                             <div class="px-6 py-4 border-b border-stone-100">
-                                <div class="flex items-center justify-between mb-3">
+                                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                                     <h2 class="text-lg font-semibold text-stone-900">Results</h2>
-                                    <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
+                                    <div class="flex items-center gap-3">
+                                        @if($hasAnyTie)
+                                            <span class="text-xs text-stone-500" title="Shooters marked T share the same placement after the match's tiebreak rule was applied.">
+                                                <span class="font-semibold">T</span> = tied placement
+                                            </span>
+                                        @endif
+                                        <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
+                                        {{-- Phase 4.9: downloadable results. The current Alpine
+                                             sub-filter is baked into the href via x-bind, so a
+                                             "By Division → Open" view yields a
+                                             results.csv?division=<id> link in one click. --}}
+                                        <div class="flex items-center gap-1.5">
+                                            <a :href="`{{ route('events.results.csv', $match) }}` + (mode === 'division' && subFilter ? ('?division=' + subFilter) : '')"
+                                               class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
+                                               title="Download these results as CSV">
+                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                                                CSV
+                                            </a>
+                                            <a :href="`{{ route('events.results.pdf', $match) }}` + (mode === 'division' && subFilter ? ('?division=' + subFilter) : '')"
+                                               class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
+                                               title="Download these results as PDF">
+                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.56-.5c.42-.42 1-.65 1.59-.65h.44c1.24 0 2.25 1.01 2.25 2.25" /></svg>
+                                                PDF
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                                 @if(! $match->scoresAreFinalized() && ($match->impact_live_sync || $match->impact_live_synced_at))
                                     <p class="mb-3 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
@@ -235,8 +462,13 @@
                                             <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Impacts</th>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">% Score</th>
+                                            {{-- Phase 4.3: "Impacts" was PRS-specific jargon; "Score" is accurate
+                                                 for every discipline (precision disciplines are already fine
+                                                 with the integer/decimal formatter from Phase 2.3). --}}
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
+                                            {{-- Phase 4.4: percentage of the shooter's own division leader. --}}
+                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the division winner's score.">Div %</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -247,21 +479,27 @@
                                                     'bg-stone-50/50': row._rank === 2,
                                                     'bg-orange-50/30': row._rank === 3,
                                                 }">
-                                                <td class="px-5 py-3 text-center">
+                                                                <td class="px-5 py-3 text-center">
                                                     <template x-if="row._rank <= 3">
                                                         <span class="inline-flex items-center justify-center size-7 rounded-full text-sm font-bold"
                                                               :class="{
                                                                   'bg-amber-100 text-amber-700': row._rank === 1,
                                                                   'bg-stone-200 text-stone-600': row._rank === 2,
                                                                   'bg-amber-50 text-amber-600': row._rank === 3,
-                                                              }" x-text="row._rank"></span>
+                                                              }" x-text="row._rank_label"></span>
                                                     </template>
                                                     <template x-if="row._rank > 3">
-                                                        <span class="text-sm text-stone-400" x-text="row._rank"></span>
+                                                        <span class="text-sm text-stone-400" x-text="row._rank_label"></span>
                                                     </template>
                                                 </td>
                                                 <td class="px-5 py-3 text-sm font-medium text-stone-900">
-                                                    <span x-text="row.name"></span>
+                                                    {{-- Phase 4.8: name is a link when the shooter has a profile, plain text otherwise. --}}
+                                                    <template x-if="row.profile_url">
+                                                        <a :href="row.profile_url" class="hover:text-emerald-700 hover:underline underline-offset-2 transition" x-text="row.name"></a>
+                                                    </template>
+                                                    <template x-if="! row.profile_url">
+                                                        <span x-text="row.name"></span>
+                                                    </template>
                                                     <template x-if="row.sa_years && row.sa_years.length">
                                                         <span class="ml-2 inline-flex items-center gap-1" :title="row.sa_tooltip || ('Represented South Africa in ' + row.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + row.sa_years.join(', ')">
                                                             <template x-for="(y, idx) in row.sa_years.slice(0, 2)" :key="y">
@@ -278,9 +516,21 @@
                                                         </span>
                                                     </template>
                                                     <template x-if="row.badge">
-                                                        <span class="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset uppercase tracking-wide"
+                                                        {{-- Phase 4.6: badge now carries a tooltip explaining what the status means. --}}
+                                                        <span class="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset uppercase tracking-wide cursor-help"
                                                               :class="row.badge.class"
+                                                              :title="row.badge.tip || row.badge.label"
                                                               x-text="row.badge.label"></span>
+                                                    </template>
+                                                    {{-- Phase 4.5: tiny chevron next to the name expands the stage breakdown. --}}
+                                                    <template x-if="row.stages && row.stages.length">
+                                                        <button type="button"
+                                                                @click.stop="toggleStages(row.id)"
+                                                                class="ml-2 inline-flex items-center text-stone-400 hover:text-stone-600 transition"
+                                                                :aria-expanded="(expandedStages[row.id] === true).toString()"
+                                                                :aria-label="(expandedStages[row.id] === true ? 'Hide ' : 'Show ') + 'stage breakdown'">
+                                                            <svg class="size-3.5 transition-transform" :class="{ 'rotate-180': expandedStages[row.id] === true }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                                        </button>
                                                     </template>
                                                     @if($viewerCanRemoveZeroScores)
                                                         <template x-if="row.can_remove">
@@ -299,13 +549,34 @@
                                                 <td class="px-5 py-3">
                                                     <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
                                                 </td>
-                                                <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw.toFixed(1)"></td>
-                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row._norm !== null ? row._norm.toFixed(2) : '—'"></td>
+                                                <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw_display"></td>
+                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
+                                                <td class="px-5 py-3 text-sm text-amber-700 text-right tabular-nums" x-text="row.div_pct !== null ? row.div_pct.toFixed(2) + '%' : '—'"></td>
                                             </tr>
+                                        </template>
+                                        {{-- Phase 4.5: stage breakdown row. Rendered as a sibling of the
+                                             main results row so x-for ordering stays stable; toggled by the
+                                             chevron on the shooter cell. --}}
+                                        <template x-for="row in filteredRows" :key="'stages-' + row.id">
+                                            <template x-if="row.stages && row.stages.length && expandedStages[row.id] === true">
+                                                <tr class="bg-stone-50/60">
+                                                    <td colspan="6" class="px-10 py-3">
+                                                        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Stages for <span x-text="row.name"></span></p>
+                                                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                                            <template x-for="(st, i) in row.stages" :key="row.id + '-' + i">
+                                                                <div class="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-stone-100 text-xs">
+                                                                    <span class="text-stone-500 truncate" x-text="st.label"></span>
+                                                                    <span class="font-semibold text-stone-800 tabular-nums ml-2" x-text="st.points !== null ? st.points : '—'"></span>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
                                         </template>
                                         <template x-if="filteredRows.length === 0">
                                             <tr>
-                                                <td colspan="5" class="px-5 py-12 text-center text-sm text-stone-400">No results for this filter.</td>
+                                                <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No results for this filter.</td>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -320,11 +591,16 @@
                                 divs,
                                 mode: 'overall',
                                 subFilter: null,
+                                expandedStages: {},
 
                                 setFilter(m) {
                                     this.mode = m;
                                     if (m === 'division' && this.divs.length) this.subFilter = this.divs[0].id;
                                     else this.subFilter = null;
+                                },
+
+                                toggleStages(id) {
+                                    this.expandedStages[id] = this.expandedStages[id] !== true;
                                 },
                                 @if($viewerCanRemoveZeroScores)
 
@@ -342,11 +618,29 @@
                                     if (this.mode === 'division' && this.subFilter) {
                                         rows = this.scores
                                             .filter(s => s.div_id === this.subFilter)
-                                            .map(s => ({...s, _norm: s.div_norm, _rank: s.div_rank }))
+                                            .map(s => ({
+                                                ...s,
+                                                _norm: s.div_norm,
+                                                _rank: s.div_rank,
+                                                // Phase 1.4: competition ranking renders tied rows
+                                                // with a leading "T" (e.g. T2, T2, 4). The persisted
+                                                // is_tied_division flag is authoritative — the backend
+                                                // already decided whether this rank is shared.
+                                                _rank_label: s.div_rank === null
+                                                    ? '—'
+                                                    : (s.is_tied_division ? 'T' : '') + s.div_rank,
+                                            }))
                                             .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
                                     } else {
                                         rows = this.scores
-                                            .map(s => ({...s, _norm: s.norm, _rank: s.overall_rank }))
+                                            .map(s => ({
+                                                ...s,
+                                                _norm: s.norm,
+                                                _rank: s.overall_rank,
+                                                _rank_label: s.overall_rank === null
+                                                    ? '—'
+                                                    : (s.is_tied_overall ? 'T' : '') + s.overall_rank,
+                                            }))
                                             .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
                                     }
                                     return rows;
@@ -450,16 +744,80 @@
                                 })->values()->all();
                             @endphp
                             <div x-data="entryList({{ Js::from($entryRows) }})">
-                                <div class="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-stone-100 bg-stone-50/40">
-                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Sort by</span>
-                                    <div class="flex flex-wrap rounded-lg bg-stone-100 p-0.5 w-fit">
-                                        <button type="button" @click="setSort('division')" :class="sort === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'division').toString()">Division</button>
-                                        <button type="button" @click="setSort('shooter')" :class="sort === 'shooter' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'shooter').toString()">Shooter</button>
-                                        <button type="button" @click="setSort('province')" :class="sort === 'province' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'province').toString()">Province</button>
-                                        <button type="button" @click="setSort('status')" :class="sort === 'status' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'status').toString()">Status</button>
+                                {{-- Phase 3.1: view toggle. Grouped-by-division is the
+                                     default (every shooter under its division heading);
+                                     Flat falls back to the pre-overhaul sortable table
+                                     for people who want to see everyone in one list. --}}
+                                <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-stone-100 bg-stone-50/40">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">View</span>
+                                        <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
+                                            <button type="button" @click="mode = 'grouped'" :class="mode === 'grouped' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(mode === 'grouped').toString()">Grouped</button>
+                                            <button type="button" @click="mode = 'flat'" :class="mode === 'flat' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(mode === 'flat').toString()">Flat</button>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2" x-show="mode === 'grouped'">
+                                        <button type="button" @click="toggleAllGroups" class="text-xs font-semibold text-stone-500 hover:text-stone-700 transition">
+                                            <span x-text="allGroupsOpen ? 'Collapse all' : 'Expand all'"></span>
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2" x-show="mode === 'flat'">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Sort by</span>
+                                        <div class="flex flex-wrap rounded-lg bg-stone-100 p-0.5 w-fit">
+                                            <button type="button" @click="setSort('shooter')" :class="sort === 'shooter' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'shooter').toString()">Shooter</button>
+                                            <button type="button" @click="setSort('province')" :class="sort === 'province' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'province').toString()">Province</button>
+                                            <button type="button" @click="setSort('status')" :class="sort === 'status' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition" :aria-pressed="(sort === 'status').toString()">Status</button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="overflow-x-auto">
+
+                                {{-- Grouped view: one collapsible block per division, each with a title and count. --}}
+                                <div x-show="mode === 'grouped'" x-cloak class="divide-y divide-stone-100">
+                                    <template x-for="group in groupedEntries" :key="group.key">
+                                        <div>
+                                            <button type="button"
+                                                    @click="toggleGroup(group.key)"
+                                                    class="w-full flex items-center justify-between gap-3 px-6 py-3 bg-stone-50/50 hover:bg-stone-100/60 transition text-left"
+                                                    :aria-expanded="(groupOpen[group.key] !== false).toString()">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200" x-text="group.name"></span>
+                                                    <span class="text-xs text-stone-500" x-text="group.rows.length + ' ' + (group.rows.length === 1 ? 'shooter' : 'shooters')"></span>
+                                                </div>
+                                                <svg class="size-4 text-stone-400 transition-transform" :class="{ 'rotate-180': groupOpen[group.key] !== false }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                            </button>
+                                            <div x-show="groupOpen[group.key] !== false" x-cloak>
+                                                <table class="min-w-full">
+                                                    <tbody class="divide-y divide-stone-100">
+                                                        <template x-for="(entry, i) in group.rows" :key="entry.id">
+                                                            <tr class="hover:bg-stone-50/60 transition-colors">
+                                                                <td class="px-6 py-2 text-sm text-stone-400 tabular-nums w-10" x-text="i + 1"></td>
+                                                                <td class="px-6 py-2 text-sm font-medium text-stone-900">
+                                                                    <span x-text="entry.name"></span>
+                                                                    <template x-if="entry.sa_years && entry.sa_years.length">
+                                                                        <span class="ml-2 inline-flex items-center gap-1" :title="entry.sa_tooltip || ('Represented South Africa in ' + entry.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + entry.sa_years.join(', ')">
+                                                                            <template x-for="(y, idx) in entry.sa_years.slice(0, 2)" :key="y">
+                                                                                <span class="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-emerald-50 to-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                                                                                    <span>SA <span x-text="y"></span></span>
+                                                                                </span>
+                                                                            </template>
+                                                                        </span>
+                                                                    </template>
+                                                                </td>
+                                                                <td class="px-6 py-2 text-sm text-stone-500" x-text="entry.province || '—'"></td>
+                                                                <td class="px-6 py-2">
+                                                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="entry.status_class" x-text="entry.status_label"></span>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                {{-- Flat view: the old sortable table, kept for people who like it. --}}
+                                <div x-show="mode === 'flat'" x-cloak class="overflow-x-auto">
                                     <table class="min-w-full">
                                         <thead>
                                             <tr class="border-b border-stone-100 bg-stone-50/60">
@@ -514,10 +872,28 @@
                             document.addEventListener('alpine:init', () => {
                                 Alpine.data('entryList', (entries) => ({
                                     entries,
-                                    sort: 'division',
+                                    mode: 'grouped',
+                                    sort: 'shooter',
+                                    groupOpen: {},
 
                                     setSort(key) {
                                         this.sort = key;
+                                    },
+
+                                    toggleGroup(key) {
+                                        // undefined ⇒ open (default), explicit false ⇒ closed.
+                                        this.groupOpen[key] = this.groupOpen[key] === false;
+                                    },
+
+                                    toggleAllGroups() {
+                                        const target = ! this.allGroupsOpen;
+                                        for (const g of this.groupedEntries) {
+                                            this.groupOpen[g.key] = target;
+                                        }
+                                    },
+
+                                    get allGroupsOpen() {
+                                        return this.groupedEntries.every(g => this.groupOpen[g.key] !== false);
                                     },
 
                                     get sortedEntries() {
@@ -540,6 +916,29 @@
                                         });
 
                                         return rows;
+                                    },
+
+                                    get groupedEntries() {
+                                        // Build an ordered Map keyed by division display name.
+                                        const groups = new Map();
+                                        for (const row of this.entries) {
+                                            const key = row.division || '__none__';
+                                            if (! groups.has(key)) {
+                                                groups.set(key, {
+                                                    key,
+                                                    name: row.division || 'No division',
+                                                    order: row.division_order,
+                                                    rows: [],
+                                                });
+                                            }
+                                            groups.get(key).rows.push(row);
+                                        }
+                                        const list = [...groups.values()];
+                                        list.sort((a, b) => (a.order - b.order));
+                                        for (const g of list) {
+                                            g.rows.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+                                        }
+                                        return list;
                                     },
                                 }));
                             });
@@ -649,60 +1048,95 @@
                         </div>
                     @endif
 
-                    {{-- Stats --}}
+                    {{-- Phase 3.2: single "At a glance" card replacing the old Stats
+                         + Season Info boxes. Stats appear only when they'd carry a
+                         non-zero signal (any registration or any score), so an
+                         upcoming match with no sign-ups yet stops shouting
+                         "Registered: 0" from the sidebar. --}}
                     @php
-                        // Historic events (imported from external sources) have scores
-                        // but no registration records, which makes "Registered: 0"
-                        // next to "Scored: N" read as a bug. Detect that here.
                         $isImportedHistoric = $match->status === 'completed'
                             && ($match->scores_count ?? 0) > 0
                             && ($match->registrations_count ?? 0) === 0;
+
+                        $hasStatsSignal = ($match->registrations_count ?? 0) > 0
+                            || ($match->scores_count ?? 0) > 0;
                     @endphp
                     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Stats</h2>
-                        <div class="grid grid-cols-2 gap-4">
-                            @if($isImportedHistoric)
-                                <div>
-                                    <p class="text-2xl font-bold text-stone-900">{{ $match->scores_count ?? 0 }}</p>
-                                    <p class="text-xs text-stone-400 mt-0.5">Shooters</p>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">At a glance</h2>
+                        <dl class="space-y-2.5 text-sm">
+                            <div class="flex items-center justify-between gap-2">
+                                <dt class="text-stone-500">Date</dt>
+                                <dd class="font-medium text-stone-900 text-right">
+                                    @if($match->isMultiDay())
+                                        {{ $match->match_date->format('j M') }}–{{ $match->match_end_date->format('j M Y') }}
+                                    @else
+                                        {{ $match->match_date->format('j M Y') }}
+                                    @endif
+                                </dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <dt class="text-stone-500">Discipline</dt>
+                                <dd class="font-medium text-stone-900">{{ $match->match_type }}</dd>
+                            </div>
+                            @if($match->series_level)
+                                <div class="flex items-center justify-between gap-2">
+                                    <dt class="text-stone-500">Level</dt>
+                                    <dd class="font-medium text-stone-900 capitalize">{{ $match->series_level }}</dd>
                                 </div>
-                                <div>
-                                    <p class="text-2xl font-bold text-stone-500">—</p>
-                                    <p class="text-xs text-stone-400 mt-0.5" title="Historic event imported from external results — no live registrations were captured.">Imported</p>
+                            @endif
+                            @if($match->season)
+                                <div class="flex items-center justify-between gap-2">
+                                    <dt class="text-stone-500">Season</dt>
+                                    <dd class="font-medium text-stone-900">{{ $match->season }}</dd>
                                 </div>
-                            @else
-                                <div>
-                                    <p class="text-2xl font-bold text-stone-900">{{ $match->registrations_count ?? 0 }}</p>
-                                    <p class="text-xs text-stone-400 mt-0.5">Registered</p>
+                            @endif
+                            @if($match->series)
+                                <div class="flex items-center justify-between gap-2">
+                                    <dt class="text-stone-500">Series</dt>
+                                    <dd class="font-medium text-stone-900">{{ $match->series }}</dd>
                                 </div>
-                                @if($match->status === 'completed')
+                            @endif
+                        </dl>
+
+                        @if($hasStatsSignal)
+                            <div class="mt-5 pt-5 border-t border-stone-100 grid grid-cols-2 gap-4">
+                                @if($isImportedHistoric)
                                     <div>
                                         <p class="text-2xl font-bold text-stone-900">{{ $match->scores_count ?? 0 }}</p>
-                                        <p class="text-xs text-stone-400 mt-0.5">Scored</p>
+                                        <p class="text-xs text-stone-400 mt-0.5">Shooters</p>
                                     </div>
-                                @elseif($match->max_competitors)
                                     <div>
-                                        <p class="text-2xl font-bold text-stone-900">{{ $match->max_competitors }}</p>
-                                        <p class="text-xs text-stone-400 mt-0.5">Max Capacity</p>
+                                        <p class="text-2xl font-bold text-stone-500">—</p>
+                                        <p class="text-xs text-stone-400 mt-0.5" title="Historic event imported from external results — no live registrations were captured.">Imported</p>
                                     </div>
+                                @else
+                                    <div>
+                                        <p class="text-2xl font-bold text-stone-900">{{ $match->registrations_count ?? 0 }}</p>
+                                        <p class="text-xs text-stone-400 mt-0.5">Registered</p>
+                                    </div>
+                                    @if($match->status === 'completed')
+                                        <div>
+                                            <p class="text-2xl font-bold text-stone-900">{{ $match->scores_count ?? 0 }}</p>
+                                            <p class="text-xs text-stone-400 mt-0.5">Scored</p>
+                                        </div>
+                                    @elseif($match->max_competitors)
+                                        <div>
+                                            <p class="text-2xl font-bold text-stone-900">{{ $match->max_competitors }}</p>
+                                            <p class="text-xs text-stone-400 mt-0.5">Max Capacity</p>
+                                        </div>
+                                    @endif
                                 @endif
-                            @endif
-                        </div>
-                    </div>
-
-                    {{-- Season Info --}}
-                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-stone-400 mb-3">Season Info</h2>
-                        <dl class="space-y-2.5 text-sm">
-                            <div class="flex items-center justify-between">
-                                <dt class="text-stone-500">Season</dt>
-                                <dd class="font-medium text-stone-900">{{ $match->season ?: '—' }}</dd>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <dt class="text-stone-500">Series</dt>
-                                <dd class="font-medium text-stone-900">{{ $match->series ?: $match->match_type }}</dd>
+                        @elseif($match->max_competitors)
+                            {{-- No sign-ups yet but a published capacity still gives the
+                                 shooter useful context ("25 slots available"). --}}
+                            <div class="mt-5 pt-5 border-t border-stone-100">
+                                <div>
+                                    <p class="text-2xl font-bold text-stone-900">{{ $match->max_competitors }}</p>
+                                    <p class="text-xs text-stone-400 mt-0.5">Capacity</p>
+                                </div>
                             </div>
-                        </dl>
+                        @endif
                     </div>
                 </div>
             </div>

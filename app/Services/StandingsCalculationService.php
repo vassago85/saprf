@@ -88,6 +88,13 @@ class StandingsCalculationService
      * That includes non-members and lapsed shooters, so a non-member can
      * legitimately win a match (matches precisionrifle.co.za convention).
      * Season standings still filter to status=valid separately.
+     *
+     * Tie handling: shooters with equal raw_score fall through to the
+     * tiebreak_impacts (desc) then tiebreak_time_seconds (asc) columns the
+     * 2027 championship rules introduced. Rows where NEITHER tiebreak is
+     * recorded share a rank — standard competition ranking, so the next
+     * place number is skipped (1, T2, T2, 4). is_tied_overall / division
+     * get flipped on so the UI can render a leading "T".
      */
     public function calculateMatchRankings(MatchEvent $match): void
     {
@@ -110,31 +117,151 @@ class StandingsCalculationService
             $score->normalized_score = ($score->raw_score / $topRawScore) * 100;
         }
 
-        $rank = 1;
-        foreach ($scores->sortByDesc('normalized_score')->values() as $score) {
-            $score->overall_rank = $rank++;
-        }
+        $this->rankWithTies($scores, 'overall_rank', 'is_tied_overall');
 
         // Per-division ranks (equipment class OR demographic class — they're
         // all just divisions now). division_normalized_score uses the SAME
         // baseline as normalized_score — the match-wide highest raw score of
         // the day — so a shooter's division % matches their overall %.
         // division_rank still ranks shooters within their division cohort.
+        //
+        // Reset tie flags on anything without a division — a prior pass might
+        // have left is_tied_division set when the division was cleared.
+        foreach ($scores as $score) {
+            if ($score->division_id === null) {
+                $score->division_rank = null;
+                $score->is_tied_division = false;
+            }
+        }
+
         $byDivision = $scores->groupBy('division_id');
         foreach ($byDivision as $divisionId => $divScores) {
             if ($divisionId === null) {
                 continue;
             }
-            $rank = 1;
-            foreach ($divScores->sortByDesc('raw_score')->values() as $score) {
+
+            foreach ($divScores as $score) {
                 $score->division_normalized_score = ($score->raw_score / $topRawScore) * 100;
-                $score->division_rank = $rank++;
             }
+
+            $this->rankWithTies($divScores, 'division_rank', 'is_tied_division');
         }
 
         foreach ($scores as $score) {
             $score->save();
         }
+    }
+
+    /**
+     * Standard competition ranking with the 2027 championship tiebreak
+     * rule: shooters are ordered by raw_score desc, then by
+     * tiebreak_impacts desc, then by tiebreak_time_seconds asc. Rows
+     * that cannot be separated after all three keys share a rank and the
+     * next distinct row skips to the natural position (1, T2, T2, 4).
+     *
+     * Writes the rank into `$rankColumn` and flips `$tieColumn` on for
+     * every row in a group of two or more.
+     *
+     * @param  Collection<int, Score>  $scores
+     */
+    private function rankWithTies(Collection $scores, string $rankColumn, string $tieColumn): void
+    {
+        $ordered = $scores
+            ->values()
+            ->sort(fn (Score $a, Score $b) => $this->compareForRank($a, $b))
+            ->values();
+
+        $currentRank = 0;
+        $previous = null;
+
+        foreach ($ordered as $index => $score) {
+            if ($previous === null || ! $this->tiedForRank($previous, $score)) {
+                $currentRank = $index + 1;
+            }
+
+            $score->setAttribute($rankColumn, $currentRank);
+            $score->setAttribute($tieColumn, false);
+            $previous = $score;
+        }
+
+        // Second pass: any rank held by more than one row is a tie group.
+        $groups = $ordered->groupBy(fn (Score $s) => (int) $s->getAttribute($rankColumn));
+        foreach ($groups as $group) {
+            if ($group->count() < 2) {
+                continue;
+            }
+            foreach ($group as $score) {
+                $score->setAttribute($tieColumn, true);
+            }
+        }
+    }
+
+    /**
+     * Comparator for the ranked sort: higher raw_score wins; equal raw
+     * scores go to the row with MORE tiebreak impacts; equal impacts go
+     * to the FASTER tiebreak time. Rows missing one or both tiebreak
+     * fields sort as if those values are the worst possible — so a row
+     * with recorded tiebreak data outranks a row without.
+     */
+    private function compareForRank(Score $a, Score $b): int
+    {
+        $rawCmp = (float) $b->raw_score <=> (float) $a->raw_score;
+        if ($rawCmp !== 0) {
+            return $rawCmp;
+        }
+
+        $aImpacts = $a->tiebreak_impacts;
+        $bImpacts = $b->tiebreak_impacts;
+        if ($aImpacts !== null || $bImpacts !== null) {
+            if ($aImpacts === null) {
+                return 1;
+            }
+            if ($bImpacts === null) {
+                return -1;
+            }
+            $impactsCmp = $bImpacts <=> $aImpacts; // more impacts wins
+            if ($impactsCmp !== 0) {
+                return $impactsCmp;
+            }
+        }
+
+        $aTime = $a->tiebreak_time_seconds;
+        $bTime = $b->tiebreak_time_seconds;
+        if ($aTime !== null || $bTime !== null) {
+            if ($aTime === null) {
+                return 1;
+            }
+            if ($bTime === null) {
+                return -1;
+            }
+            $timeCmp = (float) $aTime <=> (float) $bTime; // faster time wins
+            if ($timeCmp !== 0) {
+                return $timeCmp;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * True when both rows have equal raw_score AND equal (or both-missing)
+     * tiebreak fields — in which case competition ranking says they share
+     * the rank number.
+     */
+    private function tiedForRank(Score $a, Score $b): bool
+    {
+        if ((float) $a->raw_score !== (float) $b->raw_score) {
+            return false;
+        }
+
+        if ($a->tiebreak_impacts !== $b->tiebreak_impacts) {
+            return false;
+        }
+
+        $aTime = $a->tiebreak_time_seconds !== null ? (float) $a->tiebreak_time_seconds : null;
+        $bTime = $b->tiebreak_time_seconds !== null ? (float) $b->tiebreak_time_seconds : null;
+
+        return $aTime === $bTime;
     }
 
     /**

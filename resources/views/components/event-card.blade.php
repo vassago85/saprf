@@ -10,6 +10,30 @@
         ? (int) now()->startOfDay()->diffInDays($matchDay)
         : null;
     $userReg = auth()->check() ? $match->userRegistration(auth()->user()) : null;
+
+    // Phase 2.4 + 4.7: top-ranked shooter per division. Scores arrive sorted
+    // by overall_rank (publicIndex eager-load), so grouping and taking the
+    // first per division yields the winner in each. Rows without a division
+    // (orphan non-member imports) are skipped so the line only lists real
+    // divisions. When the site-wide "show non-members on podium" setting is
+    // off (default), non-member scores are excluded from both the podium and
+    // the division-winner line so a casual walk-in doesn't eclipse a paid-up
+    // member on the overview card.
+    $showNonMembersOnPodium = (bool) app(\App\Services\SettingsService::class)
+        ->get(\App\Services\SettingsService::SHOW_NON_MEMBERS_ON_PODIUM, false);
+
+    $podiumScores = $showPodium
+        ? $match->scores->filter(fn ($s) => $showNonMembersOnPodium || $s->status !== 'non_member')
+        : collect();
+
+    $divisionWinners = $showPodium
+        ? $podiumScores
+            ->filter(fn ($s) => $s->division_id !== null && $s->division)
+            ->groupBy('division_id')
+            ->map(fn ($rows) => $rows->first())
+            ->sortBy(fn ($s) => $s->division?->display_order ?? 999)
+            ->values()
+        : collect();
 @endphp
 
 <div {{ $attributes->merge(['class' => 'group bg-white rounded-2xl border border-stone-200 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.08)] hover:border-stone-300 transition-all duration-200 flex flex-col h-full overflow-hidden']) }}>
@@ -91,28 +115,64 @@
             <x-discipline-chip :discipline="$match->match_type" />
             <x-level-chip :level="$match->series_level" :match-name="$match->name" />
             @if($match->status !== 'completed')
-                <x-status-chip :status="$regStatus" />
+                <x-status-chip :status="$regStatus" :close-date="$match->registration_close_date" />
             @else
                 <x-status-chip status="completed" />
             @endif
         </div>
 
         {{-- Podium preview for past matches --}}
-        @if($showPodium && $match->status === 'completed' && $match->scores->isNotEmpty())
+        @if($showPodium && $match->status === 'completed' && $podiumScores->isNotEmpty())
             <div class="border-t border-stone-100 pt-3 mb-3">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Podium</p>
                 <div class="space-y-1.5">
-                    @foreach($match->scores->take(3) as $score)
+                    @foreach($podiumScores->take(3) as $score)
                         @php $medals = ['text-amber-500', 'text-stone-400', 'text-amber-700']; @endphp
                         {{-- Use $loop->iteration so the podium always numbers 1/2/3 even
                              when scores were imported without a placement column set. --}}
                         <div class="flex items-center gap-2.5">
                             <span class="text-xs font-bold w-4 text-right {{ $medals[$loop->index] ?? 'text-stone-300' }}">{{ $loop->iteration }}</span>
                             <span class="text-xs text-stone-700 font-medium truncate flex-1">{{ $score->shooter_name }}</span>
-                            <span class="text-[11px] text-stone-400 font-medium tabular-nums">{{ number_format($score->raw_score, 1) }}</span>
+                            {{-- Phase 2.3: PRS and PR22 are impact-count disciplines; render as integer. --}}
+                            <span class="text-[11px] text-stone-400 font-medium tabular-nums">{{ \App\Support\ScoreFormat::format($score->raw_score, $match->match_type, $match->series) }}</span>
                         </div>
                     @endforeach
                 </div>
+
+                {{-- Phase 2.4: compact "Division winners" line underneath the overall podium.
+                     Only renders when at least one division has a winner, so matches with
+                     no division data (legacy imports) still look clean. --}}
+                @if($divisionWinners->isNotEmpty())
+                    <div class="mt-3 pt-3 border-t border-dashed border-stone-100">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1.5">Division winners</p>
+                        <ul class="space-y-1 text-[11px] text-stone-500">
+                            @foreach($divisionWinners as $winner)
+                                <li class="flex items-center gap-2">
+                                    <span class="font-semibold text-stone-700 truncate">{{ $winner->division?->name }}:</span>
+                                    <span class="truncate flex-1">{{ $winner->shooter_name }}</span>
+                                    <span class="tabular-nums text-stone-400">{{ \App\Support\ScoreFormat::format($winner->raw_score, $match->match_type, $match->series) }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- Phase 2.5: when this card is a 2-day national that generated a Day-1
+             provincial sibling, surface the paired event so the viewer knows the
+             scores feed two different leaderboards. Linked, not duplicated. --}}
+        @if($match->provincialDay1Match)
+            <div class="mb-3 flex items-center gap-2 rounded-md bg-violet-50/60 px-2.5 py-1.5 text-[11px] text-violet-700 ring-1 ring-inset ring-violet-200">
+                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                </svg>
+                <span class="truncate">
+                    Day 1 also counts as
+                    <a href="{{ url('/events/'.$match->provincialDay1Match->id) }}" class="font-semibold underline underline-offset-2 hover:text-violet-900">
+                        {{ $match->provincialDay1Match->name }}
+                    </a>
+                </span>
             </div>
         @endif
 

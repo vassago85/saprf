@@ -16,6 +16,7 @@ use App\Services\RegistrationPricingService;
 use App\Services\ScoreValidationService;
 use App\Services\StandingsCalculationService;
 use App\Services\WalkInRegistrationService;
+use App\Support\NameNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -408,7 +409,18 @@ class ImpactLiveImportService
                     ]);
                 }
 
-                $score = new Score;
+                // Phase 1.1: never produce a second score row for the same
+                // (match_id, user_id) pair. A re-pull from Impact (schedule
+                // tick, retry after a timeout, MD rerun) merges onto the
+                // existing row instead of planting a duplicate. Orphan
+                // non-member stubs still get a fresh Score because their
+                // user_id is a per-import unique stub.
+                $score = $userId !== null
+                    ? Score::firstOrNew([
+                        'match_id' => $targetMatch->id,
+                        'user_id' => $userId,
+                    ])
+                    : new Score;
                 $score->fill([
                     'match_id' => $targetMatch->id,
                     'score_import_id' => $import->id,
@@ -754,7 +766,7 @@ class ImpactLiveImportService
         }
 
         $user = User::query()
-            ->whereRaw('LOWER(name) = ?', [Str::lower(trim($name))])
+            ->whereRaw('LOWER(name) = ?', [NameNormalizer::canonical($name)])
             ->first();
 
         if (! $user) {
@@ -805,7 +817,7 @@ class ImpactLiveImportService
         $name = $row['impact_name'];
 
         $existingUser = User::query()
-            ->whereRaw('LOWER(name) = ?', [Str::lower($name)])
+            ->whereRaw('LOWER(name) = ?', [NameNormalizer::canonical($name)])
             ->first();
 
         $isMember = false;

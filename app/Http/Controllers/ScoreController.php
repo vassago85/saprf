@@ -25,24 +25,15 @@ class ScoreController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
+
+        // Phase 5: the admin /scores screen is now a Livewire island; the
+        // controller stays as the authz gatekeeper and tells the component
+        // whether to narrow results to the viewer's own matches. All the
+        // filter / bulk-action state lives in the component itself.
         $matchDirectorOnly = $user->hasRole('match_director')
             && ! $user->hasAnyRole(['developer', 'owner', 'admin']);
 
-        $matchesQuery = MatchEvent::query();
-        if ($matchDirectorOnly) {
-            $matchesQuery->where('created_by', $user->id);
-        }
-        $matches = $matchesQuery->orderBy('match_date', 'desc')->get(['id', 'name']);
-
-        $scores = Score::query()
-            ->with(['match', 'user'])
-            ->when($matchDirectorOnly, fn ($q) => $q->whereHas('match', fn ($m) => $m->where('created_by', $user->id)))
-            ->when($request->filled('match_id'), fn ($q) => $q->where('match_id', $request->input('match_id')))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
-            ->latest()
-            ->paginate(30);
-
-        return view('scores.index', compact('scores', 'matches'));
+        return view('scores.index', compact('matchDirectorOnly'));
     }
 
     public function show(Score $score): View

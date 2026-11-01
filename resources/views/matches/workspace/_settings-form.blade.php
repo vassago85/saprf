@@ -136,6 +136,15 @@
                 <label for="match_director_contact" class="block text-xs font-medium text-stone-600 mb-1">MD contact <span class="text-stone-400 font-normal">(optional)</span></label>
                 <input type="text" name="match_director_contact" id="match_director_contact" value="{{ old('match_director_contact', $match->match_director_contact) }}" placeholder="Phone or email" class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500" />
                 @error('match_director_contact') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                {{-- Phase 3.4: default-off privacy toggle. When unchecked (the
+                     default), the number is only shown to admins and the owning
+                     MD. Shooters still get their contact routes through the
+                     registration flow. --}}
+                <label class="mt-2 inline-flex items-center gap-2 text-xs text-stone-600">
+                    <input type="hidden" name="show_md_contact_publicly" value="0" />
+                    <input type="checkbox" name="show_md_contact_publicly" value="1" @checked(old('show_md_contact_publicly', $match->show_md_contact_publicly)) class="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" />
+                    Show MD contact publicly on the event page
+                </label>
             </div>
 
             <div class="sm:col-span-2">
@@ -143,6 +152,52 @@
                 <input type="url" name="whatsapp_invite_url" id="whatsapp_invite_url" value="{{ old('whatsapp_invite_url', $match->whatsapp_invite_url) }}" placeholder="https://chat.whatsapp.com/…" class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500" />
                 <p class="mt-1 text-xs text-stone-400">Shown to confirmed shooters after they no longer need to pay, so they can join for notifications and match books.</p>
                 @error('whatsapp_invite_url') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </div>
+
+    {{-- Phase 3.3: optional match-day detail fields. All four are nullable
+         and the public event page only renders a card per field that is
+         actually populated. JSON blobs are validated server-side; raw text
+         areas keep the admin UX simple while a richer builder is scheduled
+         for a later iteration. --}}
+    <div class="rounded-xl border border-stone-200 bg-white p-5">
+        <h3 class="text-sm font-semibold text-stone-900">Match-day details <span class="text-stone-400 font-normal">(optional)</span></h3>
+        <p class="mt-0.5 text-xs text-stone-500">Everything in this block renders as a collapsible card on the public event page only when you fill it in.</p>
+
+        <div class="mt-4 space-y-4">
+            <div>
+                <label for="venue_details" class="block text-xs font-medium text-stone-600 mb-1">Venue notes</label>
+                <textarea name="venue_details" id="venue_details" rows="3" placeholder="Parking, bay access, overnight info, …"
+                          class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ old('venue_details', $match->venue_details) }}</textarea>
+                @error('venue_details') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label for="schedule_json" class="block text-xs font-medium text-stone-600 mb-1">Schedule (JSON)</label>
+                <textarea name="schedule_json" id="schedule_json" rows="4"
+                          placeholder='[{"time":"07:30","label":"Registration & briefing"},{"time":"08:00","label":"Squad 1 to bay 1"}]'
+                          class="block w-full rounded-lg border border-stone-300 font-mono text-xs focus:border-emerald-500 focus:ring-emerald-500">{{ old('schedule_json', is_array($match->schedule_json) ? json_encode($match->schedule_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $match->schedule_json) }}</textarea>
+                <p class="mt-1 text-xs text-stone-400">List of <code>{"time":"…","label":"…"}</code> rows. Leave blank to hide the Schedule card.</p>
+                @error('schedule_json') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label for="squadding_json" class="block text-xs font-medium text-stone-600 mb-1">Squadding (JSON)</label>
+                <textarea name="squadding_json" id="squadding_json" rows="4"
+                          placeholder='[{"squad_name":"Squad A","members":["Japie Louw","Sarah de Beer"]}]'
+                          class="block w-full rounded-lg border border-stone-300 font-mono text-xs focus:border-emerald-500 focus:ring-emerald-500">{{ old('squadding_json', is_array($match->squadding_json) ? json_encode($match->squadding_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $match->squadding_json) }}</textarea>
+                <p class="mt-1 text-xs text-stone-400">List of <code>{"squad_name":"…","members":["…"]}</code> rows. Leave blank to hide the Squadding card.</p>
+                @error('squadding_json') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label for="attachments_json" class="block text-xs font-medium text-stone-600 mb-1">Attachments (JSON)</label>
+                <textarea name="attachments_json" id="attachments_json" rows="4"
+                          placeholder='[{"label":"Course of fire","url":"https://example.com/cof.pdf"}]'
+                          class="block w-full rounded-lg border border-stone-300 font-mono text-xs focus:border-emerald-500 focus:ring-emerald-500">{{ old('attachments_json', is_array($match->attachments_json) ? json_encode($match->attachments_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $match->attachments_json) }}</textarea>
+                <p class="mt-1 text-xs text-stone-400">List of <code>{"label":"…","url":"https://…"}</code> rows. URL is required per row.</p>
+                @error('attachments_json') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>

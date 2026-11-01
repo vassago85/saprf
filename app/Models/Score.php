@@ -29,6 +29,8 @@ class Score extends Model
         'provincial_normalized_score',
         'overall_rank',
         'division_rank',
+        'is_tied_overall',
+        'is_tied_division',
         'is_member',
         'status',
         'validation_reason',
@@ -54,6 +56,8 @@ class Score extends Model
             'division_normalized_score' => 'decimal:4',
             'provincial_normalized_score' => 'decimal:4',
             'is_member' => 'boolean',
+            'is_tied_overall' => 'boolean',
+            'is_tied_division' => 'boolean',
             'counts_for_log' => 'boolean',
             'counts_for_season' => 'boolean',
             'match_date' => 'date',
@@ -163,5 +167,36 @@ class Score extends Model
     public function displayRank(): ?int
     {
         return $this->placement ?? $this->overall_rank;
+    }
+
+    /**
+     * Human label for `overall_rank` with a leading "T" when this row is
+     * tied with at least one other at the same rank. StandingsCalculation
+     * Service persists `is_tied_overall`; falls back to the plain number
+     * when the row predates the Phase 1.4 backfill.
+     */
+    protected function overallRankLabel(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            if ($this->overall_rank === null) {
+                return null;
+            }
+
+            return ($this->is_tied_overall ? 'T' : '').(string) $this->overall_rank;
+        });
+    }
+
+    /**
+     * Same shape as overall_rank_label but for the per-division rank.
+     */
+    protected function divisionRankLabel(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            if ($this->division_rank === null) {
+                return null;
+            }
+
+            return ($this->is_tied_division ? 'T' : '').(string) $this->division_rank;
+        });
     }
 }

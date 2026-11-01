@@ -509,3 +509,16 @@ it('sends the signed rules to active members once', function () {
 
     expect(Announcement::where('title', NationalSeries2027Command::NOTICE_TITLE)->count())->toBe(1);
 });
+
+it('names the ExCo Chair who is missing the Chair role instead of sending', function () {
+    seedRoles();
+    $andries = User::factory()->create(['name' => 'Andries Lategan', 'exco_position' => 'Chair']);
+    $andries->assignRole('exco');
+
+    $this->artisan('saprf:national-series-2027', ['action' => 'notify', '--force' => true])
+        ->expectsOutputToContain('Andries Lategan')
+        ->assertFailed();
+
+    expect(Announcement::where('title', NationalSeries2027Command::NOTICE_TITLE)->exists())->toBeFalse()
+        ->and(app(SettingsService::class)->nationalSeries2027Published())->toBeFalse();
+});

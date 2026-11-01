@@ -234,10 +234,15 @@ it('sorts upcoming match entries by division by default and exposes sort buttons
     expect($response->viewData('entries')->pluck('shooter_name')->all())
         ->toBe(['Mike Open', 'Zulu Tactical', 'Alpha Factory']);
 
+    // Phase 3.1: the entry panel defaults to the grouped-by-division view
+    // (one section per division) and offers Grouped / Flat as the top-level
+    // choice. The Flat view keeps the old Shooter / Province / Status sort
+    // chips; the Division sort chip is gone because grouping replaces it.
     $response
-        ->assertSee('Sort by')
         ->assertSee('entryList(')
-        ->assertSee('@click="setSort(\'division\')"', false)
+        ->assertSee("mode = 'grouped'", false)
+        ->assertSee("mode = 'flat'", false)
+        ->assertSee('Sort by')
         ->assertSee('@click="setSort(\'shooter\')"', false)
         ->assertSee('@click="setSort(\'province\')"', false)
         ->assertSee('@click="setSort(\'status\')"', false);

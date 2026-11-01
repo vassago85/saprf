@@ -242,7 +242,14 @@
                                             <td class="px-4 py-3 text-stone-600 capitalize">{{ $match->series_level ?? '—' }}</td>
                                             <td class="px-4 py-3 text-stone-600">{{ $match->province?->abbreviation ?? '—' }}</td>
                                             <td class="px-4 py-3 text-stone-600 hidden lg:table-cell">
-                                                <div class="max-w-[200px] truncate">{{ $match->venue_name ?? $match->city ?? '—' }}</div>
+                                                {{-- Phase 2.6: coalesce venue → city → venue_location, treating empty strings
+                                                     as missing so "" never slips through to render as a blank cell. --}}
+                                                @php
+                                                    $venueCell = collect([$match->venue_name, $match->city, $match->venue_location])
+                                                        ->map(fn ($v) => is_string($v) ? trim($v) : $v)
+                                                        ->first(fn ($v) => filled($v));
+                                                @endphp
+                                                <div class="max-w-[200px] truncate">{{ $venueCell ?: '—' }}</div>
                                             </td>
                                             @if($showSpotsColumn)
                                                 <td class="px-4 py-3 text-right whitespace-nowrap hidden md:table-cell">
