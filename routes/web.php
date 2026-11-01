@@ -904,14 +904,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/payouts/platform/dismiss', [FinancialController::class, 'dismissPlatformPayoutMonth'])->name('payouts.platform.dismiss');
         Route::post('/payouts/platform/dismiss-all', [FinancialController::class, 'dismissAllPlatformPayoutMonths'])->name('payouts.platform.dismiss-all');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
-        Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
-        Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
-
-        // Issuing or voiding a Charsley invoice touches Invoice Ninja (and
-        // Charsley's actual books). The UI already hides these buttons from
-        // non-developer roles; the middleware stops a crafted POST from an
-        // admin/exco/owner reaching the controller anyway.
+        // Every write against a Charsley invoice — issuing, voiding, marking
+        // paid, undoing a mark — is a developer-only action. Admin, exco, and
+        // owner can still see the dashboard and the history list; they just
+        // get no buttons and a 403 if they craft a direct POST.
         Route::middleware('role:developer')->group(function (): void {
+            Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
+            Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
             Route::post('/charsley/{invoice}/void', [FinancialController::class, 'voidCharsleyInvoice'])->name('charsley.void');
             Route::post('/charsley/issue', [FinancialController::class, 'issueCharsleyForPeriod'])->name('charsley.issue');
         });

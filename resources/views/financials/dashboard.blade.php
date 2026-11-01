@@ -325,6 +325,7 @@
                                 @endrole
                             @elseif($past->isPaid())
                                 <span class="text-xs font-semibold text-emerald-700">Paid {{ $past->paid_at->format('d M Y') }}</span>
+                                @role('developer')
                                 <form method="POST" action="{{ route('financials.charsley.unmark-paid', $past) }}" class="inline">
                                     @csrf
                                     <button type="submit"
@@ -333,6 +334,7 @@
                                         Undo
                                     </button>
                                 </form>
+                                @endrole
                             @else
                                 <span class="text-xs text-amber-700">{{ ucfirst($past->status) }}</span>
                                 @role('developer')
@@ -345,7 +347,6 @@
                                         Void
                                     </button>
                                 </form>
-                                @endrole
                                 <form method="POST" action="{{ route('financials.charsley.mark-paid', $past) }}" class="inline">
                                     @csrf
                                     <button type="submit"
@@ -353,6 +354,7 @@
                                         Mark paid
                                     </button>
                                 </form>
+                                @endrole
                             @endif
                         </div>
                     </li>

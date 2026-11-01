@@ -575,7 +575,7 @@ test('the issue-for-period route rejects a malformed period', function () {
         ->assertSessionHasErrors('period');
 });
 
-test('non-developer finance roles cannot issue or void Charsley invoices', function () {
+test('non-developer finance roles can view invoice history but cannot touch any invoice action', function () {
     configureCharsleyInvoicing();
     fakeInvoiceNinja();
 
@@ -590,12 +590,20 @@ test('non-developer finance roles cannot issue or void Charsley invoices', funct
         'sent_at' => now(),
     ]);
 
-    // Admin, owner, and exco can see the finance dashboard but must not be
-    // able to touch invoice issuance / voiding by posting directly.
+    // Admin, owner, and exco can see the finance dashboard — including the
+    // Charsley history — but every write action (issue, void, mark paid,
+    // undo) is developer-only. A crafted POST from any of them should 403.
     foreach (['admin', 'owner', 'exco'] as $role) {
         $user = User::factory()->create();
         $user->assignRole($role);
 
+        // They can see the dashboard and the Charsley block.
+        $this->actingAs($user)
+            ->get(route('financials.dashboard'))
+            ->assertOk()
+            ->assertSee('Charsley Digital');
+
+        // But every invoice-mutating POST is forbidden.
         $this->actingAs($user)
             ->post(route('financials.charsley.void', $existing))
             ->assertForbidden();
@@ -603,9 +611,19 @@ test('non-developer finance roles cannot issue or void Charsley invoices', funct
         $this->actingAs($user)
             ->post(route('financials.charsley.issue'), ['period' => '2026-10'])
             ->assertForbidden();
+
+        $this->actingAs($user)
+            ->post(route('financials.charsley.mark-paid', $existing))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->post(route('financials.charsley.unmark-paid', $existing))
+            ->assertForbidden();
     }
 
-    // Nothing was voided and no new invoice row was created.
-    expect($existing->fresh()->voided_at)->toBeNull()
+    // State unchanged: still outstanding, not voided, no new row.
+    $after = $existing->fresh();
+    expect($after->voided_at)->toBeNull()
+        ->and($after->paid_at)->toBeNull()
         ->and(CharsleyInvoice::count())->toBe(1);
 });
