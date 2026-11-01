@@ -906,8 +906,15 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
         Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
         Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
-        Route::post('/charsley/{invoice}/void', [FinancialController::class, 'voidCharsleyInvoice'])->name('charsley.void');
-        Route::post('/charsley/issue', [FinancialController::class, 'issueCharsleyForPeriod'])->name('charsley.issue');
+
+        // Issuing or voiding a Charsley invoice touches Invoice Ninja (and
+        // Charsley's actual books). The UI already hides these buttons from
+        // non-developer roles; the middleware stops a crafted POST from an
+        // admin/exco/owner reaching the controller anyway.
+        Route::middleware('role:developer')->group(function (): void {
+            Route::post('/charsley/{invoice}/void', [FinancialController::class, 'voidCharsleyInvoice'])->name('charsley.void');
+            Route::post('/charsley/issue', [FinancialController::class, 'issueCharsleyForPeriod'])->name('charsley.issue');
+        });
         Route::post('/payouts/{payout}/regenerate-statement', [FinancialController::class, 'regeneratePayoutStatement'])->name('payouts.regenerate-statement');
         Route::get('/payouts/{payout}/statement.pdf', [FinancialController::class, 'downloadPayoutStatementPdf'])->name('payouts.statement-pdf');
         Route::get('/payouts/{payout}/statement.csv', [FinancialController::class, 'downloadPayoutStatementCsv'])->name('payouts.statement-csv');

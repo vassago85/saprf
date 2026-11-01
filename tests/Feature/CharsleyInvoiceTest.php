@@ -574,3 +574,38 @@ test('the issue-for-period route rejects a malformed period', function () {
         ->post(route('financials.charsley.issue'), ['period' => 'nope'])
         ->assertSessionHasErrors('period');
 });
+
+test('non-developer finance roles cannot issue or void Charsley invoices', function () {
+    configureCharsleyInvoicing();
+    fakeInvoiceNinja();
+
+    $existing = CharsleyInvoice::create([
+        'period' => '2026-10',
+        'invoice_ninja_id' => 'abc',
+        'invoice_number' => '0016',
+        'entries' => 198,
+        'entry_fee' => 50,
+        'total' => 9900,
+        'status' => 'sent',
+        'sent_at' => now(),
+    ]);
+
+    // Admin, owner, and exco can see the finance dashboard but must not be
+    // able to touch invoice issuance / voiding by posting directly.
+    foreach (['admin', 'owner', 'exco'] as $role) {
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->post(route('financials.charsley.void', $existing))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->post(route('financials.charsley.issue'), ['period' => '2026-10'])
+            ->assertForbidden();
+    }
+
+    // Nothing was voided and no new invoice row was created.
+    expect($existing->fresh()->voided_at)->toBeNull()
+        ->and(CharsleyInvoice::count())->toBe(1);
+});
