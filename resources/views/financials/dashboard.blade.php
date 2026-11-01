@@ -171,15 +171,37 @@
 
             @if($unsettledCount > 0)
             <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <p class="text-xs font-semibold text-amber-900 uppercase">Outstanding months</p>
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <p class="text-xs font-semibold text-amber-900 uppercase">Outstanding months</p>
+                    <form method="POST" action="{{ route('financials.payouts.platform.dismiss-all') }}" class="inline">
+                        @csrf
+                        <input type="hidden" name="reason" value="Invoiced via Charsley">
+                        <button type="submit"
+                                class="text-xs font-semibold text-amber-900 hover:text-amber-700 underline underline-offset-2"
+                                onclick="return confirm('Clear all {{ $unsettledCount }} outstanding {{ Str::plural('month', $unsettledCount) }} ({{ money($unsettledTotal, false) }})? Use this when you are invoicing the platform operator via Charsley instead of paying out through the platform. The months will be marked settled externally and drop off this list. Payouts can still be generated manually if you change your mind.');">
+                            Clear all (invoicing instead)
+                        </button>
+                    </form>
+                </div>
                 <ul class="mt-2 flex flex-wrap gap-2 text-xs">
                     @foreach($unsettledMonths as $unsettled)
-                    <li>
+                    <li class="inline-flex items-center gap-0 rounded-full border border-amber-300 bg-white text-amber-900 overflow-hidden">
                         <a href="{{ route('financials.payouts.platform.create', ['month' => $unsettled['month']->format('Y-m')]) }}"
-                           class="inline-flex items-center gap-1 rounded-full bg-white border border-amber-300 px-3 py-1 text-amber-900 hover:bg-amber-100 transition">
+                           class="inline-flex items-center gap-1 px-3 py-1 hover:bg-amber-100 transition">
                             {{ $unsettled['month']->format('M Y') }}
                             <span class="text-amber-700">{{ money($unsettled['platform_fees'], false) }}</span>
                         </a>
+                        <form method="POST" action="{{ route('financials.payouts.platform.dismiss') }}" class="inline">
+                            @csrf
+                            <input type="hidden" name="month" value="{{ $unsettled['month']->format('Y-m') }}">
+                            <input type="hidden" name="reason" value="Invoiced via Charsley">
+                            <button type="submit"
+                                    title="Clear this month (invoicing instead of paying out)"
+                                    class="px-2 py-1 text-amber-700 hover:bg-amber-100 border-l border-amber-200 transition"
+                                    onclick="return confirm('Clear {{ $unsettled['month']->format('F Y') }} ({{ money($unsettled['platform_fees'], false) }}) from outstanding? It will be marked settled externally.');">
+                                &times;
+                            </button>
+                        </form>
                     </li>
                     @endforeach
                 </ul>

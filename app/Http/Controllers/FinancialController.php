@@ -140,6 +140,90 @@ class FinancialController extends Controller
     }
 
     /**
+     * Mark one past month's platform-operator settlement as handled off-platform
+     * (invoiced via Charsley, say) so the finance dashboard stops surfacing it
+     * as outstanding. Idempotent: a second call for the same month is a no-op.
+     */
+    public function dismissPlatformPayoutMonth(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ], [
+            'month.regex' => 'Pick a valid month (YYYY-MM).',
+        ]);
+
+        $month = $this->parseMonth($validated['month']);
+        if (! $month) {
+            return back()->withErrors(['month' => 'Pick a valid month.']);
+        }
+
+        $dismissal = $this->platformPayouts->dismissMonth(
+            $month,
+            $request->user(),
+            $validated['reason'] ?? null,
+        );
+
+        $this->audit->log(
+            $request->user(),
+            'platform_payout.dismissed',
+            'platform_payout_dismissal',
+            $dismissal->id,
+            null,
+            [
+                'period_start' => $dismissal->period_start?->toDateString(),
+                'period_end' => $dismissal->period_end?->toDateString(),
+                'platform_fees_amount' => (float) $dismissal->platform_fees_amount,
+                'reason' => $dismissal->reason,
+            ],
+        );
+
+        return back()->with(
+            'status',
+            'Cleared '.$month->format('F Y').' from the outstanding list.',
+        );
+    }
+
+    /**
+     * Clear every past month currently showing as outstanding. Used when the
+     * operator switches from "pay out" to "invoice via Charsley" and wants
+     * the backlog hidden in one click.
+     */
+    public function dismissAllPlatformPayoutMonths(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $dismissed = $this->platformPayouts->dismissAllUnsettled(
+            $request->user(),
+            $validated['reason'] ?? null,
+        );
+
+        if ($dismissed === []) {
+            return back()->with('status', 'No outstanding months to clear.');
+        }
+
+        $this->audit->log(
+            $request->user(),
+            'platform_payout.dismissed_all',
+            'platform_payout_dismissal',
+            null,
+            null,
+            [
+                'count' => count($dismissed),
+                'periods' => array_map(fn ($d) => $d->period_start?->toDateString(), $dismissed),
+                'reason' => $validated['reason'] ?? 'Invoiced via Charsley',
+            ],
+        );
+
+        return back()->with(
+            'status',
+            'Cleared '.count($dismissed).' outstanding '.(count($dismissed) === 1 ? 'month' : 'months').'.',
+        );
+    }
+
+    /**
      * Void a previously-sent Charsley invoice. Used after the operator
      * credited the invoice in Invoice Ninja (e.g. billed the wrong amount) —
      * the SAPRF-side ledger records the void so the next "Issue invoice for

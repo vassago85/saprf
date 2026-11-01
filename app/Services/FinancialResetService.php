@@ -25,6 +25,7 @@ class FinancialResetService
         'financial_transactions',
         'payout_items',
         'payouts',
+        'platform_payout_dismissals',
         'platform_expenses',
         'platform_income',
         'match_expenses',

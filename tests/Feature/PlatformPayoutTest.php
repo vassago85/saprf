@@ -202,3 +202,41 @@ it('surfaces validation errors when the month is malformed', function () {
         ->post(route('financials.payouts.platform.store'), ['month' => 'not-a-month'])
         ->assertSessionHasErrors('month');
 });
+
+it('drops dismissed months from the unsettled list without creating a payout', function () {
+    Carbon::setTestNow(Carbon::create(2026, 11, 20));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 10, 5));
+
+    $service = app(PlatformPayoutService::class);
+    expect($service->unsettledMonths(12))->toHaveCount(2);
+
+    $service->dismissMonth(Carbon::create(2026, 8, 1), $this->creator, 'Invoiced via Charsley');
+
+    $unsettled = $service->unsettledMonths(12);
+    expect($unsettled)->toHaveCount(1)
+        ->and($unsettled[0]['month']->format('Y-m'))->toBe('2026-10');
+
+    // Dismissal is idempotent: calling again does not create a second row.
+    $service->dismissMonth(Carbon::create(2026, 8, 1), $this->creator);
+    expect(\App\Models\PlatformPayoutDismissal::count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
+it('clears every outstanding month from the dashboard in one click', function () {
+    Carbon::setTestNow(Carbon::create(2026, 11, 20));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 8, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 9, 5));
+    makePlatformPaidRegistration($this->match, Carbon::create(2026, 10, 5));
+
+    $this->actingAs($this->creator)
+        ->post(route('financials.payouts.platform.dismiss-all'), ['reason' => 'Invoiced via Charsley'])
+        ->assertRedirect();
+
+    expect(app(PlatformPayoutService::class)->unsettledMonths(12))->toBe([])
+        ->and(\App\Models\PlatformPayoutDismissal::count())->toBe(3)
+        ->and(\App\Models\PlatformPayoutDismissal::value('reason'))->toBe('Invoiced via Charsley');
+
+    Carbon::setTestNow();
+});

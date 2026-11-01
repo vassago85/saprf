@@ -892,6 +892,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/payouts', [FinancialController::class, 'storePayout'])->name('payouts.store');
         Route::get('/payouts/platform/create', [FinancialController::class, 'createPlatformPayout'])->name('payouts.platform.create');
         Route::post('/payouts/platform', [FinancialController::class, 'storePlatformPayout'])->name('payouts.platform.store');
+        Route::post('/payouts/platform/dismiss', [FinancialController::class, 'dismissPlatformPayoutMonth'])->name('payouts.platform.dismiss');
+        Route::post('/payouts/platform/dismiss-all', [FinancialController::class, 'dismissAllPlatformPayoutMonths'])->name('payouts.platform.dismiss-all');
         Route::post('/payouts/{payout}/mark-paid', [FinancialController::class, 'markPaid'])->name('payouts.mark-paid');
         Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
         Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');

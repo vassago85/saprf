@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
 use App\Models\PayoutItem;
+use App\Models\PlatformPayoutDismissal;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,7 @@ class PlatformPayoutService
      *     platform_fees: float,
      *     entry_count: int,
      *     existing_payout: ?Payout,
+     *     existing_dismissal: ?PlatformPayoutDismissal,
      *     operator_user_id: ?int,
      * }
      */
@@ -62,6 +64,7 @@ class PlatformPayoutService
             'platform_fees' => round((float) $agg->fees + (float) $withdrawals->fees, 2),
             'entry_count' => (int) $agg->entries + (int) $withdrawals->entries,
             'existing_payout' => $this->existingPayoutForMonth($start, $end),
+            'existing_dismissal' => $this->existingDismissalForMonth($start, $end),
             'operator_user_id' => $this->operatorUserId(),
         ];
     }
@@ -182,7 +185,10 @@ class PlatformPayoutService
             $month = $anchor->copy()->subMonthsNoOverflow($i);
             $preview = $this->preview($month);
 
-            if ($preview['existing_payout'] || $preview['entry_count'] === 0) {
+            if ($preview['existing_payout']
+                || $preview['existing_dismissal']
+                || $preview['entry_count'] === 0
+            ) {
                 continue;
             }
 
@@ -194,6 +200,56 @@ class PlatformPayoutService
         }
 
         return $months;
+    }
+
+    /**
+     * Record that a past month's platform-fee settlement has been handled
+     * outside the payout flow (typically: invoiced via Charsley). The month
+     * drops off `unsettledMonths()` immediately. Returns the dismissal row
+     * (freshly created or already existing).
+     */
+    public function dismissMonth(Carbon $month, User $actor, ?string $reason = null): PlatformPayoutDismissal
+    {
+        $start = $month->copy()->startOfMonth();
+        $end = $month->copy()->endOfMonth();
+
+        // Short-circuit on an existing dismissal (whereDate handles the
+        // "stored as datetime, searched as date" mismatch that firstOrCreate
+        // trips on when the casts widen a `date` column to datetime).
+        $existing = $this->existingDismissalForMonth($start, $end);
+        if ($existing) {
+            return $existing;
+        }
+
+        $preview = $this->preview($month);
+
+        return PlatformPayoutDismissal::create([
+            'period_start' => $start,
+            'period_end' => $end,
+            'platform_fees_amount' => $preview['platform_fees'],
+            'entry_count' => $preview['entry_count'],
+            'reason' => $reason ?: 'Invoiced via Charsley',
+            'dismissed_by' => $actor->id,
+            'dismissed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Dismiss every month currently sitting in `unsettledMonths()`. Returns
+     * the dismissal rows created. Months with an existing dismissal are
+     * left untouched.
+     *
+     * @return list<PlatformPayoutDismissal>
+     */
+    public function dismissAllUnsettled(User $actor, ?string $reason = null): array
+    {
+        $dismissed = [];
+
+        foreach ($this->unsettledMonths() as $entry) {
+            $dismissed[] = $this->dismissMonth($entry['month'], $actor, $reason);
+        }
+
+        return $dismissed;
     }
 
     private function baseQuery(Carbon $start, Carbon $end)
@@ -222,6 +278,14 @@ class PlatformPayoutService
     {
         return Payout::query()
             ->where('payee_type', 'platform_operator')
+            ->whereDate('period_start', $start->toDateString())
+            ->whereDate('period_end', $end->toDateString())
+            ->first();
+    }
+
+    private function existingDismissalForMonth(Carbon $start, Carbon $end): ?PlatformPayoutDismissal
+    {
+        return PlatformPayoutDismissal::query()
             ->whereDate('period_start', $start->toDateString())
             ->whereDate('period_end', $end->toDateString())
             ->first();
