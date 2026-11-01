@@ -310,7 +310,19 @@
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
                             @if($past->isVoided())
+                                @role('developer')
+                                <form method="POST" action="{{ route('financials.charsley.issue') }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="period" value="{{ $past->period }}">
+                                    <button type="submit"
+                                            class="rounded-md border border-emerald-600 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition"
+                                            onclick="return confirm('Issue a replacement {{ $pastLabel }} Charsley invoice? The system will recalculate the correct total from the ledger and email it via Invoice Ninja.');">
+                                        Issue replacement &rarr;
+                                    </button>
+                                </form>
+                                @else
                                 <span class="text-xs text-stone-500">No action</span>
+                                @endrole
                             @elseif($past->isPaid())
                                 <span class="text-xs font-semibold text-emerald-700">Paid {{ $past->paid_at->format('d M Y') }}</span>
                                 <form method="POST" action="{{ route('financials.charsley.unmark-paid', $past) }}" class="inline">
@@ -323,6 +335,17 @@
                                 </form>
                             @else
                                 <span class="text-xs text-amber-700">{{ ucfirst($past->status) }}</span>
+                                @role('developer')
+                                <form method="POST" action="{{ route('financials.charsley.void', $past) }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="void_reason" value="Credited in Invoice Ninja">
+                                    <button type="submit"
+                                            class="text-xs text-stone-500 hover:text-rose-700"
+                                            onclick="return confirm('Void {{ $pastLabel }} invoice {{ $past->invoice_number ?: $past->period }} (sent at {{ money($past->total) }})? Use this once you have credited it in Invoice Ninja. You will then see an \'Issue replacement\' button to send a fresh invoice at the correct total.');">
+                                        Void
+                                    </button>
+                                </form>
+                                @endrole
                                 <form method="POST" action="{{ route('financials.charsley.mark-paid', $past) }}" class="inline">
                                     @csrf
                                     <button type="submit"

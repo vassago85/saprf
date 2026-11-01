@@ -655,6 +655,15 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.scores.complete');
             Route::post('/scores/uncomplete', [MatchWorkspaceController::class, 'uncompleteScores'])
                 ->name('matches.scores.uncomplete');
+            // Wizard: step 2 (names & allocations). Division override on a
+            // single score — the MD can repoint a stub or mis-divisioned
+            // row to the right division before closing out.
+            Route::put('/scores/{score}/allocation', [MatchWorkspaceController::class, 'updateScoreAllocation'])
+                ->name('matches.scores.allocation');
+            // Wizard: step 3 (walk-in fee agreement). The POST stamps the
+            // acknowledgement so the complete-and-request-payout gate opens.
+            Route::post('/scores/acknowledge-walkin-fees', [MatchWorkspaceController::class, 'acknowledgeWalkinFees'])
+                ->name('matches.scores.acknowledge-walkin-fees');
             Route::post('/notify-unpaid', [MatchWorkspaceController::class, 'notifyUnpaid'])
                 ->name('matches.notify-unpaid');
             Route::post('/apply-club-entry', [MatchWorkspaceController::class, 'applyClubEntry'])
@@ -898,6 +907,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/charsley/{invoice}/mark-paid', [FinancialController::class, 'markCharsleyPaid'])->name('charsley.mark-paid');
         Route::post('/charsley/{invoice}/unmark-paid', [FinancialController::class, 'unmarkCharsleyPaid'])->name('charsley.unmark-paid');
         Route::post('/charsley/{invoice}/void', [FinancialController::class, 'voidCharsleyInvoice'])->name('charsley.void');
+        Route::post('/charsley/issue', [FinancialController::class, 'issueCharsleyForPeriod'])->name('charsley.issue');
         Route::post('/payouts/{payout}/regenerate-statement', [FinancialController::class, 'regeneratePayoutStatement'])->name('payouts.regenerate-statement');
         Route::get('/payouts/{payout}/statement.pdf', [FinancialController::class, 'downloadPayoutStatementPdf'])->name('payouts.statement-pdf');
         Route::get('/payouts/{payout}/statement.csv', [FinancialController::class, 'downloadPayoutStatementCsv'])->name('payouts.statement-csv');

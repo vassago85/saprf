@@ -224,6 +224,61 @@ class FinancialController extends Controller
     }
 
     /**
+     * Issue (or re-issue) the Charsley invoice for an arbitrary past period
+     * expressed as `YYYY-MM`. Used after voiding a wrongly-billed month: the
+     * dashboard's "Issue invoice for this month" button only sees the current
+     * month, so a past month needs an explicit period to re-send. Idempotent:
+     * if an active (non-voided) invoice already exists for the period the
+     * service short-circuits and returns it.
+     */
+    public function issueCharsleyForPeriod(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'period' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+        ], [
+            'period.regex' => 'Pick a valid period (YYYY-MM).',
+        ]);
+
+        try {
+            $parsed = Carbon::createFromFormat('Y-m', $validated['period']);
+        } catch (\Throwable) {
+            return back()->withErrors(['period' => 'Pick a valid period (YYYY-MM).']);
+        }
+
+        try {
+            $invoice = app(IssueCharsleyInvoice::class)->issue($parsed->year, $parsed->month);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['period' => 'Could not issue invoice: '.$e->getMessage()]);
+        }
+
+        $periodLabel = $parsed->format('F Y');
+
+        if (! $invoice) {
+            return back()->with('status', "No billable transactions for {$periodLabel} — nothing to invoice.");
+        }
+
+        $this->audit->log(
+            $request->user(),
+            'charsley_invoice.issued_manually',
+            'charsley_invoice',
+            $invoice->id,
+            null,
+            [
+                'period' => $invoice->period,
+                'invoice_number' => $invoice->invoice_number,
+                'total' => (float) $invoice->total,
+            ],
+        );
+
+        return back()->with(
+            'status',
+            "Issued {$periodLabel} Charsley invoice "
+            .($invoice->invoice_number ? "({$invoice->invoice_number}) " : '')
+            .'for '.money($invoice->total, false).'.',
+        );
+    }
+
+    /**
      * Void a previously-sent Charsley invoice. Used after the operator
      * credited the invoice in Invoice Ninja (e.g. billed the wrong amount) —
      * the SAPRF-side ledger records the void so the next "Issue invoice for

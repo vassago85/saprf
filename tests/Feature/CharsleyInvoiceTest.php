@@ -501,3 +501,76 @@ test('a developer can test the connection and invoice the previous month', funct
 
     expect(CharsleyInvoice::where('period', '2026-09')->value('status'))->toBe('sent');
 });
+
+test('a developer can re-issue a voided invoice for a past month from the dashboard', function () {
+    $this->travelTo('2026-11-01 08:00:00');
+    configureCharsleyInvoicing();
+    fakeInvoiceNinja();
+
+    // One October entry — the wrong invoice sent before had way more rows,
+    // so the correct re-issue should only bill for the real paid platform
+    // transactions sitting in the ledger right now.
+    charsleyEntry($this->match, [
+        'registered_at' => '2026-10-15 10:00:00',
+        'shooter_name' => 'October Paid',
+    ]);
+
+    // Simulate the "already sent at wrong total, then credited manually"
+    // state: an invoice row for Oct exists, is voided.
+    $voided = CharsleyInvoice::create([
+        'period' => '2026-10',
+        'invoice_ninja_id' => 'abc',
+        'invoice_number' => '0016',
+        'entries' => 198,
+        'entry_fee' => 50,
+        'total' => 9900,
+        'status' => 'sent',
+        'sent_at' => now()->subDays(2),
+        'voided_at' => now()->subDay(),
+        'voided_reason' => 'Credited in Invoice Ninja',
+    ]);
+
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+
+    $this->actingAs($developer)
+        ->post(route('financials.charsley.issue'), ['period' => '2026-10'])
+        ->assertRedirect()
+        ->assertSessionHas('status');
+
+    $active = CharsleyInvoice::where('period', '2026-10')->whereNull('voided_at')->first();
+
+    expect($active)->not->toBeNull()
+        ->and($active->id)->not->toBe($voided->id)
+        ->and((float) $active->total)->toBe(50.0)
+        ->and($active->status)->toBe('sent')
+        ->and(CharsleyInvoice::where('period', '2026-10')->count())->toBe(2);
+});
+
+test('issuing for a past period with nothing billable is a no-op and does not create a row', function () {
+    $this->travelTo('2026-11-01 08:00:00');
+    configureCharsleyInvoicing();
+    fakeInvoiceNinja();
+
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+
+    $this->actingAs($developer)
+        ->post(route('financials.charsley.issue'), ['period' => '2026-07'])
+        ->assertRedirect()
+        ->assertSessionHas('status');
+
+    expect(CharsleyInvoice::where('period', '2026-07')->count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+test('the issue-for-period route rejects a malformed period', function () {
+    configureCharsleyInvoicing();
+
+    $developer = User::factory()->create();
+    $developer->assignRole('developer');
+
+    $this->actingAs($developer)
+        ->post(route('financials.charsley.issue'), ['period' => 'nope'])
+        ->assertSessionHasErrors('period');
+});
