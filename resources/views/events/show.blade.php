@@ -431,12 +431,29 @@
                                         All shooters count for this match regardless of membership status on the day.
                                     </p>
                                 @endif
-                                {{-- No "By Division" toggle on match results — intentional.
-                                     Divisions are a shooter attribute, not a per-match ranking
-                                     bucket: if one person shows up for Factory, ranking them
-                                     "1st in Factory at 100 %" is a misleading podium. Everyone
-                                     is ranked on the single Overall list, and the season log
-                                     reads from this same overall score. --}}
+                                {{-- Division filter — purely a visual filter, not a re-ranking.
+                                     Rank numbers and Match % stay anchored to the overall board
+                                     so a lone Factory shooter never gets a "1st in Factory at
+                                     100 %" podium. Default pill ("All divisions") = Overall.
+                                     The chip beside each shooter's name shows which division
+                                     they shot, so the overall list stays legible when the
+                                     filter is off. --}}
+                                @if(count($divList) > 1)
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mr-1">Division</span>
+                                        <button type="button"
+                                                @click="divFilter = null"
+                                                :class="divFilter === null ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
+                                                class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition">All divisions</button>
+                                        <template x-for="d in divs" :key="d.id">
+                                            <button type="button"
+                                                    @click="divFilter = d.id"
+                                                    :class="divFilter === d.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
+                                                    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition"
+                                                    x-text="d.name"></button>
+                                        </template>
+                                    </div>
+                                @endif
                             </div>
 
                             <div class="overflow-x-auto">
@@ -486,6 +503,13 @@
                                                     </template>
                                                     <template x-if="! row.profile_url">
                                                         <span x-text="row.name"></span>
+                                                    </template>
+                                                    {{-- Division chip — purely a label, not a ranking bucket. Rendered
+                                                         when the score carries a division so the overall list stays
+                                                         scannable; hidden for unassigned/guest rows. --}}
+                                                    <template x-if="row.div_id">
+                                                        <span class="ml-2 inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200"
+                                                              x-text="row.div_name"></span>
                                                     </template>
                                                     <template x-if="row.sa_years && row.sa_years.length">
                                                         <span class="ml-2 inline-flex items-center gap-1" :title="row.sa_tooltip || ('Represented South Africa in ' + row.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + row.sa_years.join(', ')">
@@ -572,14 +596,17 @@
 
                         <script>
                         document.addEventListener('alpine:init', () => {
-                            // Single-mode results table — the "By Division" sub-view was dropped
-                            // on purpose (see the comment above the filter row). The `divs`
-                            // parameter is kept in the signature so the Blade call site stays
-                            // unchanged and so any future surface can read the list cheaply,
-                            // but nothing in this component references it.
+                            // Results table ranks everyone on the single Overall board. The
+                            // division pills above the table are a *visual filter* only — picking
+                            // a division narrows the list to shooters in that cohort, but their
+                            // rank number and Match % stay the overall values (so a lone Factory
+                            // shooter never becomes "1st in Factory at 100 %"). That's why there
+                            // is no Div % column: it would compute per-division leaders and
+                            // encourage misleading podiums.
                             Alpine.data('matchResults', (scores, divs) => ({
                                 scores,
                                 divs,
+                                divFilter: null,
                                 expandedStages: {},
 
                                 toggleStages(id) {
@@ -600,7 +627,11 @@
                                     // Competition ranking: tied rows render with a leading "T"
                                     // (e.g. T2, T2, 4). The persisted is_tied_overall flag is
                                     // authoritative — the backend already decided the ties.
+                                    // Division filter is applied *after* the overall rank is
+                                    // attached so filtered rows keep their original overall
+                                    // placement (e.g. filtering to Open might show #1, #4, #9).
                                     return this.scores
+                                        .filter(s => this.divFilter === null || s.div_id === this.divFilter)
                                         .map(s => ({
                                             ...s,
                                             _norm: s.norm,

@@ -68,6 +68,15 @@ class ImpactStages
             return (int) $matches[1];
         }
 
+        // Many PRS/PR22 courses name stages like "1 - When Pigs Fly" or
+        // "1. Bench" where the leading digit *is* the stage number without
+        // the word "stage". Without this fallback the sort gets no number
+        // and reverts to Impact's bay order (1, 3, 2, 4, …), which is what
+        // the shooter saw in real life but not what reads on screen.
+        if (preg_match('/^\s*(\d+)\s*[-–—:.)\]]/u', $name, $matches) === 1) {
+            return (int) $matches[1];
+        }
+
         return null;
     }
 
