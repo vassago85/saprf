@@ -1,50 +1,52 @@
 <x-layouts.app :title="$match->name . ' — Settings'">
     @include('matches.workspace._chrome')
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-3">
-        {{-- Main settings column: edit form --}}
-        <div class="space-y-4 lg:col-span-2">
-            @include('matches.workspace._settings-form')
-            @include('matches.workspace._apply-club-entry')
-        </div>
+    {{-- Two-column layout on >= lg: form on the left, sticky section nav
+         + Save/Cancel on the right. On < lg the nav collapses into a
+         horizontal strip above the form plus a sticky Save bar at the
+         bottom (both inside `_section-nav`). --}}
+    <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <form id="match-settings-form"
+              method="POST"
+              action="{{ route('matches.update', $match) }}"
+              enctype="multipart/form-data"
+              class="space-y-4">
+            @csrf
+            @method('PUT')
 
-        {{-- Sidebar: add shooter + change director + match tools --}}
-        <div class="space-y-4">
-            @can('update', $match)
-                @include('matches.workspace._add-shooter-panel')
-            @endcan
+            {{-- Seven sections, in the order dictated by the brief:
+                 1. Basics
+                 2. When & where
+                 3. Entries
+                 4. Fees
+                 5. Director & contact
+                 6. Public page
+                 7. Scoring
 
-            @can('changeDirector', $match)
-                @include('matches.workspace._change-director-panel')
-            @endcan
+                 Each section partial shares the same markup used by the
+                 Create page. The per-field "Locked" badges come from
+                 `$lockedByPaidEntries` — the page-wide locked banner has
+                 been retired in favour of these inline chips with the
+                 same explanation surfaced as a tooltip. --}}
+            @include('matches._form._basics')
+            @include('matches._form._when-where')
+            @include('matches._form._entries')
+            @include('matches._form._fees')
+            @include('matches._form._director-contact')
+            @include('matches._form._public-page')
+            @include('matches._form._scoring')
 
-            {{-- Related links (now that the finance report lives in Finances tab) --}}
-            <div class="rounded-xl border border-stone-200 bg-white p-5">
-                <h3 class="text-sm font-semibold text-stone-900">Match tools</h3>
-                <ul class="mt-3 divide-y divide-stone-100 text-sm">
-                    <li>
-                        <a href="{{ route('matches.export-impact-scoring', $match) }}"
-                           class="flex items-center gap-2 py-2 text-stone-700 hover:text-emerald-700">
-                            <flux:icon.arrow-down-tray class="size-4 text-stone-400" />
-                            Export entries for Impact
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('matches.finances', $match) }}" wire:navigate
-                           class="flex items-center gap-2 py-2 text-stone-700 hover:text-emerald-700">
-                            <flux:icon.banknotes class="size-4 text-stone-400" />
-                            Finances
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('events.show', $match) }}" target="_blank"
-                           class="flex items-center gap-2 py-2 text-stone-700 hover:text-emerald-700">
-                            <flux:icon.arrow-top-right-on-square class="size-4 text-stone-400" />
-                            Public event page
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
+            @if ($errors->any())
+                <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    <ul class="list-inside list-disc space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+        </form>
+
+        @include('matches._form._section-nav')
     </div>
 </x-layouts.app>

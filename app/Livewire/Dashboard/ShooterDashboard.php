@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\Dashboard\Shooter\AttentionBuilder;
 use App\Support\Dashboard\Shooter\DisciplineScope;
 use App\Support\Dashboard\Shooter\HeroStandingBuilder;
+use App\Support\Dashboard\Shooter\LastMatchStagesBuilder;
 use App\Support\Dashboard\Shooter\MembershipStripBuilder;
 use App\Support\Dashboard\Shooter\NextMatchesBuilder;
 use App\Support\Dashboard\Shooter\RifleDopeBuilder;
@@ -56,6 +57,7 @@ class ShooterDashboard extends Component
         AttentionBuilder $attention,
         SeasonCardBuilder $seasonCards,
         HeroStandingBuilder $hero,
+        LastMatchStagesBuilder $lastMatchStages,
         SeasonKpiBuilder $kpis,
         RifleDopeBuilder $dope,
         MembershipStripBuilder $membershipStrip,
@@ -112,6 +114,7 @@ class ShooterDashboard extends Component
             'heroDisciplines' => $heroDisciplines,
             'activeHeroDiscipline' => $activeHeroDiscipline,
             'heroes' => $heroes,
+            'lastMatchStages' => $lastMatchStages->for($user),
             'kpis' => $kpiData,
             'dual' => $dual,
             'scopeNote' => $scope->scopeNote($disciplines),

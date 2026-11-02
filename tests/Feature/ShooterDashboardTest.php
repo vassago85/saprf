@@ -363,3 +363,43 @@ it('defaults the dual-discipline hero to PRS on first paint before any tab click
         ->assertDontSee('Not ranked yet')
         ->assertSee('200.00');
 });
+
+it('graphs the latest match stages in course order', function () {
+    $user = dashShooter($this->gp);
+    $older = dashMatch([
+        'name' => 'Older Stage Match',
+        'match_date' => Carbon::today()->subDays(20),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    $latest = dashMatch([
+        'name' => 'Highveld Stage Match',
+        'match_date' => Carbon::today()->subDays(2),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    dashScore($user, $older, [
+        'raw_meta' => ['impact' => ['stages' => [
+            ['name' => 'Stage 1', 'points' => 10],
+        ]]],
+    ]);
+    dashScore($user, $latest, [
+        'raw_meta' => ['impact' => ['stages' => [
+            ['name' => 'Stage 2 Stumps', 'points' => 12],
+            ['name' => 'Stage 5 Drums', 'points' => 9],
+            ['name' => 'Stage 1 Bench', 'points' => 11],
+            ['name' => 'Stage 3 Boomsloop', 'points' => 8],
+        ]]],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ShooterDashboard::class)
+        ->assertSee('Last match, stage by stage')
+        ->assertSee('Highveld Stage Match')
+        ->assertSeeInOrder([
+            'Stage 1 Bench',
+            'Stage 2 Stumps',
+            'Stage 3 Boomsloop',
+            'Stage 5 Drums',
+        ]);
+});

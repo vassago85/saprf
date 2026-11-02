@@ -58,18 +58,34 @@
                         </form>
                     @endif
                 @endcan
+                {{-- Export entries for Impact used to live under the sidebar
+                     "Match tools" card on Settings. It's one click away from
+                     the Entries workflow where it belongs. --}}
                 <a href="{{ route('matches.export-impact-scoring', $match) }}"
-                   class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                   class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                   title="Download the entries CSV for Impact scoring">
                     <flux:icon.arrow-down-tray class="size-4" />
-                    Export CSV
+                    Export for Impact
                 </a>
-                <a href="{{ route('matches.settings', $match) }}#add-shooter" wire:navigate
-                   class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
-                    <flux:icon.plus class="size-4" />
-                    Add entry
-                </a>
+                @can('update', $match)
+                    <a href="#add-shooter"
+                       class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                        <flux:icon.plus class="size-4" />
+                        Add entry
+                    </a>
+                @endcan
             </div>
         </div>
+
+        {{-- Add-a-shooter card (MD/admin only). Moved from the Settings
+             sidebar so adding a walk-in or comp'd entry happens right
+             next to the list of existing entries. The partial handles
+             its own forms and policy checks; we gate at this call site
+             because the inner partial relies on `$selfEntry` /
+             `$selfDefaultDivisionId` provided by the controller. --}}
+        @can('update', $match)
+            @include('matches.workspace._add-shooter-panel')
+        @endcan
 
         @include('matches.workspace._apply-club-entry')
 
@@ -186,5 +202,55 @@
                 </div>
             @endif
         </div>
+
+        {{-- Squadding card. Moved out of the Match-day details block on
+             Settings (where it was buried five sections deep) so an MD
+             building squads sees it beside the list of entries. Posts
+             to the normal matches.update route with the match name
+             hidden to pass the "required name" validation rule — the
+             rest of the match's fields are untouched by the save. --}}
+        @can('update', $match)
+            @php
+                $squaddingRaw = old('squadding_json');
+                if ($squaddingRaw === null) {
+                    $squaddingRaw = is_array($match->squadding_json)
+                        ? json_encode($match->squadding_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                        : $match->squadding_json;
+                }
+            @endphp
+            <section class="rounded-xl border border-stone-200 bg-white p-5">
+                <header>
+                    <h3 class="text-sm font-semibold text-stone-900">Squadding</h3>
+                    <p class="mt-0.5 text-xs text-stone-500">
+                        Group shooters into squads. Shown on the public event page as its own card when populated.
+                    </p>
+                </header>
+
+                <form method="POST" action="{{ route('matches.update', $match) }}" class="mt-4 space-y-3">
+                    @csrf
+                    @method('PUT')
+                    {{-- UpdateMatchRequest requires name + match_type; we re-send the
+                         current values so this single-field save validates without
+                         touching anything else. --}}
+                    <input type="hidden" name="name" value="{{ $match->name }}" />
+                    <input type="hidden" name="match_type" value="{{ $match->match_type }}" />
+
+                    <div>
+                        <label for="squadding_json" class="sr-only">Squadding (JSON)</label>
+                        <textarea name="squadding_json" id="squadding_json" rows="6"
+                                  placeholder='[{"squad_name":"Squad A","members":["Japie Louw","Sarah de Beer"]}]'
+                                  class="block w-full rounded-lg border border-stone-300 font-mono text-xs focus:border-emerald-500 focus:ring-emerald-500">{{ $squaddingRaw }}</textarea>
+                        <p class="mt-1 text-xs text-stone-400">
+                            List of <code>{"squad_name":"…","members":["…"]}</code> rows. Leave blank to hide the squadding card on the public page.
+                        </p>
+                        @error('squadding_json') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex justify-end">
+                        <flux:button type="submit" variant="primary" size="sm">Save squads</flux:button>
+                    </div>
+                </form>
+            </section>
+        @endcan
     </div>
 </x-layouts.app>

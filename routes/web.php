@@ -676,6 +676,22 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.estimated-shooters.update');
             Route::get('/messages', [MatchWorkspaceController::class, 'messages'])->name('matches.messages');
             Route::get('/settings', [MatchWorkspaceController::class, 'settings'])->name('matches.settings');
+
+            // Status transitions — replace the old free-form Status select
+            // that lived on the settings form. Each transition is its own
+            // POST so the stage bar's Next-action button and the chrome's
+            // More menu can wire a one-click action to it. Policy gate is
+            // the same `update` ability the old select relied on.
+            Route::post('/publish-draft', [MatchWorkspaceController::class, 'publishDraft'])
+                ->name('matches.publish-draft');
+            Route::post('/close-entries', [MatchWorkspaceController::class, 'closeEntries'])
+                ->name('matches.close-entries');
+            Route::post('/mark-completed', [MatchWorkspaceController::class, 'markCompleted'])
+                ->name('matches.mark-completed');
+            Route::post('/cancel', [MatchWorkspaceController::class, 'cancelMatch'])
+                ->name('matches.cancel');
+            Route::post('/revert-to-draft', [MatchWorkspaceController::class, 'revertToDraft'])
+                ->name('matches.revert-to-draft');
         });
 
     // Legacy name alias. `matches.show` is referenced from a lot of

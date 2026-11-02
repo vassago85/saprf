@@ -63,6 +63,10 @@ beforeEach(function () {
         'active_member_fee' => 550.00,
         'non_member_fee' => 750.00,
         'lapsed_member_fee' => 700.00,
+        // Admin add-entry test exercises the club_entry bracket on a
+        // provincial match (shooter is categorised as club_entry when the
+        // MD books them off-platform). That requires the opt-in flag.
+        'club_entry_enabled' => true,
         'created_by' => $this->md->id,
     ]);
 
@@ -392,12 +396,13 @@ it('writes an audit log entry for every seeded row', function () {
         ]);
 });
 
-it('shows the Add-a-Shooter panel on the match edit page for the MD', function () {
-    // The Add-a-Shooter panel now lives on the Settings tab of the
-    // match workspace; `matches.edit` is kept as a 301 alias so the
-    // old URL still resolves.
+it('shows the Add-a-Shooter panel on the match entries page for the MD', function () {
+    // The Add-a-Shooter panel now lives on the Entries tab of the
+    // match workspace (previously Settings) so adding a walk-in sits
+    // next to the list of entries. `matches.edit` is still kept as a
+    // 301 alias to Settings for any old bookmark.
     $this->actingAs($this->md)
-        ->get(route('matches.settings', $this->match))
+        ->get(route('matches.entries', $this->match))
         ->assertOk()
         // Workspace headings are sentence case — the panel's h3 reads "Add a shooter".
         ->assertSee('Add a shooter')
@@ -412,10 +417,11 @@ it('registers adminAddShooter as a window global, not under alpine:init', functi
     //   document.addEventListener('alpine:init', () => Alpine.data('adminAddShooter', …))
     // which silently broke on every wire:navigate page transition because
     // alpine:init fires exactly once per Alpine lifetime. Pin the fix in
-    // place: the Settings page must emit the component as a plain window
-    // global so Alpine's scope chain finds it regardless of init timing.
+    // place: the host page (now Entries) must emit the component as a
+    // plain window global so Alpine's scope chain finds it regardless
+    // of init timing.
     $html = $this->actingAs($this->md)
-        ->get(route('matches.settings', $this->match))
+        ->get(route('matches.entries', $this->match))
         ->assertOk()
         ->getContent();
 
@@ -530,11 +536,11 @@ it('rejects a new-shooter POST with a name shorter than 2 characters', function 
         ->assertSessionHasErrors('new_shooter_name');
 });
 
-it('lets the MD add themselves with one click from the edit page', function () {
-    // The one-click "Add me" tile now lives on the Settings tab of the
-    // match workspace; `matches.edit` remains as a 301 alias.
+it('lets the MD add themselves with one click from the entries page', function () {
+    // The one-click "Add me" tile now lives on the Entries tab of the
+    // match workspace; `matches.edit` remains as a 301 alias to Settings.
     $this->actingAs($this->md)
-        ->get(route('matches.settings', $this->match))
+        ->get(route('matches.entries', $this->match))
         ->assertOk()
         ->assertSee('Shooting this match yourself?')
         ->assertSee('Add me');
@@ -552,7 +558,7 @@ it('lets the MD add themselves with one click from the edit page', function () {
         ->and($entry->division_id)->toBe($this->open->id);
 
     $this->actingAs($this->md)
-        ->get(route('matches.settings', $this->match))
+        ->get(route('matches.entries', $this->match))
         ->assertOk()
         ->assertSee("You're entered in this match", false)
         ->assertDontSee('Shooting this match yourself?');

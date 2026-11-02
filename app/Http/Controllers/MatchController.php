@@ -96,14 +96,26 @@ class MatchController extends Controller
         // Club entry is a club/provincial-only concept. Drop the value on
         // nationals/finals/internationals so a stale form field can't book a
         // club price on a match that is supposed to charge the surcharge.
+        // The opt-in flag goes the same way: on nationals it is meaningless
+        // and we don't want a hidden `true` to resurface if the series level
+        // ever drops back to provincial.
         if (! in_array($validated['series_level'] ?? null, ['club', 'provincial'], true)) {
             $validated['club_entry_fee'] = null;
+            $validated['club_entry_enabled'] = false;
+        } else {
+            $validated['club_entry_enabled'] = (bool) ($validated['club_entry_enabled'] ?? false);
         }
 
         $validated['series'] = $validated['match_type'];
         $validated['season'] = (string) now()->year;
         $validated['created_by'] = $request->user()->id;
-        $validated['published'] = ($validated['status'] ?? 'draft') !== 'draft';
+        // The restructured Create form no longer carries a Status select —
+        // every new match is a draft and the MD publishes it from the stage
+        // bar on Settings. Default here keeps the Model's `saving` hook
+        // (which syncs `published` off `status`) seeing a real value even
+        // when the controller gets a minimal payload.
+        $validated['status'] = $validated['status'] ?? 'draft';
+        $validated['published'] = $validated['status'] !== 'draft';
 
         // Every match needs a named director; default to the creating account so
         // the match can be opened for sign-up without an extra step.
@@ -132,8 +144,11 @@ class MatchController extends Controller
             $match->toArray(),
         );
 
-        return redirect()->route('matches.show', $match)
-            ->with('success', 'Match created successfully.');
+        // Create is deliberately minimal — the MD lands on Settings next
+        // to finish the setup (fees, contact, public page, scoring) and
+        // publishes from the stage bar once they are ready.
+        return redirect()->route('matches.settings', $match)
+            ->with('success', 'Draft created. Add fees, contact details and the public page here, then publish from the bar above.');
     }
 
     public function show(MatchEvent $match): View|RedirectResponse
@@ -208,23 +223,11 @@ class MatchController extends Controller
         return view('matches.show', compact('match', 'financeBreakdown', 'planningEstimate', 'expenses', 'totalExpenses', 'totalExpensesActual', 'estimatedShooters', 'actualShooters'));
     }
 
-    public function edit(Request $request, MatchEvent $match): View
-    {
-        $this->authorize('update', $match);
-
-        $provinces = Province::orderBy('name')->get();
-        $venues = Venue::active()->with('province')->orderBy('name')->get();
-        $settings = $this->settingsService->all();
-
-        $selfEntry = $match->userRegistration($request->user());
-        $availableDivisionIds = $match->availableDivisions()->pluck('id');
-        $selfDefaultDivisionId = $request->user()->matchRegistrations()
-            ->whereIn('division_id', $availableDivisionIds)
-            ->latest('registered_at')
-            ->value('division_id') ?? $availableDivisionIds->first();
-
-        return view('matches.edit', compact('match', 'provinces', 'venues', 'settings', 'selfEntry', 'selfDefaultDivisionId'));
-    }
+    // Edit is a dead route — `Route::resource` excludes it and the
+    // workspace serves /matches/{id}/edit as a 301 to the Settings tab.
+    // The old `edit()` method rendered `matches.edit.blade.php` which no
+    // longer exists; it has been removed so a future caller doesn't
+    // silently resurrect a view that would 500.
 
     public function update(UpdateMatchRequest $request, MatchEvent $match): RedirectResponse
     {
@@ -269,10 +272,20 @@ class MatchController extends Controller
         // Keep the club_entry_fee column honest if the series level moved off
         // club/provincial on this edit. For club/provincial the submitted value
         // is accepted as-is (including blank, which means "fall back to the
-        // active-member fee"); other series levels always clear it.
+        // active-member fee"); other series levels always clear it. The
+        // opt-in flag is tied to the same levels — force it off anywhere it
+        // can't apply, and normalise the checkbox to a strict bool so an
+        // unchecked box doesn't leave the old value in place.
         $effectiveLevel = $validated['series_level'] ?? $match->series_level;
         if (! in_array($effectiveLevel, ['club', 'provincial'], true)) {
             $validated['club_entry_fee'] = null;
+            $validated['club_entry_enabled'] = false;
+        } elseif (array_key_exists('club_entry_enabled', $validated) || $request->exists('club_entry_enabled')) {
+            // Form always submits a hidden `0` before the checkbox, so a
+            // present key with no checkbox means "unchecked, turn it off"
+            // and an absent key means "this form didn't ask about the flag,
+            // leave the stored value alone".
+            $validated['club_entry_enabled'] = $request->boolean('club_entry_enabled');
         }
 
         // Fee overrides are exco/developer only. Silently drop the fields for
@@ -326,7 +339,14 @@ class MatchController extends Controller
 
         $match->update($validated);
 
-        $match->divisions()->sync($divisionIds);
+        // Only the full settings / edit form owns the division list. The
+        // squads card on Entries posts name + match type + squadding JSON
+        // and must not wipe divisions that were not on that form. An
+        // unchecked "select all off" on Settings still clears them,
+        // because that form always posts match_date.
+        if ($request->exists('match_date') || $request->exists('divisions')) {
+            $match->divisions()->sync($divisionIds);
+        }
 
         // Flipping the "everyone counts" flag changes how every score on this
         // match should be graded (bypass vs full membership check). Standings
@@ -952,6 +972,15 @@ class MatchController extends Controller
             || $match->created_by === $viewer->id
         );
 
+        // Score downloads (CSV / PDF) are MD + admin/exco only — never public.
+        // Rank-and-file members and anonymous visitors read scores on the page
+        // but don't get a bulk-export of the field. Same cohort as the
+        // zero-score-removal gate above, so the two sit together naturally.
+        $viewerCanDownloadResults = $viewer !== null && (
+            $viewer->hasRole(['owner', 'admin', 'exco', 'developer'])
+            || $match->created_by === $viewer->id
+        );
+
         // "SA 2026" chips next to shooter names in both the results table
         // and the entry list. One bulk query covers both sets so the Alpine
         // row payloads stay N+1-safe.
@@ -972,21 +1001,28 @@ class MatchController extends Controller
 
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
-            'viewerCanRemoveZeroScores', 'saBadgesByUser', 'scoreImports',
+            'viewerCanRemoveZeroScores', 'viewerCanDownloadResults', 'saBadgesByUser', 'scoreImports',
         ));
     }
 
     /**
-     * Phase 4.9: public CSV export of a match's visible scores. Honours
-     * `?division=` so a shooter can share a specific division's board as a
-     * direct download URL. The CSV includes the same columns the on-page
-     * table shows (plus the raw score for anyone pivoting in Excel).
+     * CSV export of a match's visible scores. Gated to the match's MD and
+     * admin/exco/owner/developer roles — bulk-downloading the whole field
+     * is a staff action, not a public one. Honours `?division=` so an
+     * MD can share a one-division printout as a single direct URL.
+     *
+     * The route name stays `events.results.csv` for backward-compat; "public"
+     * in the method name means "outside the /matches admin area", not
+     * "unauthenticated". Non-privileged viewers get a 404 so the URL stays
+     * invisible rather than confirming the resource exists.
      */
     public function publicExportCsv(Request $request, MatchEvent $match): StreamedResponse
     {
         if ($match->status === 'draft' || ! $match->published) {
             abort(404);
         }
+
+        $this->abortIfNotAllowedToDownloadResults($request, $match);
 
         $divisionFilter = $request->filled('division') ? (int) $request->input('division') : null;
 
@@ -1050,15 +1086,17 @@ class MatchController extends Controller
     }
 
     /**
-     * Phase 4.9: public PDF export mirroring the CSV layout. DomPDF is already
-     * a project dep so we reuse it rather than inventing a new one; `?division=`
-     * works the same way so an MD can share a one-click division printout.
+     * PDF export mirroring the CSV layout. Same MD/staff-only gate as the
+     * CSV route — see publicExportCsv() for the reasoning. DomPDF is already
+     * a project dep so we reuse it rather than inventing a new one.
      */
     public function publicExportPdf(Request $request, MatchEvent $match)
     {
         if ($match->status === 'draft' || ! $match->published) {
             abort(404);
         }
+
+        $this->abortIfNotAllowedToDownloadResults($request, $match);
 
         $divisionFilter = $request->filled('division') ? (int) $request->input('division') : null;
 
@@ -1720,6 +1758,31 @@ class MatchController extends Controller
     // ──────────────────────────────────────────────────────────────────────
     // Family / Managed Account helpers
     // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Score exports (CSV / PDF) are MD + staff only. This gate is called by
+     * publicExportCsv() and publicExportPdf() after the draft/published
+     * check, so unauthorised callers get the same 404 as a non-public
+     * match — the URL stays effectively invisible to the public rather
+     * than returning a 403 that confirms the resource exists.
+     *
+     * Keep the role list in sync with the $viewerCanDownloadResults block
+     * in publicShow() — the UI button and the endpoint must agree on who
+     * can actually use it.
+     */
+    private function abortIfNotAllowedToDownloadResults(Request $request, MatchEvent $match): void
+    {
+        $viewer = $request->user();
+
+        $allowed = $viewer !== null && (
+            $viewer->hasRole(['owner', 'admin', 'exco', 'developer'])
+            || $match->created_by === $viewer->id
+        );
+
+        if (! $allowed) {
+            abort(404);
+        }
+    }
 
     /**
      * Portal entry is blocked while the shooter still owes an entry fee

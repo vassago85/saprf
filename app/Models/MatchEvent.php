@@ -58,6 +58,7 @@ class MatchEvent extends Model
         'lapsed_member_fee',
         'junior_fee',
         'club_entry_fee',
+        'club_entry_enabled',
         'platform_fee_type',
         'platform_fee_value',
         'saprf_fee_type',
@@ -93,6 +94,7 @@ class MatchEvent extends Model
             'lapsed_member_fee' => 'decimal:2',
             'junior_fee' => 'decimal:2',
             'club_entry_fee' => 'decimal:2',
+            'club_entry_enabled' => 'boolean',
             'platform_fee_value' => 'decimal:2',
             'saprf_fee_value' => 'decimal:2',
             'max_competitors' => 'integer',
@@ -547,16 +549,23 @@ class MatchEvent extends Model
     }
 
     /**
-     * Club and provincial matches offer a "club entry" fee bracket for
+     * Club and provincial matches may offer a "club entry" fee bracket for
      * non-members: they pay the match-director-set club price (or the
      * active-member fee when no club price is set) with no non-member
      * surcharge, and the platform takes a small percentage for the
      * payment service. Nationals, finals, and internationals keep today's
      * non-member surcharge instead.
+     *
+     * The bracket is opt-in per match via `club_entry_enabled` — a match
+     * director can run a provincial championship under normal non-member
+     * surcharge rules by leaving the flag off, or combine the provincial
+     * with a club match by flipping it on. On national/final/international
+     * matches the flag is ignored.
      */
     public function supportsClubEntry(): bool
     {
-        return in_array($this->series_level, ['club', 'provincial'], true);
+        return in_array($this->series_level, ['club', 'provincial'], true)
+            && (bool) $this->club_entry_enabled;
     }
 
     public function isRegistrationOpen(): bool
@@ -1065,10 +1074,12 @@ class MatchEvent extends Model
             MatchStage::Draft => $this->hasRequiredSetup()
                 ? [
                     'label' => 'Publish and open entries',
-                    'detail' => 'Fees are set. Flip the match status to Open from Settings.',
-                    'route' => 'matches.settings',
+                    'detail' => 'Fees are set. Publish the match so shooters can start entering.',
+                    'route' => 'matches.publish-draft',
                     'params' => ['match' => $this->id],
                     'variant' => 'primary',
+                    'method' => 'POST',
+                    'confirm' => 'Publish this match and open it for entries?',
                 ]
                 : [
                     'label' => 'Finish match setup',
@@ -1079,10 +1090,12 @@ class MatchEvent extends Model
                 ],
             MatchStage::EntriesOpen => [
                 'label' => 'Close entries',
-                'detail' => 'Switch status to Closed when registrations are done. You can still edit entries from the Entries tab.',
-                'route' => 'matches.settings',
+                'detail' => 'Shut registrations when sign-ups are done. You can still edit entries from the Entries tab.',
+                'route' => 'matches.close-entries',
                 'params' => ['match' => $this->id],
                 'variant' => 'primary',
+                'method' => 'POST',
+                'confirm' => 'Close entries on this match? Shooters will no longer be able to register.',
             ],
             MatchStage::EntriesClosed => $this->withPayoutOffer([
                 'label' => 'Export entries for Impact',

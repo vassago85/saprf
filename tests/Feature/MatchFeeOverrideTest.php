@@ -126,13 +126,17 @@ it('ignores a half-set override so global rate is never blended with a match val
 // assert the rendered form, not the redirect wrapper.
 
 it('shows editable fee overrides to a developer editing the match', function () {
+    // Section title moved to sentence case ("Fee overrides") and the
+    // block now lives inside a <details> disclosure inside the Fees
+    // section, but the role-badge text ("Exco / Developer" / "Read-only")
+    // is still the signal that the admin has editable access.
     $dev = User::factory()->create();
     $dev->assignRole('developer');
 
     $this->actingAs($dev)
         ->get(route('matches.settings', $this->match))
         ->assertOk()
-        ->assertSee('Fee Overrides')
+        ->assertSee('Fee overrides')
         ->assertSee('Exco / Developer');
 });
 
@@ -147,7 +151,7 @@ it('shows editable fee overrides to an exco member editing the match', function 
     $this->actingAs($exco)
         ->get(route('matches.settings', $this->match))
         ->assertOk()
-        ->assertSee('Fee Overrides')
+        ->assertSee('Fee overrides')
         ->assertSee('Exco / Developer');
 });
 
@@ -160,7 +164,7 @@ it('shows read-only fee overrides to owner and admin', function () {
             ->get(route('matches.settings', $this->match))
             ->assertOk();
 
-        $response->assertSee('Fee Overrides');
+        $response->assertSee('Fee overrides');
         $response->assertSee('Read-only');
     }
 });
@@ -169,7 +173,7 @@ it('hides the fee overrides block entirely from the match director', function ()
     $this->actingAs($this->md)
         ->get(route('matches.settings', $this->match))
         ->assertOk()
-        ->assertDontSee('Fee Overrides');
+        ->assertDontSee('Fee overrides');
 });
 
 it('persists fee overrides submitted by a developer', function () {

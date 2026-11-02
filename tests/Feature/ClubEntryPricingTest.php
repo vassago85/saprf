@@ -48,6 +48,10 @@ function clubMatch(array $overrides = []): MatchEvent
         'non_member_fee' => 600.00,
         'lapsed_member_fee' => 450.00,
         'club_entry_fee' => 200.00,
+        // Opt-in flag: tests that exercise club_entry pricing need the
+        // bracket turned on. Overrides can set it back to false to assert
+        // the "no, charge the surcharge" branch.
+        'club_entry_enabled' => true,
         'created_by' => test()->creator->id,
     ], $overrides));
 }
@@ -122,6 +126,33 @@ test('director-collected club entry zeros SAPRF, platform, and gateway', functio
         ->and($result['platform_fee'])->toBe(0.0)
         ->and($result['gateway_fee'])->toBe(0.0)
         ->and($result['md_net'])->toBe(200.00);
+});
+
+test('provincial match with the toggle off charges the non-member surcharge', function () {
+    Setting::updateOrCreate(['key' => 'non_member_surcharge'], ['value' => '100']);
+    app(SettingsService::class)->clearCache();
+
+    // Provincial match where the MD left "allow club shooters" off. A
+    // non-member must land on non_member + surcharge, not club_entry.
+    $match = clubMatch([
+        'series_level' => 'provincial',
+        'club_entry_enabled' => false,
+        'non_member_fee' => 400.00,
+    ]);
+    $user = User::factory()->create();
+
+    $result = $this->service->calculateBreakdown($match, $user, Carbon::today());
+
+    expect($result['category'])->toBe('non_member')
+        ->and($result['base_fee'])->toBe(300.00)
+        ->and($result['surcharge'])->toBe(100.00)
+        ->and($result['total_fee'])->toBe(400.00);
+});
+
+test('toggling the flag off makes supportsClubEntry return false', function () {
+    $match = clubMatch(['club_entry_enabled' => false]);
+
+    expect($match->supportsClubEntry())->toBeFalse();
 });
 
 test('national matches still charge the non-member surcharge', function () {

@@ -42,6 +42,10 @@ function clubMatchForBackfill(array $overrides = []): MatchEvent
         'status' => 'open',
         'active_member_fee' => 300.00,
         'club_entry_fee' => 200.00,
+        // The backfill command only touches matches whose club-entry
+        // bracket is live, which is the opt-in flag on top of the
+        // provincial/club series level.
+        'club_entry_enabled' => true,
         'created_by' => test()->director->id,
     ], $overrides));
 }

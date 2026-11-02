@@ -10,7 +10,6 @@
     confusion whenever the creating account differed from the actual MD.
 --}}
 <div class="rounded-xl border border-stone-200 bg-white p-5"
-     id="change-director"
      x-data="changeDirectorPanel({
         searchUrl: '{{ route('matches.directors.search') }}',
         currentDirectorId: {{ (int) $match->created_by }},

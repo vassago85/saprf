@@ -33,6 +33,10 @@ beforeEach(function () {
         'match_date' => now()->subDay(),
         'status' => 'closed',
         'active_member_fee' => 600,
+        // Realign tool only touches matches whose club-entry bracket is
+        // live, so the opt-in flag has to be on for the command to see
+        // this match.
+        'club_entry_enabled' => true,
         'created_by' => $this->director->id,
     ]);
 });

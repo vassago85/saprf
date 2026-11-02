@@ -342,6 +342,76 @@
         </section>
     @endif
 
+    {{-- Last scored match, one bar per stage in course order. Hidden when
+         none of the shooter's recent scores carry an Impact stage list. --}}
+    @if ($lastMatchStages)
+        @php
+            $stageBars = $lastMatchStages['stages'];
+            $stageCount = count($stageBars);
+            $stageSlot = 64;
+            $stageChartW = max(320, 32 + ($stageCount * $stageSlot));
+            $stageChartH = 220;
+            $stageBase = 168;
+            $stageMaxH = 120;
+        @endphp
+        <section aria-labelledby="last-stages-h" class="overflow-hidden rounded-2xl border border-stone-800 bg-stone-950 text-white shadow-sm">
+            <div class="flex flex-wrap items-end justify-between gap-3 px-5 pt-5 sm:px-6">
+                <div class="min-w-0">
+                    <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300/80">Last match, stage by stage</p>
+                    <h2 id="last-stages-h" class="mt-1 truncate font-heading text-xl font-bold tracking-tight">
+                        @if ($lastMatchStages['href'])
+                            <a href="{{ $lastMatchStages['href'] }}" class="hover:text-emerald-200">{{ $lastMatchStages['match_name'] }}</a>
+                        @else
+                            {{ $lastMatchStages['match_name'] }}
+                        @endif
+                    </h2>
+                    <p class="mt-0.5 text-sm text-stone-400">
+                        {{ $lastMatchStages['match_date'] }}
+                        <span class="mx-1.5 text-stone-600">·</span>
+                        {{ $stageCount }} {{ \Illuminate\Support\Str::plural('stage', $stageCount) }}
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="font-heading text-3xl font-bold tabular-nums leading-none text-emerald-300">{{ $lastMatchStages['total_label'] }}</p>
+                    <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">Impacts</p>
+                </div>
+            </div>
+
+            <div class="mt-2 overflow-x-auto px-2 pb-4 sm:px-4">
+                <svg class="block h-auto" style="min-width: {{ $stageChartW }}px; width: 100%;" viewBox="0 0 {{ $stageChartW }} {{ $stageChartH }}" role="img"
+                     aria-label="Stage scores for {{ $lastMatchStages['match_name'] }}">
+                    <defs>
+                        <linearGradient id="last-stage-bar" x1="0" x2="0" y1="1" y2="0">
+                            <stop offset="0%" stop-color="#065f46"/>
+                            <stop offset="100%" stop-color="#6ee7b7"/>
+                        </linearGradient>
+                    </defs>
+                    <line x1="16" x2="{{ $stageChartW - 16 }}" y1="{{ $stageBase }}" y2="{{ $stageBase }}" stroke="rgba(255,255,255,.08)"/>
+                    @foreach ($stageBars as $i => $bar)
+                        @php
+                            $barH = max(4, ($bar['pct'] / 100) * $stageMaxH);
+                            $x = 16 + ($i * $stageSlot) + 14;
+                            $y = $stageBase - $barH;
+                        @endphp
+                        <g>
+                            <rect x="{{ $x }}" y="{{ $y }}" width="28" height="{{ $barH }}" rx="7"
+                                  fill="url(#last-stage-bar)" opacity="{{ 0.45 + ($bar['pct'] / 100) * 0.55 }}">
+                                <title>{{ $bar['label'] }}: {{ $bar['points_label'] }}</title>
+                            </rect>
+                            <text x="{{ $x + 14 }}" y="{{ max(16, $y - 8) }}" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700" font-family="Inter, ui-sans-serif, system-ui">{{ $bar['points_label'] }}</text>
+                            <text x="{{ $x + 14 }}" y="{{ $stageBase + 22 }}" text-anchor="middle" fill="#a8a29e" font-size="11" font-weight="600" font-family="Inter, ui-sans-serif, system-ui">{{ $bar['short'] }}</text>
+                        </g>
+                    @endforeach
+                </svg>
+            </div>
+            <ol class="sr-only">
+                @foreach ($stageBars as $bar)
+                    <li>{{ $bar['label'] }} {{ $bar['points_label'] }}</li>
+                @endforeach
+            </ol>
+        </section>
+    @endif
+
     {{-- 4 ── KPI cards ────────────────────────────────────────────────────── --}}
     @php
         $kpiVisible = collect($kpis)->filter(fn ($k) => ($k['has_data'] ?? false));

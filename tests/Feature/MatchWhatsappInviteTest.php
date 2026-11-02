@@ -136,9 +136,15 @@ it('allows clearing the WhatsApp invite', function () {
     expect($match->fresh()->whatsapp_invite_url)->toBeNull();
 });
 
-it('shows the WhatsApp invite field on the match create form', function () {
+it('shows the WhatsApp invite field on the match settings form', function () {
+    // The create form was slimmed to the four core sections (Basics,
+    // When & where, Entries, Fees). Secondary fields like the WhatsApp
+    // invite now live on Settings under Director & contact, which the
+    // MD lands on right after creating the match.
+    $match = makeInviteMatch($this->md, $this->province, ['whatsapp_invite_url' => null]);
+
     $this->actingAs($this->md)
-        ->get(route('matches.create'))
+        ->get(route('matches.settings', $match))
         ->assertOk()
         ->assertSee('WhatsApp group invite')
         ->assertSee('chat.whatsapp.com');

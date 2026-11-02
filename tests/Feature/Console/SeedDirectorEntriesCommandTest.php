@@ -41,6 +41,10 @@ function squadMatch(): MatchEvent
         'match_date' => now()->addDays(2),
         'status' => 'open',
         'active_member_fee' => 600,
+        // Seed-director-entries assertions expect non-members on this
+        // provincial match to land on the club_entry bracket, which
+        // requires the opt-in flag to be on.
+        'club_entry_enabled' => true,
         'created_by' => test()->director->id,
     ]);
 }

@@ -18,6 +18,7 @@ use App\Enums\AnnouncementRetention;
 use App\Enums\AnnouncementStatus;
 use App\Enums\MatchStage;
 use App\Models\Announcement;
+use App\Models\Division;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Payout;
@@ -54,6 +55,9 @@ function workspaceMatchOwnedBy(User $creator, Province $province, array $overrid
         'active_member_fee' => 250,
         'non_member_fee' => 500,
         'lapsed_member_fee' => 375,
+        // Opt-in flag: this helper is used by the apply-club-entry workspace
+        // tests, which need the bracket on. Overrides can flip it off.
+        'club_entry_enabled' => true,
         'created_by' => $creator->id,
         'match_director' => $creator->name,
         'published' => true,
@@ -382,8 +386,11 @@ it('lets the match director move unpaid non-members onto the club price from the
         'registered_at' => now(),
     ]);
 
+    // The club-entry move panel lives on the Entries tab now (used to
+    // live on Settings too — the duplicate was removed so the two pages
+    // don't drift). Nothing else about the apply-club-entry flow changed.
     $this->actingAs($md)
-        ->get(route('matches.settings', $match))
+        ->get(route('matches.entries', $match))
         ->assertOk()
         ->assertSee('Move unpaid non-members to club entry')
         ->assertSee('R 200.00');
@@ -405,15 +412,56 @@ it('hides the club-entry move on a finished match', function () {
     $match = workspaceMatchOwnedBy($md, $this->province, ['status' => 'completed', 'club_entry_fee' => 200]);
 
     $this->actingAs($md)
-        ->get(route('matches.settings', $match))
+        ->get(route('matches.entries', $match))
         ->assertOk()
         ->assertDontSee('Move unpaid non-members to club entry');
 
     $this->actingAs($md)
-        ->from(route('matches.settings', $match))
+        ->from(route('matches.entries', $match))
         ->post(route('matches.apply-club-entry', $match))
-        ->assertRedirect(route('matches.settings', $match))
+        ->assertRedirect(route('matches.entries', $match))
         ->assertSessionHas('error');
+});
+
+it('keeps divisions when squads are saved from the entries tab', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province);
+    $division = Division::firstOrCreate(
+        ['slug' => 'open-squad-keep'],
+        ['name' => 'Open', 'display_order' => 1, 'is_active' => true],
+    );
+    $match->divisions()->sync([$division->id]);
+
+    $this->actingAs($md)
+        ->put(route('matches.update', $match), [
+            'name' => $match->name,
+            'match_type' => 'PRS',
+            'squadding_json' => '[{"squad_name":"A","members":["Jane Doe"]}]',
+        ])
+        ->assertRedirect();
+
+    $fresh = $match->fresh();
+
+    expect($fresh->divisions->pluck('id')->all())->toBe([$division->id])
+        ->and($fresh->squadding_json[0]['squad_name'] ?? null)->toBe('A')
+        ->and((float) $fresh->active_member_fee)->toBe(250.0);
+});
+
+it('still offers every other match status from the more menu', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province, ['status' => 'closed']);
+
+    $this->actingAs($md)
+        ->get(route('matches.overview', $match))
+        ->assertOk()
+        ->assertSee('Open entries')
+        ->assertSee('Mark completed manually')
+        ->assertSee('Revert to draft')
+        ->assertSee('Cancel match')
+        ->assertSee(route('matches.publish-draft', $match), false)
+        ->assertDontSee(route('matches.close-entries', $match), false);
 });
 
 it('keeps admin-level roles seeing the cross-match lists', function () {

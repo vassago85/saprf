@@ -2,6 +2,7 @@
 
 namespace App\Services\ImpactScoring;
 
+use App\Support\ImpactStages;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -164,7 +165,7 @@ class ImpactScoringClient
             ];
         }
 
-        return $stages;
+        return ImpactStages::sort($stages);
     }
 
     private function client(): PendingRequest

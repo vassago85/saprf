@@ -139,9 +139,22 @@ class MatchWorkspaceController extends Controller
 
         $entries = $query->paginate(30)->withQueryString();
 
+        // The add-a-shooter panel (now rendered on this tab, not Settings)
+        // relies on `$selfEntry` + `$selfDefaultDivisionId`. We compute
+        // them the same way `settings()` does so the Alpine search +
+        // "Add me" shortcut both work from here.
+        $selfEntry = $match->userRegistration($request->user());
+        $availableDivisionIds = $match->availableDivisions()->pluck('id');
+        $selfDefaultDivisionId = $request->user()->matchRegistrations()
+            ->whereIn('division_id', $availableDivisionIds)
+            ->latest('registered_at')
+            ->value('division_id') ?? $availableDivisionIds->first();
+
         return view('matches.workspace.entries', $this->workspaceData($match, 'entries', [
             'entries' => $entries,
             'counts' => $counts,
+            'selfEntry' => $selfEntry,
+            'selfDefaultDivisionId' => $selfDefaultDivisionId,
             'filters' => [
                 'status' => $request->input('status'),
                 'category' => $request->input('category'),
@@ -527,6 +540,89 @@ class MatchWorkspaceController extends Controller
             'selfEntry' => $selfEntry,
             'selfDefaultDivisionId' => $selfDefaultDivisionId,
         ]));
+    }
+
+    // ── Status transitions ─────────────────────────────────────────────
+    //
+    // Replace the old free-form "Status" select that lived on the settings
+    // form. Each transition is its own POST so the stage bar's Next-action
+    // button and the chrome's More menu can wire a one-click action to it.
+    // Policy gate is the same `update` ability the old select relied on;
+    // `published` is kept in lockstep with status, matching the behaviour
+    // of `MatchController::update` so draft matches stay off the public
+    // calendar and non-draft matches appear on it.
+
+    public function publishDraft(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        if (! $match->hasRequiredSetup()) {
+            return redirect()->route('matches.settings', $match)
+                ->with('error', 'Add a match director and entry fee before publishing.');
+        }
+
+        $this->transitionStatus($match, 'open', 'Match published and entries are open.');
+
+        return redirect()->route('matches.overview', $match)
+            ->with('success', 'Match published and entries are open.');
+    }
+
+    public function closeEntries(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $this->transitionStatus($match, 'closed', 'Entries closed.');
+
+        return redirect()->route('matches.overview', $match)
+            ->with('success', 'Entries closed. You can still edit entries from the Entries tab.');
+    }
+
+    public function markCompleted(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $this->transitionStatus($match, 'completed', 'Match marked as completed.');
+
+        return redirect()->route('matches.overview', $match)
+            ->with('success', 'Match marked as completed.');
+    }
+
+    public function cancelMatch(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $this->transitionStatus($match, 'cancelled', 'Match cancelled.');
+
+        return redirect()->route('matches.overview', $match)
+            ->with('success', 'Match cancelled.');
+    }
+
+    public function revertToDraft(Request $request, MatchEvent $match): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $this->transitionStatus($match, 'draft', 'Match reverted to draft.');
+
+        return redirect()->route('matches.overview', $match)
+            ->with('success', 'Match reverted to draft. It is hidden from the public calendar.');
+    }
+
+    /**
+     * Flip the match status + the derived `published` flag, matching what
+     * `MatchController::update` does when the old Status select changed.
+     * Kept private so the five public transitions above are the only
+     * entry points — callers can't accidentally skip the published sync.
+     */
+    private function transitionStatus(MatchEvent $match, string $status, string $flash): void
+    {
+        if ($match->status === $status) {
+            return;
+        }
+
+        $match->update([
+            'status' => $status,
+            'published' => $status !== 'draft',
+        ]);
     }
 
     // ── Shared workspace data for the chrome partial ──

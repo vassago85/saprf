@@ -360,21 +360,9 @@
                                     // payload. Keeps the Alpine row dumb — null means "no stage
                                     // detail available", a list of {label, points} drives the
                                     // expand/collapse accordion inside the row.
-                                    'stages' => (function () use ($score) {
-                                        $stages = $score->raw_meta['impact']['stages'] ?? null;
-                                        if (! is_array($stages) || empty($stages)) {
-                                            return null;
-                                        }
-
-                                        return collect($stages)
-                                            ->map(fn ($s) => is_array($s) ? [
-                                                'label' => (string) ($s['name'] ?? $s['label'] ?? ''),
-                                                'points' => isset($s['points']) ? (float) $s['points'] : null,
-                                            ] : null)
-                                            ->filter(fn ($s) => $s !== null && $s['label'] !== '')
-                                            ->values()
-                                            ->all();
-                                    })(),
+                                    'stages' => ($orderedStages = \App\Support\ImpactStages::forDisplay($score->raw_meta['impact']['stages'] ?? null)) === []
+                                        ? null
+                                        : $orderedStages,
                                     // "SA 2026" chip data for the Alpine row — null means render nothing.
                                     'sa_years' => $saBadge['years'] ?? [],
                                     'sa_tooltip' => $saBadge['tooltip'] ?? null,
@@ -410,24 +398,27 @@
                                             </span>
                                         @endif
                                         <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
-                                        {{-- Phase 4.9: downloadable results. The current Alpine
-                                             sub-filter is baked into the href via x-bind, so a
-                                             "By Division → Open" view yields a
-                                             results.csv?division=<id> link in one click. --}}
-                                        <div class="flex items-center gap-1.5">
-                                            <a :href="`{{ route('events.results.csv', $match) }}` + (mode === 'division' && subFilter ? ('?division=' + subFilter) : '')"
-                                               class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
-                                               title="Download these results as CSV">
-                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                                                CSV
-                                            </a>
-                                            <a :href="`{{ route('events.results.pdf', $match) }}` + (mode === 'division' && subFilter ? ('?division=' + subFilter) : '')"
-                                               class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
-                                               title="Download these results as PDF">
-                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.56-.5c.42-.42 1-.65 1.59-.65h.44c1.24 0 2.25 1.01 2.25 2.25" /></svg>
-                                                PDF
-                                            </a>
-                                        </div>
+                                        {{-- Score downloads are MD + staff only. The matching gate on
+                                             the controller side (abortIfNotAllowedToDownloadResults)
+                                             returns 404 for everyone else, so even a direct URL leak
+                                             doesn't hand the file over. Rank-and-file members and
+                                             anonymous visitors never see these buttons at all. --}}
+                                        @if($viewerCanDownloadResults ?? false)
+                                            <div class="flex items-center gap-1.5">
+                                                <a href="{{ route('events.results.csv', $match) }}"
+                                                   class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
+                                                   title="Download these results as CSV (MD / admin only)">
+                                                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                                                    CSV
+                                                </a>
+                                                <a href="{{ route('events.results.pdf', $match) }}"
+                                                   class="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:border-stone-300 transition"
+                                                   title="Download these results as PDF (MD / admin only)">
+                                                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.56-.5c.42-.42 1-.65 1.59-.65h.44c1.24 0 2.25 1.01 2.25 2.25" /></svg>
+                                                    PDF
+                                                </a>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                                 @if(! $match->scoresAreFinalized() && ($match->impact_live_sync || $match->impact_live_synced_at))
@@ -440,19 +431,12 @@
                                         All shooters count for this match regardless of membership status on the day.
                                     </p>
                                 @endif
-                                <div class="flex flex-wrap gap-2">
-                                    <div class="flex rounded-lg bg-stone-100 p-0.5 w-fit">
-                                        <button @click="setFilter('overall')" :class="mode === 'overall' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">Overall</button>
-                                        <button @click="setFilter('division')" :class="mode === 'division' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'" class="px-3 py-1 rounded-md text-xs font-semibold transition">By Division</button>
-                                    </div>
-                                    <template x-if="mode === 'division' && divs.length > 1">
-                                        <div class="flex flex-wrap rounded-lg bg-amber-50 p-0.5 w-fit">
-                                            <template x-for="d in divs" :key="d.id">
-                                                <button @click="subFilter = d.id" :class="subFilter === d.id ? 'bg-white shadow-sm text-amber-800' : 'text-amber-600 hover:text-amber-800'" class="px-2.5 py-1 rounded-md text-xs font-semibold transition" x-text="d.name"></button>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
+                                {{-- No "By Division" toggle on match results — intentional.
+                                     Divisions are a shooter attribute, not a per-match ranking
+                                     bucket: if one person shows up for Factory, ranking them
+                                     "1st in Factory at 100 %" is a misleading podium. Everyone
+                                     is ranked on the single Overall list, and the season log
+                                     reads from this same overall score. --}}
                             </div>
 
                             <div class="overflow-x-auto">
@@ -461,18 +445,21 @@
                                         <tr>
                                             <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
                                             <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
-                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Division</th>
-                                            {{-- Phase 4.3: "Impacts" was PRS-specific jargon; "Score" is accurate
-                                                 for every discipline (precision disciplines are already fine
-                                                 with the integer/decimal formatter from Phase 2.3). --}}
+                                            {{-- "Score" works for every discipline — PRS/PR22 integer impacts
+                                                 or the formatted precision score, both go through ScoreFormat. --}}
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
-                                            {{-- Phase 4.4: percentage of the shooter's own division leader. --}}
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the division winner's score.">Div %</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <template x-for="row in filteredRows" :key="row.id">
+                                    {{-- Each shooter owns its own <tbody> so the main row and (optional)
+                                         stage-breakdown row sit together in the DOM. Multiple <tbody>s per
+                                         <table> are valid HTML, and this is the one way to interleave an
+                                         Alpine x-for with a conditional sibling without re-rendering a
+                                         separate x-for AFTER all main rows — which was the old bug: a
+                                         click on the top shooter revealed stages 70 rows further down,
+                                         well off-screen, so the chevron looked dead. --}}
+                                    <template x-for="row in filteredRows" :key="row.id">
+                                        <tbody>
                                             <tr class="border-b border-stone-50 hover:bg-stone-50/50"
                                                 :class="{
                                                     'bg-amber-50/50': row._rank === 1,
@@ -546,21 +533,16 @@
                                                         </template>
                                                     @endif
                                                 </td>
-                                                <td class="px-5 py-3">
-                                                    <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="row.div_name"></span>
-                                                </td>
                                                 <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw_display"></td>
                                                 <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
-                                                <td class="px-5 py-3 text-sm text-amber-700 text-right tabular-nums" x-text="row.div_pct !== null ? row.div_pct.toFixed(2) + '%' : '—'"></td>
                                             </tr>
-                                        </template>
-                                        {{-- Phase 4.5: stage breakdown row. Rendered as a sibling of the
-                                             main results row so x-for ordering stays stable; toggled by the
-                                             chevron on the shooter cell. --}}
-                                        <template x-for="row in filteredRows" :key="'stages-' + row.id">
+                                            {{-- Stage breakdown row — sibling of the main row inside the
+                                                 same per-shooter <tbody>, toggled by the chevron on the
+                                                 shooter cell. Only renders when stages exist AND the
+                                                 shooter is currently expanded. --}}
                                             <template x-if="row.stages && row.stages.length && expandedStages[row.id] === true">
-                                                <tr class="bg-stone-50/60">
-                                                    <td colspan="6" class="px-10 py-3">
+                                                <tr class="bg-stone-50/60 border-b border-stone-100">
+                                                    <td colspan="4" class="px-10 py-3">
                                                         <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Stages for <span x-text="row.name"></span></p>
                                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                                             <template x-for="(st, i) in row.stages" :key="row.id + '-' + i">
@@ -573,31 +555,32 @@
                                                     </td>
                                                 </tr>
                                             </template>
-                                        </template>
-                                        <template x-if="filteredRows.length === 0">
+                                        </tbody>
+                                    </template>
+                                    {{-- Empty state gets its own tbody too so the x-for above can own a
+                                         single root per shooter without competing for the parent slot. --}}
+                                    <template x-if="filteredRows.length === 0">
+                                        <tbody>
                                             <tr>
-                                                <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400">No results for this filter.</td>
+                                                <td colspan="4" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
                                             </tr>
-                                        </template>
-                                    </tbody>
+                                        </tbody>
+                                    </template>
                                 </table>
                             </div>
                         </div>
 
                         <script>
                         document.addEventListener('alpine:init', () => {
+                            // Single-mode results table — the "By Division" sub-view was dropped
+                            // on purpose (see the comment above the filter row). The `divs`
+                            // parameter is kept in the signature so the Blade call site stays
+                            // unchanged and so any future surface can read the list cheaply,
+                            // but nothing in this component references it.
                             Alpine.data('matchResults', (scores, divs) => ({
                                 scores,
                                 divs,
-                                mode: 'overall',
-                                subFilter: null,
                                 expandedStages: {},
-
-                                setFilter(m) {
-                                    this.mode = m;
-                                    if (m === 'division' && this.divs.length) this.subFilter = this.divs[0].id;
-                                    else this.subFilter = null;
-                                },
 
                                 toggleStages(id) {
                                     this.expandedStages[id] = this.expandedStages[id] !== true;
@@ -614,36 +597,19 @@
                                 @endif
 
                                 get filteredRows() {
-                                    let rows;
-                                    if (this.mode === 'division' && this.subFilter) {
-                                        rows = this.scores
-                                            .filter(s => s.div_id === this.subFilter)
-                                            .map(s => ({
-                                                ...s,
-                                                _norm: s.div_norm,
-                                                _rank: s.div_rank,
-                                                // Phase 1.4: competition ranking renders tied rows
-                                                // with a leading "T" (e.g. T2, T2, 4). The persisted
-                                                // is_tied_division flag is authoritative — the backend
-                                                // already decided whether this rank is shared.
-                                                _rank_label: s.div_rank === null
-                                                    ? '—'
-                                                    : (s.is_tied_division ? 'T' : '') + s.div_rank,
-                                            }))
-                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
-                                    } else {
-                                        rows = this.scores
-                                            .map(s => ({
-                                                ...s,
-                                                _norm: s.norm,
-                                                _rank: s.overall_rank,
-                                                _rank_label: s.overall_rank === null
-                                                    ? '—'
-                                                    : (s.is_tied_overall ? 'T' : '') + s.overall_rank,
-                                            }))
-                                            .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
-                                    }
-                                    return rows;
+                                    // Competition ranking: tied rows render with a leading "T"
+                                    // (e.g. T2, T2, 4). The persisted is_tied_overall flag is
+                                    // authoritative — the backend already decided the ties.
+                                    return this.scores
+                                        .map(s => ({
+                                            ...s,
+                                            _norm: s.norm,
+                                            _rank: s.overall_rank,
+                                            _rank_label: s.overall_rank === null
+                                                ? '—'
+                                                : (s.is_tied_overall ? 'T' : '') + s.overall_rank,
+                                        }))
+                                        .sort((a, b) => (a._rank ?? 999) - (b._rank ?? 999));
                                 },
                             }));
                         });

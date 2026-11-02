@@ -94,14 +94,69 @@
                             Change director (Exco)
                         </a>
                     @endif
-                    @if($canUpdate && $match->status !== 'cancelled')
+                    @if($canUpdate)
+                        {{-- Every status the old Settings select could set.
+                             The stage bar still offers the usual next step.
+                             These stay in More so a closed, completed, or
+                             cancelled match can still be reopened, closed,
+                             or finished without that select. The current
+                             status is left off the list. --}}
                         <div class="my-1 border-t border-stone-100"></div>
-                        <a href="{{ route('matches.settings', $match) }}#cancel"
-                           wire:navigate
-                           class="flex items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50">
-                            <flux:icon.exclamation-triangle class="size-4 text-red-500" />
-                            Cancel match
-                        </a>
+                        @if($match->status !== 'open')
+                            <form method="POST" action="{{ route('matches.publish-draft', $match) }}"
+                                  onsubmit="return confirm('Open this match for entries?');">
+                                @csrf
+                                <button type="submit"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+                                    <flux:icon.megaphone class="size-4 text-stone-400" />
+                                    Open entries
+                                </button>
+                            </form>
+                        @endif
+                        @if($match->status !== 'closed')
+                            <form method="POST" action="{{ route('matches.close-entries', $match) }}"
+                                  onsubmit="return confirm('Close entries on this match? Shooters will no longer be able to register.');">
+                                @csrf
+                                <button type="submit"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+                                    <flux:icon.lock-closed class="size-4 text-stone-400" />
+                                    Close entries
+                                </button>
+                            </form>
+                        @endif
+                        @if($match->status !== 'completed')
+                            <form method="POST" action="{{ route('matches.mark-completed', $match) }}"
+                                  onsubmit="return confirm('Mark this match as completed? Score-import normally does this automatically.');">
+                                @csrf
+                                <button type="submit"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+                                    <flux:icon.check-circle class="size-4 text-stone-400" />
+                                    Mark completed manually
+                                </button>
+                            </form>
+                        @endif
+                        @if($match->status !== 'draft')
+                            <form method="POST" action="{{ route('matches.revert-to-draft', $match) }}"
+                                  onsubmit="return confirm('Revert this match to draft? It will be hidden from the public calendar.');">
+                                @csrf
+                                <button type="submit"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50">
+                                    <flux:icon.arrow-uturn-left class="size-4 text-stone-400" />
+                                    Revert to draft
+                                </button>
+                            </form>
+                        @endif
+                        @if($match->status !== 'cancelled')
+                            <form method="POST" action="{{ route('matches.cancel', $match) }}"
+                                  onsubmit="return confirm('Cancel this match? Shooters will no longer be able to register.');">
+                                @csrf
+                                <button type="submit"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
+                                    <flux:icon.exclamation-triangle class="size-4 text-red-500" />
+                                    Cancel match
+                                </button>
+                            </form>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -165,14 +220,28 @@
                             {{ $next['secondary']['label'] }}
                         </a>
                     @endif
-                    {{-- Every next-action route is a plain GET; the actual payout POST
-                         lives on its own form page. `matches.export-impact-scoring`
-                         is excluded from wire:navigate because it streams a CSV. --}}
-                    <a href="{{ $nextUrl }}"
-                       @if(! in_array($next['route'], ['matches.export-impact-scoring'])) wire:navigate @endif
-                       class="inline-flex items-center rounded-md px-3.5 py-2 text-sm font-semibold shadow-sm {{ $next['variant'] === 'ghost' ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
-                        {{ $next['label'] }}
-                    </a>
+                    {{-- GET next-actions (export CSV, open scores tab, request
+                         payout form) use a plain anchor; POST next-actions
+                         (publish, close entries) use a form so the stage
+                         transition fires server-side on one click.
+                         `matches.export-impact-scoring` is excluded from
+                         wire:navigate because it streams a CSV. --}}
+                    @if(($next['method'] ?? 'GET') === 'POST')
+                        <form method="POST" action="{{ $nextUrl }}"
+                              @if(! empty($next['confirm'])) onsubmit="return confirm({{ json_encode($next['confirm']) }});" @endif>
+                            @csrf
+                            <button type="submit"
+                                    class="inline-flex items-center rounded-md px-3.5 py-2 text-sm font-semibold shadow-sm {{ $next['variant'] === 'ghost' ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
+                                {{ $next['label'] }}
+                            </button>
+                        </form>
+                    @else
+                        <a href="{{ $nextUrl }}"
+                           @if(! in_array($next['route'], ['matches.export-impact-scoring'])) wire:navigate @endif
+                           class="inline-flex items-center rounded-md px-3.5 py-2 text-sm font-semibold shadow-sm {{ $next['variant'] === 'ghost' ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
+                            {{ $next['label'] }}
+                        </a>
+                    @endif
                 </div>
             @endif
         </div>

@@ -73,7 +73,8 @@ beforeEach(function () {
 });
 
 it('exports the whole field as CSV with the expected columns', function () {
-    $response = $this->get('/events/'.$this->match->id.'/results.csv');
+    $response = $this->actingAs($this->admin)
+        ->get('/events/'.$this->match->id.'/results.csv');
 
     $response->assertOk();
     $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
@@ -89,7 +90,8 @@ it('exports the whole field as CSV with the expected columns', function () {
 });
 
 it('filters the CSV to one division when ?division=<id> is passed', function () {
-    $response = $this->get('/events/'.$this->match->id.'/results.csv?division='.$this->open->id);
+    $response = $this->actingAs($this->admin)
+        ->get('/events/'.$this->match->id.'/results.csv?division='.$this->open->id);
 
     $response->assertOk();
     $body = $response->streamedContent();
@@ -99,7 +101,8 @@ it('filters the CSV to one division when ?division=<id> is passed', function () 
 });
 
 it('exports a PDF with the match title and shooter rows', function () {
-    $response = $this->get('/events/'.$this->match->id.'/results.pdf');
+    $response = $this->actingAs($this->admin)
+        ->get('/events/'.$this->match->id.'/results.pdf');
 
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toStartWith('application/pdf');
@@ -110,5 +113,66 @@ it('exports a PDF with the match title and shooter rows', function () {
 it('404s on CSV export for a draft match', function () {
     $this->match->update(['status' => 'draft', 'published' => false]);
 
+    $this->actingAs($this->admin)
+        ->get('/events/'.$this->match->id.'/results.csv')
+        ->assertNotFound();
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Download gate: CSV / PDF are MD + admin/exco only, never public.
+// A 404 (not 403) is deliberate — the URL stays effectively invisible
+// to anyone who isn't allowed to hit it, matching how a draft match
+// behaves. If this changes, update
+// MatchController::abortIfNotAllowedToDownloadResults() to match.
+// ──────────────────────────────────────────────────────────────────────
+
+it('hides the download endpoints from anonymous visitors', function () {
     $this->get('/events/'.$this->match->id.'/results.csv')->assertNotFound();
+    $this->get('/events/'.$this->match->id.'/results.pdf')->assertNotFound();
+});
+
+it('hides the download endpoints from logged-in members without staff roles', function () {
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $this->actingAs($member)
+        ->get('/events/'.$this->match->id.'/results.csv')
+        ->assertNotFound();
+
+    $this->actingAs($member)
+        ->get('/events/'.$this->match->id.'/results.pdf')
+        ->assertNotFound();
+});
+
+it('lets the match director download their own match', function () {
+    // The MD role alone is not enough — the user must also OWN this specific
+    // match (created_by). This matches the zero-score-removal gate pattern:
+    // one MD cannot operate on another MD's match.
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $this->match->update(['created_by' => $md->id]);
+
+    $this->actingAs($md)
+        ->get('/events/'.$this->match->id.'/results.csv')
+        ->assertOk();
+});
+
+it('blocks a match director who does not own the match', function () {
+    $otherMd = User::factory()->create();
+    $otherMd->assignRole('match_director');
+    // Deliberately do NOT re-point created_by — this MD is a stranger to
+    // the match, so having the role alone must not grant access.
+
+    $this->actingAs($otherMd)
+        ->get('/events/'.$this->match->id.'/results.csv')
+        ->assertNotFound();
+});
+
+it('lets exco download results', function () {
+    $exco = User::factory()->create();
+    $exco->assignRole('exco');
+
+    $this->actingAs($exco)
+        ->get('/events/'.$this->match->id.'/results.csv')
+        ->assertOk();
 });
