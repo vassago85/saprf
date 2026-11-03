@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MatchStage;
+use App\Services\MembershipValidationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -549,23 +550,30 @@ class MatchEvent extends Model
     }
 
     /**
-     * Club and provincial matches may offer a "club entry" fee bracket for
-     * non-members: they pay the match-director-set club price (or the
-     * active-member fee when no club price is set) with no non-member
-     * surcharge, and the platform takes a small percentage for the
-     * payment service. Nationals, finals, and internationals keep today's
-     * non-member surcharge instead.
+     * Club and provincial matches may offer a club-entry price: non-members
+     * pay the match-director-set club price (or the active-member fee when
+     * no club price is set) with no non-member surcharge.
      *
-     * The bracket is opt-in per match via `club_entry_enabled` — a match
-     * director can run a provincial championship under normal non-member
-     * surcharge rules by leaving the flag off, or combine the provincial
-     * with a club match by flipping it on. On national/final/international
-     * matches the flag is ignored.
+     * On a provincial the same flag is the permission to enter. It is off
+     * by default, and club members cannot register until the match director
+     * turns it on. On a club match the flag only chooses the price — club
+     * shooters can always enter. Nationals, finals, and internationals
+     * ignore the flag and keep the non-member surcharge.
      */
     public function supportsClubEntry(): bool
     {
         return in_array($this->series_level, ['club', 'provincial'], true)
             && (bool) $this->club_entry_enabled;
+    }
+
+    /**
+     * Full SAPRF members can always enter a provincial. Club members can
+     * enter only when the match director has allowed them. Other series
+     * levels are not gated here.
+     */
+    public function allowsShooter(?User $user): bool
+    {
+        return app(MembershipValidationService::class)->mayEnterMatch($this, $user);
     }
 
     public function isRegistrationOpen(): bool
@@ -1008,15 +1016,19 @@ class MatchEvent extends Model
     {
         $current = $this->currentStage();
         $currentOrder = $current->order();
+        // A completed match that never had a payout request is settled.
+        // The payout step is finished rather than the amber "awaiting" step.
+        $payoutSettled = $current === MatchStage::Payout && $this->mdPayoutSettledWithoutRequest();
 
         $steps = [];
         foreach (MatchStage::orderedSteps() as $stage) {
+            $settledStep = $payoutSettled && $stage === MatchStage::Payout;
             $steps[] = [
                 'stage' => $stage,
                 'label' => $stage->label(),
                 'detail' => $this->stageDetailLine($stage),
-                'done' => $stage->order() < $currentOrder,
-                'current' => $stage === $current,
+                'done' => $stage->order() < $currentOrder || $settledStep,
+                'current' => $stage === $current && ! $settledStep,
             ];
         }
 
@@ -1047,11 +1059,24 @@ class MatchEvent extends Model
         };
     }
 
+    /**
+     * Completed matches with no match-director payout request are treated
+     * as paid. A real payout row, pending or paid, still wins.
+     */
+    public function mdPayoutSettledWithoutRequest(): bool
+    {
+        if ($this->status !== 'completed') {
+            return false;
+        }
+
+        return ! $this->payouts()->where('payee_type', 'match_director')->exists();
+    }
+
     private function payoutStatusLine(): string
     {
         $payout = $this->payouts()->where('payee_type', 'match_director')->latest('id')->first();
         if (! $payout) {
-            return 'Awaiting request';
+            return $this->status === 'completed' ? 'Paid' : 'Awaiting request';
         }
 
         return match ($payout->status) {

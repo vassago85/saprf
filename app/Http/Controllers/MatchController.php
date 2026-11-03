@@ -1268,6 +1268,17 @@ class MatchController extends Controller
                 ->with('info', 'This match isn’t open for sign-up yet — the match director still needs to set the entry fee and details.');
         }
 
+        // Sponsor-only view (the actor is already entered and came to add
+        // someone else) stays open so they can look up a full member. Every
+        // other visit is for the resolved shooter, and a new name is always
+        // a club-tier shooter.
+        $skipClubGate = $actorAlreadyRegistered && $sponsorIntent;
+        $entrySubject = $isNewShooter ? null : $shooter;
+        if (! $skipClubGate && ! $match->allowsShooter($entrySubject)) {
+            return redirect()->route('events.show', $match)
+                ->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+        }
+
         // A brand-new stub carries no membership yet, so pricing must not
         // consult it — pass null so the classifier returns `non_member`.
         // Existing shooters use their real membership as usual.
@@ -1342,12 +1353,20 @@ class MatchController extends Controller
                 'new_shooter_email.email' => 'Enter a valid email address (or leave it blank).',
             ]);
 
+            if (! $match->allowsShooter(null)) {
+                return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+            }
+
             $shooter = app(GuestShooterService::class)->findOrCreate(
                 $newShooterName,
                 $newShooterEmail !== '' ? $newShooterEmail : null,
             );
         } else {
             $shooter = $this->resolveShooter($actor, $request->input('for_user'));
+
+            if (! $match->allowsShooter($shooter)) {
+                return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+            }
         }
 
         $existing = $match->userRegistration($shooter);
@@ -1557,6 +1576,14 @@ class MatchController extends Controller
                 ->withErrors(['fee_override_reason' => 'A reason is required when waiving the lapsed-member surcharge.']);
         }
 
+        // A brand-new shooter is a club-tier non-member. Refuse them on a
+        // members-only provincial before provisioning a stub.
+        if (! $hasUserId && ! $match->allowsShooter(null)) {
+            return back()
+                ->withInput()
+                ->withErrors(['new_shooter_name' => MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE]);
+        }
+
         // A brand-new shooter is a non-member. Refuse the waive before
         // provisioning a stub, so a rejected tick does not leave an account behind.
         if (! $hasUserId && $waiveLapsed) {
@@ -1578,6 +1605,12 @@ class MatchController extends Controller
 
         if ($hasUserId) {
             $shooter = User::query()->findOrFail($validated['user_id']);
+
+            if (! $match->allowsShooter($shooter)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['user_id' => MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE]);
+            }
         } else {
             // Brand-new sponsored/comp'd shooter. Provisions a minimal stub
             // (unclaimed account, free membership, non-member fee bracket)

@@ -27,6 +27,8 @@
                 <div class="mt-0.5 text-xs text-stone-500">
                     @if($payout)
                         {{ ucfirst($payout->status) }} · {{ $payout->reference }}
+                    @elseif($match->status === 'completed')
+                        Paid
                     @else
                         Projected if everyone pays: R {{ number_format((float) $money['md_payout_projection'], 2) }}
                     @endif

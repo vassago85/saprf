@@ -17,7 +17,7 @@
 
             @include('matches._form._basics')
             @include('matches._form._when-where')
-            @include('matches._form._entries')
+            @include('matches._form._entries', ['createMode' => true])
 
             {{-- Create-mode fees: entry fee + junior fee only. All the
                  rest (club entry, Exco overrides) lives on Settings. --}}

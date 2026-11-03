@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\MatchEvent;
 use App\Models\Membership;
 use App\Models\User;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
 class MembershipValidationService
@@ -37,6 +37,10 @@ class MembershipValidationService
      * "does not rank".
      */
     public const STANDINGS_ELIGIBLE_TYPES = ['paid', 'full', 'junior'];
+
+    public const PROVINCIAL_MEMBERS_ONLY_MESSAGE = 'This provincial is for full SAPRF members. Club members can enter only when the match director allows it.';
+
+    public const PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE = 'Club members can\'t be added to this provincial. Turn on Allow club members in Entries if this match should accept them.';
 
     public function isMembershipValidOnDate(?Membership $membership, CarbonInterface $date): bool
     {
@@ -102,8 +106,8 @@ class MembershipValidationService
      * 'expiry_workback'), or null if we can't reasonably infer membership.
      *
      * @param  bool  $hasValidParticipation  the athlete has ≥1 VALID score in
-     *   the selection period — a valid score already means the system
-     *   confirmed paid membership at match time, so it proves membership.
+     *                                       the selection period — a valid score already means the system
+     *                                       confirmed paid membership at match time, so it proves membership.
      */
     public function inferredMemberAtDate(?Membership $membership, CarbonInterface $date, bool $hasValidParticipation): ?string
     {
@@ -201,5 +205,39 @@ class MembershipValidationService
 
         return in_array($user->membership->membership_type, self::STANDINGS_ELIGIBLE_TYPES, true)
             && $user->membership->status === 'active';
+    }
+
+    /**
+     * A shooter who is not a full federation member. Associates, club-tier
+     * memberships, free registrants, people with no membership, and full
+     * members whose membership has passed the lapsed grace window all count.
+     * Active and recently-lapsed full members (paid / full / junior) do not.
+     */
+    public function isClubTierShooter(?User $user): bool
+    {
+        $membership = $user?->membership;
+
+        if (! $membership || $membership->membership_type === 'free') {
+            return true;
+        }
+
+        if (! in_array($membership->membership_type, self::STANDINGS_ELIGIBLE_TYPES, true)) {
+            return true;
+        }
+
+        return $this->classifyRegistrationCategory($user) === 'non_member';
+    }
+
+    /**
+     * Provincial matches are members-only unless the match director opts in.
+     * Club matches and every other series level are unchanged.
+     */
+    public function mayEnterMatch(MatchEvent $match, ?User $user): bool
+    {
+        if ($match->series_level !== 'provincial' || $match->club_entry_enabled) {
+            return true;
+        }
+
+        return ! $this->isClubTierShooter($user);
     }
 }

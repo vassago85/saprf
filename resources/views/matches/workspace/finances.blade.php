@@ -124,7 +124,7 @@
                     </p>
                 @endif
 
-                @if(! $payout && $match->registrationsAreClosed() && auth()->user()?->can('update', $match))
+                @if(! $payout && $match->status !== 'completed' && $match->registrationsAreClosed() && auth()->user()?->can('update', $match))
                     <div class="mt-4">
                         {{-- Route through the Scores wizard: it computes the first unfinished
                              step (import → names → walk-ins → complete → request payout) and

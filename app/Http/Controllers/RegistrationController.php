@@ -16,6 +16,7 @@ use App\Services\AccountCreditService;
 use App\Services\AuditLogService;
 use App\Services\CreditRefundService;
 use App\Services\FinancialService;
+use App\Services\MembershipValidationService;
 use App\Services\QualificationService;
 use App\Services\RegistrationPricingService;
 use Illuminate\Http\RedirectResponse;
@@ -132,6 +133,10 @@ class RegistrationController extends Controller
         $champsEntry = $qualification->championshipEntryStatus($user, $match);
         if (! $champsEntry['eligible']) {
             return back()->with('error', $qualification->championshipEntryMessage($champsEntry, $match->series));
+        }
+
+        if (! $match->allowsShooter($user)) {
+            return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
         }
 
         $breakdown = $this->pricingService->calculateBreakdown($match, $user, $match->match_date);

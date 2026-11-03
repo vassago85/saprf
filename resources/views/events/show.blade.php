@@ -977,7 +977,12 @@
                                     <dt class="text-xs text-stone-400">Member Fee</dt>
                                     <dd class="text-sm font-semibold text-emerald-700">R {{ number_format($match->active_member_fee, 2) }}</dd>
                                 </div>
-                                @if($match->supportsClubEntry())
+                                @if($match->series_level === 'provincial' && ! $match->supportsClubEntry())
+                                    <div class="flex items-center justify-between">
+                                        <dt class="text-xs text-stone-400">Who can enter</dt>
+                                        <dd class="text-sm font-medium text-stone-700">SAPRF members</dd>
+                                    </div>
+                                @elseif($match->supportsClubEntry())
                                     {{-- Club and provincial matches: non-members pay the
                                          match-director-set club price (or the member fee
                                          when no club price is set), not the surcharge
@@ -1037,7 +1042,9 @@
                                 @endif
                             @endauth
 
-                            @if($match->supportsClubEntry())
+                            @if($match->series_level === 'provincial' && ! $match->supportsClubEntry())
+                                <p class="mt-3 text-[11px] text-stone-400 text-center">Club members cannot enter this provincial.</p>
+                            @elseif($match->supportsClubEntry())
                                 <p class="mt-3 text-[11px] text-stone-400 text-center">Club entries may not count for season logs. Full members unlock stats, certificate, and firearm tracking.</p>
                             @elseif($match->non_member_fee > 0 && $match->non_member_fee != $match->active_member_fee)
                                 <p class="mt-3 text-[11px] text-stone-400 text-center">Non-member scores may not count for season logs.</p>

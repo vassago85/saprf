@@ -226,6 +226,46 @@ it('resolves Payout once the match is completed', function () {
     expect($match->currentStage())->toBe(MatchStage::Payout);
 });
 
+it('marks a completed match with no payout request as paid', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province, ['status' => 'completed']);
+
+    $step = collect($match->stageContext()['steps'])
+        ->first(fn (array $step) => $step['stage'] === MatchStage::Payout);
+
+    expect($match->mdPayoutSettledWithoutRequest())->toBeTrue()
+        ->and($step['detail'])->toBe('Paid')
+        ->and($step['done'])->toBeTrue()
+        ->and($step['current'])->toBeFalse();
+});
+
+it('keeps a completed match with a pending payout request as pending', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province, ['status' => 'completed']);
+
+    Payout::create([
+        'reference' => Payout::generateReference(),
+        'payee_type' => 'match_director',
+        'payee_user_id' => $md->id,
+        'match_id' => $match->id,
+        'gross_amount' => 1000,
+        'fees_deducted' => 100,
+        'net_amount' => 900,
+        'status' => 'pending',
+        'created_by' => $md->id,
+    ]);
+
+    $step = collect($match->fresh()->stageContext()['steps'])
+        ->first(fn (array $step) => $step['stage'] === MatchStage::Payout);
+
+    expect($match->fresh()->mdPayoutSettledWithoutRequest())->toBeFalse()
+        ->and($step['detail'])->toBe('Pending R 900.00')
+        ->and($step['done'])->toBeFalse()
+        ->and($step['current'])->toBeTrue();
+});
+
 it('resolves Payout as soon as an MD payout has been raised', function () {
     $md = User::factory()->create();
     $md->assignRole('match_director');
