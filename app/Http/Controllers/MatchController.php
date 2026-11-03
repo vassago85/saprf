@@ -22,7 +22,6 @@ use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
 use App\Services\ImpactScoring\ImpactScoringClient;
-use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
@@ -423,7 +422,6 @@ class MatchController extends Controller
         MatchEvent $match,
         FinancialService $financials,
         MatchFinanceService $workspaceMoney,
-        MatchCloseoutWizard $wizard,
     ): View|RedirectResponse {
         $this->authorize('update', $match);
 
@@ -444,14 +442,9 @@ class MatchController extends Controller
                 ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
         }
 
-        // Wizard gate: names, allocations, and the walk-in fee
-        // acknowledgement must be done. Scores do not have to be marked
-        // complete — the form warns that a later payout can open negative
-        // if walk-ins or other deductions still come in.
-        $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
-        if ($redirect !== null) {
-            return $redirect;
-        }
+        // Registration being closed is the only gate. Scores, names, and
+        // walk-in acknowledgement can still be unfinished — the form warns
+        // that a later payout can open negative if those land afterwards.
 
         // `matchFinancials` gives us the settled numbers; `matchMoney` adds
         // the worst-case projection (pending entries treated as if the MD
@@ -491,7 +484,6 @@ class MatchController extends Controller
         Request $request,
         MatchEvent $match,
         FinancialService $financials,
-        MatchCloseoutWizard $wizard,
     ): RedirectResponse {
         $this->authorize('update', $match);
 
@@ -509,14 +501,6 @@ class MatchController extends Controller
 
         if ($alreadyHasPayout) {
             return redirect($back)->with('success', 'A match director payout has already been requested for this match.');
-        }
-
-        // Server-side mirror of the wizard gate — a crafted POST shouldn't
-        // sneak past the UI and raise a payout before names and walk-in
-        // fees are done. Marking scores complete is not required.
-        $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
-        if ($redirect !== null) {
-            return $redirect;
         }
 
         $banking = $request->validate([
@@ -568,44 +552,6 @@ class MatchController extends Controller
         }
 
         return redirect()->route('my-payouts.show', $payout)->with('success', $message);
-    }
-
-    /**
-     * Shared wizard gate for both halves of the payout flow.
-     *
-     * Returns a redirect back to the Scores tab (which will render the
-     * first unfinished step) when names/allocations are still open or
-     * walk-in fees haven't been acknowledged. Returns null when the
-     * match is clear to raise.
-     *
-     * Scores do not have to be marked complete. Shooter notifications
-     * and the standings snapshot still wait for that later step. The
-     * request form warns that walk-ins or other deductions landing
-     * afterwards can open the next payout in the negative.
-     */
-    private function ensureWizardReadyForPayout(MatchEvent $match, MatchCloseoutWizard $wizard): ?RedirectResponse
-    {
-        $state = $wizard->state($match);
-
-        if ($state['current'] === MatchCloseoutWizard::STEP_IMPORT) {
-            return redirect()
-                ->route('matches.scores', $match)
-                ->with('error', 'Import scores before requesting a payout.');
-        }
-
-        if ($state['current'] === MatchCloseoutWizard::STEP_NAMES) {
-            return redirect()
-                ->route('matches.scores', $match)
-                ->with('error', 'Finish the names and allocations check before requesting a payout.');
-        }
-
-        if ($state['current'] === MatchCloseoutWizard::STEP_WALKINS) {
-            return redirect()
-                ->route('matches.scores', $match)
-                ->with('error', 'Acknowledge the walk-in fees before requesting a payout.');
-        }
-
-        return null;
     }
 
     /**
