@@ -40,7 +40,7 @@ class MembershipValidationService
 
     public const PROVINCIAL_MEMBERS_ONLY_MESSAGE = 'This provincial is for full SAPRF members. Club members can enter only when the match director allows it.';
 
-    public const PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE = 'Club members can\'t be added to this provincial. Turn on Allow club members in Entries if this match should accept them.';
+    public const PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE = 'Club members can\'t be added to this provincial. Turn on Allow club members under Divisions if this match should accept them.';
 
     public function isMembershipValidOnDate(?Membership $membership, CarbonInterface $date): bool
     {

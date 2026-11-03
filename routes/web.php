@@ -669,6 +669,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.scores.acknowledge-walkin-fees');
             Route::post('/notify-unpaid', [MatchWorkspaceController::class, 'notifyUnpaid'])
                 ->name('matches.notify-unpaid');
+            Route::post('/email-whatsapp-invite', [MatchWorkspaceController::class, 'emailWhatsappInvite'])
+                ->name('matches.email-whatsapp-invite');
             Route::post('/apply-club-entry', [MatchWorkspaceController::class, 'applyClubEntry'])
                 ->name('matches.apply-club-entry');
             Route::get('/finances', [MatchWorkspaceController::class, 'finances'])->name('matches.finances');

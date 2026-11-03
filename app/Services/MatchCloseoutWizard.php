@@ -18,7 +18,8 @@ use Illuminate\Support\Collection;
  *      resolve zero-score ambiguity)
  *   3. Agree walk-in fees (MD ticks the box that the platform fee and the
  *      SAPRF levy come off their payout for every walk-in on this match)
- *   4. Mark scores complete (fires shooter notifications once)
+ *   4. Mark scores complete (fires shooter notifications once). The MD
+ *      may request the payout from this step before marking complete.
  *   5. Request MD payout
  *
  * There is deliberately no "current step" column on the match. The step is

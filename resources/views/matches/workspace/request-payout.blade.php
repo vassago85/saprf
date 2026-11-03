@@ -102,30 +102,47 @@
             </dl>
         </div>
 
-        @if(($walkInsNeedingScores ?? collect())->isNotEmpty() || ($scoresNotImported ?? false))
+        @php
+            $scoresStillOpen = ! $match->scoresAreFinalized();
+            $unscoredWalkIns = $walkInsNeedingScores ?? collect();
+        @endphp
+        @if($scoresStillOpen || $unscoredWalkIns->isNotEmpty() || ($scoresNotImported ?? false))
             <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm">
                 <div class="flex items-start gap-3">
                     <flux:icon.exclamation-triangle class="mt-0.5 size-6 shrink-0 text-amber-600" />
                     <div class="flex-1">
                         <h2 class="font-heading text-lg font-semibold text-amber-900">
-                            Walk-ins start off negative next time
+                            @if($scoresStillOpen)
+                                This payout can start off negative
+                            @else
+                                Walk-ins start off negative next time
+                            @endif
                         </h2>
-                        @if(($walkInsNeedingScores ?? collect())->isNotEmpty())
+                        @if($scoresStillOpen)
                             <p class="mt-1 text-sm text-amber-800">
-                                {{ $walkInsNeedingScores->count() }}
-                                {{ \Illuminate\Support\Str::plural('walk-in', $walkInsNeedingScores->count()) }}
-                                still {{ $walkInsNeedingScores->count() === 1 ? 'needs' : 'need' }} a score.
-                                {{ $walkInsNeedingScores->count() === 1 ? 'That entry starts' : 'Those entries start' }}
+                                Scores are not marked complete yet. You can still request the payout.
+                                If there are walk-ins, or anything else still outstanding — a late entry,
+                                a score that has not landed, a fee still to deduct — those rows are not in
+                                the amount above. The cash you collected stays with you. The SAPRF levy and
+                                the platform fee come off your next payout, so that one can open negative.
+                            </p>
+                        @endif
+                        @if($unscoredWalkIns->isNotEmpty())
+                            <p class="mt-1 text-sm text-amber-800">
+                                {{ $unscoredWalkIns->count() }}
+                                {{ \Illuminate\Support\Str::plural('walk-in', $unscoredWalkIns->count()) }}
+                                still {{ $unscoredWalkIns->count() === 1 ? 'needs' : 'need' }} a score.
+                                {{ $unscoredWalkIns->count() === 1 ? 'That entry starts' : 'Those entries start' }}
                                 off negative next time. The fee you collected stays with you. The SAPRF levy and the platform fee come off your next payout, not this one.
                             </p>
                             <ul class="mt-3 divide-y divide-amber-200 rounded-lg border border-amber-200 bg-white/60">
-                                @foreach($walkInsNeedingScores as $reg)
+                                @foreach($unscoredWalkIns as $reg)
                                     <li class="px-4 py-2 text-sm font-medium text-stone-900">
                                         {{ $reg->shooter_name ?: ($reg->user?->name ?? 'Walk-in') }}
                                     </li>
                                 @endforeach
                             </ul>
-                        @else
+                        @elseif($scoresNotImported ?? false)
                             <p class="mt-1 text-sm text-amber-800">
                                 Scores are not in yet. If you still have walk-ins whose scores need tracking, they will start off negative next time. The fee you collected stays with you. The SAPRF levy and the platform fee come off your next payout, not this one.
                             </p>

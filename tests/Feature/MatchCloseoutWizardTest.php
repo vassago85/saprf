@@ -8,8 +8,9 @@
  *   - the current step is derived from the match (no persisted "step" column)
  *   - the walk-in acknowledgement endpoint stamps timestamp + user
  *   - adding a new walk-in after acknowledgement clears both columns
- *   - complete-scores and request-payout refuse to fire until the earlier
- *     steps are done, and complete-and-request-payout refuses the same way
+ *   - complete-scores and request-payout refuse to fire until names and
+ *     walk-in fees are done. The payout itself can be requested before
+ *     scores are marked complete, with a warning that it can open negative.
  *   - every step correctly advances once the gating condition is satisfied
  */
 
@@ -291,12 +292,24 @@ it('refuses the GET banking form when the walk-in step is still open', function 
         ->assertSessionHas('error');
 });
 
-it('refuses the POST payout request when scores are not yet marked complete', function () {
+it('lets the MD request a payout before scores are marked complete, and warns it can start negative', function () {
     recordScoreForWizard($this->match, $this->paidShooter);
     $this->match->forceFill([
         'walkin_fees_acknowledged_at' => now(),
         'walkin_fees_acknowledged_by' => $this->md->id,
     ])->save();
+
+    $this->actingAs($this->md)
+        ->get(route('matches.scores', $this->match))
+        ->assertOk()
+        ->assertSee('Request payout now')
+        ->assertSee('can start off negative');
+
+    $this->actingAs($this->md)
+        ->get(route('matches.request-payout', $this->match))
+        ->assertOk()
+        ->assertSee('This payout can start off negative')
+        ->assertSee('walk-ins, or anything else still outstanding');
 
     $this->actingAs($this->md)
         ->post(route('matches.complete-and-request-payout', $this->match), [
@@ -305,10 +318,12 @@ it('refuses the POST payout request when scores are not yet marked complete', fu
             'account_number' => '0123456789',
             'branch_code' => '250655',
         ])
-        ->assertRedirect(route('matches.scores', $this->match))
-        ->assertSessionHas('error');
+        ->assertRedirect();
 
-    expect(Payout::where('match_id', $this->match->id)->exists())->toBeFalse();
+    $fresh = $this->match->fresh();
+    expect(Payout::where('match_id', $this->match->id)->exists())->toBeTrue()
+        ->and($fresh->scoresAreFinalized())->toBeFalse()
+        ->and($fresh->status)->toBe('completed');
 });
 
 it('refuses the POST payout request when a NEW walk-in landed after acknowledgement', function () {

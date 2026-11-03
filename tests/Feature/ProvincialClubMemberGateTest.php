@@ -91,11 +91,19 @@ function gateShooter(string $type, array $membership = []): User
 it('shows the allow-club-members switch off on a provincial', function () {
     $match = provincialGateMatch();
 
-    $this->actingAs($this->md)
+    $html = $this->actingAs($this->md)
         ->get(route('matches.settings', $match))
         ->assertOk()
         ->assertSee('Allow club members')
-        ->assertDontSee('Allow non-members to enter as club shooters');
+        ->assertDontSee('Allow non-members to enter as club shooters')
+        ->getContent();
+
+    $divisions = strpos($html, 'Divisions on offer');
+    $allow = strpos($html, 'Allow club members');
+    $waitlist = strpos($html, 'Enable waitlist when full');
+
+    expect($divisions)->toBeInt()->toBeLessThan($allow)
+        ->and($allow)->toBeLessThan($waitlist);
 });
 
 it('blocks a club member from registering for a provincial by default', function () {

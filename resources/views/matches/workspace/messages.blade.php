@@ -5,11 +5,30 @@
         <div class="rounded-xl border border-stone-200 bg-white p-5 lg:col-span-2">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h3 class="text-sm font-semibold text-stone-900">Sent bulletins</h3>
-                <a href="{{ route('matches.announcements.create', $match) }}" wire:navigate
-                   class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
-                    <flux:icon.paper-airplane class="size-4" />
-                    New message
-                </a>
+                <div class="flex flex-wrap items-center gap-2">
+                    @can('update', $match)
+                        @if($match->hasWhatsappInvite())
+                            <form method="POST" action="{{ route('matches.email-whatsapp-invite', $match) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#1da851]"
+                                        onclick="return confirm('Email the WhatsApp group link to confirmed entrants? Each person gets one mail with a button to join.');">
+                                    Email WhatsApp group link
+                                </button>
+                            </form>
+                        @else
+                            <a href="{{ route('matches.settings', $match) }}#whatsapp_invite_url" wire:navigate
+                               class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                                Add WhatsApp group link
+                            </a>
+                        @endif
+                    @endcan
+                    <a href="{{ route('matches.announcements.create', $match) }}" wire:navigate
+                       class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                        <flux:icon.paper-airplane class="size-4" />
+                        New message
+                    </a>
+                </div>
             </div>
 
             @if($announcements->isEmpty())
@@ -67,6 +86,7 @@
             </dl>
             <p class="mt-4 text-xs text-stone-500">
                 Messages are sent via email and the Communications inbox. Managed-junior rows deliver to the parent.
+                The WhatsApp button emails confirmed entrants who can join the group. Each mail has one button: Join match WhatsApp group.
             </p>
         </div>
     </div>

@@ -18,6 +18,7 @@ use App\Services\FinancialService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
+use App\Services\MatchWhatsappInviteMailer;
 use App\Services\PaymentInquiryService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
@@ -178,6 +179,22 @@ class MatchWorkspaceController extends Controller
             ->get();
 
         return back()->with('success', $inquiries->sendOutstanding($request->user(), $registrations));
+    }
+
+    /**
+     * One click: email confirmed entrants a mail whose only button is
+     * the match WhatsApp group invite.
+     */
+    public function emailWhatsappInvite(
+        Request $request,
+        MatchEvent $match,
+        MatchWhatsappInviteMailer $mailer,
+    ): RedirectResponse {
+        $this->authorize('update', $match);
+
+        $result = $mailer->send($request->user(), $match);
+
+        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
     /**

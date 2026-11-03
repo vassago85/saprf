@@ -444,10 +444,10 @@ class MatchController extends Controller
                 ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
         }
 
-        // Wizard gate: scores must be marked complete and (if there are
-        // walk-ins) the MD must have ticked the fee acknowledgement. We
-        // bounce back to the Scores tab, which renders the first unfinished
-        // step automatically.
+        // Wizard gate: names, allocations, and the walk-in fee
+        // acknowledgement must be done. Scores do not have to be marked
+        // complete — the form warns that a later payout can open negative
+        // if walk-ins or other deductions still come in.
         $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
         if ($redirect !== null) {
             return $redirect;
@@ -512,8 +512,8 @@ class MatchController extends Controller
         }
 
         // Server-side mirror of the wizard gate — a crafted POST shouldn't
-        // sneak past the UI and raise a payout before names, walk-ins
-        // and the complete-scores step have all passed.
+        // sneak past the UI and raise a payout before names and walk-in
+        // fees are done. Marking scores complete is not required.
         $redirect = $this->ensureWizardReadyForPayout($match, $wizard);
         if ($redirect !== null) {
             return $redirect;
@@ -562,24 +562,26 @@ class MatchController extends Controller
 
         $this->notifyTreasurerOfPayoutRequest($payout);
 
-        return redirect()->route('my-payouts.show', $payout)->with(
-            'success',
-            "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.',
-        );
+        $message = "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.';
+        if (! $match->scoresAreFinalized()) {
+            $message .= ' Scores are still provisional — mark them complete when you are ready so shooters are notified. If walk-ins or other deductions still come in, a later payout can start off negative.';
+        }
+
+        return redirect()->route('my-payouts.show', $payout)->with('success', $message);
     }
 
     /**
      * Shared wizard gate for both halves of the payout flow.
      *
      * Returns a redirect back to the Scores tab (which will render the
-     * first unfinished step) when either names/allocations are still
-     * open, walk-in fees haven't been acknowledged, or scores aren't
-     * marked complete. Returns null when the match is clear to raise.
+     * first unfinished step) when names/allocations are still open or
+     * walk-in fees haven't been acknowledged. Returns null when the
+     * match is clear to raise.
      *
-     * Admins and owners don't bypass — a payout raised before scores
-     * are complete still breaks downstream (notifications never fire,
-     * standings aren't snapshotted), so the gate is the same for every
-     * role that can call these actions.
+     * Scores do not have to be marked complete. Shooter notifications
+     * and the standings snapshot still wait for that later step. The
+     * request form warns that walk-ins or other deductions landing
+     * afterwards can open the next payout in the negative.
      */
     private function ensureWizardReadyForPayout(MatchEvent $match, MatchCloseoutWizard $wizard): ?RedirectResponse
     {
@@ -601,12 +603,6 @@ class MatchController extends Controller
             return redirect()
                 ->route('matches.scores', $match)
                 ->with('error', 'Acknowledge the walk-in fees before requesting a payout.');
-        }
-
-        if ($state['current'] === MatchCloseoutWizard::STEP_COMPLETE) {
-            return redirect()
-                ->route('matches.scores', $match)
-                ->with('error', 'Mark scores complete before requesting a payout.');
         }
 
         return null;

@@ -13,9 +13,11 @@ use App\Models\Membership;
 use App\Models\Payment;
 use App\Models\Province;
 use App\Models\User;
+use App\Notifications\MatchWhatsappInviteNotification;
 use App\Notifications\PaymentReceivedNotification;
 use App\Notifications\SponsoredEntryPaidNotification;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Notification;
 
 const WHATSAPP_INVITE_URL = 'https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrSt';
 
@@ -378,4 +380,121 @@ it('does not mention WhatsApp on a membership payment receipt', function () {
 
     expect($body)->not->toContain('WhatsApp')
         ->and($body)->not->toContain('chat.whatsapp.com');
+});
+
+// ── One-button mail to entrants ──────────────────────────────────────
+
+it('shows one button on the messages tab that emails the WhatsApp group link', function () {
+    $match = makeInviteMatch($this->md, $this->province);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.messages', $match))
+        ->assertOk()
+        ->assertSee('Email WhatsApp group link');
+});
+
+it('emails confirmed paid entrants one mail whose only button joins the WhatsApp group', function () {
+    Notification::fake();
+
+    $match = makeInviteMatch($this->md, $this->province);
+    makeInviteRegistration($this->member, $match, [
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+    ]);
+
+    $unpaid = User::factory()->create();
+    makeInviteRegistration($unpaid, $match, [
+        'payment_status' => 'pending',
+        'registration_status' => 'confirmed',
+        'fee_amount' => 250,
+    ]);
+
+    $this->actingAs($this->md)
+        ->post(route('matches.email-whatsapp-invite', $match))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    Notification::assertSentTo($this->member, MatchWhatsappInviteNotification::class, function (MatchWhatsappInviteNotification $notification) {
+        $mail = $notification->toMail($this->member);
+
+        return $mail->actionText === 'Join match WhatsApp group'
+            && $mail->actionUrl === WHATSAPP_INVITE_URL;
+    });
+    Notification::assertNotSentTo($unpaid, MatchWhatsappInviteNotification::class);
+});
+
+it('sends the WhatsApp mail to a parent once when two managed juniors are entered', function () {
+    Notification::fake();
+
+    $match = makeInviteMatch($this->md, $this->province);
+    $parent = User::factory()->create(['email' => 'parent@example.test']);
+    $juniorA = User::factory()->create([
+        'email' => 'junior.a@saprf.local',
+        'parent_id' => $parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+    ]);
+    $juniorB = User::factory()->create([
+        'email' => 'junior.b@saprf.local',
+        'parent_id' => $parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+    ]);
+
+    foreach ([$juniorA, $juniorB] as $junior) {
+        makeInviteRegistration($junior, $match, [
+            'payment_status' => 'paid',
+            'registration_status' => 'confirmed',
+            'registered_by_user_id' => $parent->id,
+            'email' => $parent->email,
+        ]);
+    }
+
+    $this->actingAs($this->md)
+        ->post(route('matches.email-whatsapp-invite', $match))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    Notification::assertSentToTimes($parent, MatchWhatsappInviteNotification::class, 1);
+    Notification::assertNotSentTo($juniorA, MatchWhatsappInviteNotification::class);
+    Notification::assertNotSentTo($juniorB, MatchWhatsappInviteNotification::class);
+});
+
+it('emails a walk-in at the address on the entry when the account email is a placeholder', function () {
+    Notification::fake();
+
+    $match = makeInviteMatch($this->md, $this->province);
+    $walker = User::factory()->create(['email' => 'walkin.sam.abc@saprf.walkin']);
+    makeInviteRegistration($walker, $match, [
+        'shooter_name' => 'Sam Walker',
+        'email' => 'sam.walker@example.test',
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'fee_amount' => 0,
+    ]);
+
+    $this->actingAs($this->md)
+        ->post(route('matches.email-whatsapp-invite', $match))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    Notification::assertSentOnDemand(MatchWhatsappInviteNotification::class);
+    Notification::assertNotSentTo($walker, MatchWhatsappInviteNotification::class);
+});
+
+it('refuses to email a WhatsApp link when the match has none', function () {
+    Notification::fake();
+
+    $match = makeInviteMatch($this->md, $this->province, ['whatsapp_invite_url' => null]);
+    makeInviteRegistration($this->member, $match, [
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+    ]);
+
+    $this->actingAs($this->md)
+        ->post(route('matches.email-whatsapp-invite', $match))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    Notification::assertNothingSent();
 });

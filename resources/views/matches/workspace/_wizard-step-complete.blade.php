@@ -44,4 +44,20 @@
             </form>
         @endcan
     </div>
+
+    @can('update', $match)
+        <div class="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p class="text-sm font-semibold text-amber-950">Need the payout before scores are final?</p>
+            <p class="mt-1 text-xs leading-relaxed text-amber-800">
+                You can request it now. If there are walk-ins, or anything else still outstanding,
+                this payout can start off negative. Cash you collected stays with you. The SAPRF levy
+                and the platform fee for those rows come off a later payout.
+            </p>
+            <a href="{{ route('matches.request-payout', $match) }}" wire:navigate
+               class="mt-3 inline-flex items-center gap-1.5 rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100">
+                <flux:icon.banknotes class="size-3.5" />
+                Request payout now
+            </a>
+        </div>
+    @endcan
 </div>

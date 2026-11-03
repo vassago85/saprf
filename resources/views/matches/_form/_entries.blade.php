@@ -55,44 +55,5 @@
                 </span>
             </label>
         </div>
-
-        @php
-            $seriesLevel = old('series_level', $match?->series_level);
-            $showClubMemberToggle = ! ($createMode ?? false) && $seriesLevel === 'provincial';
-            $clubMembersAllowed = filter_var(
-                old('club_entry_enabled', (bool) ($match?->club_entry_enabled ?? false)),
-                FILTER_VALIDATE_BOOLEAN,
-            );
-            $clubFee = old('club_entry_fee', $match?->club_entry_fee);
-        @endphp
-        @if($showClubMemberToggle)
-            {{-- Off by default. Full members can always enter; club members
-                 cannot until the match director opts in. The fee below is
-                 what those club members pay once they are allowed. --}}
-            <div class="sm:col-span-2 rounded-lg border border-stone-200 bg-stone-50/60 p-4"
-                 x-data="{ enabled: {{ $clubMembersAllowed ? 'true' : 'false' }} }">
-                <input type="hidden" name="club_entry_enabled" value="0" />
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" name="club_entry_enabled" value="1" x-model="enabled"
-                           @checked($clubMembersAllowed)
-                           class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" />
-                    <span class="text-sm text-stone-700">
-                        <span class="block text-sm font-medium text-stone-900">Allow club members</span>
-                        <span class="mt-0.5 block text-xs text-stone-500">
-                            Off unless you turn this on. Full SAPRF members can always enter. Club members, associates, and anyone without a full membership cannot register for this provincial until you allow them. When allowed, they pay the club price below. Their scores stay on the match and do not count toward the provincial log.
-                        </span>
-                    </span>
-                </label>
-
-                <div x-show="enabled" x-cloak class="mt-4">
-                    <label for="club_entry_fee" class="block text-xs font-medium text-stone-600 mb-1">Club entry fee (ZAR)</label>
-                    <input type="number" name="club_entry_fee" id="club_entry_fee" step="0.01" min="0" value="{{ $clubFee }}"
-                           placeholder="Blank = same as entry fee"
-                           class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500" />
-                    <p class="mt-1 text-xs text-stone-400">Leave blank and club members pay the same as full members.</p>
-                    @error('club_entry_fee') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                </div>
-            </div>
-        @endif
     </div>
 </section>
