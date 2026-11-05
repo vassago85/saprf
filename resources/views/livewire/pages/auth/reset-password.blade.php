@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -39,6 +40,7 @@ new #[Layout('components.layouts.guest')] #[Title('Reset Password — SAPRF')] c
                 $user->forceFill([
                     'password' => Hash::make($this->password),
                     'remember_token' => Str::random(60),
+                    'must_change_password' => false,
                 ])->save();
 
                 event(new PasswordReset($user));
@@ -47,7 +49,13 @@ new #[Layout('components.layouts.guest')] #[Title('Reset Password — SAPRF')] c
 
         if ($status === Password::PASSWORD_RESET) {
             session()->flash('status', __($status));
-            $this->redirect(route('login'), navigate: true);
+
+            $resetUserId = User::query()->where('email', $this->email)->value('id');
+            $destination = auth()->id() === $resetUserId
+                ? route('dashboard')
+                : route('login');
+
+            $this->redirect($destination, navigate: true);
         } else {
             $this->addError('email', __($status));
         }

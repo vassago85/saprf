@@ -3,9 +3,11 @@
 use App\Models\User;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\ResetPasswordNotification;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
+use Livewire\Livewire;
 
 beforeEach(function () {
     seedRoles();
@@ -105,4 +107,45 @@ it('lets a guest open the password reset page from the emailed link', function (
         'token' => $token,
         'email' => $user->email,
     ]))->assertOk();
+});
+
+it('lets a signed-in member open the password reset link instead of bouncing to the dashboard', function () {
+    $user = User::factory()->create([
+        'email_verified_at' => now(),
+        'must_change_password' => true,
+    ]);
+    $user->assignRole('member');
+    $token = Password::createToken($user);
+
+    $this->actingAs($user)
+        ->get(route('password.reset', [
+            'token' => $token,
+            'email' => $user->email,
+        ]))
+        ->assertOk()
+        ->assertSee('Reset Password')
+        ->assertDontSee('Current Password');
+});
+
+it('resets the password from the email link while the member is still signed in', function () {
+    $user = User::factory()->create([
+        'email_verified_at' => now(),
+        'must_change_password' => true,
+    ]);
+    $user->assignRole('member');
+    $token = Password::createToken($user);
+
+    $this->actingAs($user);
+
+    Livewire::test('pages.auth.reset-password', ['token' => $token])
+        ->set('email', $user->email)
+        ->set('password', 'Newpassword1')
+        ->set('password_confirmation', 'Newpassword1')
+        ->call('resetPassword')
+        ->assertRedirect(route('dashboard'));
+
+    $user->refresh();
+
+    expect(Hash::check('Newpassword1', $user->password))->toBeTrue()
+        ->and($user->must_change_password)->toBeFalse();
 });

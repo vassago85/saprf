@@ -286,9 +286,15 @@ Route::middleware('guest')->group(function (): void {
     Volt::route('/login', 'pages.auth.login')->name('login');
     Volt::route('/register', 'pages.auth.register')->name('register');
     Volt::route('/forgot-password', 'pages.auth.forgot-password')->name('password.request');
-    Volt::route('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
     Volt::route('/invitation/{token}', 'pages.auth.accept-invitation')->name('invitation.accept');
 });
+
+// Kept outside the guest group on purpose. A member who still has a
+// session (remember-me, or they requested the link while signed in)
+// must be able to open the email link. The guest middleware would
+// otherwise send them straight to the dashboard, and Settings still
+// asks for the password they no longer have.
+Volt::route('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
 
 Route::post('/logout', function () {
     Auth::logout();
