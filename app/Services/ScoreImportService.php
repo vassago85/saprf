@@ -47,8 +47,19 @@ class ScoreImportService
                         continue;
                     }
 
-                    $divisionId = $this->resolveDivision($row);
                     $userId = $this->resolveUserId($row);
+                    // CSV division wins when present. When the CSV has no
+                    // Division / Div / Class / Category column at all — or
+                    // the column exists but is blank for this shooter — fall
+                    // back to the shooter's User.division_id so the score
+                    // still feeds their per-division provincial standing.
+                    // Without this fallback, scraped/legacy imports produce
+                    // Score rows with division_id = NULL, and those rows
+                    // silently drop out of every division-specific standings
+                    // table (Federation Colours report, division leaderboards)
+                    // even though they count correctly in the Overall table.
+                    $divisionId = $this->resolveDivision($row)
+                        ?? $this->userDefaultDivisionId($userId);
                     $csvScore = (float) $row['raw_score'];
 
                     // Day-tagged imports upsert onto the same score row for this shooter
@@ -569,6 +580,23 @@ class ScoreImportService
      * so we accept them directly (plus a few common aliases). Anything else
      * (Open, Factory, Limited, Production…) also resolves by slug or name.
      */
+    /**
+     * Shooter's registered default division (users.division_id), or null when
+     * the shooter has none on file. Used as the last-resort fallback by
+     * {@see importCsv} when the CSV row carries no division. Kept narrow:
+     * does not try to fetch the user's membership history or prior scores.
+     */
+    private function userDefaultDivisionId(?int $userId): ?int
+    {
+        if ($userId === null) {
+            return null;
+        }
+
+        $divisionId = User::query()->whereKey($userId)->value('division_id');
+
+        return $divisionId !== null ? (int) $divisionId : null;
+    }
+
     private function resolveDivision(array $row): ?int
     {
         $value = trim($row['division'] ?? '');

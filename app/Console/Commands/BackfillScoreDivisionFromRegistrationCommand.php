@@ -6,8 +6,10 @@ use App\Models\AuditLog;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
 use App\Models\Score;
+use App\Models\User;
 use App\Services\StandingsCalculationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,6 +38,21 @@ use Illuminate\Support\Facades\DB;
  *     list even when they didn't pass --overwrite-mismatches.
  *   - Recalculates standings for each touched match unless --skip-standings.
  *   - Writes an AuditLog per touched match summarising what changed.
+ *
+ * Second-tier fallback (--fall-back-to-user-division)
+ * ---------------------------------------------------
+ * Scraped-import matches (precisionrifle.co.za events) typically have no
+ * MatchRegistration rows on our side — shooters registered on the source
+ * site, not here — so the registration fallback can't help them. When the
+ * flag is set, any score with NULL division_id that didn't get a
+ * registration-sourced fill is backfilled from the shooter's User.division_id
+ * (their registered home division). The flag is opt-in because it attributes
+ * the score to the shooter's default division without per-match evidence —
+ * fine for the overwhelming "Dalton de Bruin always shoots Open" case,
+ * potentially wrong for a shooter who switched divisions for a day. The
+ * audit log records which source filled each row so the move is reversible.
+ * --overwrite-mismatches is deliberately NOT honoured for the user-default
+ * source: it only ever fills nulls, never clobbers an existing non-null.
  */
 class BackfillScoreDivisionFromRegistrationCommand extends Command
 {
@@ -43,6 +60,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         {match? : Optional MatchEvent ID; without it the command scans every match with at least one score-with-null-division}
         {--dry-run : Report what would change without writing}
         {--overwrite-mismatches : Also overwrite scores whose division disagrees with the registration (default: warn and skip)}
+        {--fall-back-to-user-division : When a score has NULL division_id and no MatchRegistration (typical of scraped imports), fill from the shooter\'s User.division_id}
         {--skip-standings : Skip StandingsCalculationService::recalculateForMatch after writing}';
 
     protected $description = 'Backfill Score.division_id from each shooter\'s MatchRegistration for the same match';
@@ -52,6 +70,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         $matchIdArg = $this->argument('match');
         $dryRun = (bool) $this->option('dry-run');
         $overwriteMismatches = (bool) $this->option('overwrite-mismatches');
+        $fallBackToUserDivision = (bool) $this->option('fall-back-to-user-division');
         $skipStandings = (bool) $this->option('skip-standings');
 
         $matches = $this->resolveMatches($matchIdArg);
@@ -63,11 +82,13 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         $this->info('=== Backfill Score.division_id from MatchRegistration ===');
         $this->line('Mode:              '.($dryRun ? 'DRY RUN (no writes)' : 'LIVE'));
         $this->line('Mismatch handling: '.($overwriteMismatches ? 'OVERWRITE existing division_id' : 'WARN and skip (keep existing)'));
+        $this->line('User fallback:     '.($fallBackToUserDivision ? 'ENABLED (User.division_id fills where no MatchRegistration)' : 'off'));
         $this->line('Matches to scan:   '.$matches->count());
         $this->newLine();
 
         $grandTotal = [
             'filled' => 0,
+            'filled_from_user_default' => 0,
             'skipped_no_registration' => 0,
             'skipped_mismatch' => 0,
             'overwritten_mismatch' => 0,
@@ -78,6 +99,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                 $match,
                 $dryRun,
                 $overwriteMismatches,
+                $fallBackToUserDivision,
                 $skipStandings,
                 $standings,
             );
@@ -89,7 +111,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
 
         $this->newLine();
         $this->info('=== Overall totals ===');
-        $this->info("Filled: {$grandTotal['filled']}   Overwritten: {$grandTotal['overwritten_mismatch']}   Skipped-no-registration: {$grandTotal['skipped_no_registration']}   Skipped-mismatch: {$grandTotal['skipped_mismatch']}");
+        $this->info("Filled (registration): {$grandTotal['filled']}   Filled (user default): {$grandTotal['filled_from_user_default']}   Overwritten: {$grandTotal['overwritten_mismatch']}   Skipped-no-registration: {$grandTotal['skipped_no_registration']}   Skipped-mismatch: {$grandTotal['skipped_mismatch']}");
 
         return self::SUCCESS;
     }
@@ -115,12 +137,13 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
     }
 
     /**
-     * @return array{filled:int,skipped_no_registration:int,skipped_mismatch:int,overwritten_mismatch:int}
+     * @return array{filled:int,filled_from_user_default:int,skipped_no_registration:int,skipped_mismatch:int,overwritten_mismatch:int}
      */
     private function processMatch(
         MatchEvent $match,
         bool $dryRun,
         bool $overwriteMismatches,
+        bool $fallBackToUserDivision,
         bool $skipStandings,
         StandingsCalculationService $standings,
     ): array {
@@ -138,18 +161,29 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             return $this->emptyTotal();
         }
 
+        $userIds = $scores->pluck('user_id')->filter()->unique()->all();
+
         // Registration lookup: for each user_id, their most recent
         // non-cancelled MR on this match.
         $registrations = MatchRegistration::where('match_id', $match->id)
             ->where('registration_status', '!=', 'cancelled')
-            ->whereIn('user_id', $scores->pluck('user_id')->filter()->unique()->all())
+            ->whereIn('user_id', $userIds)
             ->orderByDesc('id')
             ->get(['user_id', 'division_id'])
             ->unique('user_id')      // most recent wins
             ->keyBy('user_id');
 
-        $toFill = [];         // score_id => registration.division_id
-        $toOverwrite = [];    // score_id => ['old' => x, 'new' => y]
+        // User-default division lookup. Only loaded when the flag is on so
+        // the default behaviour matches historic (registration-only) runs.
+        $userDefaults = $fallBackToUserDivision
+            ? User::query()
+                ->whereIn('id', $userIds)
+                ->whereNotNull('division_id')
+                ->pluck('division_id', 'id')
+            : collect();
+
+        $toFill = [];                 // score_id => ['division_id' => x, 'source' => 'registration'|'user_default']
+        $toOverwrite = [];            // score_id => ['old' => x, 'new' => y]
         $mismatchesSkipped = [];
         $noRegistration = [];
 
@@ -158,13 +192,24 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
 
             if (! $reg || $reg->division_id === null) {
                 if ($score->division_id === null) {
-                    $noRegistration[] = $score;
+                    $userDefault = $userDefaults->get($score->user_id);
+                    if ($userDefault !== null) {
+                        $toFill[$score->id] = [
+                            'division_id' => (int) $userDefault,
+                            'source' => 'user_default',
+                        ];
+                    } else {
+                        $noRegistration[] = $score;
+                    }
                 }
                 continue;
             }
 
             if ($score->division_id === null) {
-                $toFill[$score->id] = $reg->division_id;
+                $toFill[$score->id] = [
+                    'division_id' => (int) $reg->division_id,
+                    'source' => 'registration',
+                ];
                 continue;
             }
 
@@ -188,11 +233,15 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             }
         }
 
+        $filledFromRegistration = collect($toFill)->where('source', 'registration')->count();
+        $filledFromUserDefault = collect($toFill)->where('source', 'user_default')->count();
+
         $this->reportMatchPlan($toFill, $toOverwrite, $mismatchesSkipped, $noRegistration);
 
         if ($dryRun) {
             return [
-                'filled' => count($toFill),
+                'filled' => $filledFromRegistration,
+                'filled_from_user_default' => $filledFromUserDefault,
                 'overwritten_mismatch' => count($toOverwrite),
                 'skipped_mismatch' => count($mismatchesSkipped),
                 'skipped_no_registration' => count($noRegistration),
@@ -203,15 +252,16 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             $this->line('  Nothing to write.');
             return [
                 'filled' => 0,
+                'filled_from_user_default' => 0,
                 'overwritten_mismatch' => 0,
                 'skipped_mismatch' => count($mismatchesSkipped),
                 'skipped_no_registration' => count($noRegistration),
             ];
         }
 
-        DB::transaction(function () use ($toFill, $toOverwrite, $match, $mismatchesSkipped, $noRegistration, $overwriteMismatches): void {
-            foreach ($toFill as $scoreId => $divisionId) {
-                Score::where('id', $scoreId)->update(['division_id' => $divisionId]);
+        DB::transaction(function () use ($toFill, $toOverwrite, $match, $mismatchesSkipped, $noRegistration, $overwriteMismatches, $filledFromRegistration, $filledFromUserDefault): void {
+            foreach ($toFill as $scoreId => $delta) {
+                Score::where('id', $scoreId)->update(['division_id' => $delta['division_id']]);
             }
             foreach ($toOverwrite as $scoreId => $delta) {
                 Score::where('id', $scoreId)->update(['division_id' => $delta['new']]);
@@ -225,8 +275,9 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                 'entity_id' => $match->id,
                 'old_value' => null,
                 'new_value' => [
-                    'source' => 'registration',
-                    'filled' => count($toFill),
+                    'source' => $filledFromUserDefault > 0 ? 'registration_and_user_default' : 'registration',
+                    'filled' => $filledFromRegistration,
+                    'filled_from_user_default' => $filledFromUserDefault,
                     'overwritten_mismatch' => count($toOverwrite),
                     'skipped_mismatch' => count($mismatchesSkipped),
                     'skipped_no_registration' => count($noRegistration),
@@ -234,12 +285,15 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                     'overwritten_ids' => array_keys($toOverwrite),
                     'mismatch_details' => $mismatchesSkipped,
                 ],
-                'reason' => "Backfilled {$this->pluralised(count($toFill), 'Score row')} on match #{$match->id} from MatchRegistration"
+                'reason' => "Backfilled {$this->pluralised($filledFromRegistration, 'Score row')} on match #{$match->id} from MatchRegistration"
+                    .($filledFromUserDefault === 0 ? '' : "; {$this->pluralised($filledFromUserDefault, 'additional row')} from User.division_id")
                     .($toOverwrite === [] ? '' : "; overwrote {$this->pluralised(count($toOverwrite), 'mismatched row')}"),
             ]);
         });
 
-        $this->info('  ✓ Wrote '.count($toFill).' fill(s), '.count($toOverwrite).' overwrite(s), audit-logged.');
+        $this->info('  ✓ Wrote '.$filledFromRegistration.' reg-fill(s)'
+            .($filledFromUserDefault > 0 ? ', '.$filledFromUserDefault.' user-default fill(s)' : '')
+            .', '.count($toOverwrite).' overwrite(s), audit-logged.');
 
         if (! $skipStandings) {
             $this->line('  Recalculating rankings + season standings...');
@@ -247,21 +301,34 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         }
 
         return [
-            'filled' => count($toFill),
+            'filled' => $filledFromRegistration,
+            'filled_from_user_default' => $filledFromUserDefault,
             'overwritten_mismatch' => count($toOverwrite),
             'skipped_mismatch' => count($mismatchesSkipped),
             'skipped_no_registration' => count($noRegistration),
         ];
     }
 
+    /**
+     * @param  array<int,array{division_id:int,source:string}>  $toFill
+     * @param  array<int,array<string,mixed>>  $toOverwrite
+     * @param  array<int,array<string,mixed>>  $mismatchesSkipped
+     * @param  array<int,Score>  $noRegistration
+     */
     private function reportMatchPlan(
         array $toFill,
         array $toOverwrite,
         array $mismatchesSkipped,
         array $noRegistration,
     ): void {
-        if ($toFill !== []) {
-            $this->line('  Will fill '.count($toFill).' Score row(s) whose division_id is NULL.');
+        $fromReg = collect($toFill)->where('source', 'registration')->count();
+        $fromUser = collect($toFill)->where('source', 'user_default')->count();
+
+        if ($fromReg > 0) {
+            $this->line('  Will fill '.$fromReg.' Score row(s) whose division_id is NULL from MatchRegistration.');
+        }
+        if ($fromUser > 0) {
+            $this->line('  Will fill '.$fromUser.' additional Score row(s) from User.division_id (no MatchRegistration on file).');
         }
         if ($toOverwrite !== []) {
             $this->warn('  Will OVERWRITE '.count($toOverwrite).' Score row(s) with a different division than their registration:');
@@ -276,7 +343,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             }
         }
         if ($noRegistration !== []) {
-            $this->line('  '.count($noRegistration).' Score row(s) with NULL division_id have no MatchRegistration — skipped (walk-in flow will cover these later).');
+            $this->line('  '.count($noRegistration).' Score row(s) with NULL division_id have no MatchRegistration and no User.division_id — skipped (pass --fall-back-to-user-division to use the shooter\'s default division when available).');
         }
     }
 
@@ -289,6 +356,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
     {
         return [
             'filled' => 0,
+            'filled_from_user_default' => 0,
             'overwritten_mismatch' => 0,
             'skipped_mismatch' => 0,
             'skipped_no_registration' => 0,

@@ -217,12 +217,125 @@ it('errors when the specified match id does not exist', function () {
 
 it('reports scores with NULL division_id that have no registration at all', function () {
     $user = backfillTestUser('Kate Kilo');
+    $user->update(['division_id' => null]); // no default division either
     backfillTestScore($this->match, $user, null);
-    // No registration — this is the walk-in case, not our problem.
+    // No registration AND no user default — the leftover "no source" case.
 
     $this->artisan('scores:backfill-division-from-registration', [
         'match' => $this->match->id,
     ])
         ->expectsOutputToContain('no MatchRegistration')
         ->assertSuccessful();
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// --fall-back-to-user-division: second-tier fallback for scraped imports
+// ──────────────────────────────────────────────────────────────────────
+
+it('does not touch null-division scores with no registration when the flag is off (default)', function () {
+    // Scraped import: shooter has no MatchRegistration on this match, but
+    // does have a User.division_id. Without the opt-in flag the command
+    // preserves the historic behaviour and leaves the Score alone.
+    $user = backfillTestUser('Larry Lima');
+    $user->update(['division_id' => $this->open->id]);
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBeNull();
+});
+
+it('fills from User.division_id when the flag is set and no registration exists', function () {
+    // Scraped-import case: Dalton has no MatchRegistration on the Day-1
+    // provincial but is registered as an Open shooter. With the flag on,
+    // the score picks up Open and feeds the Open division standing.
+    $user = backfillTestUser('Mike Mike');
+    $user->update(['division_id' => $this->open->id]);
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->open->id);
+});
+
+it('prefers MatchRegistration over User.division_id when both are present', function () {
+    // The flag is a fallback, not a replacement. When the shooter has a
+    // registration, the registration wins even if their default is a
+    // different division.
+    $user = backfillTestUser('Nina November');
+    $user->update(['division_id' => $this->open->id]);
+    $score = backfillTestScore($this->match, $user, null);
+    backfillTestRegistration($this->match, $user, $this->junior);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->junior->id);
+});
+
+it('fills from User.division_id when a cancelled registration is the only one on file', function () {
+    // Cancelled registrations are ignored (same rule as the registration-only
+    // path), and the user-default fallback kicks in.
+    $user = backfillTestUser('Oscar Oscar');
+    $user->update(['division_id' => $this->ladies->id]);
+    $score = backfillTestScore($this->match, $user, null);
+    backfillTestRegistration($this->match, $user, $this->open, 'cancelled');
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->ladies->id);
+});
+
+it('never overwrites an existing non-null Score.division_id via the user-default fallback', function () {
+    // Even with --overwrite-mismatches, the user-default source only ever
+    // fills nulls. Overwriting a hand-corrected division from a user default
+    // would be far too aggressive.
+    $user = backfillTestUser('Peter Papa');
+    $user->update(['division_id' => $this->junior->id]);
+    $score = backfillTestScore($this->match, $user, $this->open->id);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+        '--overwrite-mismatches' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->open->id);
+});
+
+it('records user-default fills in the AuditLog separately from registration fills', function () {
+    $regFilled = backfillTestUser('Quinn Quebec');
+    $regFilledScore = backfillTestScore($this->match, $regFilled, null);
+    backfillTestRegistration($this->match, $regFilled, $this->open);
+
+    $userFilled = backfillTestUser('Rita Romeo');
+    $userFilled->update(['division_id' => $this->ladies->id]);
+    $userFilledScore = backfillTestScore($this->match, $userFilled, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($regFilledScore->fresh()->division_id)->toBe($this->open->id)
+        ->and($userFilledScore->fresh()->division_id)->toBe($this->ladies->id);
+
+    $log = AuditLog::where('action_type', 'score_division_backfill')
+        ->where('entity_id', $this->match->id)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->new_value['source'])->toBe('registration_and_user_default')
+        ->and($log->new_value['filled'])->toBe(1)
+        ->and($log->new_value['filled_from_user_default'])->toBe(1);
 });

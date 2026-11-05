@@ -408,9 +408,16 @@ class ImportScrapedPr22Command extends Command
             if ($rawScore === '' || !is_numeric($rawScore)) continue;
 
             $divRaw = strtolower(trim((string) ($row['division'] ?? '')));
+            // Scraped exports from precisionrifle.co.za frequently omit the
+            // Division column entirely, which left every Score row from that
+            // match with division_id = NULL. Null-division scores count in
+            // Overall standings but silently drop out of every per-division
+            // table (Federation Colours report, division leaderboards). Fall
+            // back to the shooter's registered home division so their scores
+            // still feed their own division standing.
             $divisionId = $divisions->get($divRaw)?->id
                 ?? $divisionsByName->get($divRaw)?->id
-                ?? null;
+                ?? User::query()->whereKey($userId)->value('division_id');
 
             $placement = null;
             if (isset($row['placement']) && $row['placement'] !== '' && is_numeric($row['placement'])) {

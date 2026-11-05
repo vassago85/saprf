@@ -407,7 +407,15 @@ class ImportScrapedPrsCommand extends Command
             }
 
             $divRaw = strtolower(trim((string) ($row['division'] ?? '')));
-            $divisionId = $divisions->get($divRaw)?->id ?? $divisionsByName->get($divRaw)?->id;
+            // Same guard as ImportScrapedPr22Command: when the scrape row
+            // has no Division column (or a blank one), fall back to the
+            // shooter's registered home division so the Score still feeds
+            // their per-division standing. Without this, Overall totals
+            // look fine but the Federation Colours / division tables
+            // silently lose the match.
+            $divisionId = $divisions->get($divRaw)?->id
+                ?? $divisionsByName->get($divRaw)?->id
+                ?? User::query()->whereKey($userId)->value('division_id');
 
             $placement = null;
             if (isset($row['placement']) && $row['placement'] !== '' && is_numeric($row['placement'])) {
