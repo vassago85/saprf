@@ -313,6 +313,132 @@ it('never overwrites an existing non-null Score.division_id via the user-default
     expect($score->fresh()->division_id)->toBe($this->open->id);
 });
 
+it('falls through to shooter history when the user has no default division', function () {
+    // Dalton's real case: scraped-import score, no MatchRegistration, no
+    // User.division_id, but every one of his OTHER scores is Open — so the
+    // modal-across-history fallback attributes this score to Open too.
+    $user = backfillTestUser('Simon Sierra');
+    $user->update(['division_id' => null]);
+
+    // A second match where the same shooter already has Open scored.
+    $otherMatch = MatchEvent::create([
+        'name' => 'Prior Match',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::today()->subMonths(2),
+        'status' => 'completed',
+        'active_member_fee' => 500,
+        'non_member_fee' => 700,
+        'created_by' => $user->id,
+    ]);
+    backfillTestScore($otherMatch, $user, $this->open->id);
+
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->open->id);
+});
+
+it('prefers User.division_id over shooter history when both are available', function () {
+    // History and user default disagree: user default wins because it's the
+    // shooter's declared home division, not inferred from behaviour.
+    $user = backfillTestUser('Tina Tango');
+    $user->update(['division_id' => $this->ladies->id]);
+
+    $otherMatch = MatchEvent::create([
+        'name' => 'Prior Match',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::today()->subMonths(2),
+        'status' => 'completed',
+        'active_member_fee' => 500,
+        'non_member_fee' => 700,
+        'created_by' => $user->id,
+    ]);
+    backfillTestScore($otherMatch, $user, $this->open->id);
+
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->ladies->id);
+});
+
+it('picks the modal division when the shooter has more than one in their history', function () {
+    // Two Open, one Junior — Open wins because it's the mode.
+    $user = backfillTestUser('Uri Uniform');
+    $user->update(['division_id' => null]);
+
+    foreach ([$this->open, $this->open, $this->junior] as $i => $division) {
+        $otherMatch = MatchEvent::create([
+            'name' => 'Prior '.$i,
+            'match_type' => 'PR22',
+            'series_level' => 'provincial',
+            'series' => 'PR22',
+            'season' => '2026',
+            'province_id' => $this->province->id,
+            'match_date' => Carbon::today()->subMonths(3 + $i),
+            'status' => 'completed',
+            'active_member_fee' => 500,
+            'non_member_fee' => 700,
+            'created_by' => $user->id,
+        ]);
+        backfillTestScore($otherMatch, $user, $division->id);
+    }
+
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+        '--fall-back-to-user-division' => true,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBe($this->open->id);
+});
+
+it('does nothing from shooter history when the fallback flag is off', function () {
+    // Same setup as the shooter-history test, but without the opt-in flag.
+    // Historic behaviour must not change for callers not passing the flag.
+    $user = backfillTestUser('Victor Victor');
+    $user->update(['division_id' => null]);
+
+    $otherMatch = MatchEvent::create([
+        'name' => 'Prior Match',
+        'match_type' => 'PR22',
+        'series_level' => 'provincial',
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::today()->subMonths(2),
+        'status' => 'completed',
+        'active_member_fee' => 500,
+        'non_member_fee' => 700,
+        'created_by' => $user->id,
+    ]);
+    backfillTestScore($otherMatch, $user, $this->open->id);
+
+    $score = backfillTestScore($this->match, $user, null);
+
+    $this->artisan('scores:backfill-division-from-registration', [
+        'match' => $this->match->id,
+    ])->assertSuccessful();
+
+    expect($score->fresh()->division_id)->toBeNull();
+});
+
 it('records user-default fills in the AuditLog separately from registration fills', function () {
     $regFilled = backfillTestUser('Quinn Quebec');
     $regFilledScore = backfillTestScore($this->match, $regFilled, null);

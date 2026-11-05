@@ -39,20 +39,26 @@ use Illuminate\Support\Facades\DB;
  *   - Recalculates standings for each touched match unless --skip-standings.
  *   - Writes an AuditLog per touched match summarising what changed.
  *
- * Second-tier fallback (--fall-back-to-user-division)
- * ---------------------------------------------------
+ * Second- and third-tier fallbacks (--fall-back-to-user-division)
+ * ---------------------------------------------------------------
  * Scraped-import matches (precisionrifle.co.za events) typically have no
  * MatchRegistration rows on our side — shooters registered on the source
  * site, not here — so the registration fallback can't help them. When the
  * flag is set, any score with NULL division_id that didn't get a
  * registration-sourced fill is backfilled from the shooter's User.division_id
- * (their registered home division). The flag is opt-in because it attributes
- * the score to the shooter's default division without per-match evidence —
- * fine for the overwhelming "Dalton de Bruin always shoots Open" case,
+ * (their registered home division). When THAT is also null (common for
+ * stub users auto-created by the scraper), the command falls back to the
+ * modal division of the shooter's own other scores — behavioural evidence
+ * that is almost always correct for shooters who consistently shoot one
+ * division (every PR22 example on the Federation Colours gap list).
+ *
+ * The flag is opt-in because it attributes the score to a division without
+ * per-match evidence — fine for "Dalton de Bruin always shoots Open",
  * potentially wrong for a shooter who switched divisions for a day. The
- * audit log records which source filled each row so the move is reversible.
- * --overwrite-mismatches is deliberately NOT honoured for the user-default
- * source: it only ever fills nulls, never clobbers an existing non-null.
+ * audit log records which source filled each row (registration, user_default,
+ * or shooter_history) so the move is reversible. --overwrite-mismatches is
+ * deliberately NOT honoured for the user-default or shooter-history sources:
+ * they only ever fill nulls, never clobber an existing non-null.
  */
 class BackfillScoreDivisionFromRegistrationCommand extends Command
 {
@@ -60,7 +66,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         {match? : Optional MatchEvent ID; without it the command scans every match with at least one score-with-null-division}
         {--dry-run : Report what would change without writing}
         {--overwrite-mismatches : Also overwrite scores whose division disagrees with the registration (default: warn and skip)}
-        {--fall-back-to-user-division : When a score has NULL division_id and no MatchRegistration (typical of scraped imports), fill from the shooter\'s User.division_id}
+        {--fall-back-to-user-division : When a score has NULL division_id and no MatchRegistration (typical of scraped imports), fill from the shooter\'s User.division_id; falls through to the modal division of the shooter\'s own other scores when their profile also has no division set}
         {--skip-standings : Skip StandingsCalculationService::recalculateForMatch after writing}';
 
     protected $description = 'Backfill Score.division_id from each shooter\'s MatchRegistration for the same match';
@@ -89,6 +95,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         $grandTotal = [
             'filled' => 0,
             'filled_from_user_default' => 0,
+            'filled_from_shooter_history' => 0,
             'skipped_no_registration' => 0,
             'skipped_mismatch' => 0,
             'overwritten_mismatch' => 0,
@@ -111,7 +118,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
 
         $this->newLine();
         $this->info('=== Overall totals ===');
-        $this->info("Filled (registration): {$grandTotal['filled']}   Filled (user default): {$grandTotal['filled_from_user_default']}   Overwritten: {$grandTotal['overwritten_mismatch']}   Skipped-no-registration: {$grandTotal['skipped_no_registration']}   Skipped-mismatch: {$grandTotal['skipped_mismatch']}");
+        $this->info("Filled (registration): {$grandTotal['filled']}   Filled (user default): {$grandTotal['filled_from_user_default']}   Filled (shooter history): {$grandTotal['filled_from_shooter_history']}   Overwritten: {$grandTotal['overwritten_mismatch']}   Skipped-no-source: {$grandTotal['skipped_no_registration']}   Skipped-mismatch: {$grandTotal['skipped_mismatch']}");
 
         return self::SUCCESS;
     }
@@ -137,7 +144,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
     }
 
     /**
-     * @return array{filled:int,filled_from_user_default:int,skipped_no_registration:int,skipped_mismatch:int,overwritten_mismatch:int}
+     * @return array{filled:int,filled_from_user_default:int,filled_from_shooter_history:int,skipped_no_registration:int,skipped_mismatch:int,overwritten_mismatch:int}
      */
     private function processMatch(
         MatchEvent $match,
@@ -182,7 +189,30 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                 ->pluck('division_id', 'id')
             : collect();
 
-        $toFill = [];                 // score_id => ['division_id' => x, 'source' => 'registration'|'user_default']
+        // Shooter-history fallback: for each user, the modal division across
+        // every one of their OTHER scores (any match, any series, any season)
+        // that has a non-null division. Used only when the User.division_id
+        // fallback didn't find anything — handles the common scraped-stub-user
+        // case where the profile has no home division but the shooter clearly
+        // only shoots one division based on prior results. A tie on counts
+        // falls to the lowest division_id for deterministic behaviour.
+        $shooterHistory = $fallBackToUserDivision
+            ? Score::query()
+                ->whereIn('user_id', $userIds)
+                ->where('match_id', '!=', $match->id)
+                ->whereNotNull('division_id')
+                ->get(['user_id', 'division_id'])
+                ->groupBy('user_id')
+                ->map(function (Collection $rows): int {
+                    $counts = $rows->groupBy('division_id')
+                        ->map(fn (Collection $g) => $g->count());
+                    $max = $counts->max();
+
+                    return (int) $counts->filter(fn (int $n) => $n === $max)->keys()->min();
+                })
+            : collect();
+
+        $toFill = [];                 // score_id => ['division_id' => x, 'source' => 'registration'|'user_default'|'shooter_history']
         $toOverwrite = [];            // score_id => ['old' => x, 'new' => y]
         $mismatchesSkipped = [];
         $noRegistration = [];
@@ -197,6 +227,11 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                         $toFill[$score->id] = [
                             'division_id' => (int) $userDefault,
                             'source' => 'user_default',
+                        ];
+                    } elseif ($shooterHistory->has($score->user_id)) {
+                        $toFill[$score->id] = [
+                            'division_id' => (int) $shooterHistory->get($score->user_id),
+                            'source' => 'shooter_history',
                         ];
                     } else {
                         $noRegistration[] = $score;
@@ -235,6 +270,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
 
         $filledFromRegistration = collect($toFill)->where('source', 'registration')->count();
         $filledFromUserDefault = collect($toFill)->where('source', 'user_default')->count();
+        $filledFromShooterHistory = collect($toFill)->where('source', 'shooter_history')->count();
 
         $this->reportMatchPlan($toFill, $toOverwrite, $mismatchesSkipped, $noRegistration);
 
@@ -242,6 +278,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             return [
                 'filled' => $filledFromRegistration,
                 'filled_from_user_default' => $filledFromUserDefault,
+                'filled_from_shooter_history' => $filledFromShooterHistory,
                 'overwritten_mismatch' => count($toOverwrite),
                 'skipped_mismatch' => count($mismatchesSkipped),
                 'skipped_no_registration' => count($noRegistration),
@@ -253,19 +290,26 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             return [
                 'filled' => 0,
                 'filled_from_user_default' => 0,
+                'filled_from_shooter_history' => 0,
                 'overwritten_mismatch' => 0,
                 'skipped_mismatch' => count($mismatchesSkipped),
                 'skipped_no_registration' => count($noRegistration),
             ];
         }
 
-        DB::transaction(function () use ($toFill, $toOverwrite, $match, $mismatchesSkipped, $noRegistration, $overwriteMismatches, $filledFromRegistration, $filledFromUserDefault): void {
+        DB::transaction(function () use ($toFill, $toOverwrite, $match, $mismatchesSkipped, $noRegistration, $overwriteMismatches, $filledFromRegistration, $filledFromUserDefault, $filledFromShooterHistory): void {
             foreach ($toFill as $scoreId => $delta) {
                 Score::where('id', $scoreId)->update(['division_id' => $delta['division_id']]);
             }
             foreach ($toOverwrite as $scoreId => $delta) {
                 Score::where('id', $scoreId)->update(['division_id' => $delta['new']]);
             }
+
+            $sources = collect([
+                'registration' => $filledFromRegistration,
+                'user_default' => $filledFromUserDefault,
+                'shooter_history' => $filledFromShooterHistory,
+            ])->filter(fn (int $n) => $n > 0)->keys()->implode('_and_') ?: 'registration';
 
             AuditLog::create([
                 'user_id' => null,
@@ -275,9 +319,10 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                 'entity_id' => $match->id,
                 'old_value' => null,
                 'new_value' => [
-                    'source' => $filledFromUserDefault > 0 ? 'registration_and_user_default' : 'registration',
+                    'source' => $sources,
                     'filled' => $filledFromRegistration,
                     'filled_from_user_default' => $filledFromUserDefault,
+                    'filled_from_shooter_history' => $filledFromShooterHistory,
                     'overwritten_mismatch' => count($toOverwrite),
                     'skipped_mismatch' => count($mismatchesSkipped),
                     'skipped_no_registration' => count($noRegistration),
@@ -287,12 +332,14 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
                 ],
                 'reason' => "Backfilled {$this->pluralised($filledFromRegistration, 'Score row')} on match #{$match->id} from MatchRegistration"
                     .($filledFromUserDefault === 0 ? '' : "; {$this->pluralised($filledFromUserDefault, 'additional row')} from User.division_id")
+                    .($filledFromShooterHistory === 0 ? '' : "; {$this->pluralised($filledFromShooterHistory, 'additional row')} from shooter history")
                     .($toOverwrite === [] ? '' : "; overwrote {$this->pluralised(count($toOverwrite), 'mismatched row')}"),
             ]);
         });
 
         $this->info('  ✓ Wrote '.$filledFromRegistration.' reg-fill(s)'
             .($filledFromUserDefault > 0 ? ', '.$filledFromUserDefault.' user-default fill(s)' : '')
+            .($filledFromShooterHistory > 0 ? ', '.$filledFromShooterHistory.' shooter-history fill(s)' : '')
             .', '.count($toOverwrite).' overwrite(s), audit-logged.');
 
         if (! $skipStandings) {
@@ -303,6 +350,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         return [
             'filled' => $filledFromRegistration,
             'filled_from_user_default' => $filledFromUserDefault,
+            'filled_from_shooter_history' => $filledFromShooterHistory,
             'overwritten_mismatch' => count($toOverwrite),
             'skipped_mismatch' => count($mismatchesSkipped),
             'skipped_no_registration' => count($noRegistration),
@@ -323,12 +371,16 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
     ): void {
         $fromReg = collect($toFill)->where('source', 'registration')->count();
         $fromUser = collect($toFill)->where('source', 'user_default')->count();
+        $fromHistory = collect($toFill)->where('source', 'shooter_history')->count();
 
         if ($fromReg > 0) {
             $this->line('  Will fill '.$fromReg.' Score row(s) whose division_id is NULL from MatchRegistration.');
         }
         if ($fromUser > 0) {
             $this->line('  Will fill '.$fromUser.' additional Score row(s) from User.division_id (no MatchRegistration on file).');
+        }
+        if ($fromHistory > 0) {
+            $this->line('  Will fill '.$fromHistory.' additional Score row(s) from the shooter\'s modal division across other scores (no MatchRegistration and no User.division_id).');
         }
         if ($toOverwrite !== []) {
             $this->warn('  Will OVERWRITE '.count($toOverwrite).' Score row(s) with a different division than their registration:');
@@ -343,7 +395,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
             }
         }
         if ($noRegistration !== []) {
-            $this->line('  '.count($noRegistration).' Score row(s) with NULL division_id have no MatchRegistration and no User.division_id — skipped (pass --fall-back-to-user-division to use the shooter\'s default division when available).');
+            $this->line('  '.count($noRegistration).' Score row(s) with NULL division_id have no MatchRegistration, no User.division_id and no other scores to infer from — skipped (will need manual division assignment).');
         }
     }
 
@@ -357,6 +409,7 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
         return [
             'filled' => 0,
             'filled_from_user_default' => 0,
+            'filled_from_shooter_history' => 0,
             'overwritten_mismatch' => 0,
             'skipped_mismatch' => 0,
             'skipped_no_registration' => 0,
