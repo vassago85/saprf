@@ -206,10 +206,12 @@
     @php
         $summary = $report['summary'] ?? ['total_rows' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'divisions' => 0, 'provinces' => 0];
         $topN = $filters['top_n'] ?? null;
+        $showAwards = $showAwards ?? (($filters['awards'] ?? '1') === '1');
+        $reportTitle = $showAwards ? 'Federation Colours' : 'Provincial Standings';
     @endphp
 
     <div class="header">
-        <h1>Federation Colours — {{ $seriesLabel }} {{ $season }}</h1>
+        <h1>{{ $reportTitle }} — {{ $seriesLabel }} {{ $season }}</h1>
         <p class="org">South African Precision Rifle Federation</p>
         <p class="meta">
             Generated {{ $generatedAt }}.
@@ -218,8 +220,10 @@
             @else
                 Showing all qualifying shooters.
             @endif
-            @if ($filters['require_champs'] === '1')
+            @if ($showAwards && $filters['require_champs'] === '1')
                 Grades require a valid SA Championships score in that division (or a recorded override).
+            @elseif (! $showAwards)
+                Ranking sheet only. Grades are not printed on this copy.
             @endif
         </p>
     </div>
@@ -239,6 +243,7 @@
                     <p class="label">Province rows</p>
                     <p class="value">{{ $summary['provinces'] }}</p>
                 </td>
+                @if ($showAwards)
                 <td class="gold">
                     <p class="label">Gold</p>
                     <p class="value">{{ $summary['gold'] }}</p>
@@ -251,15 +256,18 @@
                     <p class="label">Bronze</p>
                     <p class="value">{{ $summary['bronze'] }}</p>
                 </td>
+                @endif
             </tr>
         </table>
     @endif
 
     <p class="caption">
         Percentage is of the highest provincial points in that division and province.
-        Gold {{ number_format($filters['gold'], 2) }}%+ ·
-        Silver {{ number_format($filters['silver'], 2) }}%+ ·
-        Bronze {{ number_format($filters['bronze'], 2) }}%+ ·
+        @if ($showAwards)
+            Gold {{ number_format($filters['gold'], 2) }}%+ ·
+            Silver {{ number_format($filters['silver'], 2) }}%+ ·
+            Bronze {{ number_format($filters['bronze'], 2) }}%+ ·
+        @endif
         Open and Factory are listed separately.
     </p>
 
@@ -287,22 +295,24 @@
                                 <th class="num" style="width: 55px;">Points</th>
                                 <th class="num" style="width: 40px;">Matches</th>
                                 <th class="num" style="width: 45px;">%</th>
-                                <th class="center" style="width: 50px;">SA Champs</th>
-                                @if ($filters['require_champs'] === '1')
-                                    <th style="width: 110px;">Override reason</th>
+                                @if ($showAwards)
+                                    <th class="center" style="width: 50px;">SA Champs</th>
+                                    @if ($filters['require_champs'] === '1')
+                                        <th style="width: 110px;">Override reason</th>
+                                    @endif
+                                    <th class="center" style="width: 48px;">Grade</th>
                                 @endif
-                                <th class="center" style="width: 48px;">Grade</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($province['rows'] as $row)
                                 @php
-                                    $rowClass = match ($row['grade'] ?? null) {
+                                    $rowClass = $showAwards ? match ($row['grade'] ?? null) {
                                         'Gold' => 'gold',
                                         'Silver' => 'silver',
                                         'Bronze' => 'bronze',
                                         default => '',
-                                    };
+                                    } : '';
                                 @endphp
                                 <tr class="{{ $rowClass }}">
                                     <td class="rank">{{ $row['rank'] }}</td>
@@ -311,6 +321,7 @@
                                     <td class="num">{{ number_format($row['points'], 2) }}</td>
                                     <td class="num">{{ $row['matches_counted'] ?? '—' }}</td>
                                     <td class="num pct">{{ $row['percentage'] !== null ? number_format($row['percentage'], 2) : '—' }}</td>
+                                    @if ($showAwards)
                                     <td class="center">{{ $row['shot_champs'] ? 'Yes' : 'No' }}</td>
                                     @if ($filters['require_champs'] === '1')
                                         <td>{{ $row['override_reason'] ?? '—' }}</td>
@@ -326,6 +337,7 @@
                                             —
                                         @endif
                                     </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
@@ -337,6 +349,6 @@
         <p>No provincial division standings for {{ $seriesLabel }} {{ $season }}.</p>
     @endforelse
 
-    <div class="footer">SAPRF federation colours · {{ $series }} {{ $season }} · generated {{ $generatedAt }}</div>
+    <div class="footer">SAPRF {{ $showAwards ? 'federation colours' : 'provincial standings' }} · {{ $series }} {{ $season }} · generated {{ $generatedAt }}</div>
 </body>
 </html>

@@ -1,26 +1,39 @@
 <x-layouts.app :title="'Federation Colours - SAPRF'">
     @php
+        $showAwards = ($filters['awards'] ?? '1') === '1';
         $downloadQuery = array_filter($filters, fn ($value) => $value !== null && $value !== '');
         $seriesQuery = fn (string $next) => array_merge($downloadQuery, ['series' => $next]);
+        $awardsQuery = fn (string $next) => array_merge($downloadQuery, ['awards' => $next]);
+        $standingsPdfQuery = array_merge($downloadQuery, ['awards' => '0']);
+        $coloursPdfQuery = array_merge($downloadQuery, ['awards' => '1']);
     @endphp
     <div class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
                 <a href="{{ route('reports.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; All Reports</a>
-                <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">Federation Colours</h1>
+                <h1 class="mt-2 font-heading text-3xl font-bold text-stone-900 tracking-tight">
+                    {{ $showAwards ? 'Federation Colours' : 'Provincial Standings' }}
+                </h1>
                 <p class="mt-1 text-sm text-stone-500 max-w-2xl">
                     Provincial season points for {{ $series === 'PR22' ? 'PR22' : 'Centrefire' }} {{ $season }}, split by the division that was shot and the shooter's home province.
                     Each percentage is of the highest person in that division and province. Open and Factory stay separate.
+                    @unless ($showAwards)
+                        This copy is the ranking sheet only. Grades, championships, and overrides are left off.
+                    @endunless
                 </p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('reports.federation-colours.csv', $downloadQuery) }}"
                    class="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 transition">
                     Download CSV
                 </a>
-                <a href="{{ route('reports.federation-colours.pdf', $downloadQuery) }}"
+                <a href="{{ route('reports.federation-colours.pdf', $standingsPdfQuery) }}"
+                   class="inline-flex items-center gap-2 rounded-xl border border-emerald-700 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm hover:bg-emerald-50 transition">
+                    Standings PDF
+                </a>
+                <a href="{{ route('reports.federation-colours.pdf', $coloursPdfQuery) }}"
                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition">
-                    Download PDF
+                    Colours PDF
                 </a>
             </div>
         </div>
@@ -34,7 +47,17 @@
 
         <form method="GET" class="rounded-xl border border-stone-200 bg-white shadow-sm p-4 space-y-4">
             <input type="hidden" name="series" value="{{ $series }}">
+            <input type="hidden" name="awards" value="{{ $showAwards ? '1' : '0' }}">
             <div class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Report</label>
+                    <div class="flex rounded-lg bg-stone-50 border border-stone-200 p-1 w-fit">
+                        <a href="{{ route('reports.federation-colours', $awardsQuery('0')) }}"
+                           class="px-4 py-1.5 rounded text-sm font-semibold transition {{ $showAwards ? 'text-stone-600 hover:bg-stone-100' : 'bg-stone-900 text-white shadow-sm' }}">Standings</a>
+                        <a href="{{ route('reports.federation-colours', $awardsQuery('1')) }}"
+                           class="px-4 py-1.5 rounded text-sm font-semibold transition {{ $showAwards ? 'bg-emerald-700 text-white shadow-sm' : 'text-stone-600 hover:bg-stone-100' }}">Colours</a>
+                    </div>
+                </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Series</label>
                     <div class="flex rounded-lg bg-stone-50 border border-stone-200 p-1 w-fit">
@@ -85,6 +108,7 @@
                 </div>
             </div>
 
+            @if ($showAwards)
             <div class="flex flex-wrap items-end gap-3">
                 <div>
                     <label for="gold" class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Gold from %</label>
@@ -112,8 +136,17 @@
                     Apply
                 </button>
             </div>
+            @else
+            <div>
+                <button type="submit"
+                        class="inline-flex items-center rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 transition">
+                    Apply
+                </button>
+            </div>
+            @endif
         </form>
 
+        @if ($showAwards)
         <p class="text-xs text-stone-500">
             Gold is {{ number_format($filters['gold'], 2) }}% and above,
             Silver is {{ number_format($filters['silver'], 2) }}% up to that,
@@ -124,9 +157,14 @@
                 Turn on the SA Championships requirement when you are awarding colours.
             @endif
         </p>
+        @else
+        <p class="text-xs text-stone-500">
+            Percentage is of the highest points in that division and province. No grades are shown on this sheet.
+        </p>
+        @endif
 
         @if (! empty($report['summary']['total_rows']))
-            <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            <div class="grid grid-cols-2 {{ $showAwards ? 'sm:grid-cols-6' : 'sm:grid-cols-3' }} gap-3">
                 <div class="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
                     <div class="text-xs font-semibold uppercase text-stone-500">Shooters</div>
                     <div class="mt-1 text-2xl font-bold text-stone-900">{{ $report['summary']['total_rows'] }}</div>
@@ -139,6 +177,7 @@
                     <div class="text-xs font-semibold uppercase text-stone-500">Province rows</div>
                     <div class="mt-1 text-2xl font-bold text-stone-900">{{ $report['summary']['provinces'] }}</div>
                 </div>
+                @if ($showAwards)
                 <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
                     <div class="text-xs font-semibold uppercase text-amber-800">Gold</div>
                     <div class="mt-1 text-2xl font-bold text-amber-900">{{ $report['summary']['gold'] }}</div>
@@ -151,6 +190,7 @@
                     <div class="text-xs font-semibold uppercase text-orange-800">Bronze</div>
                     <div class="mt-1 text-2xl font-bold text-orange-900">{{ $report['summary']['bronze'] }}</div>
                 </div>
+                @endif
             </div>
         @endif
 
@@ -184,10 +224,12 @@
                                         <th class="px-5 py-3 text-right">Points</th>
                                         <th class="px-5 py-3 text-right">Matches</th>
                                         <th class="px-5 py-3 text-right">%</th>
-                                        <th class="px-5 py-3">SA Champs</th>
-                                        <th class="px-5 py-3">Grade</th>
-                                        @if ($filters['require_champs'] === '1')
-                                            <th class="px-5 py-3">Override</th>
+                                        @if ($showAwards)
+                                            <th class="px-5 py-3">SA Champs</th>
+                                            <th class="px-5 py-3">Grade</th>
+                                            @if ($filters['require_champs'] === '1')
+                                                <th class="px-5 py-3">Override</th>
+                                            @endif
                                         @endif
                                     </tr>
                                 </thead>
@@ -217,6 +259,7 @@
                                             <td class="px-5 py-3 text-right font-mono font-semibold text-stone-900">
                                                 {{ $row['percentage'] !== null ? number_format($row['percentage'], 2) : '—' }}
                                             </td>
+                                            @if ($showAwards)
                                             <td class="px-5 py-3 text-stone-600">{{ $row['shot_champs'] ? 'Yes' : 'No' }}</td>
                                             <td class="px-5 py-3">
                                                 @if ($row['grade'] === 'Gold')
@@ -262,6 +305,7 @@
                                                         </form>
                                                     @endif
                                                 </td>
+                                            @endif
                                             @endif
                                         </tr>
                                     @endforeach

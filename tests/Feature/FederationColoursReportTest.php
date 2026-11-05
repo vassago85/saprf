@@ -436,6 +436,33 @@ it('links shooter names to their public profile and honours the top_n querystrin
         ->assertSee($secondUrl, false);
 });
 
+it('renders a standings sheet with no grades and downloads a standings pdf', function () {
+    $kevin = coloursShooter('Kevin Goncalves', $this->gp, 'KG-1');
+    coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
+
+    $this->actingAs($this->admin)
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']))
+        ->assertOk()
+        ->assertSee('Provincial Standings')
+        ->assertSee('Kevin Goncalves')
+        ->assertSee('Standings PDF')
+        ->assertDontSee('Require SA Championships')
+        ->assertDontSee('>Gold<', false);
+
+    $pdf = $this->actingAs($this->admin)
+        ->get(route('reports.federation-colours.pdf', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']));
+    $pdf->assertOk();
+    expect($pdf->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2026.pdf')
+        ->and(substr($pdf->getContent(), 0, 4))->toBe('%PDF');
+
+    $csv = $this->actingAs($this->admin)
+        ->get(route('reports.federation-colours.csv', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']));
+    $body = $csv->streamedContent();
+    expect($csv->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2026.csv')
+        ->and($body)->toContain('Kevin Goncalves')
+        ->and($body)->not->toContain('Grade');
+});
+
 it('ignores an unknown top_n value and falls back to the full list', function () {
     // The controller whitelists top_n to a fixed set (3/5/10/15/20/25/50).
     // An out-of-range value should resolve to null, not an empty report.

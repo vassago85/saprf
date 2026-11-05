@@ -475,18 +475,23 @@ class ReportsController extends Controller
     {
         $settings = $this->coloursSettings($request);
         $rows = $this->federationColours->flat($settings['series'], $settings['season'], $settings['options']);
-        $filename = "SAPRF-Federation-Colours-{$settings['series']}-{$settings['season']}.csv";
+        $showAwards = $settings['filters']['awards'] === '1';
+        $prefix = $showAwards ? 'SAPRF-Federation-Colours' : 'SAPRF-Provincial-Standings';
+        $filename = "{$prefix}-{$settings['series']}-{$settings['season']}.csv";
 
-        return response()->streamDownload(function () use ($rows) {
+        return response()->streamDownload(function () use ($rows, $showAwards) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
+            $headers = [
                 'Series', 'Season', 'Division', 'Province', 'Rank', 'Shooter',
                 'Member Number', 'Points', 'Matches Counted', 'Percentage',
-                'SA Championships', 'Override', 'Grade',
-            ]);
+            ];
+            if ($showAwards) {
+                $headers = array_merge($headers, ['SA Championships', 'Override', 'Grade']);
+            }
+            fputcsv($handle, $headers);
 
             foreach ($rows as $row) {
-                fputcsv($handle, [
+                $line = [
                     $row['series'],
                     $row['season'],
                     $row['division'],
@@ -497,10 +502,13 @@ class ReportsController extends Controller
                     number_format($row['points'], 2, '.', ''),
                     $row['matches_counted'] ?? '',
                     $row['percentage'] !== null ? number_format($row['percentage'], 2, '.', '') : '',
-                    $row['shot_champs'] ? 'Yes' : 'No',
-                    $row['override_reason'] ?? '',
-                    $row['grade'] ?? '',
-                ]);
+                ];
+                if ($showAwards) {
+                    $line[] = $row['shot_champs'] ? 'Yes' : 'No';
+                    $line[] = $row['override_reason'] ?? '';
+                    $line[] = $row['grade'] ?? '';
+                }
+                fputcsv($handle, $line);
             }
 
             fclose($handle);
@@ -511,6 +519,8 @@ class ReportsController extends Controller
     {
         [$series, $season, , $report, $filters] = $this->coloursReport($request);
         $seriesLabel = $series === 'PR22' ? 'PR22' : 'Centrefire';
+        $showAwards = ($filters['awards'] ?? '1') === '1';
+        $prefix = $showAwards ? 'SAPRF-Federation-Colours' : 'SAPRF-Provincial-Standings';
 
         return Pdf::loadView('reports.federation-colours-pdf', [
             'series' => $series,
@@ -518,9 +528,10 @@ class ReportsController extends Controller
             'season' => $season,
             'report' => $report,
             'filters' => $filters,
+            'showAwards' => $showAwards,
             'generatedAt' => now()->format('d M Y H:i'),
         ])->setPaper('a4', 'landscape')
-            ->download("SAPRF-Federation-Colours-{$series}-{$season}.pdf");
+            ->download("{$prefix}-{$series}-{$season}.pdf");
     }
 
     public function storeFederationColourOverride(Request $request): RedirectResponse
@@ -615,6 +626,7 @@ class ReportsController extends Controller
         $provinceId = $this->existingId($request->input('province'), Province::class);
         $requireChamps = $request->boolean('require_champs');
         $topN = $this->parseTopN($request->input('top_n'));
+        $showAwards = $request->input('awards', '1') !== '0';
 
         $options = [
             'division_id' => $divisionId,
@@ -636,6 +648,7 @@ class ReportsController extends Controller
             'silver' => $thresholds['silver'],
             'bronze' => $thresholds['bronze'],
             'top_n' => $topN,
+            'awards' => $showAwards ? '1' : '0',
         ];
 
         return [
@@ -719,7 +732,7 @@ class ReportsController extends Controller
     private function coloursReturnQuery(Request $request): array
     {
         return array_filter(
-            $request->only(['series', 'season', 'division', 'province', 'require_champs', 'gold', 'silver', 'bronze', 'top_n']),
+            $request->only(['series', 'season', 'division', 'province', 'require_champs', 'gold', 'silver', 'bronze', 'top_n', 'awards']),
             fn ($value) => $value !== null && $value !== '',
         );
     }
