@@ -45,7 +45,7 @@
                     <svg class="h-4 w-4 text-stone-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
                 </div>
                 <h3 class="font-semibold text-stone-900">Federation Colours</h3>
-                <p class="mt-1 text-sm text-stone-500">Centrefire and PR22 provincial logs by division and province, as a percentage of the highest shooter in that group. CSV and PDF.</p>
+                <p class="mt-1 text-sm text-stone-500">Centrefire and PR22 provincial logs by division and province, as a percentage of the highest shooter in that group. Set the colour cutoffs, require SA Championships, and download CSV or PDF.</p>
             </a>
 
             {{-- Participation --}}

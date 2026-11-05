@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\Division;
+use App\Models\FederationColourOverride;
+use App\Models\MatchEvent;
 use App\Models\Province;
+use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
 use App\Services\FederationColoursReport;
@@ -172,6 +175,149 @@ it('shows the report and downloads a csv and a pdf for the selected series', fun
     expect($pdf->headers->get('content-type'))->toContain('pdf')
         ->and(substr($pdf->getContent(), 0, 4))->toBe('%PDF')
         ->and($pdf->headers->get('content-disposition'))->toContain('SAPRF-Federation-Colours-PR22-2026.pdf');
+});
+
+function coloursChamps(User $user, string $series, Division $division): void
+{
+    $match = MatchEvent::create([
+        'name' => $series.' SA Champs '.$user->id.' '.$division->id,
+        'match_type' => $series,
+        'series' => $series,
+        'series_level' => 'final',
+        'season' => '2026',
+        'province_id' => $user->province_id,
+        'match_date' => '2026-09-01',
+        'status' => 'completed',
+        'active_member_fee' => 0,
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'created_by' => $user->id,
+    ]);
+
+    Score::create([
+        'match_id' => $match->id,
+        'user_id' => $user->id,
+        'shooter_name' => $user->name,
+        'division_id' => $division->id,
+        'raw_score' => 80,
+        'normalized_score' => 90,
+        'status' => 'valid',
+        'is_member' => true,
+        'match_date' => $match->match_date,
+    ]);
+}
+
+it('withholds a grade without an sa championships score in that division', function () {
+    $kevin = coloursShooter('Kevin Goncalves', $this->gp, 'KG-1');
+    coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
+    coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
+    coloursChamps($kevin, 'PR22', $this->open);
+
+    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true]);
+    $open = collect($report['divisions'][0]['provinces'][0]['rows'])->firstWhere('name', 'Kevin Goncalves');
+    $factory = collect($report['divisions'][1]['provinces'][0]['rows'])->firstWhere('name', 'Kevin Goncalves');
+
+    expect($open['shot_champs'])->toBeTrue()
+        ->and($open['grade'])->toBe('Gold')
+        ->and($factory['shot_champs'])->toBeFalse()
+        ->and($factory['grade'])->toBeNull()
+        ->and($factory['percentage'])->toBe(100.0);
+});
+
+it('awards a grade without sa championships when a reason is recorded', function () {
+    $kevin = coloursShooter('Kevin Goncalves', $this->gp, 'KG-1');
+    coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
+
+    $this->actingAs($this->admin)
+        ->post(route('reports.federation-colours.overrides.store'), [
+            'series' => 'PR22',
+            'season' => '2026',
+            'user_id' => $kevin->id,
+            'division_id' => $this->factory->id,
+            'reason' => 'Medical withdrawal after the entry closed',
+            'require_champs' => '1',
+        ])
+        ->assertRedirect(route('reports.federation-colours', [
+            'series' => 'PR22',
+            'season' => '2026',
+            'require_champs' => '1',
+        ]));
+
+    $row = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
+
+    expect($row['grade'])->toBe('Gold')
+        ->and($row['shot_champs'])->toBeFalse()
+        ->and($row['override_reason'])->toBe('Medical withdrawal after the entry closed');
+
+    $this->actingAs($this->admin)
+        ->delete(route('reports.federation-colours.overrides.destroy', $row['override_id']), [
+            'series' => 'PR22',
+            'season' => '2026',
+            'require_champs' => '1',
+        ])
+        ->assertRedirect();
+
+    expect(FederationColourOverride::query()->count())->toBe(0);
+
+    $cleared = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
+    expect($cleared['grade'])->toBeNull();
+});
+
+it('rejects an override without a real reason', function () {
+    $kevin = coloursShooter('Kevin Goncalves', $this->gp, 'KG-1');
+    coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
+
+    $this->actingAs($this->admin)
+        ->from(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'require_champs' => '1']))
+        ->post(route('reports.federation-colours.overrides.store'), [
+            'series' => 'PR22',
+            'season' => '2026',
+            'user_id' => $kevin->id,
+            'division_id' => $this->open->id,
+            'reason' => 'short',
+            'require_champs' => '1',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('reason');
+
+    expect(FederationColourOverride::query()->count())->toBe(0);
+});
+
+it('uses the cutoffs chosen for this report', function () {
+    $leader = coloursShooter('Leader Shooter', $this->gp, 'LD-1');
+    $edge = coloursShooter('Edge Shooter', $this->gp, 'ED-1');
+    coloursStanding($leader, 'PRS', $this->gp, $this->open, 100);
+    coloursStanding($edge, 'PRS', $this->gp, $this->open, 70);
+
+    $rows = collect(app(FederationColoursReport::class)->build('PRS', '2026', [
+        'gold' => 90,
+        'silver' => 80,
+        'bronze' => 70,
+    ])['divisions'][0]['provinces'][0]['rows'])->keyBy('name');
+
+    expect($rows['Leader Shooter']['grade'])->toBe('Gold')
+        ->and($rows['Edge Shooter']['percentage'])->toBe(70.0)
+        ->and($rows['Edge Shooter']['grade'])->toBe('Bronze');
+});
+
+it('filters to one division or one province without changing the leader percentage', function () {
+    $kevin = coloursShooter('Kevin Goncalves', $this->gp, 'KG-1');
+    $rival = coloursShooter('Open Rival', $this->gp, 'OR-1');
+    $cape = coloursShooter('Cape Leader', $this->wc, 'CL-1');
+    coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
+    coloursStanding($rival, 'PR22', $this->gp, $this->open, 160);
+    coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
+    coloursStanding($cape, 'PR22', $this->wc, $this->open, 100);
+
+    $openOnly = app(FederationColoursReport::class)->build('PR22', '2026', ['division_id' => $this->open->id]);
+    expect(collect($openOnly['divisions'])->pluck('name')->all())->toBe(['Open']);
+    $gpOpen = collect($openOnly['divisions'][0]['provinces'])->firstWhere('name', 'Gauteng');
+    expect(collect($gpOpen['rows'])->firstWhere('name', 'Open Rival')['percentage'])->toBe(80.0)
+        ->and(collect($gpOpen['rows'])->firstWhere('name', 'Open Rival')['grade'])->toBe('Bronze');
+
+    $gpOnly = app(FederationColoursReport::class)->build('PR22', '2026', ['province_id' => $this->gp->id]);
+    $provinceNames = collect($gpOnly['divisions'])->flatMap(fn (array $division) => collect($division['provinces'])->pluck('name'))->unique()->values()->all();
+    expect($provinceNames)->toBe(['Gauteng']);
 });
 
 it('refuses the report to a member', function () {

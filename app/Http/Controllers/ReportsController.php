@@ -2,17 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Division;
+use App\Models\FederationColourOverride;
 use App\Models\MatchEvent;
 use App\Models\PlatformIncome;
+use App\Models\Province;
 use App\Models\Score;
 use App\Models\Sponsor;
 use App\Models\Standing;
 use App\Services\FederationColoursReport;
 use App\Services\QualificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -458,22 +464,25 @@ class ReportsController extends Controller
 
     public function federationColours(Request $request): View
     {
-        [$series, $season, $seasons, $report] = $this->coloursReport($request);
+        [$series, $season, $seasons, $report, $filters, $catalog, $thresholdError] = $this->coloursReport($request);
 
-        return view('reports.federation-colours', compact('series', 'season', 'seasons', 'report'));
+        return view('reports.federation-colours', compact(
+            'series', 'season', 'seasons', 'report', 'filters', 'catalog', 'thresholdError',
+        ));
     }
 
     public function federationColoursCsv(Request $request): StreamedResponse
     {
-        [$series, $season] = $this->coloursFilters($request);
-        $rows = $this->federationColours->flat($series, $season);
-        $filename = "SAPRF-Federation-Colours-{$series}-{$season}.csv";
+        $settings = $this->coloursSettings($request);
+        $rows = $this->federationColours->flat($settings['series'], $settings['season'], $settings['options']);
+        $filename = "SAPRF-Federation-Colours-{$settings['series']}-{$settings['season']}.csv";
 
         return response()->streamDownload(function () use ($rows) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'Series', 'Season', 'Division', 'Province', 'Rank', 'Shooter',
-                'Member Number', 'Points', 'Matches Counted', 'Percentage', 'Grade',
+                'Member Number', 'Points', 'Matches Counted', 'Percentage',
+                'SA Championships', 'Override', 'Grade',
             ]);
 
             foreach ($rows as $row) {
@@ -488,6 +497,8 @@ class ReportsController extends Controller
                     number_format($row['points'], 2, '.', ''),
                     $row['matches_counted'] ?? '',
                     $row['percentage'] !== null ? number_format($row['percentage'], 2, '.', '') : '',
+                    $row['shot_champs'] ? 'Yes' : 'No',
+                    $row['override_reason'] ?? '',
                     $row['grade'] ?? '',
                 ]);
             }
@@ -498,7 +509,7 @@ class ReportsController extends Controller
 
     public function federationColoursPdf(Request $request): Response
     {
-        [$series, $season, , $report] = $this->coloursReport($request);
+        [$series, $season, , $report, $filters] = $this->coloursReport($request);
         $seriesLabel = $series === 'PR22' ? 'PR22' : 'Centrefire';
 
         return Pdf::loadView('reports.federation-colours-pdf', [
@@ -506,27 +517,92 @@ class ReportsController extends Controller
             'seriesLabel' => $seriesLabel,
             'season' => $season,
             'report' => $report,
+            'filters' => $filters,
             'generatedAt' => now()->format('d M Y H:i'),
         ])->setPaper('a4', 'landscape')
             ->download("SAPRF-Federation-Colours-{$series}-{$season}.pdf");
     }
 
-    /**
-     * @return array{0: string, 1: string, 2: Collection<int, string>, 3: array<string, mixed>}
-     */
-    private function coloursReport(Request $request): array
+    public function storeFederationColourOverride(Request $request): RedirectResponse
     {
-        [$series, $season] = $this->coloursFilters($request);
-        $seasons = collect(range(now()->year, now()->year - 4))->map(fn ($y) => (string) $y);
-        $report = $this->federationColours->build($series, $season);
+        $validated = $request->validate([
+            'series' => ['required', Rule::in(FederationColoursReport::SERIES)],
+            'season' => ['required', 'string', 'max:10'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'division_id' => ['required', 'integer', 'exists:divisions,id'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
 
-        return [$series, $season, $seasons, $report];
+        $hasStanding = Standing::query()
+            ->where('user_id', $validated['user_id'])
+            ->where('series', $validated['series'])
+            ->where('season', $validated['season'])
+            ->where('division_id', $validated['division_id'])
+            ->whereNotNull('province_id')
+            ->exists();
+
+        if (! $hasStanding) {
+            throw ValidationException::withMessages([
+                'reason' => 'That shooter has no provincial standing in this division.',
+            ]);
+        }
+
+        FederationColourOverride::query()->updateOrCreate(
+            [
+                'user_id' => $validated['user_id'],
+                'series' => $validated['series'],
+                'season' => $validated['season'],
+                'division_id' => $validated['division_id'],
+            ],
+            [
+                'reason' => trim($validated['reason']),
+                'created_by' => $request->user()?->id,
+            ],
+        );
+
+        return redirect()->route('reports.federation-colours', $this->coloursReturnQuery($request))
+            ->with('success', 'Override saved. The grade will be awarded with the reason on the report.');
+    }
+
+    public function destroyFederationColourOverride(Request $request, FederationColourOverride $override): RedirectResponse
+    {
+        $override->delete();
+
+        return redirect()->route('reports.federation-colours', $this->coloursReturnQuery($request))
+            ->with('success', 'Override removed.');
     }
 
     /**
-     * @return array{0: string, 1: string}
+     * @return array{0: string, 1: string, 2: Collection<int, string>, 3: array<string, mixed>, 4: array<string, mixed>, 5: array<string, mixed>, 6: string|null}
      */
-    private function coloursFilters(Request $request): array
+    private function coloursReport(Request $request): array
+    {
+        $settings = $this->coloursSettings($request);
+        $seasons = collect(range(now()->year, now()->year - 4))->map(fn ($y) => (string) $y);
+        $report = $this->federationColours->build($settings['series'], $settings['season'], $settings['options']);
+        $catalog = $this->federationColours->catalog($settings['series'], $settings['season']);
+
+        return [
+            $settings['series'],
+            $settings['season'],
+            $seasons,
+            $report,
+            $settings['filters'],
+            $catalog,
+            $settings['threshold_error'],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     series: string,
+     *     season: string,
+     *     options: array<string, mixed>,
+     *     filters: array<string, mixed>,
+     *     threshold_error: string|null
+     * }
+     */
+    private function coloursSettings(Request $request): array
     {
         $series = strtoupper((string) $request->input('series', 'PR22'));
         if (! in_array($series, FederationColoursReport::SERIES, true)) {
@@ -534,8 +610,99 @@ class ReportsController extends Controller
         }
 
         $season = (string) $request->input('season', now()->year);
+        $thresholds = $this->colourThresholds($request);
+        $divisionId = $this->existingId($request->input('division'), Division::class);
+        $provinceId = $this->existingId($request->input('province'), Province::class);
+        $requireChamps = $request->boolean('require_champs');
 
-        return [$series, $season];
+        $options = [
+            'division_id' => $divisionId,
+            'province_id' => $provinceId,
+            'require_champs' => $requireChamps,
+            'gold' => $thresholds['gold'],
+            'silver' => $thresholds['silver'],
+            'bronze' => $thresholds['bronze'],
+        ];
+
+        $filters = [
+            'series' => $series,
+            'season' => $season,
+            'division' => $divisionId,
+            'province' => $provinceId,
+            'require_champs' => $requireChamps ? '1' : '0',
+            'gold' => $thresholds['gold'],
+            'silver' => $thresholds['silver'],
+            'bronze' => $thresholds['bronze'],
+        ];
+
+        return [
+            'series' => $series,
+            'season' => $season,
+            'options' => $options,
+            'filters' => $filters,
+            'threshold_error' => $thresholds['error'],
+        ];
+    }
+
+    /**
+     * @return array{gold: float, silver: float, bronze: float, error: string|null}
+     */
+    private function colourThresholds(Request $request): array
+    {
+        $defaults = ['gold' => 95.0, 'silver' => 85.0, 'bronze' => 80.0, 'error' => null];
+
+        if (! $request->hasAny(['gold', 'silver', 'bronze'])) {
+            return $defaults;
+        }
+
+        $validator = validator($request->only(['gold', 'silver', 'bronze']), [
+            'gold' => ['required', 'numeric', 'min:0', 'max:100'],
+            'silver' => ['required', 'numeric', 'min:0', 'max:100', 'lt:gold'],
+            'bronze' => ['required', 'numeric', 'min:0', 'max:100', 'lt:silver'],
+        ]);
+
+        if ($validator->fails()) {
+            return [
+                'gold' => 95.0,
+                'silver' => 85.0,
+                'bronze' => 80.0,
+                'error' => 'Gold must sit above Silver, and Silver above Bronze. The report is using 95, 85, and 80.',
+            ];
+        }
+
+        $valid = $validator->validated();
+
+        return [
+            'gold' => round((float) $valid['gold'], 2),
+            'silver' => round((float) $valid['silver'], 2),
+            'bronze' => round((float) $valid['bronze'], 2),
+            'error' => null,
+        ];
+    }
+
+    /**
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $model
+     */
+    private function existingId(mixed $value, string $model): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id > 0 && $model::query()->whereKey($id)->exists() ? $id : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function coloursReturnQuery(Request $request): array
+    {
+        return array_filter(
+            $request->only(['series', 'season', 'division', 'province', 'require_champs', 'gold', 'silver', 'bronze']),
+            fn ($value) => $value !== null && $value !== '',
+        );
     }
 
     // ──────────────────────────────────────────────────────────────────────

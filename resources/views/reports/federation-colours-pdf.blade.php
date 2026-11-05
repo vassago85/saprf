@@ -64,7 +64,14 @@
     <p class="meta">
         Generated {{ $generatedAt }}.
         Percentage is of the highest provincial points in that division and province.
-        Gold 95% and above, Silver 85% up to 95%, Bronze 80% up to 85%.
+        Gold {{ number_format($filters['gold'], 2) }}% and above,
+        Silver {{ number_format($filters['silver'], 2) }}% up to that,
+        Bronze {{ number_format($filters['bronze'], 2) }}% up to Silver.
+        @if ($filters['require_champs'] === '1')
+            A grade is awarded only with an SA Championships score in that division, or a recorded override.
+        @else
+            SA Championships is not required for a grade on this copy.
+        @endif
         Open and Factory are listed separately.
     </p>
 
@@ -86,6 +93,8 @@
                             <th class="num">Points</th>
                             <th class="num">Matches</th>
                             <th class="num">%</th>
+                            <th>SA Champs</th>
+                            <th>Override</th>
                             <th>Grade</th>
                         </tr>
                     </thead>
@@ -98,6 +107,8 @@
                                 <td class="num">{{ number_format($row['points'], 2) }}</td>
                                 <td class="num">{{ $row['matches_counted'] ?? '—' }}</td>
                                 <td class="num">{{ $row['percentage'] !== null ? number_format($row['percentage'], 2) : '—' }}</td>
+                                <td>{{ $row['shot_champs'] ? 'Yes' : 'No' }}</td>
+                                <td>{{ $row['override_reason'] ?? '—' }}</td>
                                 <td>{{ $row['grade'] ?? '—' }}</td>
                             </tr>
                         @endforeach

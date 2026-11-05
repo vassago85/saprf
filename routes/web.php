@@ -817,6 +817,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/federation-colours', [ReportsController::class, 'federationColours'])->name('federation-colours');
         Route::get('/federation-colours/csv', [ReportsController::class, 'federationColoursCsv'])->name('federation-colours.csv');
         Route::get('/federation-colours/pdf', [ReportsController::class, 'federationColoursPdf'])->name('federation-colours.pdf');
+        Route::post('/federation-colours/overrides', [ReportsController::class, 'storeFederationColourOverride'])->name('federation-colours.overrides.store');
+        Route::delete('/federation-colours/overrides/{override}', [ReportsController::class, 'destroyFederationColourOverride'])->name('federation-colours.overrides.destroy');
     });
 
     // Admin + Owner
