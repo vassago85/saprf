@@ -26,18 +26,28 @@ class FederationColoursReport
      * valid score at the SA Championships in that same division, or a stored
      * override with a reason.
      *
+     * When top_n is set, each province group is truncated to the top N rows
+     * BEFORE grade inspection. The leader + percentage calculations still use
+     * the full group, so trimming to "Top 3" doesn't re-anchor the percentage
+     * baseline to the #3 shooter. The division/province tallies on the
+     * summary strip, however, reflect only the trimmed set — if you ask for
+     * top 3, you're asking for the top 3, not an inflated count that
+     * includes people the viewer never sees.
+     *
      * @param  array{
      *     division_id?: int|null,
      *     province_id?: int|null,
      *     require_champs?: bool,
      *     gold?: float,
      *     silver?: float,
-     *     bronze?: float
+     *     bronze?: float,
+     *     top_n?: int|null
      * }  $options
      * @return array{
      *     series: string,
      *     season: string,
-     *     divisions: list<array<string, mixed>>
+     *     divisions: list<array<string, mixed>>,
+     *     summary: array{total_rows:int, gold:int, silver:int, bronze:int, divisions:int, provinces:int}
      * }
      */
     public function build(string $series, string $season, array $options = []): array
@@ -48,6 +58,9 @@ class FederationColoursReport
             'silver' => (float) ($options['silver'] ?? 85),
             'bronze' => (float) ($options['bronze'] ?? 80),
         ];
+        $topN = isset($options['top_n']) && (int) $options['top_n'] > 0
+            ? (int) $options['top_n']
+            : null;
 
         $standings = $this->standingsQuery($series, $season)
             ->when($options['division_id'] ?? null, fn (Builder $query, int $divisionId) => $query->where('division_id', $divisionId))
@@ -68,7 +81,7 @@ class FederationColoursReport
                     $division?->name ?? '',
                 ];
             })
-            ->map(function (Collection $divisionRows) use ($requireChamps, $thresholds, $champs, $overrides): array {
+            ->map(function (Collection $divisionRows) use ($requireChamps, $thresholds, $champs, $overrides, $topN): array {
                 $division = $divisionRows->first()?->division;
 
                 $provinces = $divisionRows
@@ -80,6 +93,7 @@ class FederationColoursReport
                         $thresholds,
                         $champs,
                         $overrides,
+                        $topN,
                     ))
                     ->values()
                     ->all();
@@ -97,6 +111,7 @@ class FederationColoursReport
             'series' => $series,
             'season' => $season,
             'divisions' => $divisions,
+            'summary' => $this->summarise($divisions),
         ];
     }
 
@@ -266,6 +281,7 @@ class FederationColoursReport
         array $thresholds,
         array $champs,
         Collection $overrides,
+        ?int $topN = null,
     ): array {
         $sorted = $provinceRows
             ->sort(function (Standing $a, Standing $b): int {
@@ -324,6 +340,12 @@ class FederationColoursReport
             ];
         }
 
+        // Trim to Top N after the full ranking + grade pass so percentages
+        // stay anchored on the province leader, not on the Nth shooter.
+        if ($topN !== null && $topN > 0) {
+            $rows = array_slice($rows, 0, $topN);
+        }
+
         return [
             'id' => $sorted->first()?->province_id,
             'name' => $sorted->first()?->province?->name ?? 'Province',
@@ -331,7 +353,52 @@ class FederationColoursReport
                 ->map(fn (Standing $standing): string => $standing->user?->name ?? 'Unknown')
                 ->implode(', '),
             'leader_points' => $leaderPoints,
+            'total_shooters' => $sorted->count(),
+            'shown_rows' => count($rows),
             'rows' => $rows,
+        ];
+    }
+
+    /**
+     * Aggregate counts for the summary strip at the top of the report
+     * (web page, PDF, and future dashboards). Only counts the rows that
+     * made it into the final output, so top-N trimming is honoured.
+     *
+     * @param  list<array<string, mixed>>  $divisions
+     * @return array{total_rows:int, gold:int, silver:int, bronze:int, divisions:int, provinces:int}
+     */
+    private function summarise(array $divisions): array
+    {
+        $totalRows = 0;
+        $gold = 0;
+        $silver = 0;
+        $bronze = 0;
+        $provinceCount = 0;
+
+        foreach ($divisions as $division) {
+            foreach ($division['provinces'] as $province) {
+                $provinceCount++;
+                foreach ($province['rows'] as $row) {
+                    $totalRows++;
+                    $grade = $row['grade'] ?? null;
+                    if ($grade === 'Gold') {
+                        $gold++;
+                    } elseif ($grade === 'Silver') {
+                        $silver++;
+                    } elseif ($grade === 'Bronze') {
+                        $bronze++;
+                    }
+                }
+            }
+        }
+
+        return [
+            'total_rows' => $totalRows,
+            'gold' => $gold,
+            'silver' => $silver,
+            'bronze' => $bronze,
+            'divisions' => count($divisions),
+            'provinces' => $provinceCount,
         ];
     }
 

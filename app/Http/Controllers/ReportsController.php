@@ -614,6 +614,7 @@ class ReportsController extends Controller
         $divisionId = $this->existingId($request->input('division'), Division::class);
         $provinceId = $this->existingId($request->input('province'), Province::class);
         $requireChamps = $request->boolean('require_champs');
+        $topN = $this->parseTopN($request->input('top_n'));
 
         $options = [
             'division_id' => $divisionId,
@@ -622,6 +623,7 @@ class ReportsController extends Controller
             'gold' => $thresholds['gold'],
             'silver' => $thresholds['silver'],
             'bronze' => $thresholds['bronze'],
+            'top_n' => $topN,
         ];
 
         $filters = [
@@ -633,6 +635,7 @@ class ReportsController extends Controller
             'gold' => $thresholds['gold'],
             'silver' => $thresholds['silver'],
             'bronze' => $thresholds['bronze'],
+            'top_n' => $topN,
         ];
 
         return [
@@ -642,6 +645,22 @@ class ReportsController extends Controller
             'filters' => $filters,
             'threshold_error' => $thresholds['error'],
         ];
+    }
+
+    /**
+     * Whitelist of allowed top-N values for the colours report. Anything
+     * outside this set resolves to null (no trimming) rather than erroring,
+     * so a stale bookmark with an odd value still renders the full report.
+     */
+    private function parseTopN(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || $value === 'all') {
+            return null;
+        }
+
+        $n = (int) $value;
+
+        return in_array($n, [3, 5, 10, 15, 20, 25, 50], true) ? $n : null;
     }
 
     /**
@@ -700,7 +719,7 @@ class ReportsController extends Controller
     private function coloursReturnQuery(Request $request): array
     {
         return array_filter(
-            $request->only(['series', 'season', 'division', 'province', 'require_champs', 'gold', 'silver', 'bronze']),
+            $request->only(['series', 'season', 'division', 'province', 'require_champs', 'gold', 'silver', 'bronze', 'top_n']),
             fn ($value) => $value !== null && $value !== '',
         );
     }

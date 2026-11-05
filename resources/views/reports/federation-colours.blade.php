@@ -73,6 +73,16 @@
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    <label for="top_n" class="block text-xs font-semibold uppercase text-stone-500 mb-1.5">Show</label>
+                    <select id="top_n" name="top_n"
+                            class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="">All shooters</option>
+                        @foreach ([3, 5, 10, 15, 20, 25, 50] as $n)
+                            <option value="{{ $n }}" @selected((int) ($filters['top_n'] ?? 0) === $n)>Top {{ $n }} per province</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <div class="flex flex-wrap items-end gap-3">
@@ -115,18 +125,54 @@
             @endif
         </p>
 
+        @if (! empty($report['summary']['total_rows']))
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                <div class="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-stone-500">Shooters</div>
+                    <div class="mt-1 text-2xl font-bold text-stone-900">{{ $report['summary']['total_rows'] }}</div>
+                </div>
+                <div class="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-stone-500">Divisions</div>
+                    <div class="mt-1 text-2xl font-bold text-stone-900">{{ $report['summary']['divisions'] }}</div>
+                </div>
+                <div class="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-stone-500">Province rows</div>
+                    <div class="mt-1 text-2xl font-bold text-stone-900">{{ $report['summary']['provinces'] }}</div>
+                </div>
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-amber-800">Gold</div>
+                    <div class="mt-1 text-2xl font-bold text-amber-900">{{ $report['summary']['gold'] }}</div>
+                </div>
+                <div class="rounded-xl border border-stone-300 bg-stone-100 px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-stone-600">Silver</div>
+                    <div class="mt-1 text-2xl font-bold text-stone-800">{{ $report['summary']['silver'] }}</div>
+                </div>
+                <div class="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase text-orange-800">Bronze</div>
+                    <div class="mt-1 text-2xl font-bold text-orange-900">{{ $report['summary']['bronze'] }}</div>
+                </div>
+            </div>
+        @endif
+
         @forelse ($report['divisions'] as $division)
             <section class="space-y-4">
                 <h2 class="font-heading text-xl font-bold text-stone-900">{{ $division['name'] }}</h2>
 
                 @foreach ($division['provinces'] as $province)
                     <div class="rounded-xl border border-stone-200 bg-white shadow-sm">
-                        <div class="border-b border-stone-200 px-5 py-3">
-                            <h3 class="font-semibold text-stone-900">{{ $province['name'] }}</h3>
-                            <p class="text-xs text-stone-500">
-                                Highest: {{ $province['leader_name'] }}
-                                ({{ number_format($province['leader_points'], 2) }} pts = 100%)
-                            </p>
+                        <div class="border-b border-stone-200 px-5 py-3 flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-stone-900">{{ $province['name'] }}</h3>
+                                <p class="text-xs text-stone-500">
+                                    Highest: {{ $province['leader_name'] }}
+                                    ({{ number_format($province['leader_points'], 2) }} pts = 100%)
+                                </p>
+                            </div>
+                            @if (isset($province['total_shooters']) && $province['total_shooters'] > count($province['rows']))
+                                <span class="shrink-0 rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+                                    Showing {{ count($province['rows']) }} of {{ $province['total_shooters'] }}
+                                </span>
+                            @endif
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">
@@ -147,9 +193,24 @@
                                 </thead>
                                 <tbody class="divide-y divide-stone-100">
                                     @foreach ($province['rows'] as $row)
+                                        @php
+                                            // Prefer the canonical /shooters/{saprfNumber}/{season} URL when
+                                            // the shooter has a SAPRF number on file. Fall back to the legacy
+                                            // /standings/{season}/shooter/{user_id} URL otherwise — the legacy
+                                            // route 301-redirects to the canonical when a number exists, and
+                                            // renders directly when it doesn't, so both paths land on the
+                                            // same profile page from any report row.
+                                            $shooterUrl = ! empty($row['saprf_number'])
+                                                ? route('shooters.show.season', ['saprfNumber' => $row['saprf_number'], 'season' => $season])
+                                                : route('standings.shooter', ['season' => $season, 'user' => $row['user_id']]);
+                                        @endphp
                                         <tr class="hover:bg-stone-50">
                                             <td class="px-5 py-3 font-mono font-bold text-stone-900">{{ $row['rank'] }}</td>
-                                            <td class="px-5 py-3 font-medium text-stone-900">{{ $row['name'] }}</td>
+                                            <td class="px-5 py-3 font-medium text-stone-900">
+                                                <a href="{{ $shooterUrl }}" class="text-emerald-700 hover:text-emerald-900 hover:underline focus:outline-none focus:underline">
+                                                    {{ $row['name'] }}
+                                                </a>
+                                            </td>
                                             <td class="px-5 py-3 font-mono text-xs text-stone-600">{{ $row['saprf_number'] ?? '—' }}</td>
                                             <td class="px-5 py-3 text-right font-mono text-stone-900">{{ number_format($row['points'], 2) }}</td>
                                             <td class="px-5 py-3 text-right font-mono text-stone-600">{{ $row['matches_counted'] ?? '—' }}</td>

@@ -328,3 +328,125 @@ it('refuses the report to a member', function () {
         ->get(route('reports.federation-colours'))
         ->assertForbidden();
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// top_n filter + summary strip + clickable shooter links
+// ──────────────────────────────────────────────────────────────────────
+
+it('trims each province group to top N shooters without re-anchoring the leader percentage', function () {
+    // 6 Open shooters in Gauteng: top N=3 should keep ranks 1–3 only, and
+    // the top 3 keep their original % against the real province leader
+    // (200 pts = 100%). If top_n accidentally re-anchored the baseline on
+    // the #3 shooter, #3 would report 100% — the assertion below guards
+    // against that regression.
+    $leader = coloursShooter('Leader One', $this->gp, 'LD-TOP');
+    $second = coloursShooter('Second Two', $this->gp, 'SC-TOP');
+    $third = coloursShooter('Third Three', $this->gp, 'TH-TOP');
+    $fourth = coloursShooter('Fourth Four', $this->gp, 'FR-TOP');
+    $fifth = coloursShooter('Fifth Five', $this->gp, 'FF-TOP');
+    $sixth = coloursShooter('Sixth Six', $this->gp, 'SX-TOP');
+
+    coloursStanding($leader, 'PR22', $this->gp, $this->open, 200);
+    coloursStanding($second, 'PR22', $this->gp, $this->open, 180);
+    coloursStanding($third, 'PR22', $this->gp, $this->open, 160);
+    coloursStanding($fourth, 'PR22', $this->gp, $this->open, 140);
+    coloursStanding($fifth, 'PR22', $this->gp, $this->open, 120);
+    coloursStanding($sixth, 'PR22', $this->gp, $this->open, 100);
+
+    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 3]);
+    $gpOpen = $report['divisions'][0]['provinces'][0];
+
+    expect($gpOpen['rows'])->toHaveCount(3)
+        ->and($gpOpen['total_shooters'])->toBe(6)
+        ->and($gpOpen['shown_rows'])->toBe(3)
+        ->and($gpOpen['leader_points'])->toBe(200.0)
+        ->and(collect($gpOpen['rows'])->pluck('name')->all())->toBe(['Leader One', 'Second Two', 'Third Three'])
+        ->and($gpOpen['rows'][0]['percentage'])->toBe(100.0)
+        ->and($gpOpen['rows'][1]['percentage'])->toBe(90.0)
+        ->and($gpOpen['rows'][2]['percentage'])->toBe(80.0);
+});
+
+it('leaves provinces with fewer than N shooters unchanged', function () {
+    // WC only has 1 shooter; top_n = 10 should not pad or error.
+    $cape = coloursShooter('Cape Only', $this->wc, 'CO-1');
+    coloursStanding($cape, 'PR22', $this->wc, $this->open, 150);
+
+    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 10]);
+    $wcOpen = $report['divisions'][0]['provinces'][0];
+
+    expect($wcOpen['rows'])->toHaveCount(1)
+        ->and($wcOpen['total_shooters'])->toBe(1)
+        ->and($wcOpen['shown_rows'])->toBe(1);
+});
+
+it('populates a summary strip with grade counts reflecting the trimmed output', function () {
+    // 4 shooters: 2 Gold, 1 Silver, 1 (below Bronze cutoff → no grade).
+    // Top N=2 should drop the Silver and no-grade rows from the summary.
+    $g1 = coloursShooter('Gold One', $this->gp, 'G1-SUM');
+    $g2 = coloursShooter('Gold Two', $this->gp, 'G2-SUM');
+    $s1 = coloursShooter('Silver One', $this->gp, 'S1-SUM');
+    $x1 = coloursShooter('No Grade', $this->gp, 'X1-SUM');
+
+    coloursStanding($g1, 'PR22', $this->gp, $this->open, 200);
+    coloursStanding($g2, 'PR22', $this->gp, $this->open, 195);
+    coloursStanding($s1, 'PR22', $this->gp, $this->open, 180);
+    coloursStanding($x1, 'PR22', $this->gp, $this->open, 100);
+
+    $full = app(FederationColoursReport::class)->build('PR22', '2026');
+    expect($full['summary']['total_rows'])->toBe(4)
+        ->and($full['summary']['gold'])->toBe(2)
+        ->and($full['summary']['silver'])->toBe(1)
+        ->and($full['summary']['bronze'])->toBe(0)
+        ->and($full['summary']['divisions'])->toBe(1)
+        ->and($full['summary']['provinces'])->toBe(1);
+
+    $topTwo = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 2]);
+    expect($topTwo['summary']['total_rows'])->toBe(2)
+        ->and($topTwo['summary']['gold'])->toBe(2)
+        ->and($topTwo['summary']['silver'])->toBe(0)
+        ->and($topTwo['summary']['bronze'])->toBe(0);
+});
+
+it('links shooter names to their public profile and honours the top_n querystring', function () {
+    $leader = coloursShooter('Linked Leader', $this->gp, 'LL-1');
+    $second = coloursShooter('Linked Second', $this->gp, 'LL-2');
+    $third = coloursShooter('Linked Third', $this->gp, 'LL-3');
+    $fourth = coloursShooter('Linked Fourth', $this->gp, 'LL-4');
+
+    coloursStanding($leader, 'PR22', $this->gp, $this->open, 200);
+    coloursStanding($second, 'PR22', $this->gp, $this->open, 180);
+    coloursStanding($third, 'PR22', $this->gp, $this->open, 160);
+    coloursStanding($fourth, 'PR22', $this->gp, $this->open, 140);
+
+    // top_n=3 is the smallest value on the whitelist in ReportsController::parseTopN.
+    $response = $this->actingAs($this->admin)
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'top_n' => 3]))
+        ->assertOk()
+        ->assertSee('Linked Leader')
+        ->assertSee('Linked Second')
+        ->assertSee('Linked Third')
+        ->assertDontSee('Linked Fourth'); // trimmed by top_n=3
+
+    // Each shown shooter name is wrapped in an anchor pointing at their
+    // canonical profile URL. The PR22 season context is preserved so the
+    // profile lands directly on the right season view.
+    $leaderUrl = route('shooters.show.season', ['saprfNumber' => 'LL-1', 'season' => '2026']);
+    $secondUrl = route('shooters.show.season', ['saprfNumber' => 'LL-2', 'season' => '2026']);
+    $response->assertSee($leaderUrl, false)
+        ->assertSee($secondUrl, false);
+});
+
+it('ignores an unknown top_n value and falls back to the full list', function () {
+    // The controller whitelists top_n to a fixed set (3/5/10/15/20/25/50).
+    // An out-of-range value should resolve to null, not an empty report.
+    $one = coloursShooter('First', $this->gp, 'FS-NOP');
+    $two = coloursShooter('Second', $this->gp, 'SC-NOP');
+    coloursStanding($one, 'PR22', $this->gp, $this->open, 100);
+    coloursStanding($two, 'PR22', $this->gp, $this->open, 80);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'top_n' => 99]))
+        ->assertOk()
+        ->assertSee('First')
+        ->assertSee('Second');
+});
