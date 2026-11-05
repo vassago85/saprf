@@ -34,6 +34,20 @@
                 <p class="mt-1 text-sm text-stone-500">Qualified shooters per series and season, with rank, points, and out-of-province status.</p>
             </a>
 
+            {{-- Federation colours --}}
+            <a href="{{ route('reports.federation-colours') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-amber-300 transition">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="rounded-xl bg-amber-50 p-2.5 ring-1 ring-amber-100">
+                        <svg class="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 0 0 2.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 0 1 2.916.52 6.003 6.003 0 0 1-5.395 4.972m0 0a6.726 6.726 0 0 1-2.749 1.35m0 0a6.772 6.772 0 0 1-3.044 0"/>
+                        </svg>
+                    </div>
+                    <svg class="h-4 w-4 text-stone-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                </div>
+                <h3 class="font-semibold text-stone-900">Federation Colours</h3>
+                <p class="mt-1 text-sm text-stone-500">Centrefire and PR22 provincial logs by division and province, as a percentage of the highest shooter in that group. CSV and PDF.</p>
+            </a>
+
             {{-- Participation --}}
             <a href="{{ route('reports.participation') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-sky-300 transition">
                 <div class="flex items-start justify-between mb-3">

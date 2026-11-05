@@ -7,8 +7,11 @@ use App\Models\PlatformIncome;
 use App\Models\Score;
 use App\Models\Sponsor;
 use App\Models\Standing;
+use App\Services\FederationColoursReport;
 use App\Services\QualificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,6 +20,7 @@ class ReportsController extends Controller
 {
     public function __construct(
         private readonly QualificationService $qualificationService,
+        private readonly FederationColoursReport $federationColours,
     ) {}
 
     // ──────────────────────────────────────────────────────────────────────
@@ -446,6 +450,92 @@ class ReportsController extends Controller
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Federation colours
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function federationColours(Request $request): View
+    {
+        [$series, $season, $seasons, $report] = $this->coloursReport($request);
+
+        return view('reports.federation-colours', compact('series', 'season', 'seasons', 'report'));
+    }
+
+    public function federationColoursCsv(Request $request): StreamedResponse
+    {
+        [$series, $season] = $this->coloursFilters($request);
+        $rows = $this->federationColours->flat($series, $season);
+        $filename = "SAPRF-Federation-Colours-{$series}-{$season}.csv";
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Series', 'Season', 'Division', 'Province', 'Rank', 'Shooter',
+                'Member Number', 'Points', 'Matches Counted', 'Percentage', 'Grade',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['series'],
+                    $row['season'],
+                    $row['division'],
+                    $row['province'],
+                    $row['rank'],
+                    $row['name'],
+                    $row['saprf_number'] ?? '',
+                    number_format($row['points'], 2, '.', ''),
+                    $row['matches_counted'] ?? '',
+                    $row['percentage'] !== null ? number_format($row['percentage'], 2, '.', '') : '',
+                    $row['grade'] ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function federationColoursPdf(Request $request): Response
+    {
+        [$series, $season, , $report] = $this->coloursReport($request);
+        $seriesLabel = $series === 'PR22' ? 'PR22' : 'Centrefire';
+
+        return Pdf::loadView('reports.federation-colours-pdf', [
+            'series' => $series,
+            'seriesLabel' => $seriesLabel,
+            'season' => $season,
+            'report' => $report,
+            'generatedAt' => now()->format('d M Y H:i'),
+        ])->setPaper('a4', 'landscape')
+            ->download("SAPRF-Federation-Colours-{$series}-{$season}.pdf");
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: Collection<int, string>, 3: array<string, mixed>}
+     */
+    private function coloursReport(Request $request): array
+    {
+        [$series, $season] = $this->coloursFilters($request);
+        $seasons = collect(range(now()->year, now()->year - 4))->map(fn ($y) => (string) $y);
+        $report = $this->federationColours->build($series, $season);
+
+        return [$series, $season, $seasons, $report];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function coloursFilters(Request $request): array
+    {
+        $series = strtoupper((string) $request->input('series', 'PR22'));
+        if (! in_array($series, FederationColoursReport::SERIES, true)) {
+            $series = 'PR22';
+        }
+
+        $season = (string) $request->input('season', now()->year);
+
+        return [$series, $season];
     }
 
     // ──────────────────────────────────────────────────────────────────────
