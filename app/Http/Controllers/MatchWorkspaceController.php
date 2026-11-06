@@ -16,6 +16,7 @@ use App\Models\Venue;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
+use App\Services\ImpactScoring\ImpactShooterExport;
 use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\MatchWhatsappInviteMailer;
@@ -26,6 +27,7 @@ use App\Services\StandingsCalculationService;
 use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -140,6 +142,10 @@ class MatchWorkspaceController extends Controller
 
         $entries = $query->paginate(30)->withQueryString();
 
+        $impactExportOmitted = $request->user()?->can('update', $match)
+            ? app(ImpactShooterExport::class)->build($match)['omitted']
+            : [];
+
         // The add-a-shooter panel (now rendered on this tab, not Settings)
         // relies on `$selfEntry` + `$selfDefaultDivisionId`. We compute
         // them the same way `settings()` does so the Alpine search +
@@ -161,6 +167,7 @@ class MatchWorkspaceController extends Controller
                 'category' => $request->input('category'),
                 'search' => $request->input('search'),
             ],
+            'impactExportOmitted' => $impactExportOmitted,
         ]));
     }
 
@@ -276,7 +283,7 @@ class MatchWorkspaceController extends Controller
             })
             ->orderByRaw('COALESCE(shooter_name, "")')
             ->get()
-            ->sortBy(fn (MatchRegistration $r) => \Illuminate\Support\Str::lower($r->user?->name ?: (string) $r->shooter_name))
+            ->sortBy(fn (MatchRegistration $r) => Str::lower($r->user?->name ?: (string) $r->shooter_name))
             ->values();
 
         $divisions = $match->availableDivisions();

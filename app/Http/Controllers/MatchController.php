@@ -22,6 +22,7 @@ use App\Services\AuditLogService;
 use App\Services\FinancialService;
 use App\Services\GuestShooterService;
 use App\Services\ImpactScoring\ImpactScoringClient;
+use App\Services\ImpactScoring\ImpactShooterExport;
 use App\Services\MatchFinanceService;
 use App\Services\MembershipValidationService;
 use App\Services\PayFastService;
@@ -667,79 +668,27 @@ class MatchController extends Controller
         ]);
     }
 
-    public function exportImpactScoringCsv(MatchEvent $match): StreamedResponse
+    public function exportImpactScoringCsv(MatchEvent $match, ImpactShooterExport $export): StreamedResponse
     {
         $this->authorize('update', $match);
 
-        $registrations = $match->registrations()
-            ->where('registration_status', '!=', 'cancelled')
-            ->with(['user.province', 'user.membership', 'division'])
-            ->orderBy('registered_at')
-            ->get();
+        $built = $export->build($match);
+
+        if ($built['omitted'] !== []) {
+            Log::warning('Impact scoring export omitted registrations', [
+                'match_id' => $match->id,
+                'missing_registration_ids' => array_column($built['omitted'], 'id'),
+            ]);
+        }
 
         $filename = str($match->name)->slug().'-impact-scoring.csv';
 
-        return response()->streamDownload(function () use ($registrations) {
+        return response()->streamDownload(function () use ($built) {
             $out = fopen('php://output', 'w');
-
-            fputcsv($out, [
-                'Email',
-                'Name',
-                'Phone',
-                'Squad',
-                'Division',
-                'Categories',
-                'Member Number',
-            ]);
-
-            // Column contract is Impact's shooter CSV guide
-            // (impactscoring.net/match/view-shooters-csv-format):
-            // Email is required and must be unique; Name is the full name
-            // (do not also send First Name / Last Name); Squad is left blank
-            // because Impact creates one squad per distinct value.
-            //
-            // Impact keeps equipment class and demographics apart. On SAPRF
-            // matches there, divisions are Open / Production / … and
-            // Lady / Junior / Senior are categories. SAPRF stores both in
-            // one division field, so Ladies/Junior/Senior are written to
-            // Categories (Lady, not Ladies) and the Division cell is left
-            // blank. Equipment divisions stay in Division.
-            $categoryBySlug = [
-                'ladies' => 'Lady',
-                'junior' => 'Junior',
-                'senior' => 'Senior',
-            ];
-
-            $seenEmails = [];
-
-            foreach ($registrations as $reg) {
-                $user = $reg->user;
-                $email = trim((string) ($reg->email ?: $user?->email ?: ''));
-                if ($email === '') {
-                    continue;
-                }
-
-                $emailKey = strtolower($email);
-                if (isset($seenEmails[$emailKey])) {
-                    continue;
-                }
-                $seenEmails[$emailKey] = true;
-
-                $slug = $reg->division?->slug;
-                $category = $slug !== null ? ($categoryBySlug[$slug] ?? '') : '';
-                $division = $category !== '' ? '' : ($reg->division?->name ?: '');
-
-                fputcsv($out, [
-                    $email,
-                    $reg->shooter_name ?: $user?->name ?: '',
-                    $reg->phone ?: $user?->phone ?: '',
-                    '',
-                    $division,
-                    $category,
-                    $user?->membership?->saprf_number ?: '',
-                ]);
+            fputcsv($out, $built['headers']);
+            foreach ($built['rows'] as $row) {
+                fputcsv($out, $row);
             }
-
             fclose($out);
         }, $filename, [
             'Content-Type' => 'text/csv',

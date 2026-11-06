@@ -89,6 +89,15 @@
 
         @include('matches.workspace._apply-club-entry')
 
+        @if(! empty($impactExportOmitted))
+            <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+                {{ count($impactExportOmitted) === 1 ? '1 entry was' : count($impactExportOmitted).' entries were' }}
+                left out of the Impact export because {{ count($impactExportOmitted) === 1 ? 'it has' : 'they have' }} no email address:
+                {{ collect($impactExportOmitted)->pluck('name')->join(', ') }}.
+                The download still includes the other entries.
+            </div>
+        @endif
+
         {{-- Entries table --}}
         <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
             @if($entries->isEmpty())
