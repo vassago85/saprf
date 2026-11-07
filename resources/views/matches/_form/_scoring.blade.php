@@ -14,7 +14,12 @@
     $everyoneCountsValue = (bool) old('everyone_counts', $match?->everyone_counts);
     $dualCountValue = (bool) old('also_counts_for_provincial', $match?->also_counts_for_provincial);
     $provincialColumns = old('provincial_stage_columns', $match?->provincial_stage_columns);
-    $impactRefValue = old('impact_ref', $match?->impact_match_id);
+    // Persist the numeric Impact id, but show it back as the match link
+    // the field asks for. A bare number reads as if the pasted URL was dropped.
+    $impactRefValue = old('impact_ref');
+    if ($impactRefValue === null && $match?->impact_match_id) {
+        $impactRefValue = 'https://www.impactscoring.net/match/view?id='.$match->impact_match_id;
+    }
     $impactLiveSyncValue = (bool) filter_var(old('impact_live_sync', $match?->impact_live_sync), FILTER_VALIDATE_BOOLEAN);
 
     $defaultSeriesLevel = $match?->series_level ?? 'club';

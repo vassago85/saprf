@@ -313,7 +313,8 @@ it('saves an Impact results link and the live-sync switch from match settings', 
         ->get(route('matches.settings', $this->match))
         ->assertOk()
         ->assertSee('Live scores from Impact')
-        ->assertSee('value="10558"', false);
+        ->assertSee('value="https://www.impactscoring.net/match/view?id=10558"', false)
+        ->assertSee('name="impact_live_sync" value="1" checked', false);
 
     $this->actingAs($this->admin)
         ->from(route('matches.settings', $this->match))
@@ -329,6 +330,32 @@ it('saves an Impact results link and the live-sync switch from match settings', 
             'impact_live_sync' => '1',
         ]))
         ->assertSessionHasErrors('impact_ref');
+});
+
+it('keeps the impact link and the 5-minute checkbox inside the settings form for exco', function () {
+    $exco = User::factory()->create();
+    $exco->assignRole('exco');
+
+    $html = $this->actingAs($exco)
+        ->get(route('matches.settings', $this->match))
+        ->assertOk()
+        ->assertSee('Transfer to another director', false)
+        ->getContent();
+
+    $settingsAt = strpos($html, 'id="match-settings-form"');
+    $impactAt = strpos($html, 'id="impact_ref"');
+    $transferAt = strpos($html, 'id="change-director-form"');
+
+    expect($settingsAt)->not->toBeFalse()
+        ->and($impactAt)->toBeGreaterThan($settingsAt)
+        ->and($transferAt)->toBeGreaterThan($impactAt);
+
+    // A </form> between the settings form and the Impact field is the
+    // transfer panel closing the settings form, which drops the link
+    // and the 5-minute checkbox on save.
+    $beforeImpact = substr($html, $settingsAt, $impactAt - $settingsAt);
+    expect($beforeImpact)->not->toContain('</form>')
+        ->and($beforeImpact)->toContain('form="change-director-form"');
 });
 
 it('only queues matches that are on today with live sync still running', function () {

@@ -42,14 +42,21 @@
         @endif
     </div>
 
-    <form method="POST" action="{{ route('matches.change-director', $match) }}" class="mt-4 space-y-3" @submit="submitting = true">
-        @csrf
-        <input type="hidden" name="user_id" x-model="selectedId">
+    {{-- This panel is rendered inside #match-settings-form. A real <form>
+         here is invalid HTML: the browser ignores the opening tag and the
+         matching </form> closes the settings form, so everything after
+         this panel (public page, and the Impact link + 5-minute checkbox)
+         is left outside the form and never saves. The transfer posts to
+         its own form, rendered after the page via @push, and these
+         controls point at it with the form attribute. --}}
+    <div class="mt-4 space-y-3">
+        <input type="hidden" name="user_id" form="change-director-form" x-model="selectedId">
 
         <div class="relative" x-show="!selected" x-cloak>
             <input type="search"
                    x-model="query"
                    @input.debounce.300ms="search()"
+                   @keydown.enter.prevent="search()"
                    placeholder="Search name or SAPRF number (min 2 chars)"
                    class="w-full rounded-lg border border-stone-300 bg-white text-sm py-2.5 pr-9 focus:ring-emerald-500 focus:border-emerald-500" />
             <div x-show="loading" x-cloak class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">…</div>
@@ -85,7 +92,7 @@
                 </button>
             </div>
             <div class="mt-3 flex items-center gap-2">
-                <flux:button type="submit" variant="primary" size="sm" x-bind:disabled="submitting">
+                <flux:button type="submit" form="change-director-form" variant="primary" size="sm" x-bind:disabled="submitting" @click="submitting = true">
                     <span x-show="!submitting">Transfer ownership</span>
                     <span x-show="submitting" x-cloak>Saving…</span>
                 </flux:button>
@@ -95,11 +102,14 @@
         @error('user_id')
             <p class="text-xs text-red-600">{{ $message }}</p>
         @enderror
-    </form>
+    </div>
 </div>
 
 @once
     @push('scripts')
+        <form id="change-director-form" method="POST" action="{{ route('matches.change-director', $match) }}" hidden>
+            @csrf
+        </form>
         <script>
             function changeDirectorPanel(config) {
                 return {
