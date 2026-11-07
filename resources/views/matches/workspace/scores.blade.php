@@ -37,13 +37,18 @@
         <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
             <p class="font-semibold">Live scores are on</p>
             <p class="mt-0.5 text-xs text-sky-800">
-                Impact match {{ $match->impact_match_id }} is pulled every 5 minutes on match day.
+                Impact match {{ $match->impact_match_id }} is pulled every 5 minutes
+                @if($match->isMultiDay())
+                    from {{ $match->match_date->format('D j M') }} through {{ $match->match_end_date->format('D j M') }}.
+                @else
+                    on {{ $match->match_date?->format('D j M') }}.
+                @endif
                 @if($match->impact_live_ended_at)
                     Impact has marked it finished, so the pull has stopped.
                 @elseif($match->impact_live_synced_at)
                     Last pull {{ $match->impact_live_synced_at->timezone('Africa/Johannesburg')->format('D j M, H:i') }}.
                 @else
-                    The first pull runs once the match day starts.
+                    The first pull runs once the start date begins.
                 @endif
                 @if($match->impact_live_error)
                     Last attempt failed: {{ $match->impact_live_error }}
