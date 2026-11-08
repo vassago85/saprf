@@ -279,6 +279,31 @@ class ScoreController extends Controller
     }
 
     /**
+     * Standalone "yes, this zero-score shooter actually participated" action
+     * for score rows that have no parent CSV ScoreImport — e.g. Impact live
+     * pulls or manual entries. Mirrors `ScoreImportController@confirmParticipation`
+     * but reached via `scores.confirm-participation` so the closeout wizard
+     * can render a working form regardless of where the score came from.
+     * Guarded so only raw_score = 0 rows go through here; everything else
+     * stays with the normal MD adjustment flow.
+     */
+    public function confirmParticipation(Request $request, Score $score): RedirectResponse
+    {
+        $this->authorize('confirmParticipation', $score);
+
+        abort_unless((float) $score->raw_score === 0.0, 422, 'Only zero-score rows can be confirmed via this action.');
+
+        $score->update([
+            'participation_confirmed_at' => now(),
+            'participation_confirmed_by' => $request->user()->id,
+        ]);
+
+        return redirect()
+            ->to($request->headers->get('referer', route('matches.scores', $score->match)))
+            ->with('success', "Confirmed {$score->shooter_name} participated in the match.");
+    }
+
+    /**
      * Remove a zero-score shooter from a match: when the MD (or an admin)
      * spots a 0 in the results who never actually turned up, this deletes
      * the score row and any dependent shooter-log entry, then recomputes

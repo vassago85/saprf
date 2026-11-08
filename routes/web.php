@@ -792,6 +792,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         // Guarded server-side to only accept raw_score = 0 rows.
         Route::delete('/scores/{score}/remove-zero', [ScoreController::class, 'removeZero'])
             ->name('scores.remove-zero');
+        // Standalone twin of the import-nested confirm-participation action
+        // for zero-score rows that have no parent ScoreImport — e.g. rows
+        // written by the Impact live-sync or manual entry. The controller
+        // guards against non-zero rows so the two routes behave the same.
+        Route::post('/scores/{score}/confirm-participation', [ScoreController::class, 'confirmParticipation'])
+            ->name('scores.confirm-participation');
     });
 
     // EXCO-only match ownership override. Match directors and owner/admin

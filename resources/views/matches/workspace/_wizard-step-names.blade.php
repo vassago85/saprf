@@ -177,9 +177,19 @@
                             @endif
                         </p>
                     </div>
+                    @php
+                        // CSV-imported rows live under score-imports/{scoreImport}/scores/{score};
+                        // Impact live pulls and manual entries carry no score_import_id, so they
+                        // use the standalone scores.confirm-participation / scores.remove-zero routes.
+                        $confirmUrl = $zero->score_import_id
+                            ? route('score-imports.scores.confirm-participation', ['scoreImport' => $zero->score_import_id, 'score' => $zero])
+                            : route('scores.confirm-participation', ['score' => $zero]);
+                        $removeUrl = $zero->score_import_id
+                            ? route('score-imports.scores.mark-absent', ['scoreImport' => $zero->score_import_id, 'score' => $zero])
+                            : route('scores.remove-zero', ['score' => $zero]);
+                    @endphp
                     <div class="flex flex-wrap items-center gap-2">
-                        <form method="POST"
-                              action="{{ route('score-imports.scores.confirm-participation', ['scoreImport' => $zero->score_import_id, 'score' => $zero]) }}">
+                        <form method="POST" action="{{ $confirmUrl }}">
                             @csrf
                             <button type="submit"
                                     class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
@@ -187,8 +197,7 @@
                                 Yes, participated
                             </button>
                         </form>
-                        <form method="POST"
-                              action="{{ route('score-imports.scores.mark-absent', ['scoreImport' => $zero->score_import_id, 'score' => $zero]) }}"
+                        <form method="POST" action="{{ $removeUrl }}"
                               onsubmit="return confirm('Remove this shooter from the match results? Their score row will be deleted.');">
                             @csrf
                             @method('DELETE')

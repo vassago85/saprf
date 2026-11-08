@@ -210,3 +210,65 @@ it('rejects a score that belongs to a different import', function () {
 
     $response->assertNotFound();
 });
+
+// Impact live sync writes scores directly with no parent ScoreImport, so
+// the closeout wizard must render for them and the standalone
+// scores.confirm-participation endpoint must stamp the confirmation.
+it('lets the director confirm a zero that came in without a CSV import (Impact live or manual entry)', function () {
+    $score = Score::create([
+        'match_id' => $this->match->id,
+        'score_import_id' => null,
+        'shooter_name' => 'Live Larry',
+        'raw_score' => 0,
+        'status' => 'pending',
+        'is_member' => false,
+        'match_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->md)
+        ->post(route('scores.confirm-participation', ['score' => $score]));
+
+    $response->assertRedirect();
+
+    $score->refresh();
+    expect($score->exists)->toBeTrue()
+        ->and($score->participation_confirmed_at)->not->toBeNull()
+        ->and($score->participation_confirmed_by)->toBe($this->md->id);
+});
+
+it('rejects a non-zero score through the standalone confirm-participation action', function () {
+    $score = Score::create([
+        'match_id' => $this->match->id,
+        'score_import_id' => null,
+        'shooter_name' => 'Real Rachel',
+        'raw_score' => 42,
+        'status' => 'pending',
+        'is_member' => false,
+        'match_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->post(route('scores.confirm-participation', ['score' => $score]))
+        ->assertStatus(422);
+});
+
+it('renders the scores closeout wizard when a zero-score row has no CSV parent', function () {
+    // Regression: the wizard view used to call route(..., ['scoreImport' =>
+    // $zero->score_import_id]) unconditionally, which blew up with a
+    // UrlGenerationException for an Impact live pull (score_import_id null).
+    Score::create([
+        'match_id' => $this->match->id,
+        'score_import_id' => null,
+        'shooter_name' => 'Live Larry',
+        'raw_score' => 0,
+        'status' => 'pending',
+        'is_member' => false,
+        'match_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.scores', $this->match))
+        ->assertOk()
+        ->assertSee('Live Larry')
+        ->assertSee('Yes, participated');
+});
