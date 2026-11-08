@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Pull Impact live scores for matches happening today. Scheduled every
- * twenty minutes. One match failing does not stop the others.
+ * five minutes. One match failing does not stop the others.
  */
 class SyncImpactLiveScoresJob implements ShouldQueue
 {

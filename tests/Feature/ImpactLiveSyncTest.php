@@ -439,7 +439,7 @@ it('saves an Impact results link and the live-sync switch from match settings', 
         ->assertSessionHasErrors('impact_ref');
 });
 
-it('keeps the impact link and the 20-minute checkbox inside the settings form for exco', function () {
+it('keeps the impact link and the 5-minute checkbox inside the settings form for exco', function () {
     $exco = User::factory()->create();
     $exco->assignRole('exco');
 
@@ -459,7 +459,7 @@ it('keeps the impact link and the 20-minute checkbox inside the settings form fo
 
     // A </form> between the settings form and the Impact field is the
     // transfer panel closing the settings form, which drops the link
-    // and the 20-minute checkbox on save.
+    // and the 5-minute checkbox on save.
     $beforeImpact = substr($html, $settingsAt, $impactAt - $settingsAt);
     expect($beforeImpact)->not->toContain('</form>')
         ->and($beforeImpact)->toContain('form="change-director-form"');
@@ -491,7 +491,7 @@ it('only queues matches that are on today with live sync still running', functio
         ->first(fn ($event) => str_contains($event->description, SyncImpactLiveScoresJob::class));
 
     expect($event)->not->toBeNull()
-        ->and($event->expression)->toBe('*/20 * * * *')
+        ->and($event->expression)->toBe('*/5 * * * *')
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->timezone)->toBe('Africa/Johannesburg');
 });

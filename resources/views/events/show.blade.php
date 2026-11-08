@@ -674,7 +674,7 @@
                                 <h3 class="text-lg font-semibold text-stone-900">Live scores</h3>
                             </div>
                             <p class="mt-2 text-sm text-stone-600">
-                                Impact is pulled every 20 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
+                                Impact is pulled every 5 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
                                 A shooter appears here when their Impact name matches an entry. These scores do not count until the match director confirms them.
                             </p>
                         </div>
