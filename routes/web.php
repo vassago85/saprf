@@ -675,6 +675,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.scores.acknowledge-walkin-fees');
             Route::post('/notify-unpaid', [MatchWorkspaceController::class, 'notifyUnpaid'])
                 ->name('matches.notify-unpaid');
+            // Director links an Impact name that does not exactly match an
+            // entry to one of this match's entries. Next live pull uses it.
+            Route::post('/impact-name-map', [MatchWorkspaceController::class, 'mapImpactName'])
+                ->name('matches.impact-name-map');
             Route::post('/email-whatsapp-invite', [MatchWorkspaceController::class, 'emailWhatsappInvite'])
                 ->name('matches.email-whatsapp-invite');
             Route::post('/apply-club-entry', [MatchWorkspaceController::class, 'applyClubEntry'])

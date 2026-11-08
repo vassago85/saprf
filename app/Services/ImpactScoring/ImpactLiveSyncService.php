@@ -107,6 +107,16 @@ class ImpactLiveSyncService
                 ? $registrationsByKey->get($nameMatch['key'])
                 : null;
 
+            // Director-maintained override: "this Impact name is this entry".
+            // Used when the names cannot be made identical on both systems
+            // (nickname on Impact, Janse-style surname on the entry).
+            if ($registration === null) {
+                $mapped = $this->mappedRegistration($match, $impactName, $registrations);
+                if ($mapped !== null) {
+                    $registration = $mapped;
+                }
+            }
+
             $existing = $this->findScore($scores, $shooterId, $registration?->user_id);
 
             if ($existing && ! empty($existing->raw_meta['impact']['adjusted'])) {
@@ -197,6 +207,33 @@ class ImpactLiveSyncService
             'ended' => $ended,
             'error' => null,
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, MatchRegistration>  $registrations
+     */
+    private function mappedRegistration(MatchEvent $match, string $impactName, Collection $registrations): ?MatchRegistration
+    {
+        $map = $match->impact_live_name_map ?? [];
+        if (! is_array($map) || $impactName === '') {
+            return null;
+        }
+
+        $needle = $this->normalizeMapKey($impactName);
+        foreach ($map as $storedName => $registrationId) {
+            if ($this->normalizeMapKey((string) $storedName) === $needle) {
+                return $registrations->first(
+                    fn (MatchRegistration $registration) => (int) $registration->id === (int) $registrationId
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeMapKey(string $value): string
+    {
+        return Str::lower(trim((string) preg_replace('/\s+/', ' ', $value)));
     }
 
     /**

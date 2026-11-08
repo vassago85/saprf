@@ -171,7 +171,7 @@ class MatchWorkspaceController extends Controller
             $activeEntries = MatchRegistration::query()
                 ->where('match_id', $match->id)
                 ->where('registration_status', '!=', 'cancelled')
-                ->get(['user_id', 'shooter_name']);
+                ->get(['id', 'user_id', 'shooter_name']);
             $missing = $activeEntries->filter(
                 fn (MatchRegistration $registration) => ! $registration->user_id || ! in_array((int) $registration->user_id, $scoringIds, true)
             );
@@ -191,11 +191,33 @@ class MatchWorkspaceController extends Controller
                 }
             }
 
+            $nameMap = is_array($match->impact_live_name_map) ? $match->impact_live_name_map : [];
+            // Only entries that are not currently on the board are offered —
+            // the MD is attaching an Impact name to someone who is missing.
+            $assignableEntries = $missing
+                ->filter(fn (MatchRegistration $registration) => (bool) $registration->user_id)
+                ->map(fn (MatchRegistration $registration) => [
+                    'id' => $registration->id,
+                    'label' => $registration->shooter_name ?: '—',
+                ])
+                ->sortBy('label')
+                ->values();
+
+            $unmatched = collect($match->impact_live_unmatched ?? [])
+                ->filter()
+                ->values()
+                ->map(fn (string $impactName) => [
+                    'name' => $impactName,
+                    'mapped_registration_id' => $nameMap[$impactName] ?? null,
+                ])
+                ->all();
+
             $liveBoard = [
                 'showing' => $activeEntries->count() - $missing->count(),
                 'missing' => $missing->count(),
                 'missing_names' => $missing->pluck('shooter_name')->filter()->values()->all(),
-                'unmatched' => array_values(array_filter($match->impact_live_unmatched ?? [])),
+                'unmatched' => $unmatched,
+                'assignable_entries' => $assignableEntries,
             ];
         }
 
@@ -232,6 +254,54 @@ class MatchWorkspaceController extends Controller
             'liveBoard' => $liveBoard,
             'impactExportOmitted' => $impactExportOmitted,
         ]));
+    }
+
+    /**
+     * MD assigns an Impact score-sheet name that does not exactly match an
+     * entry (nickname, different surname) to one of this match's entries.
+     * Stored on the match so the next live pull picks the shooter up.
+     */
+    public function mapImpactName(Request $request, MatchEvent $match, ImpactLiveSyncService $sync): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $data = $request->validate([
+            'impact_name' => ['required', 'string', 'max:200'],
+            'registration_id' => ['nullable', 'integer'],
+        ]);
+
+        $impactName = trim($data['impact_name']);
+        $map = is_array($match->impact_live_name_map) ? $match->impact_live_name_map : [];
+        $registrationId = (int) ($data['registration_id'] ?? 0);
+
+        if ($registrationId > 0) {
+            $exists = MatchRegistration::query()
+                ->where('id', $registrationId)
+                ->where('match_id', $match->id)
+                ->where('registration_status', '!=', 'cancelled')
+                ->exists();
+
+            if (! $exists) {
+                return back()->with('error', 'That entry does not belong to this match.');
+            }
+
+            $map[$impactName] = $registrationId;
+        } else {
+            unset($map[$impactName]);
+        }
+
+        $match->forceFill(['impact_live_name_map' => $map])->save();
+
+        try {
+            $sync->sync($match->fresh());
+        } catch (\Throwable) {
+            // The scheduler will pick it up on the next pull if this one fails.
+        }
+
+        return back()->with('success', $registrationId > 0
+            ? "Linked \"{$impactName}\" to the entry. The next pull will post their score."
+            : "Removed the mapping for \"{$impactName}\"."
+        );
     }
 
     /**

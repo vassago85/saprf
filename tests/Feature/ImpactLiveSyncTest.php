@@ -162,6 +162,28 @@ it('marks the entry list with who is showing a live score so the director can co
         ->assertOk()
         ->assertSee('Quiet Quinn')
         ->assertDontSee('Kevin Goncalves');
+
+    // MD maps the Impact name to the Quinn entry; the sync fires again
+    // and writes a score for that entry without the Impact or SAPRF name
+    // changing. The mapped name drops off the "unmatched" list.
+    $quinnRegistration = $this->match->registrations->firstWhere('user_id', $quiet->id);
+    $this->actingAs($this->admin)
+        ->post(route('matches.impact-name-map', $this->match), [
+            'impact_name' => 'Christiaan Pretorius',
+            'registration_id' => $quinnRegistration->id,
+        ])
+        ->assertRedirect();
+
+    $map = $this->match->fresh()->impact_live_name_map;
+    expect($map)->toBeArray()
+        ->and($map['Christiaan Pretorius'])->toBeInt();
+
+    $quinnScore = Score::where('match_id', $this->match->id)
+        ->where('user_id', $quiet->id)
+        ->first();
+    expect($quinnScore)->not->toBeNull()
+        ->and((float) $quinnScore->raw_score)->toBe(63.0)
+        ->and($this->match->fresh()->impact_live_unmatched)->not->toContain('Christiaan Pretorius');
 });
 
 it('updates a linked score when the total changes and skips stage calls when it does not', function () {

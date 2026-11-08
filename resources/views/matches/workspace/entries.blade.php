@@ -114,10 +114,44 @@
                         <a href="{{ route('matches.entries', [$match, 'board' => 'missing']) }}" class="font-semibold underline">Show only these</a>
                     </p>
                 @endif
-                @if($liveBoard['unmatched'] !== [])
+                @if($liveBoard['unmatched'] !== [] && auth()->user()?->can('update', $match))
+                    <div class="mt-3 border-t border-sky-200 pt-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-sky-900">On the Impact score sheet, not matched to an entry</p>
+                        <p class="mt-0.5 text-xs text-sky-900">Link each Impact name to an entry on this match. Next pull posts their score.</p>
+                        <div class="mt-2 space-y-2">
+                            @foreach($liveBoard['unmatched'] as $u)
+                                <form method="POST" action="{{ route('matches.impact-name-map', $match) }}"
+                                      class="flex flex-wrap items-center gap-2 rounded-lg bg-white/60 px-2 py-1.5">
+                                    @csrf
+                                    <input type="hidden" name="impact_name" value="{{ $u['name'] }}">
+                                    <span class="text-sm font-semibold text-stone-800 min-w-[200px]">{{ $u['name'] }}</span>
+                                    <span class="text-xs text-stone-500">→</span>
+                                    <select name="registration_id"
+                                            class="flex-1 min-w-[220px] rounded-md border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                        <option value="">— Choose an entry —</option>
+                                        @foreach($liveBoard['assignable_entries'] as $entry)
+                                            <option value="{{ $entry['id'] }}" @selected($u['mapped_registration_id'] === $entry['id'])>{{ $entry['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="submit"
+                                            class="inline-flex items-center rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700">
+                                        @if($u['mapped_registration_id']) Update @else Assign @endif
+                                    </button>
+                                    @if($u['mapped_registration_id'])
+                                        <button type="submit" name="registration_id" value=""
+                                                class="inline-flex items-center rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                                                title="Remove this mapping">
+                                            Unlink
+                                        </button>
+                                    @endif
+                                </form>
+                            @endforeach
+                        </div>
+                    </div>
+                @elseif($liveBoard['unmatched'] !== [])
                     <p class="mt-1 text-xs text-sky-900">
                         On the Impact score sheet, not matched to an entry:
-                        {{ collect($liveBoard['unmatched'])->take(12)->join(', ') }}@if(count($liveBoard['unmatched']) > 12)…@endif
+                        {{ collect($liveBoard['unmatched'])->pluck('name')->take(12)->join(', ') }}@if(count($liveBoard['unmatched']) > 12)…@endif
                     </p>
                 @endif
             </div>
