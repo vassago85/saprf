@@ -358,7 +358,7 @@ new class extends Component
     $limit = $this->showAll || $this->search !== '' || $divisionId || $provinceId ? null : $this->defaultLimit;
     $visibleStandings = $limit === null ? $standings : $standings->take($limit);
 
-    $sortableLinkBase = 'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider transition hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded';
+    $sortableLinkBase = 'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider transition hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center';
     $sortArrow = function (string $column) use ($sort, $direction) {
         if ($sort !== $column) {
             return '<span class="ml-0.5 text-stone-300" aria-hidden="true">↕</span>';
@@ -366,6 +366,23 @@ new class extends Component
         return $direction === 'asc'
             ? '<span class="ml-0.5 text-emerald-700" aria-hidden="true">↑</span>'
             : '<span class="ml-0.5 text-emerald-700" aria-hidden="true">↓</span>';
+    };
+    $movementHtml = function ($delta, bool $compact = false) {
+        $num = $compact ? 'text-[10px] leading-none' : 'text-xs';
+        $mark = $compact ? 'text-[10px] leading-none' : 'text-sm';
+        if ($delta === null) {
+            return '<span class="'.$mark.' text-stone-300" title="No previous snapshot">·</span>';
+        }
+        if ($delta > 0) {
+            return '<span class="inline-flex items-center '.$num.' font-bold text-emerald-700 tabular-nums" title="Up '.$delta.' since last match">▲'.$delta.'</span>';
+        }
+        if ($delta < 0) {
+            $down = abs($delta);
+
+            return '<span class="inline-flex items-center '.$num.' font-bold text-amber-700 tabular-nums" title="Down '.$down.' since last match">▼'.$down.'</span>';
+        }
+
+        return '<span class="'.$mark.' text-stone-400" title="No change since last match">–</span>';
     };
 @endphp
 
@@ -403,17 +420,17 @@ new class extends Component
 
     {{-- Discipline switch + heading + counting rule. --}}
     <div class="bg-white border-b border-stone-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-6">
-            <nav aria-label="Discipline" class="mb-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-4 sm:pt-10 sm:pb-6">
+            <nav aria-label="Discipline" class="mb-3 sm:mb-4">
                 <div class="inline-flex rounded-xl bg-stone-100 p-1 border border-stone-200">
                     <a href="{{ route('standings.prs') }}"
                        aria-current="{{ $series === 'PRS' ? 'page' : 'false' }}"
-                       class="px-5 py-2 rounded-lg text-sm font-semibold transition {{ $series === 'PRS' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
+                       class="inline-flex items-center min-h-11 px-5 py-2 rounded-lg text-sm font-semibold transition sm:min-h-0 {{ $series === 'PRS' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
                         PRS <span class="hidden sm:inline text-xs font-normal {{ $series === 'PRS' ? 'text-stone-500' : 'text-stone-400' }}">· Centrefire</span>
                     </a>
                     <a href="{{ route('standings.pr22') }}"
                        aria-current="{{ $series === 'PR22' ? 'page' : 'false' }}"
-                       class="px-5 py-2 rounded-lg text-sm font-semibold transition {{ $series === 'PR22' ? 'bg-white text-sky-700 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
+                       class="inline-flex items-center min-h-11 px-5 py-2 rounded-lg text-sm font-semibold transition sm:min-h-0 {{ $series === 'PR22' ? 'bg-white text-sky-700 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
                         PR22 <span class="hidden sm:inline text-xs font-normal {{ $series === 'PR22' ? 'text-stone-500' : 'text-stone-400' }}">· Rimfire</span>
                     </a>
                 </div>
@@ -424,11 +441,12 @@ new class extends Component
             </p>
             {{-- font-extrabold (800) to match the live homepage hero's H1 weight —
                  the audit flagged that font-bold (700) read slightly lighter. --}}
-            <h1 class="mt-2 font-heading text-4xl sm:text-5xl font-extrabold text-stone-900 tracking-tight">
+            <h1 class="mt-1 font-heading text-3xl sm:mt-2 sm:text-5xl font-extrabold text-stone-900 tracking-tight">
                 {{ $series }} standings
             </h1>
-            <p class="mt-3 text-stone-600 max-w-3xl">
+            <p class="mt-2 text-sm leading-snug text-stone-600 max-w-3xl sm:mt-3 sm:text-base sm:leading-normal">
                 {{ $countingRule }}
+                <span class="sm:hidden"> Points / {{ $pointsMax }}.</span>
                 @if($lastUpdated)
                     <span class="text-stone-400">&middot; Last updated {{ $lastUpdated->diffForHumans() }}</span>
                 @endif
@@ -438,36 +456,84 @@ new class extends Component
 
     <x-sponsors-strip placement="leaderboard" class="bg-white border-b border-stone-200 !py-4" />
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {{-- Counter cards. Five tiles — ranked, total, completed, in progress, remaining. --}}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8 flex flex-col">
+        {{-- On phones the rankings block is ordered first so the table is not
+             below the counters and podium. sm+ keeps source order. --}}
+        <div class="order-2 sm:order-none">
+        {{-- Counter cards. Five tiles — ranked, total, completed, in progress, remaining.
+             Below sm, ranked shooters spans two columns so both rows fill a 3-col grid. --}}
         <h2 class="sr-only">Season counters</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-8">
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <p class="font-heading text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['ranked'] }}</p>
-                <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">Ranked shooters</p>
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-5 sm:mb-8">
+            <div class="col-span-2 sm:col-span-1 bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4">
+                <p class="font-heading text-2xl sm:text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['ranked'] }}</p>
+                <p class="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-tight sm:leading-normal">Ranked shooters</p>
             </div>
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <p class="font-heading text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['total'] }}</p>
-                <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">Matches this season</p>
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4">
+                <p class="font-heading text-2xl sm:text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['total'] }}</p>
+                <p class="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-tight sm:leading-normal">Matches this season</p>
             </div>
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <p class="font-heading text-3xl font-bold text-emerald-700 tabular-nums">{{ $counters['completed'] }}</p>
-                <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">Completed</p>
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4">
+                <p class="font-heading text-2xl sm:text-3xl font-bold text-emerald-700 tabular-nums">{{ $counters['completed'] }}</p>
+                <p class="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-tight sm:leading-normal">Completed</p>
             </div>
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <p class="font-heading text-3xl font-bold text-amber-600 tabular-nums">{{ $counters['in_progress'] }}</p>
-                <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">In progress</p>
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4">
+                <p class="font-heading text-2xl sm:text-3xl font-bold text-amber-600 tabular-nums">{{ $counters['in_progress'] }}</p>
+                <p class="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-tight sm:leading-normal">In progress</p>
             </div>
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <p class="font-heading text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['remaining'] }}</p>
-                <p class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">Remaining</p>
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4">
+                <p class="font-heading text-2xl sm:text-3xl font-bold text-stone-900 tabular-nums">{{ $counters['remaining'] }}</p>
+                <p class="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-stone-500 leading-tight sm:leading-normal">Remaining</p>
             </div>
         </div>
 
-        {{-- Podium. Only shown when the current scope has at least one ranked shooter. --}}
+        {{-- Podium. Only shown when the current scope has at least one ranked shooter.
+             Phones get a 3-row list; sm+ keeps the cards. --}}
         @if($podium->isNotEmpty())
             <h2 class="sr-only">Podium</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-8">
+            <div class="sm:hidden bg-white rounded-xl border border-stone-200 shadow-sm divide-y divide-stone-100 mb-5">
+                @foreach($podium as $i => $standing)
+                    @php
+                        $rank = (int) $standing->rank;
+                        $rankLabel = $standing->rank_label ?? (string) $rank;
+                        $isLeader = $i === 0;
+                        $isTiedRank = (bool) ($standing->is_tied ?? false);
+                        $gap = $leaderPoints !== null && ! $isLeader ? $leaderPoints - (float) $standing->points : null;
+                        $medalBg = $rank === 1 ? 'bg-amber-200 text-amber-900 ring-amber-300' : ($rank === 2 ? 'bg-stone-200 text-stone-700 ring-stone-300' : 'bg-orange-200 text-orange-900 ring-orange-300');
+                        $saBadge = $saBadgesByUser[$standing->user_id] ?? null;
+                        $userDiv = $standing->user?->division;
+                        $prov = $standing->province ?? $standing->user?->province;
+                        $podiumName = $standing->user->name ?? '—';
+                        $podiumMeta = ($userDiv?->name ?? '—').' · '.($prov?->abbreviation ?? $prov?->name ?? '—');
+                    @endphp
+                    <div class="flex items-center gap-2.5 px-3 py-2 min-h-14 {{ $isLeader ? 'border-l-4 border-l-emerald-500' : '' }}">
+                        <span class="inline-flex items-center justify-center size-8 shrink-0 rounded-full {{ $medalBg }} ring-2 font-heading text-sm font-bold tabular-nums">
+                            {{ $rankLabel }}
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <a href="{{ url('/standings/' . $season . '/shooter/' . ($standing->user_id ?? $standing->id)) }}"
+                               title="{{ $podiumName }}"
+                               class="block truncate text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
+                                {{ $podiumName }}
+                            </a>
+                            <p class="flex items-center gap-1 min-w-0 text-xs text-stone-500">
+                                @if($saBadge)
+                                    <x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" compact />
+                                @endif
+                                <span class="truncate" title="{{ $podiumMeta }}">{{ $podiumMeta }}</span>
+                            </p>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="font-mono text-sm font-bold text-stone-900 tabular-nums whitespace-nowrap">{{ points($standing->points) }}</p>
+                            @if($isTiedRank)
+                                <p class="text-[11px] font-semibold text-emerald-700">Level</p>
+                            @elseif($gap !== null && $gap > 0)
+                                <p class="text-[11px] text-stone-500 tabular-nums whitespace-nowrap">−{{ points($gap) }}</p>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <div class="hidden sm:grid sm:grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-8">
                 @foreach($podium as $i => $standing)
                     @php
                         $rank = (int) $standing->rank;
@@ -521,55 +587,58 @@ new class extends Component
                 @endforeach
             </div>
         @endif
+        </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div id="full-rankings" class="order-1 sm:order-none scroll-mt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 max-sm:mb-8">
             {{-- Main column: toolbar + table. --}}
-            <section class="lg:col-span-2">
+            <section class="lg:col-span-2 min-w-0">
                 <h2 class="font-heading text-xl font-bold text-stone-900 mb-4">Full rankings</h2>
 
                 {{-- Toolbar: level toggle | division select | province select | search. --}}
                 <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-3 sm:p-4 mb-4 flex flex-col gap-3">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex rounded-lg bg-stone-100 border border-stone-200 p-0.5">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                        <div class="order-3 flex w-full rounded-lg bg-stone-100 border border-stone-200 p-0.5 sm:order-1 sm:w-auto">
                             <button type="button" wire:click="setLevel('national')"
                                     aria-pressed="{{ $level === 'national' ? 'true' : 'false' }}"
-                                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition {{ $level === 'national' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
+                                    class="inline-flex flex-1 items-center justify-center min-h-11 px-3 py-2 rounded-md text-base font-semibold transition sm:flex-none sm:min-h-0 sm:py-1.5 sm:text-xs {{ $level === 'national' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
                                 National
                             </button>
                             <button type="button" wire:click="setLevel('provincial')"
                                     aria-pressed="{{ $level === 'provincial' ? 'true' : 'false' }}"
-                                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition {{ $level === 'provincial' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
+                                    class="inline-flex flex-1 items-center justify-center min-h-11 px-3 py-2 rounded-md text-base font-semibold transition sm:flex-none sm:min-h-0 sm:py-1.5 sm:text-xs {{ $level === 'provincial' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-900' }}">
                                 Provincial
                             </button>
                         </div>
 
-                        <div class="flex items-center gap-2">
-                            <label for="standings_division" class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Division</label>
-                            <select id="standings_division" wire:model.live="divisionId"
-                                    class="rounded-lg border border-stone-300 bg-white text-xs py-1.5 pl-2.5 pr-7 focus:ring-emerald-500 focus:border-emerald-500">
-                                <option value="">Overall</option>
-                                @foreach($divisions as $div)
-                                    <option value="{{ $div->id }}">{{ $div->name }}</option>
-                                @endforeach
-                            </select>
+                        <div class="order-2 grid grid-cols-2 gap-2 sm:contents">
+                            <div class="flex min-w-0 flex-col gap-1 sm:order-2 sm:flex-row sm:items-center sm:gap-2">
+                                <label for="standings_division" class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Division</label>
+                                <select id="standings_division" wire:model.live="divisionId"
+                                        class="w-full min-h-11 rounded-lg border border-stone-300 bg-white text-base py-2.5 pl-2.5 pr-7 focus:ring-emerald-500 focus:border-emerald-500 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-xs">
+                                    <option value="">Overall</option>
+                                    @foreach($divisions as $div)
+                                        <option value="{{ $div->id }}">{{ $div->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="flex min-w-0 flex-col gap-1 sm:order-3 sm:flex-row sm:items-center sm:gap-2">
+                                <label for="standings_province" class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Province</label>
+                                <select id="standings_province" wire:model.live="provinceId"
+                                        class="w-full min-h-11 rounded-lg border border-stone-300 bg-white text-base py-2.5 pl-2.5 pr-7 focus:ring-emerald-500 focus:border-emerald-500 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-xs">
+                                    <option value="">All</option>
+                                    @foreach($provinces as $prov)
+                                        <option value="{{ $prov->id }}">{{ $prov->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
-                            <label for="standings_province" class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Province</label>
-                            <select id="standings_province" wire:model.live="provinceId"
-                                    class="rounded-lg border border-stone-300 bg-white text-xs py-1.5 pl-2.5 pr-7 focus:ring-emerald-500 focus:border-emerald-500">
-                                <option value="">All</option>
-                                @foreach($provinces as $prov)
-                                    <option value="{{ $prov->id }}">{{ $prov->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="flex items-center gap-2 flex-1 sm:min-w-[220px]">
+                        <div class="order-1 flex w-full items-center gap-2 sm:order-4 sm:flex-1 sm:min-w-[220px]">
                             <label for="standings_search" class="sr-only">Search shooters</label>
                             <input type="search" id="standings_search" wire:model.live.debounce.300ms="search"
                                    placeholder="Search shooter…"
-                                   class="w-full rounded-lg border border-stone-300 bg-white text-xs py-1.5 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                                   class="w-full min-h-11 rounded-lg border border-stone-300 bg-white text-base py-2.5 px-3 focus:ring-emerald-500 focus:border-emerald-500 sm:min-h-0 sm:py-1.5 sm:text-xs">
                         </div>
                     </div>
 
@@ -609,18 +678,20 @@ new class extends Component
                         <button type="button" wire:click="clearFilters" class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">Clear filters</button>
                     </div>
                 @else
-                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-                        <div class="overflow-x-auto">
+                    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm sm:overflow-hidden">
+                        <div class="sm:overflow-x-auto">
                             <table class="w-full">
                                 <thead>
                                     <tr class="border-b border-stone-200 bg-stone-50/70">
-                                        <th class="px-4 py-3 text-center w-14">
-                                            <button type="button" wire:click="sortBy('rank')" class="{{ $sortableLinkBase }} {{ $sort === 'rank' ? 'text-stone-900' : 'text-stone-500' }}">
-                                                Rank {!! $sortArrow('rank') !!}
+                                        <th class="max-sm:sticky max-sm:top-16 max-sm:z-20 max-sm:bg-stone-50 px-0 py-0 text-center w-11 sm:w-14 sm:px-4 sm:py-3">
+                                            <button type="button" wire:click="sortBy('rank')" class="{{ $sortableLinkBase }} w-full sm:w-auto {{ $sort === 'rank' ? 'text-stone-900' : 'text-stone-500' }}">
+                                                <span class="sm:hidden">#<span class="sr-only"> Rank</span></span>
+                                                <span class="hidden sm:inline">Rank</span>
+                                                {!! $sortArrow('rank') !!}
                                             </button>
                                         </th>
-                                        <th class="px-2 py-3 text-center w-10"><span class="sr-only">Movement</span></th>
-                                        <th class="px-4 py-3 text-left">
+                                        <th class="hidden sm:table-cell px-2 py-3 text-center w-10"><span class="sr-only">Movement</span></th>
+                                        <th class="max-sm:sticky max-sm:top-16 max-sm:z-20 max-sm:bg-stone-50 px-2 py-0 text-left sm:px-4 sm:py-3">
                                             <button type="button" wire:click="sortBy('shooter')" class="{{ $sortableLinkBase }} {{ $sort === 'shooter' ? 'text-stone-900' : 'text-stone-500' }}">
                                                 Shooter {!! $sortArrow('shooter') !!}
                                             </button>
@@ -635,9 +706,11 @@ new class extends Component
                                                 Province {!! $sortArrow('province') !!}
                                             </button>
                                         </th>
-                                        <th class="px-4 py-3 text-right">
-                                            <button type="button" wire:click="sortBy('points')" class="{{ $sortableLinkBase }} {{ $sort === 'points' ? 'text-stone-900' : 'text-stone-500' }}">
-                                                Points <span class="text-stone-400 font-normal normal-case">/ {{ $pointsMax }}</span> {!! $sortArrow('points') !!}
+                                        <th class="max-sm:sticky max-sm:top-16 max-sm:z-20 max-sm:bg-stone-50 max-sm:w-px whitespace-nowrap px-2 py-0 text-right sm:px-4 sm:py-3">
+                                            <button type="button" wire:click="sortBy('points')" class="{{ $sortableLinkBase }} sm:justify-end {{ $sort === 'points' ? 'text-stone-900' : 'text-stone-500' }}">
+                                                <span class="sm:hidden">Pts<span class="sr-only"> out of {{ $pointsMax }}</span></span>
+                                                <span class="hidden sm:inline">Points <span class="text-stone-400 font-normal normal-case">/ {{ $pointsMax }}</span></span>
+                                                {!! $sortArrow('points') !!}
                                             </button>
                                         </th>
                                         <th class="px-4 py-3 text-right hidden md:table-cell">
@@ -664,59 +737,61 @@ new class extends Component
                                             $isTiedRank = (bool) ($standing->is_tied ?? false);
                                         @endphp
                                         <tr wire:key="standing-{{ $standing->id }}" class="border-b border-stone-100 transition hover:bg-stone-50/60 {{ $rankNumber <= 3 ? 'bg-emerald-50/20' : '' }}">
-                                            <td class="px-4 py-4 text-center" data-rank-label="{{ $rankLabel }}">
-                                                @if($rankNumber === 1)
-                                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-amber-200 text-amber-900 text-sm font-bold tabular-nums shadow-sm">{{ $rankLabel }}</span>
-                                                @elseif($rankNumber === 2)
-                                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-stone-200 text-stone-700 text-sm font-bold tabular-nums">{{ $rankLabel }}</span>
-                                                @elseif($rankNumber === 3)
-                                                    <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-orange-200 text-orange-900 text-sm font-bold tabular-nums">{{ $rankLabel }}</span>
-                                                @else
-                                                    <span class="text-sm font-semibold text-stone-500 tabular-nums">{{ $rankLabel }}</span>
-                                                @endif
+                                            @php
+                                                $shooterName = $standing->user->name ?? '—';
+                                                $shooterMeta = ($userDiv?->name ?? '—').' · '.($prov?->abbreviation ?? $prov?->name ?? '—');
+                                            @endphp
+                                            <td class="w-11 px-0 py-3 text-center align-middle sm:w-14 sm:px-4 sm:py-4" data-rank-label="{{ $rankLabel }}">
+                                                <div class="flex flex-col items-center gap-0.5">
+                                                    @if($rankNumber === 1)
+                                                        <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-amber-200 text-amber-900 text-sm font-bold tabular-nums shadow-sm max-sm:size-7 max-sm:min-w-0 max-sm:px-0 max-sm:text-xs">{{ $rankLabel }}</span>
+                                                    @elseif($rankNumber === 2)
+                                                        <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-stone-200 text-stone-700 text-sm font-bold tabular-nums max-sm:size-7 max-sm:min-w-0 max-sm:px-0 max-sm:text-xs">{{ $rankLabel }}</span>
+                                                    @elseif($rankNumber === 3)
+                                                        <span class="inline-flex items-center justify-center min-w-8 h-8 px-1.5 rounded-full bg-orange-200 text-orange-900 text-sm font-bold tabular-nums max-sm:size-7 max-sm:min-w-0 max-sm:px-0 max-sm:text-xs">{{ $rankLabel }}</span>
+                                                    @else
+                                                        <span class="text-sm font-semibold text-stone-500 tabular-nums">{{ $rankLabel }}</span>
+                                                    @endif
+                                                    <span class="sm:hidden text-[10px] leading-none">{!! $movementHtml($delta, true) !!}</span>
+                                                </div>
                                             </td>
-                                            <td class="px-2 py-4 text-center">
-                                                @if($delta === null)
-                                                    <span class="text-stone-300 text-sm" title="No previous snapshot">·</span>
-                                                @elseif($delta > 0)
-                                                    <span class="inline-flex items-center text-xs font-bold text-emerald-700 tabular-nums" title="Up {{ $delta }} since last match">▲{{ $delta }}</span>
-                                                @elseif($delta < 0)
-                                                    <span class="inline-flex items-center text-xs font-bold text-amber-700 tabular-nums" title="Down {{ abs($delta) }} since last match">▼{{ abs($delta) }}</span>
-                                                @else
-                                                    <span class="text-stone-400 text-sm" title="No change since last match">–</span>
-                                                @endif
+                                            <td class="hidden sm:table-cell px-2 py-4 text-center">
+                                                {!! $movementHtml($delta) !!}
                                             </td>
-                                            <td class="px-4 py-4">
-                                                <span class="inline-flex items-center gap-1.5 flex-wrap">
+                                            <td class="max-sm:max-w-0 max-sm:overflow-hidden px-2 py-3 align-middle sm:px-4 sm:py-4">
+                                                <div class="min-w-0 sm:inline-flex sm:flex-wrap sm:items-center sm:gap-1.5">
                                                     <a href="{{ url('/standings/' . $season . '/shooter/' . ($standing->user_id ?? $standing->id)) }}"
-                                                       class="text-sm font-semibold text-stone-900 hover:text-emerald-700 transition">
-                                                        {{ $standing->user->name ?? '—' }}
+                                                       title="{{ $shooterName }}"
+                                                       class="block max-w-full truncate text-sm font-semibold text-stone-900 hover:text-emerald-700 transition sm:inline sm:overflow-visible sm:whitespace-normal">
+                                                        {{ $shooterName }}
                                                     </a>
-                                                    @if($saBadge)
-                                                        <x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" compact />
-                                                    @endif
-                                                    @if(($standing->pool_breakdown['selection_eligible'] ?? true) === false)
-                                                        <span class="text-[10px] font-semibold uppercase tracking-wide text-amber-700" title="{{ $standing->pool_breakdown['selection_note'] ?? '' }}">Not selection eligible</span>
-                                                    @endif
-                                                    @if($showQualifierFlag)
-                                                        @if($q['qualified'])
-                                                            <span class="inline-flex items-center justify-center size-4 rounded-full bg-emerald-100 text-emerald-700"
-                                                                  title="Finale-eligible — {{ $q['completed'] }} / {{ $q['required'] }} out-of-province nationals shot"
-                                                                  aria-label="Finale eligible">
-                                                                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                                                            </span>
-                                                        @else
-                                                            <span class="inline-flex items-center justify-center size-4 rounded-full ring-1 ring-stone-300 text-stone-400"
-                                                                  title="Needs {{ $q['remaining'] }} more OOP national{{ $q['remaining'] === 1 ? '' : 's' }} ({{ $q['completed'] }} / {{ $q['required'] }})"
-                                                                  aria-label="Not yet finale eligible">
-                                                                <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
-                                                            </span>
+                                                    <div class="mt-0.5 flex min-w-0 items-center gap-1 overflow-hidden text-xs sm:contents">
+                                                        @if($saBadge)
+                                                            <span class="shrink-0"><x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" compact /></span>
                                                         @endif
-                                                    @endif
-                                                </span>
-                                                <span class="sm:hidden block text-xs text-stone-400 mt-0.5">
-                                                    {{ $userDiv?->name ?? '—' }} &middot; {{ $prov?->abbreviation ?? $prov?->name ?? '—' }}
-                                                </span>
+                                                        @if(($standing->pool_breakdown['selection_eligible'] ?? true) === false)
+                                                            <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-700 whitespace-nowrap" title="{{ $standing->pool_breakdown['selection_note'] ?? '' }}">Not selection eligible</span>
+                                                        @endif
+                                                        @if($showQualifierFlag)
+                                                            @if($q['qualified'])
+                                                                <span class="inline-flex shrink-0 items-center justify-center size-4 rounded-full bg-emerald-100 text-emerald-700"
+                                                                      title="Finale-eligible — {{ $q['completed'] }} / {{ $q['required'] }} out-of-province nationals shot"
+                                                                      aria-label="Finale eligible">
+                                                                    <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                                                </span>
+                                                            @else
+                                                                <span class="inline-flex shrink-0 items-center justify-center size-4 rounded-full ring-1 ring-stone-300 text-stone-400"
+                                                                      title="Needs {{ $q['remaining'] }} more OOP national{{ $q['remaining'] === 1 ? '' : 's' }} ({{ $q['completed'] }} / {{ $q['required'] }})"
+                                                                      aria-label="Not yet finale eligible">
+                                                                    <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+                                                                </span>
+                                                            @endif
+                                                        @endif
+                                                        <span class="min-w-0 truncate text-stone-400 sm:hidden" title="{{ $shooterMeta }}">
+                                                            {{ $shooterMeta }}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-4 hidden sm:table-cell">
                                                 <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
@@ -731,7 +806,7 @@ new class extends Component
                                                     @endif
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-4 text-right">
+                                            <td class="max-sm:w-px whitespace-nowrap px-2 py-3 text-right align-middle tabular-nums sm:px-4 sm:py-4">
                                                 <span class="font-mono text-sm font-bold text-stone-900 tabular-nums">{{ points($standing->points) }}</span>
                                             </td>
                                             <td class="px-4 py-4 text-right hidden md:table-cell">
@@ -750,8 +825,8 @@ new class extends Component
                         </div>
 
                         @if($limit !== null && $standings->count() > $limit)
-                            <div class="border-t border-stone-100 px-4 py-3 text-center">
-                                <button type="button" wire:click="showEveryone" class="text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition">
+                            <div class="border-t border-stone-100 px-3 py-1 text-center sm:px-4 sm:py-3">
+                                <button type="button" wire:click="showEveryone" class="inline-flex items-center justify-center min-h-11 px-3 text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition sm:min-h-0 sm:px-0">
                                     Show all {{ $standings->count() }} shooters
                                 </button>
                             </div>
@@ -761,20 +836,20 @@ new class extends Component
             </section>
 
             {{-- Sidebar: division leaders | how ranking works | still to shoot. --}}
-            <aside class="space-y-6">
-                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
+            <aside class="space-y-6 min-w-0">
+                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
                     <h2 class="font-heading text-base font-bold text-stone-900 mb-3">Division leaders</h2>
                     @if($divisionLeaders->isEmpty())
                         <p class="text-xs text-stone-500">No division leaders yet.</p>
                     @else
-                        <ul class="divide-y divide-stone-100">
+                        <ul class="grid grid-cols-2 gap-x-3 gap-y-1 lg:grid-cols-1 lg:gap-0 lg:divide-y lg:divide-stone-100">
                             @foreach($divisionLeaders as $row)
                                 @php
                                     $div = $row['division'];
                                     $leaders = $row['leaders'];
                                     $tied = $leaders->count() > 1;
                                 @endphp
-                                <li class="py-2.5">
+                                <li class="min-w-0 py-2.5">
                                     <p class="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-1">{{ $div->name }}</p>
                                     @foreach($leaders as $leader)
                                         <div class="flex items-center justify-between gap-3 {{ !$loop->first ? 'mt-1' : '' }}">
@@ -799,7 +874,7 @@ new class extends Component
                     @endif
                 </section>
 
-                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
+                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
                     <h2 class="font-heading text-base font-bold text-stone-900 mb-3">How ranking works</h2>
                     <p class="text-sm text-stone-600 leading-relaxed">{{ $countingRule }}</p>
                     <ul class="mt-3 space-y-1.5 text-xs text-stone-500">
@@ -814,7 +889,7 @@ new class extends Component
                     </a>
                 </section>
 
-                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-5">
+                <section class="bg-white rounded-xl border border-stone-200 shadow-sm p-4 sm:p-5">
                     <h2 class="font-heading text-base font-bold text-stone-900 mb-3">Still to shoot</h2>
                     @if($stillToShoot->isEmpty())
                         <p class="text-xs text-stone-500">No scheduled matches remaining for this season.</p>
