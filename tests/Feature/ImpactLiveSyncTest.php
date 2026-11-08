@@ -80,6 +80,90 @@ it('pulls exact name matches on match day and leaves everyone else for the direc
         ->assertDontSee('Christiaan Pretorius');
 });
 
+it('keeps the score sheet total and how many stages are finished', function () {
+    fakeLiveSyncApi(liveSyncPayload([
+        'payload' => [
+            'shooters' => [
+                [
+                    'id' => 1,
+                    'name' => 'Kevin Goncalves',
+                    'rank' => 1,
+                    'points' => 10800,
+                    'divisionName' => 'Open',
+                    'stagesProgressCount' => 10,
+                    'stagesCount' => 16,
+                ],
+            ],
+        ],
+    ]));
+    $kevin = liveSyncMember('Kevin Goncalves');
+    liveSyncRegister($this->match, $kevin, $this->open);
+
+    app(ImpactLiveSyncService::class)->sync($this->match->fresh());
+
+    $score = Score::first();
+    expect((float) $score->raw_score)->toBe(108.0)
+        ->and($score->raw_meta['impact']['stages_completed'])->toBe(10)
+        ->and($score->raw_meta['impact']['stages_total'])->toBe(16);
+
+    $this->get(route('events.show', $this->match))
+        ->assertOk()
+        ->assertSee('Stages')
+        ->assertSee('stages_label\u0022:\u002210', false);
+
+    fakeLiveSyncApi(liveSyncPayload([
+        'payload' => [
+            'shooters' => [
+                [
+                    'id' => 1,
+                    'name' => 'Kevin Goncalves',
+                    'rank' => 1,
+                    'points' => 10800,
+                    'divisionName' => 'Open',
+                    'stagesProgressCount' => 11,
+                    'stagesCount' => 16,
+                ],
+            ],
+        ],
+    ]));
+
+    app(ImpactLiveSyncService::class)->sync($this->match->fresh());
+
+    expect(Score::first()->raw_meta['impact']['stages_completed'])->toBe(11)
+        ->and((float) Score::first()->raw_score)->toBe(108.0)
+        ->and(liveSyncStageCalls())->toBe(0);
+});
+
+it('marks the entry list with who is showing a live score so the director can compare', function () {
+    fakeLiveSyncApi();
+    $kevin = liveSyncMember('Kevin Goncalves');
+    liveSyncRegister($this->match, $kevin, $this->open);
+    $quiet = liveSyncMember('Quiet Quinn');
+    liveSyncRegister($this->match, $quiet, $this->open);
+
+    app(ImpactLiveSyncService::class)->sync($this->match->fresh());
+
+    expect($this->match->fresh()->impact_live_unmatched)
+        ->toContain('Christiaan Pretorius')
+        ->not->toContain('Kevin Goncalves');
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.entries', $this->match))
+        ->assertOk()
+        ->assertSee('showing a live score')
+        ->assertSee('Not showing')
+        ->assertSee('Quiet Quinn')
+        ->assertSee('On the Impact score sheet, not matched to an entry')
+        ->assertSee('Christiaan Pretorius')
+        ->assertSee('87');
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.entries', [$this->match, 'board' => 'missing']))
+        ->assertOk()
+        ->assertSee('Quiet Quinn')
+        ->assertDontSee('Kevin Goncalves');
+});
+
 it('updates a linked score when the total changes and skips stage calls when it does not', function () {
     fakeLiveSyncApi();
     $kevin = liveSyncMember('Kevin Goncalves');
@@ -333,7 +417,7 @@ it('saves an Impact results link and the live-sync switch from match settings', 
         ->assertSessionHasErrors('impact_ref');
 });
 
-it('keeps the impact link and the 5-minute checkbox inside the settings form for exco', function () {
+it('keeps the impact link and the 20-minute checkbox inside the settings form for exco', function () {
     $exco = User::factory()->create();
     $exco->assignRole('exco');
 
@@ -353,7 +437,7 @@ it('keeps the impact link and the 5-minute checkbox inside the settings form for
 
     // A </form> between the settings form and the Impact field is the
     // transfer panel closing the settings form, which drops the link
-    // and the 5-minute checkbox on save.
+    // and the 20-minute checkbox on save.
     $beforeImpact = substr($html, $settingsAt, $impactAt - $settingsAt);
     expect($beforeImpact)->not->toContain('</form>')
         ->and($beforeImpact)->toContain('form="change-director-form"');
@@ -385,7 +469,7 @@ it('only queues matches that are on today with live sync still running', functio
         ->first(fn ($event) => str_contains($event->description, SyncImpactLiveScoresJob::class));
 
     expect($event)->not->toBeNull()
-        ->and($event->expression)->toBe('*/5 * * * *')
+        ->and($event->expression)->toBe('*/20 * * * *')
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->timezone)->toBe('Africa/Johannesburg');
 });

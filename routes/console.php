@@ -32,11 +32,13 @@ Schedule::job(new NotifyRegistrationClosedPendingJob)->dailyAt('06:00');
 // tick every minute so scheduled sends land within one minute of `send_at`.
 Schedule::job(new DispatchScheduledAnnouncementsJob)->everyMinute();
 
-// Impact live scoreboard. Only matches with the switch on, an Impact id,
-// and a date window that includes today are touched. The job itself
-// no-ops for anything else.
+// Impact live scoreboard. Scores move when a stage finishes, so every
+// 20 minutes is enough — a two-day match does not need a pull every
+// 5 minutes through a quiet hour after midday. Only matches with the
+// switch on, an Impact id, and a date window that includes today are
+// touched. The job itself no-ops for anything else.
 Schedule::job(new SyncImpactLiveScoresJob)
-    ->everyFiveMinutes()
+    ->cron('*/20 * * * *')
     ->timezone('Africa/Johannesburg')
     ->withoutOverlapping();
 

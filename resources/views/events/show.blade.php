@@ -363,6 +363,12 @@
                                     'stages' => ($orderedStages = \App\Support\ImpactStages::forDisplay($score->raw_meta['impact']['stages'] ?? null)) === []
                                         ? null
                                         : $orderedStages,
+                                    'stages_label' => isset($score->raw_meta['impact']['stages_completed'])
+                                        ? ((int) $score->raw_meta['impact']['stages_completed'])
+                                            .(isset($score->raw_meta['impact']['stages_total'])
+                                                ? ' / '.(int) $score->raw_meta['impact']['stages_total']
+                                                : '')
+                                        : null,
                                     // "SA 2026" chip data for the Alpine row — null means render nothing.
                                     'sa_years' => $saBadge['years'] ?? [],
                                     'sa_tooltip' => $saBadge['tooltip'] ?? null,
@@ -387,6 +393,9 @@
                                 // Phase 1.4: show the "T = tied placement" legend only when there
                                 // is actually a tie in this match, so the normal case stays uncluttered.
                                 $hasAnyTie = $match->scores->contains(fn ($s) => $s->is_tied_overall || $s->is_tied_division);
+                                $showStageProgress = $match->scores->contains(
+                                    fn ($s) => isset($s->raw_meta['impact']['stages_completed'])
+                                );
                             @endphp
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -469,6 +478,9 @@
                                             {{-- "Score" works for every discipline — PRS/PR22 integer impacts
                                                  or the formatted precision score, both go through ScoreFormat. --}}
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
+                                            @if($showStageProgress)
+                                                <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Stages finished on the Impact score sheet, out of the stages on the match.">Stages</th>
+                                            @endif
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
                                         </tr>
                                     </thead>
@@ -562,6 +574,9 @@
                                                     @endif
                                                 </td>
                                                 <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw_display"></td>
+                                                @if($showStageProgress)
+                                                    <td class="px-5 py-3 text-sm text-stone-600 text-right tabular-nums" x-text="row.stages_label || '—'"></td>
+                                                @endif
                                                 <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
                                             </tr>
                                             {{-- Stage breakdown row — sibling of the main row inside the
@@ -570,7 +585,7 @@
                                                  shooter is currently expanded. --}}
                                             <template x-if="row.stages && row.stages.length && expandedStages[row.id] === true">
                                                 <tr class="bg-stone-50/60 border-b border-stone-100">
-                                                    <td colspan="4" class="px-10 py-3">
+                                                    <td colspan="{{ $showStageProgress ? 5 : 4 }}" class="px-10 py-3">
                                                         <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Stages for <span x-text="row.name"></span></p>
                                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                                             <template x-for="(st, i) in row.stages" :key="row.id + '-' + i">
@@ -590,7 +605,7 @@
                                     <template x-if="filteredRows.length === 0">
                                         <tbody>
                                             <tr>
-                                                <td colspan="4" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
+                                                <td colspan="{{ $showStageProgress ? 5 : 4 }}" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
                                             </tr>
                                         </tbody>
                                     </template>
@@ -659,7 +674,7 @@
                                 <h3 class="text-lg font-semibold text-stone-900">Live scores</h3>
                             </div>
                             <p class="mt-2 text-sm text-stone-600">
-                                Impact is pulled every 5 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
+                                Impact is pulled every 20 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
                                 A shooter appears here when their Impact name matches an entry. These scores do not count until the match director confirms them.
                             </p>
                         </div>

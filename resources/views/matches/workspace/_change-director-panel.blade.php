@@ -45,7 +45,7 @@
     {{-- This panel is rendered inside #match-settings-form. A real <form>
          here is invalid HTML: the browser ignores the opening tag and the
          matching </form> closes the settings form, so everything after
-         this panel (public page, and the Impact link + 5-minute checkbox)
+         this panel (public page, and the Impact link + 20-minute checkbox)
          is left outside the form and never saves. The transfer posts to
          its own form, rendered after the page via @push, and these
          controls point at it with the form attribute. --}}

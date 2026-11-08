@@ -24,6 +24,7 @@ use App\Services\PaymentInquiryService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
+use App\Support\ScoreFormat;
 use App\Services\StandingsSnapshotRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -140,6 +141,64 @@ class MatchWorkspaceController extends Controller
             });
         }
 
+        $showLiveBoard = $match->impact_live_sync
+            && $match->impact_match_id
+            && ! $match->scoresAreFinalized()
+            && $match->impact_live_synced_at !== null;
+
+        $scoresByUser = collect();
+        $liveBoard = null;
+        if ($showLiveBoard) {
+            $scoresByUser = Score::query()
+                ->where('match_id', $match->id)
+                ->whereNotNull('user_id')
+                ->get(['user_id', 'raw_score', 'raw_meta'])
+                ->keyBy('user_id')
+                ->map(function (Score $score) use ($match) {
+                    $done = $score->raw_meta['impact']['stages_completed'] ?? null;
+                    $total = $score->raw_meta['impact']['stages_total'] ?? null;
+                    $stages = is_numeric($done)
+                        ? ((int) $done).(is_numeric($total) ? ' / '.(int) $total : '')
+                        : null;
+
+                    return [
+                        'score' => ScoreFormat::format($score->raw_score, $match->match_type, $match->series),
+                        'stages' => $stages,
+                    ];
+                });
+
+            $scoringIds = $scoresByUser->keys()->map(fn ($id) => (int) $id)->all();
+            $activeEntries = MatchRegistration::query()
+                ->where('match_id', $match->id)
+                ->where('registration_status', '!=', 'cancelled')
+                ->get(['user_id', 'shooter_name']);
+            $missing = $activeEntries->filter(
+                fn (MatchRegistration $registration) => ! $registration->user_id || ! in_array((int) $registration->user_id, $scoringIds, true)
+            );
+
+            if ($board = $request->input('board')) {
+                if ($board === 'showing') {
+                    $scoringIds === []
+                        ? $query->whereRaw('0 = 1')
+                        : $query->whereIn('user_id', $scoringIds);
+                } elseif ($board === 'missing') {
+                    $query->where('registration_status', '!=', 'cancelled');
+                    if ($scoringIds !== []) {
+                        $query->where(function ($inner) use ($scoringIds) {
+                            $inner->whereNull('user_id')->orWhereNotIn('user_id', $scoringIds);
+                        });
+                    }
+                }
+            }
+
+            $liveBoard = [
+                'showing' => $activeEntries->count() - $missing->count(),
+                'missing' => $missing->count(),
+                'missing_names' => $missing->pluck('shooter_name')->filter()->values()->all(),
+                'unmatched' => array_values(array_filter($match->impact_live_unmatched ?? [])),
+            ];
+        }
+
         $entries = $query->paginate(30)->withQueryString();
 
         $impactExportOmitted = $request->user()?->can('update', $match)
@@ -166,7 +225,11 @@ class MatchWorkspaceController extends Controller
                 'status' => $request->input('status'),
                 'category' => $request->input('category'),
                 'search' => $request->input('search'),
+                'board' => $request->input('board'),
             ],
+            'showLiveBoard' => $showLiveBoard,
+            'scoresByUser' => $scoresByUser,
+            'liveBoard' => $liveBoard,
             'impactExportOmitted' => $impactExportOmitted,
         ]));
     }

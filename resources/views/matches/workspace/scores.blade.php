@@ -37,7 +37,7 @@
         <div class="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
             <p class="font-semibold">Live scores are on</p>
             <p class="mt-0.5 text-xs text-sky-800">
-                Impact match {{ $match->impact_match_id }} is pulled every 5 minutes
+                Impact match {{ $match->impact_match_id }} is pulled every 20 minutes
                 @if($match->isMultiDay())
                     from {{ $match->match_date->format('D j M') }} through {{ $match->match_end_date->format('D j M') }}.
                 @else

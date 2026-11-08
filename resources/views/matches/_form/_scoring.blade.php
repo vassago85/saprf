@@ -109,7 +109,7 @@
             <div>
                 <h4 class="text-sm font-semibold text-stone-900">Live scores from Impact</h4>
                 <p class="mt-0.5 text-xs text-stone-500 leading-relaxed">
-                    Paste the link to this match on Impact — the match page itself (/match/view?id=…) or the results page. SAPRF pulls the scoreboard every 5 minutes from the start date through the end date, so a two-day match is pulled on both days.
+                    Paste the link to this match on Impact — the match page itself (/match/view?id=…) or the results page. SAPRF pulls the scoreboard every 20 minutes from the start date through the end date, so a two-day match is pulled on both days. Scores change stage by stage, so a quiet stretch does not get a faster pull.
                     A shooter is added only when their Impact name matches an entry exactly. Anyone else stays off the board until you link them with the normal Impact import.
                     A score you have adjusted is left as you saved it. The pull stops when Impact marks the match finished. It does not close the match or email anyone.
                 </p>
@@ -128,7 +128,7 @@
                 <input type="checkbox" name="impact_live_sync" value="1" @checked($impactLiveSyncValue)
                        class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
                 <span>
-                    <span class="block text-sm font-medium text-stone-800">Pull live scores every 5 minutes while the match is on</span>
+                    <span class="block text-sm font-medium text-stone-800">Pull live scores every 20 minutes while the match is on</span>
                     <span class="mt-0.5 block text-xs text-stone-500">Starts on the start date and keeps going through the end date. A two-day match is pulled on day 1 and day 2. Outside those dates nothing is pulled.</span>
                 </span>
             </label>

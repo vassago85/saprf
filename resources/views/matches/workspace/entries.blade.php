@@ -24,6 +24,17 @@
                     <option value="cancelled" @selected($filters['status']==='cancelled')>Cancelled</option>
                 </select>
             </div>
+            @if($showLiveBoard)
+                <div>
+                    <label class="block text-xs font-semibold text-stone-500">Live board</label>
+                    <select name="board"
+                            class="mt-1 rounded-md border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                        <option value="">Everyone</option>
+                        <option value="showing" @selected($filters['board']==='showing')>Showing a score</option>
+                        <option value="missing" @selected($filters['board']==='missing')>Not on the board</option>
+                    </select>
+                </div>
+            @endif
             <div>
                 <label class="block text-xs font-semibold text-stone-500">Category</label>
                 <select name="category"
@@ -89,6 +100,29 @@
 
         @include('matches.workspace._apply-club-entry')
 
+        @if($showLiveBoard && $liveBoard)
+            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                <p class="font-semibold">
+                    {{ $liveBoard['showing'] }} {{ \Illuminate\Support\Str::plural('entry', $liveBoard['showing']) }}
+                    {{ $liveBoard['showing'] === 1 ? 'is' : 'are' }} showing a live score.
+                    {{ $liveBoard['missing'] }} {{ $liveBoard['missing'] === 1 ? 'is' : 'are' }} not on the board.
+                </p>
+                @if($liveBoard['missing'] > 0)
+                    <p class="mt-1 text-xs text-sky-900">
+                        Not showing:
+                        {{ collect($liveBoard['missing_names'])->take(12)->join(', ') }}@if(count($liveBoard['missing_names']) > 12)…@endif
+                        <a href="{{ route('matches.entries', [$match, 'board' => 'missing']) }}" class="font-semibold underline">Show only these</a>
+                    </p>
+                @endif
+                @if($liveBoard['unmatched'] !== [])
+                    <p class="mt-1 text-xs text-sky-900">
+                        On the Impact score sheet, not matched to an entry:
+                        {{ collect($liveBoard['unmatched'])->take(12)->join(', ') }}@if(count($liveBoard['unmatched']) > 12)…@endif
+                    </p>
+                @endif
+            </div>
+        @endif
+
         @if(! empty($impactExportOmitted))
             <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
                 {{ count($impactExportOmitted) === 1 ? '1 entry was' : count($impactExportOmitted).' entries were' }}
@@ -110,6 +144,9 @@
                         <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                             <tr>
                                 <th class="px-4 py-2.5 text-left font-semibold">Shooter</th>
+                                @if($showLiveBoard)
+                                    <th class="px-4 py-2.5 text-left font-semibold">Live score</th>
+                                @endif
                                 <th class="px-4 py-2.5 text-left font-semibold">Category</th>
                                 <th class="px-4 py-2.5 text-left font-semibold">Division</th>
                                 <th class="px-4 py-2.5 text-left font-semibold">Payment</th>
@@ -151,6 +188,22 @@
                                             <div class="text-xs text-stone-500">{{ $reg->email }}</div>
                                         @endif
                                     </td>
+                                    @if($showLiveBoard)
+                                        @php
+                                            $onBoard = $reg->user_id ? ($scoresByUser[$reg->user_id] ?? null) : null;
+                                        @endphp
+                                        <td class="px-4 py-2.5">
+                                            @if($reg->registration_status === 'cancelled')
+                                                <span class="text-xs text-stone-400">—</span>
+                                            @elseif($onBoard)
+                                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                                                    {{ $onBoard['score'] }}@if($onBoard['stages']) · {{ $onBoard['stages'] }}@endif
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Not showing</span>
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td class="px-4 py-2.5 text-stone-700">{{ $reg->feeCategoryLabel() }}</td>
                                     <td class="px-4 py-2.5 text-stone-700">{{ $reg->division?->name ?: '—' }}</td>
                                     <td class="px-4 py-2.5">

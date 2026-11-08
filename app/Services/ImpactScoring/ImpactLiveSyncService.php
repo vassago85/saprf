@@ -83,6 +83,7 @@ class ImpactLiveSyncService
         $unchanged = 0;
         $held = 0;
         $skipped = 0;
+        $unmatched = [];
 
         foreach ($live['shooters'] as $shooter) {
             $shooterId = (int) ($shooter['id'] ?? 0);
@@ -95,6 +96,12 @@ class ImpactLiveSyncService
             $impactName = trim((string) ($shooter['name'] ?? ''));
             $impacts = ((int) ($shooter['points'] ?? 0)) / 100;
             $rank = is_numeric($shooter['rank'] ?? null) ? (int) $shooter['rank'] : null;
+            $stagesCompleted = is_numeric($shooter['stagesProgressCount'] ?? null)
+                ? (int) $shooter['stagesProgressCount']
+                : null;
+            $stagesTotal = is_numeric($shooter['stagesCount'] ?? null)
+                ? (int) $shooter['stagesCount']
+                : count($live['stages']);
             $nameMatch = $this->names->match($impactName, $candidates);
             $registration = ($nameMatch['status'] === 'exact' && isset($nameMatch['key']))
                 ? $registrationsByKey->get($nameMatch['key'])
@@ -110,6 +117,9 @@ class ImpactLiveSyncService
 
             if ($existing === null && ! $registration?->user_id) {
                 $skipped++;
+                if ($impactName !== '') {
+                    $unmatched[] = $impactName;
+                }
 
                 continue;
             }
@@ -117,8 +127,15 @@ class ImpactLiveSyncService
             $pointsChanged = $existing === null
                 || abs((float) $existing->raw_score - $impacts) > 0.0001;
             $rankChanged = $existing !== null && (int) $existing->placement !== (int) $rank;
+            $storedImpact = is_array($existing?->raw_meta['impact'] ?? null) ? $existing->raw_meta['impact'] : [];
+            $progressChanged = $existing !== null
+                && $stagesCompleted !== null
+                && (
+                    (int) ($storedImpact['stages_completed'] ?? -1) !== $stagesCompleted
+                    || (int) ($storedImpact['stages_total'] ?? -1) !== $stagesTotal
+                );
 
-            if ($existing && ! $pointsChanged && ! $rankChanged) {
+            if ($existing && ! $pointsChanged && ! $rankChanged && ! $progressChanged) {
                 $unchanged++;
 
                 continue;
@@ -134,7 +151,7 @@ class ImpactLiveSyncService
             }
 
             if ($existing) {
-                $this->writeScore($existing, $match, $shooterId, $impactName, $impacts, $rank, $stages, $registration);
+                $this->writeScore($existing, $match, $shooterId, $impactName, $impacts, $rank, $stages, $registration, $stagesCompleted, $stagesTotal);
                 $updated++;
 
                 continue;
@@ -149,7 +166,7 @@ class ImpactLiveSyncService
                 'is_member' => false,
                 'match_date' => $match->match_date,
             ]);
-            $this->writeScore($score, $match, $shooterId, $impactName, $impacts, $rank, $stages, $registration);
+            $this->writeScore($score, $match, $shooterId, $impactName, $impacts, $rank, $stages, $registration, $stagesCompleted, $stagesTotal);
             $scores->push($score);
             $created++;
         }
@@ -158,6 +175,7 @@ class ImpactLiveSyncService
             'impact_live_synced_at' => now(),
             'impact_live_error' => null,
             'impact_live_ended_at' => $ended ? now() : null,
+            'impact_live_unmatched' => array_values(array_unique($unmatched)),
         ])->save();
 
         if ($created > 0 || $updated > 0) {
@@ -193,6 +211,8 @@ class ImpactLiveSyncService
         ?int $rank,
         ?array $stages,
         ?MatchRegistration $registration,
+        ?int $stagesCompleted = null,
+        ?int $stagesTotal = null,
     ): void {
         $meta = is_array($score->raw_meta) ? $score->raw_meta : [];
         $impact = is_array($meta['impact'] ?? null) ? $meta['impact'] : [];
@@ -204,6 +224,10 @@ class ImpactLiveSyncService
             'total_impacts' => $impacts,
             'stages' => $stages ?? ($impact['stages'] ?? []),
         ]);
+        if ($stagesCompleted !== null) {
+            $impact['stages_completed'] = $stagesCompleted;
+            $impact['stages_total'] = $stagesTotal;
+        }
         $meta['impact'] = $impact;
 
         $score->fill([
