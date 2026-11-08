@@ -364,6 +364,98 @@ it('defaults the dual-discipline hero to PRS on first paint before any tab click
         ->assertSee('200.00');
 });
 
+it('shows the provincial rank in the hero when the shooter has only shot provincial matches', function () {
+    // A provincial-only shooter: no national-level score this season, so
+    // the hero pulls their rank from the provincial standings table rather
+    // than from the national overall pool. The scope label at the bottom
+    // of the rank area tells the shooter which pool the number is from.
+    $user = dashShooter($this->gp);
+    $season = (string) Carbon::now()->year;
+
+    $prov = dashMatch([
+        'name' => 'GP Provincial',
+        'series' => 'PRS',
+        'series_level' => 'provincial',
+        'match_date' => Carbon::today()->subMonth(),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    dashScore($user, $prov, ['normalized_score' => 88.0, 'raw_score' => 70]);
+
+    // Overall standing exists but should be ignored for this shooter.
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'province_id' => null,
+        'division_id' => null,
+        'points' => 300.0,
+        'rank' => 42,
+    ]);
+
+    // Provincial standing on GP — this is what the hero must surface.
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'province_id' => $this->gp->id,
+        'division_id' => null,
+        'points' => 180.0,
+        'rank' => 4,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ShooterDashboard::class)
+        ->assertDontSee('Not ranked yet')
+        ->assertSee('180.00')
+        ->assertSee('Provincial · GP')
+        ->assertDontSee('National overall');
+});
+
+it('upgrades the hero rank to national overall once the shooter has fired at a national this season', function () {
+    // Same shooter, same province — but once they turn up at a national
+    // match, the headline rank jumps to the national overall pool. The
+    // scope label switches to "National overall" so they know the number
+    // is national.
+    $user = dashShooter($this->gp);
+    $season = (string) Carbon::now()->year;
+
+    $nat = dashMatch([
+        'name' => 'SA Nationals',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'match_date' => Carbon::today()->subMonth(),
+        'status' => 'completed',
+        'province_id' => $this->gp->id,
+    ]);
+    dashScore($user, $nat, ['normalized_score' => 76.0, 'raw_score' => 60]);
+
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'province_id' => null,
+        'division_id' => null,
+        'points' => 258.879,
+        'rank' => 11,
+    ]);
+    Standing::create([
+        'user_id' => $user->id,
+        'series' => 'PRS',
+        'season' => $season,
+        'province_id' => $this->gp->id,
+        'division_id' => null,
+        'points' => 180.0,
+        'rank' => 4,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ShooterDashboard::class)
+        ->assertSee('258.88')
+        ->assertSee('National overall')
+        ->assertDontSee('Provincial · GP');
+});
+
 it('graphs the latest match stages in course order', function () {
     $user = dashShooter($this->gp);
     $older = dashMatch([

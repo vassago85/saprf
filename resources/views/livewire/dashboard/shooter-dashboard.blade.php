@@ -219,6 +219,18 @@
                                 @endif
                             </div>
                         </div>
+                        @if (! empty($hero['scope_label']))
+                            {{-- Which pool this rank is drawn from — national
+                                 overall when the shooter has fired at a
+                                 national this season, otherwise their
+                                 provincial table. Keeps the hero honest
+                                 for a shooter who has only ever done
+                                 provincials. --}}
+                            <p class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-stone-200">
+                                <span aria-hidden="true" class="h-1 w-1 rounded-full {{ ($hero['scope'] ?? '') === 'national' ? 'bg-emerald-400' : 'bg-sky-300' }}"></span>
+                                {{ $hero['scope_label'] }}
+                            </p>
+                        @endif
 
                         <dl class="mt-5 grid grid-cols-3 gap-2">
                             <div class="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">

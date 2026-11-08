@@ -59,20 +59,43 @@ final class HeroStandingBuilder
     {
         $chart = $this->chartSeries($user, $series, $season);
 
+        // Scope rule: if the shooter actually fired a shot at a national or
+        // SA Champs final this season, their headline rank is the national
+        // overall. Otherwise the dashboard shows them where they sit in
+        // their own province — far more motivating than "ranked 213 of 420
+        // in the country" for a provincial-only shooter.
+        $shotNational = $this->shotNationalThisSeason($user, $series, $season);
+        $provinceId = $user->province_id;
+        $scope = $shotNational
+            ? 'national'
+            : ($provinceId ? 'provincial' : 'national');
+
+        if ($scope === 'provincial') {
+            $rank = $row['provincial_rank'] ?? null;
+            $points = isset($row['provincial_points']) && $row['provincial_points'] !== null
+                ? (float) $row['provincial_points']
+                : null;
+            $totalRanked = $this->countRanked($series, $season, $provinceId);
+            [$cutPoints, $cutShooterRank] = $this->cutPoints($series, $season, self::DEFAULT_CUT_RANK, $provinceId);
+            $scopeLabel = $this->provincialScopeLabel($user);
+        } else {
+            $rank = $row['overall_rank'] ?? null;
+            $points = isset($row['overall_points']) && $row['overall_points'] !== null
+                ? (float) $row['overall_points']
+                : null;
+            $totalRanked = $this->countRanked($series, $season);
+            [$cutPoints, $cutShooterRank] = $this->cutPoints($series, $season, self::DEFAULT_CUT_RANK);
+            $scopeLabel = 'National overall';
+        }
+
         if (! $row && $chart === []) {
             return null;
         }
 
-        $rank = $row['overall_rank'] ?? null;
-        $points = isset($row['overall_points']) && $row['overall_points'] !== null
-            ? (float) $row['overall_points']
-            : null;
-        $totalRanked = $this->countRanked($series, $season);
         $topPct = ($rank && $totalRanked > 0)
             ? max(1, (int) ceil(($rank / $totalRanked) * 100))
             : null;
 
-        [$cutPoints, $cutShooterRank] = $this->cutPoints($series, $season, self::DEFAULT_CUT_RANK);
         $cut = $this->cutProgress($points, $rank, $cutPoints, $cutShooterRank);
 
         $movementLabel = $this->movementLabel($user, $series, $season);
@@ -80,6 +103,8 @@ final class HeroStandingBuilder
         return [
             'series' => $series,
             'label' => $series === 'PR22' ? 'PR22 season standing' : 'PRS season standing',
+            'scope' => $scope,
+            'scope_label' => $scopeLabel,
             'rank' => $rank,
             'total_ranked' => $totalRanked ?: null,
             'points' => $points,
@@ -92,16 +117,56 @@ final class HeroStandingBuilder
     }
 
     /**
+     * True if the shooter has at least one valid, counting score in this
+     * series this season on a national-level match (series_level=national)
+     * or SA Champs final (series_level=final). "Attempted" is enough — a
+     * shooter who turned up and shot still earns the national scope, even
+     * if they bombed the day.
+     */
+    private function shotNationalThisSeason(User $user, string $series, string $season): bool
+    {
+        return Score::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'valid')
+            ->whereHas('match', function ($q) use ($series, $season) {
+                $q->where('series', $series)
+                    ->whereIn('series_level', ['national', 'final'])
+                    ->where(function ($inner) use ($season) {
+                        $inner->where('season', $season)->orWhereYear('match_date', $season);
+                    });
+            })
+            ->exists();
+    }
+
+    /**
+     * "Provincial · GP" when we know the abbreviation, else the full
+     * province name, else a plain "Provincial" fallback.
+     */
+    private function provincialScopeLabel(User $user): string
+    {
+        $abbr = $user->province?->abbreviation;
+        if ($abbr) {
+            return 'Provincial · '.$abbr;
+        }
+
+        return $user->province?->name ? 'Provincial · '.$user->province->name : 'Provincial';
+    }
+
+    /**
      * Shooters who hold at least one points row in the overall table for the
      * series/season. Rank values alone would skip ties, so we count distinct
-     * users directly.
+     * users directly. Pass `$provinceId` to count the pool inside a single
+     * province instead of nationally.
      */
-    private function countRanked(string $series, string $season): int
+    private function countRanked(string $series, string $season, ?int $provinceId = null): int
     {
         return (int) Standing::query()
             ->where('season', $season)
             ->where('series', $series)
-            ->whereNull('province_id')
+            ->when($provinceId === null,
+                fn ($q) => $q->whereNull('province_id'),
+                fn ($q) => $q->where('province_id', $provinceId),
+            )
             ->whereNull('division_id')
             ->distinct('user_id')
             ->count('user_id');
@@ -111,15 +176,19 @@ final class HeroStandingBuilder
      * Points held by the shooter currently sitting at the cut rank. Returns
      * ($cutPoints, $cutShooterRank) — if ties push the Nth-ranked shooter
      * past $targetRank, we take the highest rank <= target that exists.
+     * Pass `$provinceId` to pick the cut from the provincial table.
      *
      * @return array{0: float|null, 1: int|null}
      */
-    private function cutPoints(string $series, string $season, int $targetRank): array
+    private function cutPoints(string $series, string $season, int $targetRank, ?int $provinceId = null): array
     {
         $row = Standing::query()
             ->where('season', $season)
             ->where('series', $series)
-            ->whereNull('province_id')
+            ->when($provinceId === null,
+                fn ($q) => $q->whereNull('province_id'),
+                fn ($q) => $q->where('province_id', $provinceId),
+            )
             ->whereNull('division_id')
             ->where('rank', '<=', $targetRank)
             ->orderByDesc('rank')
