@@ -375,37 +375,45 @@
                                      The chip beside each shooter's name shows which division
                                      they shot, so the overall list stays legible when the
                                      filter is off. --}}
-                                @if(count($divList) > 1)
-                                    <div class="flex flex-wrap items-center gap-1.5">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mr-1">Division</span>
-                                        <button type="button"
-                                                @click="divFilter = null"
-                                                :class="divFilter === null ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
-                                                class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition">All divisions</button>
-                                        <template x-for="d in divs" :key="d.id">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                                    @if(count($divList) > 1)
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mr-1">Division</span>
                                             <button type="button"
-                                                    @click="divFilter = d.id"
-                                                    :class="divFilter === d.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
-                                                    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition"
-                                                    x-text="d.name"></button>
-                                        </template>
+                                                    @click="divFilter = null"
+                                                    :class="divFilter === null ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
+                                                    class="inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:min-h-0 sm:px-2.5 sm:py-0.5">All divisions</button>
+                                            <template x-for="d in divs" :key="d.id">
+                                                <button type="button"
+                                                        @click="divFilter = d.id"
+                                                        :class="divFilter === d.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'"
+                                                        class="inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-[11px] font-semibold transition sm:min-h-0 sm:px-2.5 sm:py-0.5"
+                                                        x-text="d.name"></button>
+                                            </template>
+                                        </div>
+                                    @endif
+                                    <div class="w-full sm:ml-auto sm:w-56">
+                                        <label for="results-name-search" class="sr-only">Search shooters</label>
+                                        <input id="results-name-search" type="search" x-model="nameQuery"
+                                               placeholder="Search shooter…"
+                                               class="w-full min-h-11 rounded-lg border border-stone-300 bg-white px-3 py-2 text-base text-stone-900 placeholder:text-stone-400 focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:py-1.5 sm:text-sm">
                                     </div>
-                                @endif
+                                </div>
                             </div>
 
                             <div class="overflow-x-auto">
                                 <table class="min-w-full">
                                     <thead class="border-b border-stone-200 bg-stone-50">
                                         <tr>
-                                            <th class="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 w-14">#</th>
-                                            <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400">Shooter</th>
+                                            <th class="w-10 px-2 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400 sm:w-14 sm:px-5">#</th>
+                                            <th class="px-2 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-stone-400 sm:px-5">Shooter</th>
                                             {{-- "Score" works for every discipline — PRS/PR22 integer impacts
                                                  or the formatted precision score, both go through ScoreFormat. --}}
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
+                                            <th class="px-2 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400 sm:px-5">Score</th>
                                             <template x-if="showStageProgress">
-                                                <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Stages finished on the Impact score sheet, out of the stages on the match.">Stages</th>
+                                                <th class="hidden px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400 md:table-cell" title="Stages finished on the Impact score sheet, out of the stages on the match.">Stages</th>
                                             </template>
-                                            <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
+                                            <th class="hidden px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400 sm:table-cell" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
                                         </tr>
                                     </thead>
                                     {{-- Each shooter owns its own <tbody> so the main row and (optional)
@@ -423,7 +431,7 @@
                                                     'bg-stone-50/50': row._rank === 2,
                                                     'bg-orange-50/30': row._rank === 3,
                                                 }">
-                                                                <td class="px-5 py-3 text-center">
+                                                                <td class="px-2 py-3 text-center sm:px-5">
                                                     <template x-if="row._rank <= 3">
                                                         <span class="inline-flex items-center justify-center size-7 rounded-full text-sm font-bold"
                                                               :class="{
@@ -436,13 +444,13 @@
                                                         <span class="text-sm text-stone-400" x-text="row._rank_label"></span>
                                                     </template>
                                                 </td>
-                                                <td class="px-5 py-3 text-sm font-medium text-stone-900">
+                                                <td class="max-sm:max-w-0 max-sm:overflow-hidden px-2 py-3 text-sm font-medium text-stone-900 sm:px-5">
                                                     {{-- Phase 4.8: name is a link when the shooter has a profile, plain text otherwise. --}}
                                                     <template x-if="row.profile_url">
-                                                        <a :href="row.profile_url" class="hover:text-emerald-700 hover:underline underline-offset-2 transition" x-text="row.name"></a>
+                                                        <a :href="row.profile_url" class="block max-w-full truncate hover:text-emerald-700 hover:underline underline-offset-2 transition sm:inline sm:overflow-visible sm:whitespace-normal" x-text="row.name"></a>
                                                     </template>
                                                     <template x-if="! row.profile_url">
-                                                        <span x-text="row.name"></span>
+                                                        <span class="block max-w-full truncate sm:inline sm:overflow-visible sm:whitespace-normal" x-text="row.name"></span>
                                                     </template>
                                                     {{-- Division chip — purely a label, not a ranking bucket. Rendered
                                                          when the score carries a division so the overall list stays
@@ -497,11 +505,15 @@
                                                         </template>
                                                     @endif
                                                 </td>
-                                                <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw_display"></td>
+                                                <td class="whitespace-nowrap px-2 py-3 text-right text-sm tabular-nums text-stone-700 sm:px-5">
+                                                    <span x-text="row.raw_display"></span>
+                                                    <span class="mt-0.5 block text-[11px] font-semibold text-emerald-700 sm:hidden" x-show="row.match_pct !== null" x-text="row.match_pct.toFixed(1) + '%'"></span>
+                                                    <span class="mt-0.5 block text-[11px] text-stone-400 md:hidden" x-show="row.stages_label" x-text="row.stages_label"></span>
+                                                </td>
                                                 <template x-if="showStageProgress">
-                                                    <td class="px-5 py-3 text-sm text-stone-600 text-right tabular-nums" x-text="row.stages_label || '—'"></td>
+                                                    <td class="hidden px-5 py-3 text-right text-sm tabular-nums text-stone-600 md:table-cell" x-text="row.stages_label || '—'"></td>
                                                 </template>
-                                                <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
+                                                <td class="hidden px-5 py-3 text-right text-sm font-semibold tabular-nums text-emerald-700 sm:table-cell" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
                                             </tr>
                                             {{-- Stage breakdown row — sibling of the main row inside the
                                                  same per-shooter <tbody>, toggled by the chevron on the
@@ -509,7 +521,7 @@
                                                  shooter is currently expanded. --}}
                                             <template x-if="row.stages && row.stages.length && expandedStages[row.id] === true">
                                                 <tr class="bg-stone-50/60 border-b border-stone-100">
-                                                    <td :colspan="showStageProgress ? 5 : 4" class="px-10 py-3">
+                                                    <td colspan="6" class="px-4 py-3 sm:px-10">
                                                         <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Stages for <span x-text="row.name"></span></p>
                                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                                             <template x-for="(st, i) in row.stages" :key="row.id + '-' + i">
@@ -529,7 +541,7 @@
                                     <template x-if="filteredRows.length === 0">
                                         <tbody>
                                             <tr>
-                                                <td :colspan="showStageProgress ? 5 : 4" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
+                                                <td colspan="6" class="px-5 py-12 text-center text-sm text-stone-400" x-text="(nameQuery || '').trim() ? 'No shooters match that name.' : 'No results.'"></td>
                                             </tr>
                                         </tbody>
                                     </template>
@@ -549,6 +561,7 @@
                                 scores,
                                 divs,
                                 divFilter: null,
+                                nameQuery: '',
                                 expandedStages: {},
                                 liveFeedUrl,
                                 liveMode: !! liveFeedUrl,
@@ -631,8 +644,10 @@
                                     // Division filter is applied *after* the overall rank is
                                     // attached so filtered rows keep their original overall
                                     // placement (e.g. filtering to Open might show #1, #4, #9).
+                                    const needle = (this.nameQuery || '').trim().toLowerCase();
                                     return this.scores
                                         .filter(s => this.divFilter === null || s.div_id === this.divFilter)
+                                        .filter(s => needle === '' || (s.name || '').toLowerCase().includes(needle))
                                         .map(s => ({
                                             ...s,
                                             _norm: s.norm,
@@ -818,8 +833,8 @@
                                                     <tbody class="divide-y divide-stone-100">
                                                         <template x-for="(entry, i) in group.rows" :key="entry.id">
                                                             <tr class="hover:bg-stone-50/60 transition-colors">
-                                                                <td class="px-6 py-2 text-sm text-stone-400 tabular-nums w-10" x-text="i + 1"></td>
-                                                                <td class="px-6 py-2 text-sm font-medium text-stone-900">
+                                                                <td class="w-10 px-3 py-2 text-sm tabular-nums text-stone-400 sm:px-6" x-text="i + 1"></td>
+                                                                <td class="px-3 py-2 text-sm font-medium text-stone-900 sm:px-6">
                                                                     <span x-text="entry.name"></span>
                                                                     <template x-if="entry.sa_years && entry.sa_years.length">
                                                                         <span class="ml-2 inline-flex items-center gap-1" :title="entry.sa_tooltip || ('Represented South Africa in ' + entry.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + entry.sa_years.join(', ')">
@@ -831,8 +846,8 @@
                                                                         </span>
                                                                     </template>
                                                                 </td>
-                                                                <td class="px-6 py-2 text-sm text-stone-500" x-text="entry.province || '—'"></td>
-                                                                <td class="px-6 py-2">
+                                                                <td class="hidden px-6 py-2 text-sm text-stone-500 sm:table-cell" x-text="entry.province || '—'"></td>
+                                                                <td class="px-3 py-2 sm:px-6">
                                                                     <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="entry.status_class" x-text="entry.status_label"></span>
                                                                 </td>
                                                             </tr>
@@ -849,18 +864,18 @@
                                     <table class="min-w-full">
                                         <thead>
                                             <tr class="border-b border-stone-100 bg-stone-50/60">
-                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 w-10">#</th>
-                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Shooter</th>
-                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Division</th>
-                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Province</th>
-                                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
+                                                <th class="w-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 sm:px-6">#</th>
+                                                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 sm:px-6">Shooter</th>
+                                                <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 sm:table-cell">Division</th>
+                                                <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 md:table-cell">Province</th>
+                                                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400 sm:px-6">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-stone-100">
                                             <template x-for="(entry, i) in sortedEntries" :key="entry.id">
                                                 <tr class="hover:bg-stone-50 transition-colors">
-                                                    <td class="px-6 py-3 text-sm text-stone-400 tabular-nums" x-text="i + 1"></td>
-                                                    <td class="px-6 py-3 text-sm font-medium text-stone-900">
+                                                    <td class="px-3 py-3 text-sm tabular-nums text-stone-400 sm:px-6" x-text="i + 1"></td>
+                                                    <td class="px-3 py-3 text-sm font-medium text-stone-900 sm:px-6">
                                                         <span x-text="entry.name"></span>
                                                         <template x-if="entry.sa_years && entry.sa_years.length">
                                                             <span class="ml-2 inline-flex items-center gap-1" :title="entry.sa_tooltip || ('Represented South Africa in ' + entry.sa_years.join(', '))" :aria-label="'Represented South Africa in ' + entry.sa_years.join(', ')">
@@ -878,7 +893,7 @@
                                                             </span>
                                                         </template>
                                                     </td>
-                                                    <td class="px-6 py-3 text-sm">
+                                                    <td class="hidden px-6 py-3 text-sm sm:table-cell">
                                                         <template x-if="entry.division">
                                                             <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200" x-text="entry.division"></span>
                                                         </template>
@@ -886,8 +901,8 @@
                                                             <span class="text-stone-400">—</span>
                                                         </template>
                                                     </td>
-                                                    <td class="px-6 py-3 text-sm text-stone-500" x-text="entry.province || '—'"></td>
-                                                    <td class="px-6 py-3">
+                                                    <td class="hidden px-6 py-3 text-sm text-stone-500 md:table-cell" x-text="entry.province || '—'"></td>
+                                                    <td class="px-3 py-3 sm:px-6">
                                                         <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="entry.status_class" x-text="entry.status_label"></span>
                                                     </td>
                                                 </tr>

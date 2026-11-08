@@ -20,35 +20,38 @@
             {{-- Tab + View Toggle Row --}}
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 {{-- Tabs: Upcoming / Results --}}
-                <div class="flex rounded-xl bg-white border border-stone-200 shadow-sm p-1 w-fit" role="tablist" aria-label="Event tabs">
+                <div class="flex w-full rounded-xl border border-stone-200 bg-white p-1 shadow-sm sm:w-fit" role="tablist" aria-label="Event tabs">
                     <a wire:navigate href="{{ url('/events') }}?tab=upcoming&view={{ $view }}" role="tab" aria-selected="{{ $tab === 'upcoming' ? 'true' : 'false' }}"
-                       class="px-5 py-2 rounded-lg text-sm font-semibold transition {{ $tab === 'upcoming' ? 'bg-emerald-700 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
+                       class="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition sm:flex-none sm:min-h-0 sm:px-5 {{ $tab === 'upcoming' ? 'bg-emerald-700 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                         Upcoming
                         <span class="ml-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold {{ $tab === 'upcoming' ? 'bg-emerald-600 text-emerald-50' : 'bg-stone-100 text-stone-500' }} min-w-[20px] h-5 px-1">{{ $upcomingCount }}</span>
                     </a>
                     <a wire:navigate href="{{ url('/events') }}?tab=results&view={{ $view }}&season={{ $season }}" role="tab" aria-selected="{{ $tab === 'results' ? 'true' : 'false' }}"
-                       class="px-5 py-2 rounded-lg text-sm font-semibold transition {{ $tab === 'results' ? 'bg-emerald-700 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
+                       class="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition sm:flex-none sm:min-h-0 sm:px-5 {{ $tab === 'results' ? 'bg-emerald-700 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                         Results
                         <span class="ml-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold {{ $tab === 'results' ? 'bg-emerald-600 text-emerald-50' : 'bg-stone-100 text-stone-500' }} min-w-[20px] h-5 px-1">{{ $pastCount }}</span>
                     </a>
                 </div>
 
                 {{-- View Toggle --}}
-                <div class="flex items-center gap-1 bg-white border border-stone-200 rounded-xl p-1 shadow-sm w-fit" role="group" aria-label="View mode">
+                <div class="flex w-full items-center gap-1 rounded-xl border border-stone-200 bg-white p-1 shadow-sm sm:w-fit" role="group" aria-label="View mode">
                     <a wire:navigate href="{{ request()->fullUrlWithQuery(['view' => 'list']) }}" aria-pressed="{{ $view === 'list' ? 'true' : 'false' }}"
-                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ $view === 'list' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
+                       class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:min-h-0 sm:flex-none {{ $view === 'list' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" /></svg>
-                        Cards
+                        <span class="hidden sm:inline">Cards</span>
+                        <span class="sr-only sm:hidden">Cards</span>
                     </a>
                     <a wire:navigate href="{{ request()->fullUrlWithQuery(['view' => 'table']) }}" aria-pressed="{{ $view === 'table' ? 'true' : 'false' }}"
-                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ $view === 'table' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
+                       class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:min-h-0 sm:flex-none {{ $view === 'table' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m-9.75 0h.008v.008h-.008v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.008v.008h-.008v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                        Table
+                        <span class="hidden sm:inline">Table</span>
+                        <span class="sr-only sm:hidden">Table</span>
                     </a>
                     <a wire:navigate href="{{ request()->fullUrlWithQuery(['view' => 'calendar']) }}" aria-pressed="{{ $view === 'calendar' ? 'true' : 'false' }}"
-                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition {{ $view === 'calendar' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
+                       class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:min-h-0 sm:flex-none {{ $view === 'calendar' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700' }}">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                        Calendar
+                        <span class="hidden sm:inline">Calendar</span>
+                        <span class="sr-only sm:hidden">Calendar</span>
                     </a>
                 </div>
             </div>
@@ -66,7 +69,7 @@
                     <div class="w-full sm:w-auto">
                         <label for="events_discipline" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Discipline</label>
                         <select id="events_discipline" name="discipline" onchange="document.getElementById('filterForm').submit()"
-                                class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                             <option value="">All</option>
                             <option value="PRS" @selected($discipline === 'PRS')>PRS</option>
                             <option value="PR22" @selected($discipline === 'PR22')>PR22</option>
@@ -77,7 +80,7 @@
                     <div class="w-full sm:w-auto">
                         <label for="events_type" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Type</label>
                         <select id="events_type" name="type" onchange="document.getElementById('filterForm').submit()"
-                                class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                             <option value="">All Types</option>
                             <option value="club" @selected($type === 'club')>Club</option>
                             <option value="provincial" @selected($type === 'provincial')>Provincial</option>
@@ -91,7 +94,7 @@
                     <div class="w-full sm:w-auto">
                         <label for="events_province" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Province</label>
                         <select id="events_province" name="province_id" onchange="document.getElementById('filterForm').submit()"
-                                class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                             <option value="">All Provinces</option>
                             @foreach($provinces as $p)
                                 <option value="{{ $p->id }}" @selected($provinceId == $p->id)>{{ $p->name }}</option>
@@ -104,7 +107,7 @@
                         <div class="w-full sm:w-auto">
                             <label for="events_date_range" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">When</label>
                             <select id="events_date_range" name="date_range" onchange="document.getElementById('filterForm').submit()"
-                                    class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                    class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                                 <option value="">All Upcoming</option>
                                 <option value="this_month" @selected($dateRange === 'this_month')>This Month</option>
                                 <option value="next_3_months" @selected($dateRange === 'next_3_months')>Next 3 Months</option>
@@ -115,7 +118,7 @@
                         <div class="w-full sm:w-auto">
                             <label for="events_season" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Season</label>
                             <select id="events_season" name="season" onchange="document.getElementById('filterForm').submit()"
-                                    class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                    class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                                 @foreach($seasons as $s)
                                     <option value="{{ $s }}" @selected($season === $s)>{{ $s }}</option>
                                 @endforeach
@@ -127,8 +130,8 @@
                     <div class="flex-1 min-w-[200px]">
                         <label for="events_search" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Search</label>
                         <div class="relative">
-                            <input type="text" id="events_search" name="search" value="{{ $search }}" placeholder="Event name, venue, city..."
-                                   class="w-full rounded-lg border-stone-300 bg-white text-sm py-2 pl-9 pr-3 focus:ring-emerald-500 focus:border-emerald-500">
+                            <input type="search" id="events_search" name="search" value="{{ $search }}" placeholder="Event name, venue, city..."
+                                   class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-9 pr-3 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:py-2 sm:text-sm">
                             <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                         </div>
                     </div>
@@ -137,7 +140,7 @@
                     <div class="w-full sm:w-auto">
                         <label for="events_sort" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">Sort</label>
                         <select id="events_sort" name="sort" onchange="document.getElementById('filterForm').submit()"
-                                class="w-full sm:w-auto rounded-lg border-stone-300 bg-white text-sm py-2 pl-3 pr-8 focus:ring-emerald-500 focus:border-emerald-500">
+                                class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                             <option value="date_asc" @selected($sort === 'date_asc')>Date (earliest)</option>
                             <option value="date_desc" @selected($sort === 'date_desc')>Date (latest)</option>
                             <option value="province" @selected($sort === 'province')>Province</option>
@@ -147,7 +150,7 @@
                         </select>
                     </div>
 
-                    <button type="submit" class="rounded-lg bg-emerald-700 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-800 transition shadow-sm">
+                    <button type="submit" class="min-h-11 w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 sm:min-h-0 sm:w-auto">
                         Filter
                     </button>
 
@@ -214,33 +217,35 @@
                                     <tr>
                                         <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Date</th>
                                         <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Match</th>
-                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Discipline</th>
-                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Type</th>
-                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Province</th>
+                                        <th class="hidden px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 sm:table-cell">Discipline</th>
+                                        <th class="hidden px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 md:table-cell">Type</th>
+                                        <th class="hidden px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 sm:table-cell">Province</th>
                                         <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 hidden lg:table-cell">Venue</th>
                                         @if($showSpotsColumn)
                                             <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-500 hidden md:table-cell">Spots</th>
                                         @endif
-                                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                                        <th class="hidden px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-stone-500 sm:table-cell">Status</th>
                                         <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-stone-500"></th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-stone-100">
                                     @foreach($events as $match)
                                         <tr class="hover:bg-stone-50 transition-colors">
-                                            <td class="px-4 py-3 whitespace-nowrap text-stone-900 font-medium">
-                                                {{ $match->match_date?->format('d M Y') ?? '—' }}
+                                            <td class="whitespace-nowrap px-3 py-3 font-medium text-stone-900 sm:px-4">
+                                                <span class="sm:hidden">{{ $match->match_date?->format('d M') ?? '—' }}</span>
+                                                <span class="hidden sm:inline">{{ $match->match_date?->format('d M Y') ?? '—' }}</span>
                                             </td>
-                                            <td class="px-4 py-3">
-                                                <a href="{{ url('/events/' . $match->id) }}" class="font-semibold text-stone-900 hover:text-emerald-700">{{ $match->name }}</a>
+                                            <td class="max-w-[9rem] px-3 py-3 sm:max-w-none sm:px-4">
+                                                <a href="{{ url('/events/' . $match->id) }}" class="block truncate font-semibold text-stone-900 hover:text-emerald-700 sm:whitespace-normal">{{ $match->name }}</a>
+                                                <p class="mt-0.5 truncate text-[11px] text-stone-400 sm:hidden">{{ $match->match_type }} · {{ $match->province?->abbreviation ?? '—' }}</p>
                                             </td>
-                                            <td class="px-4 py-3">
+                                            <td class="hidden px-4 py-3 sm:table-cell">
                                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ $match->match_type === 'PRS' ? 'bg-emerald-100 text-emerald-800 ring-emerald-600/20' : 'bg-sky-100 text-sky-800 ring-sky-600/20' }}">
                                                     {{ $match->match_type }}
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-3 text-stone-600 capitalize">{{ $match->series_level ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-stone-600">{{ $match->province?->abbreviation ?? '—' }}</td>
+                                            <td class="hidden px-4 py-3 capitalize text-stone-600 md:table-cell">{{ $match->series_level ?? '—' }}</td>
+                                            <td class="hidden px-4 py-3 text-stone-600 sm:table-cell">{{ $match->province?->abbreviation ?? '—' }}</td>
                                             <td class="px-4 py-3 text-stone-600 hidden lg:table-cell">
                                                 {{-- Phase 2.6: coalesce venue → city → venue_location, treating empty strings
                                                      as missing so "" never slips through to render as a blank cell. --}}
@@ -260,7 +265,7 @@
                                                     @endif
                                                 </td>
                                             @endif
-                                            <td class="px-4 py-3">
+                                            <td class="hidden px-4 py-3 sm:table-cell">
                                                 @if($match->status === 'open')
                                                     <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Open</span>
                                                 @elseif($match->status === 'completed')

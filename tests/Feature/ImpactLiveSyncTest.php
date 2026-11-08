@@ -75,6 +75,7 @@ it('pulls exact name matches on match day and leaves everyone else for the direc
         ->assertOk()
         ->assertSee('Kevin Goncalves')
         ->assertSee('Live scores')
+        ->assertSee('Search shooter', false)
         ->assertSee('Incomplete — unverified')
         ->assertSee('https://www.impactscoring.net/match/view?id=11086', false)
         ->assertDontSee('Christiaan Pretorius');
