@@ -890,10 +890,154 @@ class MatchController extends Controller
             ? $match->scoreImports()->with('uploader:id,name')->orderByDesc('created_at')->get()
             : collect();
 
+        $board = $this->buildLiveBoardPayload($match, $viewerCanRemoveZeroScores, $saBadgesByUser);
+        $scoreData = $board['rows'];
+        $divList = $board['divisions'];
+        $showStageProgress = $board['has_stage_progress'];
+
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
             'viewerCanRemoveZeroScores', 'viewerCanDownloadResults', 'saBadgesByUser', 'scoreImports',
+            'scoreData', 'divList', 'showStageProgress',
         ));
+    }
+
+    /**
+     * JSON payload for the public live scoreboard — same shape the Alpine
+     * component receives on first render. Lets the page poll for fresh
+     * scores without a full reload. Draft / unpublished matches 404, and
+     * a match that is finalized or has Impact pull switched off returns
+     * `"live": false` so the client stops polling and reloads once to
+     * pick up the official-results layout.
+     */
+    public function liveScoresJson(MatchEvent $match)
+    {
+        if ($match->status === 'draft' || ! $match->published) {
+            abort(404);
+        }
+
+        $isLive = ! $match->scoresAreFinalized()
+            && ($match->impact_live_sync || $match->impact_live_synced_at);
+
+        if (! $isLive) {
+            return response()->json(['live' => false]);
+        }
+
+        $match->load(['scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
+            ->with(['division', 'user:id,name', 'user.membership:id,user_id,saprf_number'])
+            ->orderBy('overall_rank')]);
+
+        $viewer = Auth::user();
+        $viewerCanRemoveZeroScores = $viewer !== null && (
+            $viewer->hasRole(['owner', 'admin', 'exco', 'developer'])
+            || $match->created_by === $viewer->id
+        );
+
+        $saBadgeUserIds = $match->scores->pluck('user_id')->filter()->unique()->values()->all();
+        $saBadgesByUser = NationalTeamAppearance::badgeDataForUsers($saBadgeUserIds);
+
+        $board = $this->buildLiveBoardPayload($match, $viewerCanRemoveZeroScores, $saBadgesByUser);
+
+        return response()->json([
+            'live' => true,
+            'rows' => $board['rows'],
+            'divisions' => $board['divisions'],
+            'has_stage_progress' => $board['has_stage_progress'],
+            'has_any_tie' => $board['has_any_tie'],
+            'synced_at' => $match->impact_live_synced_at?->timezone('Africa/Johannesburg')->format('H:i:s'),
+            'synced_at_iso' => $match->impact_live_synced_at?->toIso8601String(),
+            'ended' => $match->impact_live_ended_at !== null,
+        ]);
+    }
+
+    /**
+     * One source of truth for the public live scoreboard rows — called by
+     * publicShow for the first render and by liveScoresJson for each poll.
+     *
+     * @param  array<int, array{years: list<int>, tooltip: ?string}>  $saBadgesByUser
+     * @return array{
+     *     rows: list<array<string, mixed>>,
+     *     divisions: list<array{id: int, name: string}>,
+     *     has_stage_progress: bool,
+     *     has_any_tie: bool,
+     * }
+     */
+    private function buildLiveBoardPayload(MatchEvent $match, bool $viewerCanRemoveZeroScores, array $saBadgesByUser): array
+    {
+        $divisionLeaderRaw = $match->scores
+            ->filter(fn ($s) => $s->division_id !== null && $s->raw_score !== null)
+            ->groupBy('division_id')
+            ->map(fn ($rows) => (float) $rows->max('raw_score'));
+        $overallLeaderRaw = (float) ($match->scores->max('raw_score') ?: 0.0);
+
+        $rows = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores, $saBadgesByUser, $match, $divisionLeaderRaw, $overallLeaderRaw) {
+            $saprfNumber = $score->user?->membership?->saprf_number;
+            $profileUrl = null;
+            if ($score->user_id !== null) {
+                $profileUrl = $saprfNumber
+                    ? route('shooters.show', ['saprfNumber' => $saprfNumber])
+                    : route('standings.shooter', ['season' => $match->season ?? now()->year, 'user' => $score->user_id]);
+            }
+            $saBadge = $saBadgesByUser[$score->user_id] ?? null;
+            $orderedStages = \App\Support\ImpactStages::forDisplay($score->raw_meta['impact']['stages'] ?? null);
+
+            return [
+                'id' => $score->id,
+                'name' => $score->shooter_name,
+                'raw' => (float) $score->raw_score,
+                'raw_display' => \App\Support\ScoreFormat::format($score->raw_score, $match->match_type, $match->series),
+                'norm' => $score->normalized_score ? round((float) $score->normalized_score, 2) : null,
+                'div_norm' => $score->division_normalized_score ? round((float) $score->division_normalized_score, 2) : null,
+                'match_pct' => $overallLeaderRaw > 0 && $score->raw_score !== null
+                    ? round(((float) $score->raw_score) / $overallLeaderRaw * 100, 2)
+                    : null,
+                'div_pct' => $score->division_id !== null
+                    && isset($divisionLeaderRaw[$score->division_id])
+                    && $divisionLeaderRaw[$score->division_id] > 0
+                    && $score->raw_score !== null
+                    ? round(((float) $score->raw_score) / $divisionLeaderRaw[$score->division_id] * 100, 2)
+                    : null,
+                'overall_rank' => $score->overall_rank,
+                'div_rank' => $score->division_rank,
+                'is_tied_overall' => (bool) $score->is_tied_overall,
+                'is_tied_division' => (bool) $score->is_tied_division,
+                'div_id' => $score->division_id,
+                'div_name' => $score->division?->name ?? '—',
+                'status' => $score->status,
+                'profile_url' => $profileUrl,
+                'can_remove' => $viewerCanRemoveZeroScores && (float) $score->raw_score === 0.0,
+                'badge' => match ($score->status) {
+                    'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200', 'tip' => 'This shooter was not a SAPRF member on the match date — their score is displayed but does not contribute to season standings.'],
+                    'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200', 'tip' => 'This shooter had a lapsed membership on the match date — their score is displayed but does not contribute to season standings.'],
+                    'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200', 'tip' => 'The match director has not yet confirmed this score. It will update when verified.'],
+                    default      => null,
+                },
+                'stages' => $orderedStages === [] ? null : $orderedStages,
+                'stages_label' => isset($score->raw_meta['impact']['stages_completed'])
+                    ? ((int) $score->raw_meta['impact']['stages_completed'])
+                        .(isset($score->raw_meta['impact']['stages_total']) ? ' / '.(int) $score->raw_meta['impact']['stages_total'] : '')
+                    : null,
+                'sa_years' => $saBadge['years'] ?? [],
+                'sa_tooltip' => $saBadge['tooltip'] ?? null,
+            ];
+        })->values()->toArray();
+
+        $divisions = $match->scores->pluck('division')
+            ->filter()
+            ->unique('id')
+            ->sortBy('display_order')
+            ->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])
+            ->values()
+            ->toArray();
+
+        return [
+            'rows' => $rows,
+            'divisions' => $divisions,
+            'has_stage_progress' => $match->scores->contains(
+                fn ($s) => isset($s->raw_meta['impact']['stages_completed'])
+            ),
+            'has_any_tie' => $match->scores->contains(fn ($s) => $s->is_tied_overall || $s->is_tied_division),
+        ];
     }
 
     /**

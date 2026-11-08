@@ -290,96 +290,18 @@
                     {{-- Results Table (if completed) --}}
                     @if($match->scores->isNotEmpty())
                         @php
-                            // Phase 4.4: precompute division-leader raws so each row can
-                            // show its own-class percentage (score / division leader × 100)
-                            // without a client-side second pass over the full set.
-                            $divisionLeaderRaw = $match->scores
-                                ->filter(fn ($s) => $s->division_id !== null && $s->raw_score !== null)
-                                ->groupBy('division_id')
-                                ->map(fn ($rows) => (float) $rows->max('raw_score'));
-
-                            $overallLeaderRaw = (float) ($match->scores->max('raw_score') ?: 0.0);
-                        @endphp
-                        @php
-                            $scoreData = $match->scores->sortBy('overall_rank')->map(function ($score) use ($viewerCanRemoveZeroScores, $saBadgesByUser, $match, $divisionLeaderRaw, $overallLeaderRaw) {
-                                // Phase 4.8: canonical profile URL per shooter. Prefer the
-                                // SAPRF-number-keyed route when the user carries one; otherwise
-                                // fall back to the legacy user-id route that the controller
-                                // still accepts. Guest / unlinked scores have no destination.
-                                $saprfNumber = $score->user?->membership?->saprf_number;
-                                $profileUrl = null;
-                                if ($score->user_id !== null) {
-                                    $profileUrl = $saprfNumber
-                                        ? route('shooters.show', ['saprfNumber' => $saprfNumber])
-                                        : route('standings.shooter', ['season' => $match->season ?? now()->year, 'user' => $score->user_id]);
-                                }
-                                $saBadge = $saBadgesByUser[$score->user_id] ?? null;
-                                return [
-                                    'id' => $score->id,
-                                    'name' => $score->shooter_name,
-                                    'raw' => (float) $score->raw_score,
-                                    // Phase 2.3: pre-format the display value server-side so the
-                                    // integer PRS / PR22 rule lives in one helper, and the Alpine
-                                    // row stays dumb (no JS format table of discipline codes).
-                                    'raw_display' => \App\Support\ScoreFormat::format($score->raw_score, $match->match_type, $match->series),
-                                    'norm' => $score->normalized_score ? round((float) $score->normalized_score, 2) : null,
-                                    'div_norm' => $score->division_normalized_score ? round((float) $score->division_normalized_score, 2) : null,
-                                    // Phase 4.4: percentage of the match winner (overall %) and of
-                                    // the division winner (div %). Guard against div-by-zero when
-                                    // a match is still being imported and the leader is zero.
-                                    'match_pct' => $overallLeaderRaw > 0 && $score->raw_score !== null
-                                        ? round(((float) $score->raw_score) / $overallLeaderRaw * 100, 2)
-                                        : null,
-                                    'div_pct' => $score->division_id !== null
-                                        && isset($divisionLeaderRaw[$score->division_id])
-                                        && $divisionLeaderRaw[$score->division_id] > 0
-                                        && $score->raw_score !== null
-                                        ? round(((float) $score->raw_score) / $divisionLeaderRaw[$score->division_id] * 100, 2)
-                                        : null,
-                                    'overall_rank' => $score->overall_rank,
-                                    'div_rank' => $score->division_rank,
-                                    // Phase 1.4: carry the persisted tie flags so the Alpine row
-                                    // can render "T2" without re-grouping the whole set client-side.
-                                    'is_tied_overall' => (bool) $score->is_tied_overall,
-                                    'is_tied_division' => (bool) $score->is_tied_division,
-                                    'div_id' => $score->division_id,
-                                    'div_name' => $score->division?->name ?? '—',
-                                    'status' => $score->status,
-                                    // Phase 4.8: resolved profile link (null = no profile).
-                                    'profile_url' => $profileUrl,
-                                    // Only zero-score rows are eligible for inline removal, and only when
-                                    // the current viewer is an admin or the MD who owns this match.
-                                    'can_remove' => $viewerCanRemoveZeroScores && (float) $score->raw_score === 0.0,
-                                    'badge' => match ($score->status) {
-                                        'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200', 'tip' => 'This shooter was not a SAPRF member on the match date — their score is displayed but does not contribute to season standings.'],
-                                        'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200', 'tip' => 'This shooter had a lapsed membership on the match date — their score is displayed but does not contribute to season standings.'],
-                                        'pending'    => ['label' => 'Pending',    'class' => 'bg-amber-50 text-amber-700 ring-amber-200', 'tip' => 'The match director has not yet confirmed this score. It will update when verified.'],
-                                        default      => null,
-                                    },
-                                    // Phase 4.5: per-stage breakdown parsed from the raw Impact
-                                    // payload. Keeps the Alpine row dumb — null means "no stage
-                                    // detail available", a list of {label, points} drives the
-                                    // expand/collapse accordion inside the row.
-                                    'stages' => ($orderedStages = \App\Support\ImpactStages::forDisplay($score->raw_meta['impact']['stages'] ?? null)) === []
-                                        ? null
-                                        : $orderedStages,
-                                    'stages_label' => isset($score->raw_meta['impact']['stages_completed'])
-                                        ? ((int) $score->raw_meta['impact']['stages_completed'])
-                                            .(isset($score->raw_meta['impact']['stages_total'])
-                                                ? ' / '.(int) $score->raw_meta['impact']['stages_total']
-                                                : '')
-                                        : null,
-                                    // "SA 2026" chip data for the Alpine row — null means render nothing.
-                                    'sa_years' => $saBadge['years'] ?? [],
-                                    'sa_tooltip' => $saBadge['tooltip'] ?? null,
-                                ];
-                            })->values()->toArray();
-
-                            $divList = $divisions->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])->toArray();
+                            // Row and division arrays are built once on the
+                            // controller (buildLiveBoardPayload) so the Blade
+                            // and the JSON poll endpoint stay in lock-step.
+                            $showingLiveScores = ! $match->scoresAreFinalized()
+                                && ($match->impact_live_sync || $match->impact_live_synced_at);
+                            $liveFeedUrl = $showingLiveScores
+                                ? route('events.live-scores', $match)
+                                : null;
                         @endphp
 
                         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
-                             x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }})">
+                             x-data="matchResults({{ Js::from($scoreData) }}, {{ Js::from($divList) }}, @js($liveFeedUrl))">
                             @if($viewerCanRemoveZeroScores)
                                 {{-- Shared form for the inline "remove zero-score shooter" action. The
                                      click handler sets the action URL and submits; only rows where the
@@ -390,27 +312,29 @@
                                 </form>
                             @endif
                             @php
-                                // Phase 1.4: show the "T = tied placement" legend only when there
-                                // is actually a tie in this match, so the normal case stays uncluttered.
+                                // Legacy variable kept for other partials; the
+                                // live board itself derives the same set from
+                                // the controller payload now.
                                 $hasAnyTie = $match->scores->contains(fn ($s) => $s->is_tied_overall || $s->is_tied_division);
-                                $showStageProgress = $match->scores->contains(
-                                    fn ($s) => isset($s->raw_meta['impact']['stages_completed'])
-                                );
                             @endphp
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                                    @php
-                                        $showingLiveScores = ! $match->scoresAreFinalized()
-                                            && ($match->impact_live_sync || $match->impact_live_synced_at);
-                                    @endphp
-                                    <h2 class="text-lg font-semibold text-stone-900">{{ $showingLiveScores ? 'Live scores' : 'Results' }}</h2>
+                                    <h2 class="text-lg font-semibold text-stone-900">
+                                        <span x-text="liveMode ? 'Live scores' : 'Results'"></span>
+                                        <template x-if="liveMode && syncedAt">
+                                            <span class="ml-2 text-xs font-normal text-stone-400" x-text="'Last pull ' + syncedAt"></span>
+                                        </template>
+                                    </h2>
                                     <div class="flex items-center gap-3">
-                                        @if($hasAnyTie)
+                                        <template x-if="hasAnyTie">
                                             <span class="text-xs text-stone-500" title="Shooters marked T share the same placement after the match's tiebreak rule was applied.">
                                                 <span class="font-semibold">T</span> = tied placement
                                             </span>
-                                        @endif
-                                        <span class="text-xs text-stone-400">{{ $match->scores->count() }} {{ Str::plural('shooter', $match->scores->count()) }}</span>
+                                        </template>
+                                        <span class="text-xs text-stone-400">
+                                            <span x-text="scores.length"></span>
+                                            <span x-text="scores.length === 1 ? 'shooter' : 'shooters'"></span>
+                                        </span>
                                         {{-- Score downloads are MD + staff only. The matching gate on
                                              the controller side (abortIfNotAllowedToDownloadResults)
                                              returns 404 for everyone else, so even a direct URL leak
@@ -478,9 +402,9 @@
                                             {{-- "Score" works for every discipline — PRS/PR22 integer impacts
                                                  or the formatted precision score, both go through ScoreFormat. --}}
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400">Score</th>
-                                            @if($showStageProgress)
+                                            <template x-if="showStageProgress">
                                                 <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Stages finished on the Impact score sheet, out of the stages on the match.">Stages</th>
-                                            @endif
+                                            </template>
                                             <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-stone-400" title="Score as a percentage of the match winner's score — the standard match-% metric.">Match %</th>
                                         </tr>
                                     </thead>
@@ -574,9 +498,9 @@
                                                     @endif
                                                 </td>
                                                 <td class="px-5 py-3 text-sm text-stone-700 text-right tabular-nums" x-text="row.raw_display"></td>
-                                                @if($showStageProgress)
+                                                <template x-if="showStageProgress">
                                                     <td class="px-5 py-3 text-sm text-stone-600 text-right tabular-nums" x-text="row.stages_label || '—'"></td>
-                                                @endif
+                                                </template>
                                                 <td class="px-5 py-3 text-sm font-semibold text-emerald-700 text-right tabular-nums" x-text="row.match_pct !== null ? row.match_pct.toFixed(2) + '%' : '—'"></td>
                                             </tr>
                                             {{-- Stage breakdown row — sibling of the main row inside the
@@ -585,7 +509,7 @@
                                                  shooter is currently expanded. --}}
                                             <template x-if="row.stages && row.stages.length && expandedStages[row.id] === true">
                                                 <tr class="bg-stone-50/60 border-b border-stone-100">
-                                                    <td colspan="{{ $showStageProgress ? 5 : 4 }}" class="px-10 py-3">
+                                                    <td :colspan="showStageProgress ? 5 : 4" class="px-10 py-3">
                                                         <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">Stages for <span x-text="row.name"></span></p>
                                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                                             <template x-for="(st, i) in row.stages" :key="row.id + '-' + i">
@@ -605,7 +529,7 @@
                                     <template x-if="filteredRows.length === 0">
                                         <tbody>
                                             <tr>
-                                                <td colspan="{{ $showStageProgress ? 5 : 4 }}" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
+                                                <td :colspan="showStageProgress ? 5 : 4" class="px-5 py-12 text-center text-sm text-stone-400">No results.</td>
                                             </tr>
                                         </tbody>
                                     </template>
@@ -615,18 +539,76 @@
 
                         <script>
                         document.addEventListener('alpine:init', () => {
-                            // Results table ranks everyone on the single Overall board. The
-                            // division pills above the table are a *visual filter* only — picking
-                            // a division narrows the list to shooters in that cohort, but their
-                            // rank number and Match % stay the overall values (so a lone Factory
-                            // shooter never becomes "1st in Factory at 100 %"). That's why there
-                            // is no Div % column: it would compute per-division leaders and
-                            // encourage misleading podiums.
-                            Alpine.data('matchResults', (scores, divs) => ({
+                            // Live scoreboard: Alpine holds the full score set and
+                            // re-renders in place every 30 seconds while the live
+                            // board is on. The viewer's division filter and any
+                            // expanded stage rows are preserved across refreshes.
+                            // Polling pauses when the tab is hidden so a phone in
+                            // a pocket does not thrash data or CPU.
+                            Alpine.data('matchResults', (scores, divs, liveFeedUrl) => ({
                                 scores,
                                 divs,
                                 divFilter: null,
                                 expandedStages: {},
+                                liveFeedUrl,
+                                liveMode: !! liveFeedUrl,
+                                syncedAt: null,
+                                pollTimer: null,
+                                visibilityBound: false,
+
+                                init() {
+                                    if (! this.liveMode) return;
+                                    this.scheduleNextPoll();
+                                    if (! this.visibilityBound) {
+                                        this.visibilityBound = true;
+                                        document.addEventListener('visibilitychange', () => {
+                                            if (document.visibilityState === 'visible') {
+                                                this.refreshFromServer();
+                                            }
+                                        });
+                                    }
+                                },
+
+                                scheduleNextPoll() {
+                                    if (this.pollTimer) clearTimeout(this.pollTimer);
+                                    this.pollTimer = setTimeout(() => this.refreshFromServer(), 30000);
+                                },
+
+                                async refreshFromServer() {
+                                    if (! this.liveMode || document.visibilityState !== 'visible') {
+                                        this.scheduleNextPoll();
+                                        return;
+                                    }
+                                    try {
+                                        const resp = await fetch(this.liveFeedUrl, { headers: { Accept: 'application/json' } });
+                                        if (! resp.ok) throw new Error('bad status ' + resp.status);
+                                        const data = await resp.json();
+                                        // Live sync is off or scores were just
+                                        // finalised — reload once so the page
+                                        // settles on the official-results look.
+                                        if (data.live === false) {
+                                            window.location.reload();
+                                            return;
+                                        }
+                                        this.scores = data.rows || [];
+                                        this.divs = data.divisions || [];
+                                        this.syncedAt = data.synced_at || null;
+                                    } catch (e) {
+                                        // One failed poll is normal (Impact outage,
+                                        // brief Nginx blip). Keep the current table
+                                        // on screen and try again on the next tick.
+                                    } finally {
+                                        this.scheduleNextPoll();
+                                    }
+                                },
+
+                                get showStageProgress() {
+                                    return this.scores.some(s => s.stages_label !== null && s.stages_label !== undefined);
+                                },
+
+                                get hasAnyTie() {
+                                    return this.scores.some(s => s.is_tied_overall || s.is_tied_division);
+                                },
 
                                 toggleStages(id) {
                                     this.expandedStages[id] = this.expandedStages[id] !== true;
@@ -664,33 +646,6 @@
                             }));
                         });
                         </script>
-                        @if($showingLiveScores)
-                            {{-- Match the server pull cadence: a plain reload
-                                 every 60 s while the live board is on. Browsers
-                                 preserve scroll position across a reload, so the
-                                 viewer stays where they were on the table. Only
-                                 reloads when the tab is actually visible, so a
-                                 phone in a pocket does not thrash. --}}
-                            <script>
-                                (function () {
-                                    function scheduleReload() {
-                                        setTimeout(function () {
-                                            if (document.visibilityState === 'visible') {
-                                                window.location.reload();
-                                            } else {
-                                                document.addEventListener('visibilitychange', function onShow() {
-                                                    if (document.visibilityState === 'visible') {
-                                                        document.removeEventListener('visibilitychange', onShow);
-                                                        window.location.reload();
-                                                    }
-                                                });
-                                            }
-                                        }, 60000);
-                                    }
-                                    scheduleReload();
-                                })();
-                            </script>
-                        @endif
                     @elseif($match->isDueForImpactLiveSync())
                         <div class="bg-white rounded-2xl border border-rose-200 shadow-sm p-8">
                             <div class="flex items-center gap-2">

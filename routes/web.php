@@ -142,6 +142,10 @@ Route::post('/contact', [ContactController::class, 'store'])->name('contact.stor
 Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('contact.thanks');
 Route::get('/events', [MatchController::class, 'publicIndex'])->name('events.index');
 Route::get('/events/{match}', [MatchController::class, 'publicShow'])->name('events.show');
+// JSON scoreboard for the live Alpine poll on /events/{match}. Same payload
+// the server-rendered Blade receives on first paint, so the client can
+// replace the table in place without a full reload.
+Route::get('/events/{match}/live-scores.json', [MatchController::class, 'liveScoresJson'])->name('events.live-scores');
 // Phase 4.9: public results exports — anyone with the URL can download.
 Route::get('/events/{match}/results.csv', [MatchController::class, 'publicExportCsv'])->name('events.results.csv');
 Route::get('/events/{match}/results.pdf', [MatchController::class, 'publicExportPdf'])->name('events.results.pdf');
