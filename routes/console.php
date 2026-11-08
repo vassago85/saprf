@@ -34,11 +34,12 @@ Schedule::job(new DispatchScheduledAnnouncementsJob)->everyMinute();
 
 // Impact live scoreboard. Only matches with the switch on, an Impact id,
 // and a date window that includes today are touched. The job itself
-// no-ops for anything else. The scheduler fires every 5 minutes; each
-// pull is one getLiveScores call plus a getShooterStages call for each
-// shooter whose total changed, so idle pulls are essentially free.
+// no-ops for anything else. The scheduler fires every minute; each pull
+// is one getLiveScores call plus a getShooterStages call for each shooter
+// whose total changed, so an idle minute is a single cheap request.
+// withoutOverlapping stops a slow pull from stacking.
 Schedule::job(new SyncImpactLiveScoresJob)
-    ->everyFiveMinutes()
+    ->everyMinute()
     ->timezone('Africa/Johannesburg')
     ->withoutOverlapping();
 

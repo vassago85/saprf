@@ -664,6 +664,33 @@
                             }));
                         });
                         </script>
+                        @if($showingLiveScores)
+                            {{-- Match the server pull cadence: a plain reload
+                                 every 60 s while the live board is on. Browsers
+                                 preserve scroll position across a reload, so the
+                                 viewer stays where they were on the table. Only
+                                 reloads when the tab is actually visible, so a
+                                 phone in a pocket does not thrash. --}}
+                            <script>
+                                (function () {
+                                    function scheduleReload() {
+                                        setTimeout(function () {
+                                            if (document.visibilityState === 'visible') {
+                                                window.location.reload();
+                                            } else {
+                                                document.addEventListener('visibilitychange', function onShow() {
+                                                    if (document.visibilityState === 'visible') {
+                                                        document.removeEventListener('visibilitychange', onShow);
+                                                        window.location.reload();
+                                                    }
+                                                });
+                                            }
+                                        }, 60000);
+                                    }
+                                    scheduleReload();
+                                })();
+                            </script>
+                        @endif
                     @elseif($match->isDueForImpactLiveSync())
                         <div class="bg-white rounded-2xl border border-rose-200 shadow-sm p-8">
                             <div class="flex items-center gap-2">
@@ -674,10 +701,26 @@
                                 <h3 class="text-lg font-semibold text-stone-900">Live scores</h3>
                             </div>
                             <p class="mt-2 text-sm text-stone-600">
-                                Impact is pulled every 5 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
+                                Impact is pulled every minute through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}. This page refreshes on the same minute.
                                 A shooter appears here when their Impact name matches an entry. These scores do not count until the match director confirms them.
                             </p>
                         </div>
+                        <script>
+                            (function () {
+                                setTimeout(function () {
+                                    if (document.visibilityState === 'visible') {
+                                        window.location.reload();
+                                    } else {
+                                        document.addEventListener('visibilitychange', function onShow() {
+                                            if (document.visibilityState === 'visible') {
+                                                document.removeEventListener('visibilitychange', onShow);
+                                                window.location.reload();
+                                            }
+                                        });
+                                    }
+                                }, 60000);
+                            })();
+                        </script>
                     @elseif($match->status !== 'completed')
                         {{-- No results yet for upcoming events --}}
                     @else

@@ -491,7 +491,7 @@ it('only queues matches that are on today with live sync still running', functio
         ->first(fn ($event) => str_contains($event->description, SyncImpactLiveScoresJob::class));
 
     expect($event)->not->toBeNull()
-        ->and($event->expression)->toBe('*/5 * * * *')
+        ->and($event->expression)->toBe('* * * * *')
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->timezone)->toBe('Africa/Johannesburg');
 });
