@@ -32,8 +32,7 @@
                 Request your match-director payout
             </h1>
             <p class="mt-1 text-sm text-stone-600">
-                Confirm the amount, give us the account to pay, and we'll mark the match completed. An admin processes
-                payment from here.
+                Confirm the amount and give us the account to pay. Requesting the payout does not finish the match — live scores keep running until you mark the scores complete. An admin processes payment from here.
             </p>
         </div>
 
@@ -292,9 +291,9 @@
             </div>
 
             <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
-                <strong class="font-semibold">Heads up:</strong> once you submit, the match is marked completed and
-                the payout request is locked. If you spot an incorrect banking detail after submitting, ask an admin
-                to update it before they pay.
+                <strong class="font-semibold">Heads up:</strong> once you submit, the payout request is locked.
+                The match itself stays open, and live scores keep updating through the end date. If you spot an
+                incorrect banking detail after submitting, ask an admin to update it before they pay.
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-4">

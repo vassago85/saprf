@@ -74,6 +74,7 @@ it('pulls exact name matches on match day and leaves everyone else for the direc
     $this->get(route('events.show', $this->match))
         ->assertOk()
         ->assertSee('Kevin Goncalves')
+        ->assertSee('Live scores')
         ->assertSee('Incomplete — unverified')
         ->assertSee('https://www.impactscoring.net/match/view?id=11086', false)
         ->assertDontSee('Christiaan Pretorius');
@@ -569,6 +570,37 @@ it('pulls through the last day of a multi-day match and ignores every other day'
         ->and($dayTwo->isDueForImpactLiveSync())->toBeTrue()
         ->and($finishedYesterday->isDueForImpactLiveSync())->toBeFalse()
         ->and($tomorrow->isDueForImpactLiveSync())->toBeFalse();
+});
+
+it('keeps pulling a match the director has already been paid for while the dates are still on', function () {
+    $paidOut = liveSyncMatch($this->admin, $this->province, [
+        'name' => 'Paid Out, Still Shooting',
+        'status' => 'completed',
+        'match_date' => Carbon::yesterday()->toDateString(),
+        'match_end_date' => Carbon::today()->toDateString(),
+        'published' => true,
+    ]);
+    $scoresConfirmed = liveSyncMatch($this->admin, $this->province, [
+        'name' => 'Scores Confirmed',
+        'status' => 'completed',
+        'match_date' => Carbon::yesterday()->toDateString(),
+        'match_end_date' => Carbon::today()->toDateString(),
+        'scores_finalized_at' => now(),
+        'published' => true,
+    ]);
+
+    expect($paidOut->isDueForImpactLiveSync())->toBeTrue()
+        ->and($scoresConfirmed->isDueForImpactLiveSync())->toBeFalse()
+        ->and(MatchEvent::dueForImpactLiveSync()->pluck('id')->contains($paidOut->id))->toBeTrue()
+        ->and(MatchEvent::dueForImpactLiveSync()->pluck('id')->contains($scoresConfirmed->id))->toBeFalse()
+        ->and(MatchEvent::live()->pluck('id')->contains($paidOut->id))->toBeTrue()
+        ->and(MatchEvent::past()->pluck('id')->contains($paidOut->id))->toBeFalse()
+        ->and(MatchEvent::past()->pluck('id')->contains($scoresConfirmed->id))->toBeTrue();
+
+    $this->get(route('events.show', $paidOut))
+        ->assertOk()
+        ->assertSee('Live scores')
+        ->assertDontSee('Results will be published after the match is completed');
 });
 
 it('keeps pulling the other matches when one sync throws', function () {

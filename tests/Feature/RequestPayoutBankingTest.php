@@ -268,7 +268,7 @@ it('rejects a payout POST when the branch code is not exactly 6 digits', functio
     expect(Payout::where('match_id', $this->match->id)->count())->toBe(0);
 });
 
-it('saves banking details onto the payout, marks the match completed, and redirects to the statement', function () {
+it('saves banking details onto the payout and leaves the match open', function () {
     $this->actingAs($this->md)
         ->post(route('matches.complete-and-request-payout', $this->match), [
             'account_holder' => 'Marco Director',
@@ -287,7 +287,7 @@ it('saves banking details onto the payout, marks the match completed, and redire
         ->and($payout->status)->toBe('pending')
         ->and($payout->payee_user_id)->toBe($this->md->id);
 
-    expect($this->match->fresh()->status)->toBe('completed');
+    expect($this->match->fresh()->status)->toBe('closed');
 });
 
 it('emails the treasurer two hours after an MD requests a payout', function () {

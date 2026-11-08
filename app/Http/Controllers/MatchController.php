@@ -517,10 +517,10 @@ class MatchController extends Controller
 
         $old = $match->only(['status', 'published']);
 
-        if ($match->status !== 'completed') {
-            $match->update(['status' => 'completed']);
-        }
-
+        // A payout is a payment, not the end of the match. A 2-day national
+        // can be paid out while day 2 is still on the range; marking it
+        // completed here dropped it off the public live board and stopped
+        // the Impact pull.
         $payout = $financials->createMdPayout(
             $match,
             $request->user(),
@@ -547,9 +547,9 @@ class MatchController extends Controller
 
         $this->notifyTreasurerOfPayoutRequest($payout);
 
-        $message = "Match marked completed and payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment.';
+        $message = "Payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment. The match stays open.';
         if (! $match->scoresAreFinalized()) {
-            $message .= ' Scores are still provisional — mark them complete when you are ready so shooters are notified. If walk-ins or other deductions still come in, a later payout can start off negative.';
+            $message .= ' Scores stay provisional, and a live Impact pull keeps running through the end date. Mark the scores complete when you are ready so shooters are notified. If walk-ins or other deductions still come in, a later payout can start off negative.';
         }
 
         return redirect()->route('my-payouts.show', $payout)->with('success', $message);

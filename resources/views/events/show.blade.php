@@ -390,7 +390,11 @@
                             @endphp
                             <div class="px-6 py-4 border-b border-stone-100">
                                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                                    <h2 class="text-lg font-semibold text-stone-900">Results</h2>
+                                    @php
+                                        $showingLiveScores = ! $match->scoresAreFinalized()
+                                            && ($match->impact_live_sync || $match->impact_live_synced_at);
+                                    @endphp
+                                    <h2 class="text-lg font-semibold text-stone-900">{{ $showingLiveScores ? 'Live scores' : 'Results' }}</h2>
                                     <div class="flex items-center gap-3">
                                         @if($hasAnyTie)
                                             <span class="text-xs text-stone-500" title="Shooters marked T share the same placement after the match's tiebreak rule was applied.">
@@ -645,6 +649,20 @@
                             }));
                         });
                         </script>
+                    @elseif($match->isDueForImpactLiveSync())
+                        <div class="bg-white rounded-2xl border border-rose-200 shadow-sm p-8">
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex size-2.5">
+                                    <span class="absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75 animate-ping"></span>
+                                    <span class="relative inline-flex rounded-full size-2.5 bg-rose-500"></span>
+                                </span>
+                                <h3 class="text-lg font-semibold text-stone-900">Live scores</h3>
+                            </div>
+                            <p class="mt-2 text-sm text-stone-600">
+                                Impact is pulled every 5 minutes through {{ ($match->match_end_date ?? $match->match_date)?->format('j M') }}.
+                                A shooter appears here when their Impact name matches an entry. These scores do not count until the match director confirms them.
+                            </p>
+                        </div>
                     @elseif($match->status !== 'completed')
                         {{-- No results yet for upcoming events --}}
                     @else

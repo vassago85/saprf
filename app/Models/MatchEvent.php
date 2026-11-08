@@ -750,14 +750,26 @@ class MatchEvent extends Model
                     $q2->whereNotNull('match_end_date')
                         ->where('match_end_date', '>=', now()->startOfDay());
                 });
-        })->whereIn('status', ['open', 'closed', 'draft', 'cancelled']);
+        })->where(function (Builder $q) {
+            $q->whereIn('status', ['open', 'closed', 'draft', 'cancelled'])
+                ->orWhere(function (Builder $q2) {
+                    // Paid out, but the scores are not confirmed and Impact
+                    // is still being pulled. Keep it with the matches still on.
+                    $q2->where('status', 'completed')
+                        ->whereNull('scores_finalized_at')
+                        ->where('impact_live_sync', true)
+                        ->whereNotNull('impact_match_id')
+                        ->whereNull('impact_live_ended_at');
+                });
+        });
     }
 
     /**
      * Matches that fall on today — the start date is on or before today, and
      * the effective end (match_end_date, else match_date) is still today or
-     * later. Used on the homepage "Live now" block. Status open or closed, so
-     * a 2-day national whose registration has already closed still shows.
+     * later. Used on the homepage "Live now" block. Open, closed, or a
+     * completed match whose scores are not confirmed yet — a payout does
+     * not take a 2-day national off this list while it is still being shot.
      */
     public function scopeLive(Builder $query): Builder
     {
@@ -765,7 +777,19 @@ class MatchEvent extends Model
 
         // whereDate, not a raw compare: SQLite stores date casts as
         // "Y-m-d H:i:s", so match_date <= '2026-10-28' misses a match on today.
-        return $query->whereIn('status', ['open', 'closed'])
+        return $query->where(function (Builder $q) {
+            $q->whereIn('status', ['open', 'closed'])
+                ->orWhere(function (Builder $q2) {
+                    // A payout can set status to completed while the match
+                    // is still being shot. Keep it on the live board until
+                    // the scores are actually confirmed.
+                    $q2->where('status', 'completed')
+                        ->whereNull('scores_finalized_at')
+                        ->where('impact_live_sync', true)
+                        ->whereNotNull('impact_match_id')
+                        ->whereNull('impact_live_ended_at');
+                });
+        })
             ->whereDate('match_date', '<=', $today)
             ->where(function (Builder $q) use ($today) {
                 $q->where(function (Builder $q2) use ($today) {
@@ -789,7 +813,13 @@ class MatchEvent extends Model
         // whereDate, not a raw equality: SQLite stores date casts as
         // "Y-m-d H:i:s", so match_date = '2026-10-28' would miss them.
         // MariaDB DATE columns compare the same way through whereDate.
-        return $query->whereIn('status', ['open', 'closed'])
+        return $query->where(function (Builder $q) {
+            $q->whereIn('status', ['open', 'closed'])
+                ->orWhere(function (Builder $q2) {
+                    $q2->where('status', 'completed')
+                        ->whereNull('scores_finalized_at');
+                });
+        })
             ->whereDate('match_date', '<=', $today)
             ->where(function (Builder $q) use ($today) {
                 $q->where(function (Builder $q2) use ($today) {
@@ -811,7 +841,10 @@ class MatchEvent extends Model
             return false;
         }
 
-        if (! in_array($this->status, ['open', 'closed'], true) || $this->match_date === null) {
+        $stillShooting = in_array($this->status, ['open', 'closed'], true)
+            || ($this->status === 'completed' && ! $this->scoresAreFinalized());
+
+        if (! $stillShooting || $this->match_date === null) {
             return false;
         }
 
@@ -841,7 +874,18 @@ class MatchEvent extends Model
                 })->orWhere(function (Builder $q2) {
                     $q2->whereNotNull('match_end_date')
                         ->where('match_end_date', '<', now()->startOfDay());
-                })->orWhere('status', 'completed');
+                })->orWhere(function (Builder $q2) {
+                    // A completed match is a result, unless Impact is still
+                    // being pulled and the scores have not been confirmed.
+                    // That is a payout taken while the match is on the range.
+                    $q2->where('status', 'completed')
+                        ->where(function (Builder $q3) {
+                            $q3->whereNotNull('scores_finalized_at')
+                                ->orWhere('impact_live_sync', false)
+                                ->orWhereNull('impact_match_id')
+                                ->orWhereNotNull('impact_live_ended_at');
+                        });
+                });
             });
     }
 

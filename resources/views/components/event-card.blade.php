@@ -253,6 +253,11 @@
                 <span class="flex-1 text-center px-4 py-2 rounded-xl bg-stone-50 text-stone-400 text-sm font-medium ring-1 ring-inset ring-stone-200 cursor-default">
                     Opens {{ $match->registration_open_date?->format('j M') ?? 'Soon' }}
                 </span>
+            @elseif($match->isDueForImpactLiveSync())
+                <a href="{{ url('/events/' . $match->id) }}"
+                   class="flex-1 text-center px-4 py-2 rounded-xl bg-rose-50 text-rose-700 text-sm font-semibold ring-1 ring-inset ring-rose-200 hover:bg-rose-100 transition">
+                    Live scores
+                </a>
             @elseif($match->status === 'completed')
                 <a href="{{ url('/events/' . $match->id) }}"
                    class="flex-1 text-center px-4 py-2 rounded-xl bg-stone-50 text-stone-600 text-sm font-semibold ring-1 ring-inset ring-stone-200 hover:bg-stone-100 transition">

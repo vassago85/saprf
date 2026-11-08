@@ -333,7 +333,7 @@ it('lets the MD request a payout before scores are marked complete, and warns it
     $fresh = $this->match->fresh();
     expect(Payout::where('match_id', $this->match->id)->exists())->toBeTrue()
         ->and($fresh->scoresAreFinalized())->toBeFalse()
-        ->and($fresh->status)->toBe('completed');
+        ->and($fresh->status)->toBe('closed');
 });
 
 it('still lets the MD request a payout when a new walk-in lands after acknowledgement', function () {
