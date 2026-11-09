@@ -9,9 +9,12 @@ use Random\Randomizer;
 /**
  * Standard competition ranking for a set of season-standings rows.
  *
- * Equal points (to 1 decimal, matching the table) share a rank and the next
- * place is skipped. A null seed keeps export order: points desc, surname,
- * first name. A seed shuffles only inside each tie group.
+ * Equal points (to 4 decimals, the precision the season total is stored at)
+ * share a rank and the next place is skipped. A null seed keeps export order:
+ * points desc, surname, first name. A seed shuffles only inside each tie group.
+ *
+ * Rows that would look tied at 1 decimal but are not equal at 4 decimals are
+ * ranked apart, and those rows are flagged to display all four decimals.
  */
 class RankStandings
 {
@@ -51,7 +54,9 @@ class RankStandings
     private function prepare(array $row): array
     {
         [$surname, $first] = $this->splitName((string) ($row['name'] ?? ''));
-        $row['tenths'] = $this->tenths((float) ($row['points'] ?? 0));
+        $points = (float) ($row['points'] ?? 0);
+        $row['tenths'] = $this->tenths($points);
+        $row['precise'] = $this->precise($points);
         $row['surname_key'] = mb_strtolower($surname, 'UTF-8');
         $row['first_key'] = mb_strtolower($first, 'UTF-8');
         $row['id'] = (int) ($row['id'] ?? 0);
@@ -60,12 +65,21 @@ class RankStandings
     }
 
     /**
-     * Points the table shows to 1 decimal, compared as integer tenths so
-     * binary float noise cannot split or merge a tie.
+     * One-decimal bucket, used only to decide when the table must show the
+     * extra digits. Ranking itself uses precise().
      */
     private function tenths(float $points): int
     {
         return (int) round($points * 10);
+    }
+
+    /**
+     * Season total to 4 decimals, as an integer, so float noise cannot split
+     * or merge a real tie.
+     */
+    private function precise(float $points): int
+    {
+        return (int) round($points * 10000);
     }
 
     /**
@@ -95,12 +109,12 @@ class RankStandings
     private function compare(array $a, array $b): int
     {
         return [
-            $b['tenths'],
+            $b['precise'],
             $a['surname_key'],
             $a['first_key'],
             $a['id'],
         ] <=> [
-            $a['tenths'],
+            $a['precise'],
             $b['surname_key'],
             $b['first_key'],
             $b['id'],
@@ -117,7 +131,7 @@ class RankStandings
 
         foreach ($ordered as $row) {
             $last = array_key_last($groups);
-            if ($last === null || $groups[$last][0]['tenths'] !== $row['tenths']) {
+            if ($last === null || $groups[$last][0]['precise'] !== $row['precise']) {
                 $groups[] = [];
                 $last = array_key_last($groups);
             }
@@ -158,22 +172,28 @@ class RankStandings
      */
     private function assignRanks(Collection $ordered): Collection
     {
-        $counts = $ordered->countBy('tenths');
+        $counts = $ordered->countBy('precise');
+        $splitTenths = $ordered
+            ->groupBy('tenths')
+            ->filter(fn (Collection $group) => $group->unique('precise')->count() > 1)
+            ->keys()
+            ->flip();
         $rank = 0;
         $previous = null;
 
-        return $ordered->values()->map(function (array $row, int $index) use ($counts, &$rank, &$previous) {
-            $tenths = $row['tenths'];
-            if ($previous === null || $tenths !== $previous) {
+        return $ordered->values()->map(function (array $row, int $index) use ($counts, $splitTenths, &$rank, &$previous) {
+            $precise = $row['precise'];
+            if ($previous === null || $precise !== $previous) {
                 $rank = $index + 1;
-                $previous = $tenths;
+                $previous = $precise;
             }
 
-            $tied = (int) ($counts[$tenths] ?? 0) > 1;
+            $tied = (int) ($counts[$precise] ?? 0) > 1;
             $row['rank'] = $rank;
             $row['rank_label'] = $tied ? 'T'.$rank : (string) $rank;
             $row['is_tied'] = $tied;
-            unset($row['tenths'], $row['surname_key'], $row['first_key']);
+            $row['points_decimals'] = $splitTenths->has($row['tenths']) ? 4 : 1;
+            unset($row['tenths'], $row['precise'], $row['surname_key'], $row['first_key']);
 
             return $row;
         })->values();

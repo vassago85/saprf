@@ -523,7 +523,7 @@ new class extends Component
                             </p>
                         </div>
                         <div class="shrink-0 text-right">
-                            <p class="font-mono text-sm font-bold text-stone-900 tabular-nums whitespace-nowrap">{{ points($standing->points) }}</p>
+                            <p class="font-mono text-sm font-bold text-stone-900 tabular-nums whitespace-nowrap">{{ points($standing->points, (int) ($standing->points_decimals ?? 1)) }}</p>
                             @if($isTiedRank)
                                 <p class="text-[11px] font-semibold text-emerald-700">Level</p>
                             @elseif($gap !== null && $gap > 0)
@@ -574,7 +574,7 @@ new class extends Component
                                 {{ $userDiv?->name ?? '—' }} &middot; {{ $prov?->abbreviation ?? $prov?->name ?? '—' }}
                             </p>
                             <p class="mt-3 font-mono text-2xl font-bold text-stone-900 tabular-nums">
-                                {{ points($standing->points) }}
+                                {{ points($standing->points, (int) ($standing->points_decimals ?? 1)) }}
                                 <span class="text-sm font-semibold text-stone-400">/ {{ $pointsMax }}</span>
                             </p>
                             @if($isTiedRank)
@@ -807,7 +807,7 @@ new class extends Component
                                                 </span>
                                             </td>
                                             <td class="max-sm:w-px whitespace-nowrap px-2 py-3 text-right align-middle tabular-nums sm:px-4 sm:py-4">
-                                                <span class="font-mono text-sm font-bold text-stone-900 tabular-nums">{{ points($standing->points) }}</span>
+                                                <span class="font-mono text-sm font-bold text-stone-900 tabular-nums">{{ points($standing->points, (int) ($standing->points_decimals ?? 1)) }}</span>
                                             </td>
                                             <td class="px-4 py-4 text-right hidden md:table-cell">
                                                 @if($isTiedRank)

@@ -99,6 +99,7 @@ class SeasonStandingsBoard
                 $model->rank = $row['rank'];
                 $model->setAttribute('rank_label', $row['rank_label']);
                 $model->setAttribute('is_tied', $row['is_tied']);
+                $model->setAttribute('points_decimals', (int) ($row['points_decimals'] ?? 1));
 
                 return $model;
             })

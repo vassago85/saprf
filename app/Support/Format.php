@@ -119,26 +119,28 @@ class Format
     }
 
     /**
-     * Season-standings points to one decimal — the single source of truth
-     * for how we render a shooter's season total on the homepage, the
-     * public standings pages and the shooter profile.
+     * Season-standings points. One decimal everywhere, except a row the
+     * standings board has flagged because one decimal would hide a split.
      *
      * The dot is forced as the decimal separator (never a comma) and the
      * thousands grouping is suppressed so points parse cleanly in Alpine
      * / JS. Null and empty string collapse to the em-dash we use elsewhere.
      *
-     *   points(283.456)  → '283.5'
-     *   points(283.5)    → '283.5'
-     *   points(100)      → '100.0'
-     *   points(0)        → '0.0'
-     *   points(null)     → '—'
+     *   points(283.456)     → '283.5'
+     *   points(283.5)       → '283.5'
+     *   points(78.8617, 4)  → '78.8617'
+     *   points(100)         → '100.0'
+     *   points(0)           → '0.0'
+     *   points(null)        → '—'
      */
-    public static function points(int|float|string|null $value): string
+    public static function points(int|float|string|null $value, int $decimals = 1): string
     {
         if ($value === null || $value === '') {
             return '—';
         }
 
-        return number_format((float) $value, 1, '.', '');
+        $decimals = max(0, min(4, $decimals));
+
+        return number_format((float) $value, $decimals, '.', '');
     }
 }

@@ -49,12 +49,11 @@ if (! function_exists('impacts')) {
 
 if (! function_exists('points')) {
     /**
-     * Season-standings points to one decimal. The one and only entry point —
-     * every homepage widget, standings page and shooter-profile card runs
-     * through here so 283.5 can never render as 283 or 283.50 somewhere.
+     * Season-standings points. Defaults to one decimal. Pass 4 for a row
+     * the board has flagged because one decimal would hide a real split.
      */
-    function points(int|float|string|null $value): string
+    function points(int|float|string|null $value, int $decimals = 1): string
     {
-        return Format::points($value);
+        return Format::points($value, $decimals);
     }
 }

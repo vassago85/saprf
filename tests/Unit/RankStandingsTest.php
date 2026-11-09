@@ -99,3 +99,20 @@ it('treats points that differ only by float noise as a tie after rounding to one
     expect($split->pluck('rank_label')->all())->toBe(['1', '2'])
         ->and($split->first()['name'])->toBe('Round Number');
 });
+
+it('splits a one-decimal tie when the stored totals differ and flags those rows for four decimals', function () {
+    $ranked = rankedRows([
+        ['name' => 'Stelios Christofi', 'points' => 78.8617, 'id' => 1],
+        ['name' => 'Hanno Van Niekerk', 'points' => 78.8770, 'id' => 2],
+        ['name' => 'Kevin Goncalves', 'points' => 94.0, 'id' => 3],
+    ]);
+
+    expect($ranked->pluck('name')->all())->toBe([
+        'Kevin Goncalves',
+        'Hanno Van Niekerk',
+        'Stelios Christofi',
+    ])
+        ->and($ranked->pluck('rank_label')->all())->toBe(['1', '2', '3'])
+        ->and($ranked->pluck('is_tied')->all())->toBe([false, false, false])
+        ->and($ranked->pluck('points_decimals')->all())->toBe([1, 4, 4]);
+});

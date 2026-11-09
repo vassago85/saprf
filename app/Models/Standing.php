@@ -22,7 +22,7 @@ class Standing extends Model
     protected function casts(): array
     {
         return [
-            'points' => 'decimal:3',
+            'points' => 'decimal:4',
             'pool_breakdown' => 'array',
         ];
     }
