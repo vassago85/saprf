@@ -40,12 +40,15 @@ it('seeds the provisional 2027 rimfire calendar and leaves existing rows alone',
             && $match->match_director === 'To be confirmed'
             && $match->registration_status === 'setup_incomplete'))->toBeTrue();
 
-    $balmoral = $matches->firstWhere('name', 'PR22 2027 National - Balmoral');
-    expect($balmoral->match_date->toDateString())->toBe('2027-02-21')
-        ->and($balmoral->series_level)->toBe('national')
-        ->and($balmoral->province->abbreviation)->toBe('MP')
-        ->and($balmoral->match_end_date)->toBeNull()
-        ->and($balmoral->divisions->pluck('id')->all())->toContain($division->id);
+    $sungiti = $matches->firstWhere('name', 'PR22 2027 National - Sungiti');
+    expect($sungiti->match_date->toDateString())->toBe('2027-02-21')
+        ->and($sungiti->venue_name)->toBe('Sungiti')
+        ->and($sungiti->city)->toBe('Sungiti')
+        ->and($sungiti->venue_location)->toBe('Sungiti, Mpumalanga')
+        ->and($sungiti->series_level)->toBe('national')
+        ->and($sungiti->province->abbreviation)->toBe('MP')
+        ->and($sungiti->match_end_date)->toBeNull()
+        ->and($sungiti->divisions->pluck('id')->all())->toContain($division->id);
 
     $capeTown = $matches->where('name', 'PR22 2027 National - Cape Town')->values();
     expect($capeTown)->toHaveCount(2)
@@ -64,13 +67,94 @@ it('seeds the provisional 2027 rimfire calendar and leaves existing rows alone',
         ->and($champs->match_end_date->toDateString())->toBe('2027-11-07')
         ->and($champs->province->abbreviation)->toBe('WC');
 
-    $balmoral->update(['venue_name' => 'Edited range', 'status' => 'open']);
+    $sungiti->update(['venue_name' => 'Edited range', 'status' => 'open']);
 
     $this->artisan('pr22:seed-2027-events')->assertSuccessful();
 
     expect(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9)
-        ->and($balmoral->fresh()->venue_name)->toBe('Edited range')
-        ->and($balmoral->fresh()->status)->toBe('open');
+        ->and($sungiti->fresh()->venue_name)->toBe('Edited range')
+        ->and($sungiti->fresh()->status)->toBe('open');
+});
+
+it('renames an untouched 21 February Balmoral placeholder to Sungiti', function () {
+    seedPr22CalendarProvinces();
+    $owner = User::factory()->create();
+    $mp = Province::where('abbreviation', 'MP')->first();
+
+    $existing = MatchEvent::create([
+        'name' => 'PR22 2027 National - Balmoral',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2027',
+        'province_id' => $mp->id,
+        'venue_name' => 'Balmoral',
+        'venue_location' => 'Balmoral, Mpumalanga',
+        'city' => 'Balmoral',
+        'match_date' => '2027-02-21',
+        'status' => 'closed',
+        'created_by' => $owner->id,
+        'match_director' => 'To be confirmed',
+        'active_member_fee' => null,
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'published' => true,
+        'description' => 'Provisional 2027 PR22 calendar entry. Entries are not open. The date and venue may still change.',
+    ]);
+    $previousSlug = $existing->slug;
+
+    $this->artisan('pr22:seed-2027-events', ['--dry-run' => true])
+        ->assertSuccessful()
+        ->expectsOutputToContain('would rename');
+
+    expect($existing->fresh()->name)->toBe('PR22 2027 National - Balmoral')
+        ->and($existing->fresh()->slug)->toBe($previousSlug);
+
+    $this->artisan('pr22:seed-2027-events')
+        ->assertSuccessful()
+        ->expectsOutputToContain('renamed');
+
+    $existing->refresh();
+
+    expect($existing->name)->toBe('PR22 2027 National - Sungiti')
+        ->and($existing->venue_name)->toBe('Sungiti')
+        ->and($existing->city)->toBe('Sungiti')
+        ->and($existing->venue_location)->toBe('Sungiti, Mpumalanga')
+        ->and($existing->slug)->not->toBe($previousSlug)
+        ->and($existing->match_date->toDateString())->toBe('2027-02-21')
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-02-21')->count())->toBe(1)
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
+});
+
+it('leaves a 21 February Balmoral match an admin has already edited', function () {
+    seedPr22CalendarProvinces();
+    $owner = User::factory()->create();
+    $mp = Province::where('abbreviation', 'MP')->first();
+
+    $existing = MatchEvent::create([
+        'name' => 'PR22 2027 National - Balmoral',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2027',
+        'province_id' => $mp->id,
+        'venue_name' => 'Balmoral',
+        'city' => 'Balmoral',
+        'match_date' => '2027-02-21',
+        'status' => 'open',
+        'created_by' => $owner->id,
+        'match_director' => 'To be confirmed',
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'published' => true,
+    ]);
+
+    $this->artisan('pr22:seed-2027-events')->assertSuccessful();
+
+    expect($existing->fresh()->name)->toBe('PR22 2027 National - Balmoral')
+        ->and($existing->fresh()->status)->toBe('open')
+        ->and(MatchEvent::query()->where('name', 'PR22 2027 National - Sungiti')->count())->toBe(0)
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
 });
 
 it('prints the 2027 rimfire calendar without writing on a dry run', function () {

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\MatchName;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Seeds the provisional 2027 PR22 (rimfire) calendar from
@@ -24,9 +25,12 @@ use Illuminate\Support\Facades\DB;
  *
  * Re-running is safe: a match that already exists for the same name and
  * date is left untouched, including any fee, director, or status an
- * admin has set since the first seed. New matches are published with
- * entries closed, no fee, and the director left as "To be confirmed",
- * so they show on the calendar as "Not open yet".
+ * admin has set since the first seed. The 21 February national was first
+ * seeded at Balmoral. Re-running renames that untouched placeholder to
+ * Sungiti. A row an admin has already edited is left as it is, and a
+ * second match is not created. New matches are published with entries
+ * closed, no fee, and the director left as "To be confirmed", so they
+ * show on the calendar as "Not open yet".
  */
 class SeedPr22Events2027Command extends Command
 {
@@ -40,18 +44,19 @@ class SeedPr22Events2027Command extends Command
     private const NOTE = 'Provisional 2027 PR22 calendar entry. Entries are not open. The date and venue may still change.';
 
     /**
-     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string}>
+     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string, replaces?: string}>
      */
     private const EVENTS = [
         [
-            'name' => 'PR22 2027 National - Balmoral',
+            'name' => 'PR22 2027 National - Sungiti',
             'date' => '2027-02-21',
             'end' => null,
             'level' => 'national',
             'province' => 'MP',
-            'venue' => 'Balmoral',
-            'city' => 'Balmoral',
+            'venue' => 'Sungiti',
+            'city' => 'Sungiti',
             'note' => null,
+            'replaces' => 'PR22 2027 National - Balmoral',
         ],
         [
             'name' => 'PR22 2027 National - Klipskuur Warrior',
@@ -164,10 +169,11 @@ class SeedPr22Events2027Command extends Command
 
         $divisionIds = Division::query()->active()->pluck('id');
         $created = 0;
+        $renamed = 0;
         $existing = 0;
         $rows = [];
 
-        $write = function () use ($provinces, $creator, $divisionIds, $dryRun, &$created, &$existing, &$rows): void {
+        $write = function () use ($provinces, $creator, $divisionIds, $dryRun, &$created, &$renamed, &$existing, &$rows): void {
             foreach (self::EVENTS as $event) {
                 $name = MatchName::normalize($event['name']);
                 $province = $provinces->get($event['province']);
@@ -177,6 +183,35 @@ class SeedPr22Events2027Command extends Command
                     ->where('name', $name)
                     ->whereDate('match_date', $event['date'])
                     ->first();
+
+                if (! $match && isset($event['replaces'])) {
+                    $match = MatchEvent::query()
+                        ->where('match_type', 'PR22')
+                        ->where('season', self::SEASON)
+                        ->where('name', MatchName::normalize($event['replaces']))
+                        ->whereDate('match_date', $event['date'])
+                        ->first();
+
+                    if ($match && $match->venue_name === 'Balmoral'
+                        && $match->city === 'Balmoral'
+                        && $match->match_director === 'To be confirmed'
+                        && $match->status === 'closed') {
+                        $rows[] = [$event['date'], $name, $event['province'], $event['level'], $dryRun ? 'would rename' : 'renamed'];
+                        $renamed++;
+
+                        if (! $dryRun) {
+                            $match->update([
+                                'name' => $name,
+                                'slug' => Str::slug($name).'-'.Str::random(5),
+                                'venue_name' => $event['venue'],
+                                'venue_location' => $event['city'] ? $event['city'].', '.$province->name : $province->name,
+                                'city' => $event['city'],
+                            ]);
+                        }
+
+                        continue;
+                    }
+                }
 
                 if ($match) {
                     $existing++;
@@ -235,7 +270,7 @@ class SeedPr22Events2027Command extends Command
         }
 
         $this->table(['Date', 'Event', 'Province', 'Level', 'Result'], $rows);
-        $this->info(($dryRun ? 'Dry run. ' : '')."{$created} created, {$existing} already present.");
+        $this->info(($dryRun ? 'Dry run. ' : '')."{$created} created, {$renamed} renamed, {$existing} already present.");
 
         return self::SUCCESS;
     }
