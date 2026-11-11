@@ -272,3 +272,43 @@ it('renders the scores closeout wizard when a zero-score row has no CSV parent',
         ->assertSee('Live Larry')
         ->assertSee('Yes, participated');
 });
+
+it('renders the centrefire closeout wizard when a live zero has no CSV parent', function () {
+    $match = MatchEvent::create([
+        'name' => 'Centrefire National',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => now()->subDay()->toDateString(),
+        'status' => 'completed',
+        'published' => true,
+        'created_by' => $this->md->id,
+        'active_member_fee' => 100,
+        'non_member_fee' => 100,
+        'lapsed_member_fee' => 100,
+    ]);
+
+    $score = Score::create([
+        'match_id' => $match->id,
+        'score_import_id' => null,
+        'shooter_name' => 'Centrefire Zero',
+        'raw_score' => 0,
+        'status' => 'pending',
+        'is_member' => false,
+        'match_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.scores', $match))
+        ->assertOk()
+        ->assertSee('Centrefire Zero')
+        ->assertSee('Yes, participated');
+
+    $this->actingAs($this->md)
+        ->post(route('scores.confirm-participation', ['score' => $score]))
+        ->assertRedirect();
+
+    expect($score->fresh()->participation_confirmed_at)->not->toBeNull();
+});
