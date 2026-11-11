@@ -165,7 +165,7 @@ class ImpactLiveImportService
                     : null,
                 'registration_status' => $linkedReg?->registration_status,
                 'payment_status' => $linkedReg?->payment_status,
-                'division_slug' => $this->resolveDivisionSlug($linkedReg, $impactDivision),
+                'division_slug' => $this->resolveDivisionSlug($linkedReg, $impactDivision, $match),
                 'division_source' => $linkedReg?->division_id ? 'registration' : 'impact',
                 'membership_kind' => $membershipKind,
                 'action' => $this->previewAction($linkedReg, $membershipKind),
@@ -738,15 +738,37 @@ class ImpactLiveImportService
         return $sum;
     }
 
-    private function resolveDivisionSlug(?MatchRegistration $reg, string $impactDivision): string
+    private function resolveDivisionSlug(?MatchRegistration $reg, string $impactDivision, ?MatchEvent $match = null): string
     {
         if ($reg?->division?->slug) {
             return $reg->division->slug;
         }
 
         $key = Str::lower(trim($impactDivision));
+        if ($key === '') {
+            return 'open';
+        }
 
-        return self::DIVISION_ALIASES[$key] ?? 'open';
+        // Impact calls the rimfire factory class "Production". Centrefire has
+        // its own Production division, so that rewrite must not run on PRS.
+        $series = $match?->match_type ?? $reg?->match?->match_type;
+        $aliases = self::DIVISION_ALIASES;
+        if ($series === 'PRS') {
+            unset($aliases['production']);
+        }
+
+        if (isset($aliases[$key])) {
+            return $aliases[$key];
+        }
+
+        $slug = Division::query()
+            ->where(function ($query) use ($key) {
+                $query->whereRaw('LOWER(slug) = ?', [$key])
+                    ->orWhereRaw('LOWER(name) = ?', [$key]);
+            })
+            ->value('slug');
+
+        return $slug ?: 'open';
     }
 
     private function divisionIdFromSlug(string $slug): ?int

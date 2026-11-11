@@ -224,6 +224,64 @@ it('previews a match from the Impact match page url', function () {
         ->and($preview['shooters'])->not->toBeEmpty();
 });
 
+it('maps an unregistered Impact Production shooter to Factory on a rimfire match', function () {
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        ['id' => 9, 'name' => 'Rimfire Walk In', 'rank' => 1, 'points' => 5000, 'divisionName' => 'Production'],
+    ];
+    fakeImpactApi($payload);
+
+    $preview = app(ImpactLiveImportService::class)->preview($this->match, '11086');
+
+    expect($preview['shooters'][0]['division_slug'])->toBe('factory')
+        ->and($preview['shooters'][0]['division_source'])->toBe('impact');
+});
+
+it('keeps Production and Limited as their own divisions on a centrefire import', function () {
+    foreach (['production' => 'Production', 'limited' => 'Limited', 'hunter' => 'Hunter'] as $slug => $name) {
+        Division::firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $name, 'display_order' => 10, 'is_active' => true]
+        );
+    }
+
+    $prs = MatchEvent::create([
+        'name' => 'Centrefire GP National',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2026',
+        'province_id' => $this->province->id,
+        'match_date' => Carbon::yesterday()->toDateString(),
+        'status' => 'published',
+        'published' => true,
+        'created_by' => $this->admin->id,
+        'active_member_fee' => 100,
+        'non_member_fee' => 150,
+        'lapsed_member_fee' => 120,
+    ]);
+
+    $limited = Division::where('slug', 'limited')->first();
+    $larry = impactMakeMember('Limited Larry');
+    impactRegisterShooter($prs, $larry, $limited);
+
+    $payload = impactLivePayload();
+    $payload['payload']['shooters'] = [
+        ['id' => 1, 'name' => 'Limited Larry', 'rank' => 1, 'points' => 9000, 'divisionName' => 'Limited'],
+        ['id' => 2, 'name' => 'Walk In Production', 'rank' => 2, 'points' => 8000, 'divisionName' => 'Production'],
+        ['id' => 3, 'name' => 'Walk In Hunter', 'rank' => 3, 'points' => 7000, 'divisionName' => 'Hunter'],
+    ];
+    fakeImpactApi($payload);
+
+    $preview = app(ImpactLiveImportService::class)->preview($prs, '11086');
+    $byName = collect($preview['shooters'])->keyBy('impact_name');
+
+    expect($byName['Limited Larry']['division_slug'])->toBe('limited')
+        ->and($byName['Limited Larry']['division_source'])->toBe('registration')
+        ->and($byName['Walk In Production']['division_slug'])->toBe('production')
+        ->and($byName['Walk In Hunter']['division_slug'])->toBe('hunter');
+});
+
 it('previews Impact shooters and prefers registration divisions (Production→Factory fallback)', function () {
     fakeImpactApi();
 
