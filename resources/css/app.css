@@ -340,6 +340,21 @@ body[data-ios-pwa="true"] [data-flux-sidebar] {
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* Impersonation bar is position:fixed, so it is not a grid item.
+   Pad the Flux body grid by the same height or the mobile header and
+   the top of the sidebar sit underneath it. The sidebar's own
+   lg:!h-dvh would otherwise overflow the padded viewport. */
+body:has([data-impersonation-banner]) {
+    --impersonation-bar: 2.75rem;
+    padding-top: var(--impersonation-bar);
+}
+
+body:has([data-impersonation-banner]) [data-flux-sidebar] {
+    top: var(--impersonation-bar) !important;
+    height: calc(100dvh - var(--impersonation-bar)) !important;
+    max-height: calc(100dvh - var(--impersonation-bar)) !important;
+}
+
 /* Intentionally NOT hiding #ios-pwa-nav with display:none / visibility:hidden
    while the sidebar is open. On iOS, removing the Menu button's hit target
    mid-tap retargets the synthetic click onto the dim backdrop and closes the

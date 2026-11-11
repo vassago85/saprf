@@ -37,6 +37,14 @@ it('lets a developer impersonate another member and logs it', function () {
     // Auth::user() should now be the target.
     expect(auth()->id())->toBe($target->id);
 
+    // The banner is fixed across the top. It must not be a sticky grid
+    // child — Flux's body grid would place that in the empty side column.
+    $this->get(route('dashboard'))
+        ->assertSee('data-impersonation-banner', false)
+        ->assertSee('fixed inset-x-0 top-0', false)
+        ->assertSee('Impersonating:', false)
+        ->assertSee('Target Tim');
+
     // Every start writes exactly one 'impersonation.started' audit row
     // pointing at the target user with the developer as the actor.
     $audit = AuditLog::query()
