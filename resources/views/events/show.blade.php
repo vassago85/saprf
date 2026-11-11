@@ -1019,10 +1019,12 @@
                                         </dd>
                                     </div>
                                 @endif
-                                <div class="flex items-center justify-between">
-                                    <dt class="text-xs text-stone-400">Member Fee</dt>
-                                    <dd class="text-sm font-semibold text-emerald-700">R {{ number_format($match->active_member_fee, 2) }}</dd>
-                                </div>
+                                @if($match->active_member_fee !== null)
+                                    <div class="flex items-center justify-between">
+                                        <dt class="text-xs text-stone-400">Member Fee</dt>
+                                        <dd class="text-sm font-semibold text-emerald-700">R {{ number_format($match->active_member_fee, 2) }}</dd>
+                                    </div>
+                                @endif
                                 @if($match->series_level === 'provincial' && ! $match->supportsClubEntry())
                                     <div class="flex items-center justify-between">
                                         <dt class="text-xs text-stone-400">Who can enter</dt>
