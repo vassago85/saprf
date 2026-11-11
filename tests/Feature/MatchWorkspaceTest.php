@@ -504,6 +504,105 @@ it('still offers every other match status from the more menu', function () {
         ->assertDontSee(route('matches.close-entries', $match), false);
 });
 
+it('shows shooter phone numbers to the match director on their entries list', function () {
+    $md = User::factory()->create(['phone' => '0110000000']);
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province);
+
+    $shooter = User::factory()->create([
+        'name' => 'Phone Shooter',
+        'phone' => '0825550199',
+        'email' => 'phone.shooter@example.test',
+    ]);
+    $registration = MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => $shooter->id,
+        'shooter_name' => 'Phone Shooter',
+        'email' => $shooter->email,
+        'phone' => null,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 250,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($md)
+        ->get(route('matches.entries', $match))
+        ->assertOk()
+        ->assertSee('0825550199')
+        ->assertSee('tel:0825550199', false);
+
+    $this->actingAs($md)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertSee('0825550199');
+
+    // The public event page stays a name list. Shooter numbers stay in the workspace.
+    $this->actingAs($md)
+        ->get(route('events.show', $match))
+        ->assertOk()
+        ->assertDontSee('0825550199');
+
+    $otherMd = User::factory()->create();
+    $otherMd->assignRole('match_director');
+    $this->actingAs($otherMd)
+        ->get(route('matches.entries', $match))
+        ->assertForbidden();
+
+    $sponsor = User::factory()->create();
+    $sponsor->assignRole('member');
+    $registration->update(['registered_by_user_id' => $sponsor->id]);
+
+    $this->actingAs($sponsor)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertDontSee('0825550199');
+
+    $this->actingAs($shooter)
+        ->get(route('registrations.show', $registration))
+        ->assertOk()
+        ->assertDontSee('0825550199');
+});
+
+it('shows a managed shooter parent phone when the shooter has none', function () {
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match = workspaceMatchOwnedBy($md, $this->province);
+
+    $parent = User::factory()->create([
+        'name' => 'Parent Contact',
+        'phone' => '0837770101',
+        'email' => 'parent.contact@example.test',
+    ]);
+    $junior = User::factory()->create([
+        'name' => 'Junior No Phone',
+        'phone' => null,
+        'email' => 'junior.nophone@managed.saprf.co.za',
+        'parent_id' => $parent->id,
+        'is_managed_account' => true,
+        'managed_relationship' => 'junior',
+    ]);
+    MatchRegistration::create([
+        'match_id' => $match->id,
+        'user_id' => $junior->id,
+        'shooter_name' => 'Junior No Phone',
+        'email' => $parent->email,
+        'phone' => null,
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 250,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+
+    $this->actingAs($md)
+        ->get(route('matches.entries', $match))
+        ->assertOk()
+        ->assertSee('0837770101')
+        ->assertSee('parent');
+});
+
 it('keeps admin-level roles seeing the cross-match lists', function () {
     $admin = User::factory()->create();
     $admin->assignRole('admin');

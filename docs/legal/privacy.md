@@ -32,12 +32,20 @@ When we obtain information from you specifically to enable you to buy a service 
 
 ## Your domain name and e-mail address
 
-This information is recognised by our servers and the pages that you visit are recorded. We shall not under any circumstances, divulge your e-mail address to any person who is not an employee or contractor of ours and who does not need to know, either generally or specifically. This information is used:
+This information is recognised by our servers and the pages that you visit are recorded. We shall not under any circumstances, divulge your e-mail address to any person who is not an employee or contractor of ours and who does not need to know, either generally or specifically, except as set out under "Match entries" below. This information is used:
 
 - to correspond with you or deal with you as you expect;
 - in a collective way not referable to any particular individual, for the purpose of quality control and improvement of our site;
 - to send you news about the services to which you have signed up;
 - to tell you about other of our services or services of sister web sites.
+
+## Match entries
+
+When you enter a match, the match director of that match can see your email address and phone number. They can see these details purely so they can contact you about arrangements for that match — for example a change of time or venue, squad information, or something you need to know before you arrive. The match director may not use your email address or phone number for any other purpose, and may not pass them on.
+
+Your email address and phone number are not shown on the public entry list, and they are not shown to other shooters.
+
+If you enter a managed family member who has no phone number of their own, the match director may see the phone number on the account that manages them, so they can reach the person responsible for that entry. That number is shown for the same limited purpose.
 
 ## Information you post on our website
 

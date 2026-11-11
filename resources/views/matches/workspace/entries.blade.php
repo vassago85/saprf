@@ -221,6 +221,13 @@
                                         @if($reg->email)
                                             <div class="text-xs text-stone-500">{{ $reg->email }}</div>
                                         @endif
+                                        @can('update', $match)
+                                            @if($phone = $reg->contactPhone())
+                                                <a href="tel:{{ preg_replace('/[^\d+]/', '', $phone) }}" class="block text-xs text-stone-500 hover:text-emerald-700">
+                                                    {{ $phone }}@if($reg->usesParentContactPhone()) <span class="text-stone-400">· parent</span>@endif
+                                                </a>
+                                            @endif
+                                        @endcan
                                     </td>
                                     @if($showLiveBoard)
                                         @php

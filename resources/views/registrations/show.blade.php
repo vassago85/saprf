@@ -51,6 +51,13 @@
                                 @endif
                             </p>
                         @endif
+                        @can('update', $registration)
+                            @if($phone = $registration->contactPhone())
+                                <p class="mt-1 text-xs text-stone-500">
+                                    <a href="tel:{{ preg_replace('/[^\d+]/', '', $phone) }}" class="hover:text-emerald-700">{{ $phone }}</a>@if($registration->usesParentContactPhone()) <span class="text-stone-400">· parent</span>@endif
+                                </p>
+                            @endif
+                        @endcan
                     </dd>
                     @if($canEditShooterName)
                         <form x-show="editing" x-cloak method="POST" action="{{ route('registrations.update-shooter-name', $registration) }}" class="mt-1.5 flex flex-wrap items-center gap-2">

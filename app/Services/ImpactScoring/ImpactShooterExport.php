@@ -138,26 +138,6 @@ class ImpactShooterExport
         return '';
     }
 
-    private function phoneFor(MatchRegistration $registration): string
-    {
-        $user = $registration->user;
-        $own = trim((string) ($user?->phone ?? ''));
-        if ($own !== '') {
-            return $own;
-        }
-
-        $onEntry = trim((string) ($registration->phone ?? ''));
-        if ($onEntry !== '') {
-            return $onEntry;
-        }
-
-        if ($user?->isManaged()) {
-            return trim((string) ($user->parent?->phone ?? ''));
-        }
-
-        return '';
-    }
-
     private function nameFor(MatchRegistration $registration): string
     {
         $name = trim((string) ($registration->user?->name ?? ''));
@@ -182,7 +162,7 @@ class ImpactShooterExport
         return [
             $email,
             $this->nameFor($registration),
-            $this->phoneFor($registration),
+            $registration->contactPhone(),
             '',
             $division,
             $category,

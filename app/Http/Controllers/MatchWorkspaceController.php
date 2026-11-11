@@ -24,8 +24,8 @@ use App\Services\PaymentInquiryService;
 use App\Services\RegistrationPricingService;
 use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
-use App\Support\ScoreFormat;
 use App\Services\StandingsSnapshotRecorder;
+use App\Support\ScoreFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -107,7 +107,11 @@ class MatchWorkspaceController extends Controller
         $counts = $this->matchFinance->entryCounts($match);
 
         $query = MatchRegistration::query()
-            ->with(['user:id,name,email', 'division:id,name'])
+            ->with([
+                'user:id,name,email,phone,parent_id,is_managed_account',
+                'user.parent:id,phone',
+                'division:id,name',
+            ])
             ->where('match_id', $match->id)
             ->orderByRaw('CASE registration_status
                 WHEN "pending" THEN 1

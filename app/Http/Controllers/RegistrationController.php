@@ -184,7 +184,7 @@ class RegistrationController extends Controller
 
         $registration->load([
             'match',
-            'user',
+            'user.parent',
             'registeredBy',
             'division',
             'rifleConfiguration.make',

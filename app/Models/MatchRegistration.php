@@ -83,6 +83,51 @@ class MatchRegistration extends Model
     }
 
     /**
+     * Number a match director can use to reach this shooter.
+     * The profile number wins, then the number stored on the entry,
+     * then the parent's number when the shooter is a managed account.
+     */
+    public function contactPhone(): string
+    {
+        return $this->resolvedContactPhone()['number'];
+    }
+
+    /**
+     * True when {@see contactPhone()} came from the managing parent's profile
+     * because neither the shooter nor the entry has a number of their own.
+     */
+    public function usesParentContactPhone(): bool
+    {
+        return $this->resolvedContactPhone()['parent'];
+    }
+
+    /**
+     * @return array{number: string, parent: bool}
+     */
+    private function resolvedContactPhone(): array
+    {
+        $user = $this->user;
+        $own = trim((string) ($user?->phone ?? ''));
+        if ($own !== '') {
+            return ['number' => $own, 'parent' => false];
+        }
+
+        $onEntry = trim((string) ($this->phone ?? ''));
+        if ($onEntry !== '') {
+            return ['number' => $onEntry, 'parent' => false];
+        }
+
+        if ($user?->isManaged()) {
+            $parent = trim((string) ($user->parent?->phone ?? ''));
+            if ($parent !== '') {
+                return ['number' => $parent, 'parent' => true];
+            }
+        }
+
+        return ['number' => '', 'parent' => false];
+    }
+
+    /**
      * How did the money for this entry (if any) reach the platform?
      *
      * Returned slug powers the Payment column on the match financials
