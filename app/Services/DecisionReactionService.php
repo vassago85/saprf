@@ -42,7 +42,7 @@ class DecisionReactionService
         }
 
         if (! $member->isActiveMember()) {
-            throw new RuntimeException('Only active paid-up members can react.');
+            throw new RuntimeException('Only active paid-up members may vote.');
         }
 
         return DB::transaction(function () use ($decision, $member, $reaction): bool {

@@ -89,7 +89,7 @@ class DecisionPublishNotifier
         }
 
         $lines[] = '';
-        $lines[] = 'Active paid-up members can react with 👍 For, 👎 Against, or 🤷 Neutral on the register. To protect anonymity you may vote only once: the system does not record which option you chose against your name — only that you voted, so you cannot vote twice. Be careful how you use your vote.';
+        $lines[] = 'Only active paid-up members may vote (👍 For, 👎 Against, or 🤷 Neutral). To protect anonymity you may vote only once: the system does not record which option you chose against your name — only that you voted, so you cannot vote twice. Be careful how you use your vote.';
         $lines[] = '';
         $lines[] = route('decisions.index').'#decision-'.$decision->id;
 

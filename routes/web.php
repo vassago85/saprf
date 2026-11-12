@@ -224,12 +224,13 @@ Route::get('/documents', [DocumentsController::class, 'index'])
 Route::get('/documents/search', [DocumentsController::class, 'search'])
     ->name('documents.search');
 
-// Public Decision Register — ExCo decisions with anonymous member reactions.
-Route::get('/decisions', [DecisionController::class, 'index'])
-    ->name('decisions.index');
-Route::post('/decisions/{decision}/react', [DecisionController::class, 'react'])
-    ->middleware(['auth', 'verified'])
-    ->name('decisions.react');
+// Decision Register — logged-in members only (anonymous reactions).
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/decisions', [DecisionController::class, 'index'])
+        ->name('decisions.index');
+    Route::post('/decisions/{decision}/react', [DecisionController::class, 'react'])
+        ->name('decisions.react');
+});
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])

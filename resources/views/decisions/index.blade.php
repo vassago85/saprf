@@ -8,9 +8,9 @@
                 Decision Register
             </h1>
             <p class="mt-3 max-w-2xl text-sm sm:text-base text-stone-600 dark:text-stone-400">
-                Committee decisions published for members. Thumbs up, thumbs down, or Neutral show how members feel —
-                the decision itself does not change because of the result. One vote each, anonymous —
-                be careful how you use yours.
+                Committee decisions published for members. Only active paid-up members may vote
+                (👍 For, 👎 Against, or 🤷 Neutral). One anonymous vote each — be careful how you use yours.
+                Reactions do not automatically change the decision; they indicate to ExCo whether a review is needed.
             </p>
         </div>
 
@@ -115,14 +115,14 @@
                                 Log in to react
                             </a>
                         @elseif ($r['not_active_member'])
-                            <p class="text-sm text-stone-500">Only active paid-up members can react.</p>
+                            <p class="text-sm text-stone-500">Only active paid-up members may vote.</p>
                         @endif
                     </div>
 
                     <p class="text-xs text-stone-500">
-                        To protect anonymity you may vote only once. The system does not record which
-                        option you chose against your name — only that you voted, so you cannot vote twice.
-                        Be careful how you use your vote.
+                        Voting is limited to active paid-up members. To protect anonymity you may vote only once.
+                        The system does not record which option you chose against your name — only that you voted,
+                        so you cannot vote twice. Be careful how you use your vote.
                     </p>
                 </div>
             </article>

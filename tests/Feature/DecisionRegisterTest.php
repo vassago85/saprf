@@ -78,7 +78,7 @@ function seedTally(Decision $decision, int $likes, int $dislikes, int $neutrals 
     ]);
 }
 
-it('shows published decisions to guests with a login prompt and no buttons', function () {
+it('sends guests to login and only shows published decisions to logged-in members', function () {
     $published = publishDecision();
     $draft = Decision::create([
         'title' => 'Secret draft',
@@ -90,11 +90,16 @@ it('shows published decisions to guests with a login prompt and no buttons', fun
     DecisionTally::create(['decision_id' => $draft->id, 'likes' => 0, 'dislikes' => 0, 'neutrals' => 0]);
 
     $this->get(route('decisions.index'))
+        ->assertRedirect(route('login'));
+
+    $member = decisionMember();
+
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
         ->assertOk()
         ->assertSee('Sample committee decision')
-        ->assertSee('Log in to react')
         ->assertDontSee('Secret draft')
-        ->assertDontSee('name="reaction"', false);
+        ->assertSee('name="reaction"', false);
 });
 
 it('lets an active member react once and never stores the direction', function () {
@@ -144,9 +149,15 @@ it('refuses free and lapsed members without writing rows', function () {
     ]);
 
     $this->actingAs($free)
+        ->get(route('decisions.index'))
+        ->assertOk()
+        ->assertSee('Only active paid-up members may vote')
+        ->assertDontSee('name="reaction"', false);
+
+    $this->actingAs($free)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
         ->assertRedirect(route('decisions.index'))
-        ->assertSessionHas('error');
+        ->assertSessionHas('error', 'Only active paid-up members may vote.');
 
     expect(DecisionMember::query()->count())->toBe(0)
         ->and($decision->fresh()->tally->likes)->toBe(0);
@@ -216,20 +227,22 @@ it('lets exco change the reaction window length', function () {
 it('keeps the grey threshold until 10 reactions then shows the split', function () {
     $decision = publishDecision();
     seedTally($decision, 7, 2);
+    $member = decisionMember();
 
-    $this->get(route('decisions.index'))
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
         ->assertOk()
         ->assertSee('Not enough reactions yet (9 of 10)')
         ->assertDontSee('% for');
 
-    $member = decisionMember();
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
         ->assertRedirect(route('decisions.index'));
 
     expect($decision->fresh()->totalReactions())->toBe(10);
 
-    $this->get(route('decisions.index'))
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
         ->assertOk()
         ->assertSee('10 reactions')
         ->assertSee('80% for')
@@ -335,7 +348,8 @@ it('blocks non-exco from the admin screens and lets exco publish', function () {
         ->and($decision->tally)->not->toBeNull()
         ->and($decision->announcement_id)->not->toBeNull();
 
-    $this->get(route('decisions.index'))
+    $this->actingAs($exco)
+        ->get(route('decisions.index'))
         ->assertOk()
         ->assertSee('New public decision');
 });
@@ -577,12 +591,19 @@ it('writes no audit log for a reaction and refuses impersonation', function () {
         ->and(DecisionMember::query()->where('decision_id', $other->id)->exists())->toBeFalse();
 });
 
-it('links decisions in the public nav and sitemap', function () {
-    $this->get(route('decisions.index'))
+it('shows Decisions in the nav only when logged in and omits it from the sitemap', function () {
+    $this->get('/')
         ->assertOk()
-        ->assertSee('Decision Register');
+        ->assertDontSee(route('decisions.index'), false);
+
+    $member = decisionMember();
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
+        ->assertOk()
+        ->assertSee('Decision Register')
+        ->assertSee(route('decisions.index'), false);
 
     $this->get('/sitemap.xml')
         ->assertOk()
-        ->assertSee(route('decisions.index'), false);
+        ->assertDontSee(route('decisions.index'), false);
 });

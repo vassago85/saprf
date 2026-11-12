@@ -803,6 +803,15 @@ final class SidebarMenu
                 'expandable' => true,
                 'items' => [
                     array_merge($rulesAndDocuments, ['contexts' => [self::CONTEXT_SHOOTER]]),
+                    [
+                        'id' => 'decisions',
+                        'label' => 'Decisions',
+                        'route' => 'decisions.index',
+                        'icon' => 'hand-thumb-up',
+                        'contexts' => [self::CONTEXT_SHOOTER],
+                        'roles' => null,
+                        'current_route_is' => ['decisions.*'],
+                    ],
                     array_merge($inbox, ['contexts' => [self::CONTEXT_SHOOTER], 'label' => 'Inbox']),
                     array_merge($iprf, ['contexts' => [self::CONTEXT_SHOOTER]]),
                 ],
