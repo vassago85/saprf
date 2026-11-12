@@ -70,6 +70,23 @@ it('credits the paying parent for his own entry and his son when the match is ca
         ->assertSee('Entry credit: R 1,400.00');
 });
 
+it('offers a dismiss control that stays hidden until the posted credit changes', function () {
+    $own = paidEntry($this->match, $this->father, $this->father, 700);
+    app(AccountCreditService::class)->issueForCancelledMatch($this->match, $this->director);
+
+    $latestId = AccountCredit::query()
+        ->where('user_id', $this->father->id)
+        ->where('status', AccountCredit::STATUS_POSTED)
+        ->max('id');
+
+    $this->actingAs($this->father)
+        ->get(route('registrations.show', $own))
+        ->assertOk()
+        ->assertSee('Entry credit: R 700.00')
+        ->assertSee('Dismiss entry credit notice', false)
+        ->assertSee('saprf.credit-banner-dismissed.'.$this->father->id.'.'.$latestId.'.70000', false);
+});
+
 it('does not credit a walk-in the range collected in cash', function () {
     paidEntry($this->match, $this->father, $this->father, 700, [
         'registration_source' => 'walk_in',

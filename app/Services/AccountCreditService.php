@@ -27,7 +27,7 @@ class AccountCreditService
      * credit a member chose to keep when withdrawing skipped the withdrawal
      * fee, so it can only be spent on entries.
      *
-     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, withdrawal_credit: float, refundable: float, entries: Collection<int, AccountCredit>}
+     * @return array{posted: float, reserved: float, refund_reserved: float, checkout_reserved: float, available: float, withdrawal_credit: float, refundable: float, latest_posted_id: int, entries: Collection<int, AccountCredit>}
      */
     public function summary(User $user): array
     {
@@ -37,7 +37,8 @@ class AccountCreditService
             ->latest('id')
             ->get();
 
-        $posted = round((float) $rows->where('status', AccountCredit::STATUS_POSTED)->sum('amount'), 2);
+        $postedRows = $rows->where('status', AccountCredit::STATUS_POSTED);
+        $posted = round((float) $postedRows->sum('amount'), 2);
         $reservedRows = $rows->where('status', AccountCredit::STATUS_RESERVED);
         $reserved = round((float) $reservedRows->sum(fn (AccountCredit $row) => abs((float) $row->amount)), 2);
         $refundReserved = round((float) $reservedRows
@@ -55,6 +56,7 @@ class AccountCreditService
             'available' => $available,
             'withdrawal_credit' => $withdrawalCredit,
             'refundable' => round(max(0, $available - $withdrawalCredit), 2),
+            'latest_posted_id' => (int) ($postedRows->max('id') ?? 0),
             'entries' => $rows
                 ->where('type', AccountCredit::TYPE_CANCELLATION)
                 ->where('status', AccountCredit::STATUS_POSTED)
