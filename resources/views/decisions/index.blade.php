@@ -58,11 +58,11 @@
                                     {{ $r['total'] }} {{ $r['total'] === 1 ? 'reaction' : 'reactions' }}
                                 </p>
                                 <p class="text-xs text-stone-500">
-                                    <span class="text-emerald-700">{{ $r['for_percent'] }}% for</span>
+                                    <span class="text-emerald-700">{{ $r['likes'] }} for ({{ $r['for_percent'] }}%)</span>
                                     <span class="mx-1 text-stone-300">·</span>
-                                    <span class="text-stone-600">{{ $r['neutral_percent'] }}% neutral</span>
+                                    <span class="text-stone-600">{{ $r['neutrals'] }} neutral ({{ $r['neutral_percent'] }}%)</span>
                                     <span class="mx-1 text-stone-300">·</span>
-                                    <span class="text-red-700">{{ $r['against_percent'] }}% against</span>
+                                    <span class="text-red-700">{{ $r['dislikes'] }} against ({{ $r['against_percent'] }}%)</span>
                                 </p>
                             </div>
                             <div class="flex h-2.5 overflow-hidden rounded-full bg-stone-100" aria-hidden="true">

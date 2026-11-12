@@ -246,9 +246,9 @@ it('keeps the grey threshold until 10 reactions then shows the split', function 
         ->get(route('decisions.index'))
         ->assertOk()
         ->assertSee('10 reactions')
-        ->assertSee('80% for')
-        ->assertSee('20% against')
-        ->assertSee('0% neutral')
+        ->assertSee('8 for (80%)')
+        ->assertSee('2 against (20%)')
+        ->assertSee('0 neutral (0%)')
         ->assertDontSee('Not enough reactions yet');
 });
 
@@ -271,9 +271,9 @@ it('records a neutral reaction and shows it in the three-way split', function ()
     $this->actingAs($member)
         ->get(route('decisions.index'))
         ->assertOk()
-        ->assertSee('40% for')
-        ->assertSee('30% against')
-        ->assertSee('30% neutral')
+        ->assertSee('4 for (40%)')
+        ->assertSee('3 against (30%)')
+        ->assertSee('3 neutral (30%)')
         ->assertSee('You have reacted');
 });
 
@@ -313,9 +313,9 @@ it('hides the split until the viewer reacts when visibility is after_reaction', 
     $this->actingAs($member)
         ->get(route('decisions.index'))
         ->assertOk()
-        ->assertSee('64% for')
-        ->assertSee('36% against')
-        ->assertSee('0% neutral');
+        ->assertSee('7 for (64%)')
+        ->assertSee('4 against (36%)')
+        ->assertSee('0 neutral (0%)');
 });
 
 it('blocks non-exco from the admin screens and lets exco publish', function () {

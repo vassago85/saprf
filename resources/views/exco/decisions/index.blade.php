@@ -127,7 +127,7 @@
                                 @elseif ($total < \App\Models\Decision::MIN_REACTIONS_FOR_RESULTS)
                                     {{ $total }} of {{ \App\Models\Decision::MIN_REACTIONS_FOR_RESULTS }}
                                 @else
-                                    {{ $total }} · {{ $percentages['for'] }}% 👍 · {{ $percentages['against'] }}% 👎 · {{ $percentages['neutral'] }}% 🤷
+                                    {{ $total }} · {{ $likes }} 👍 ({{ $percentages['for'] }}%) · {{ $dislikes }} 👎 ({{ $percentages['against'] }}%) · {{ $neutrals }} 🤷 ({{ $percentages['neutral'] }}%)
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
