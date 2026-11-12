@@ -9,7 +9,8 @@
             </h1>
             <p class="mt-3 max-w-2xl text-sm sm:text-base text-stone-600 dark:text-stone-400">
                 Committee decisions published for members. Thumbs up, thumbs down, or Neutral show how members feel —
-                the decision itself does not change because of the result.
+                the decision itself does not change because of the result. One vote each, anonymous —
+                be careful how you use yours.
             </p>
         </div>
 
@@ -118,8 +119,10 @@
                         @endif
                     </div>
 
-                    <p class="text-xs text-stone-400">
-                        Your reaction is anonymous. We record only that you reacted, never how.
+                    <p class="text-xs text-stone-500">
+                        To protect anonymity you may vote only once. The system does not record which
+                        option you chose against your name — only that you voted, so you cannot vote twice.
+                        Be careful how you use your vote.
                     </p>
                 </div>
             </article>
