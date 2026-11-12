@@ -1,6 +1,6 @@
 <x-layouts.app :title="'ExCo Decisions'">
     <div class="max-w-5xl space-y-6">
-        <x-page-header title="Decision Register" subtitle="Publish committee decisions for members. Reactions are anonymous — totals only.">
+        <x-page-header title="Decision Register" subtitle="Publish committee decisions for members. Votes are anonymous and do not immediately change a decision — they give ExCo an idea whether to relook at it.">
             <x-slot:actions>
                 <a href="{{ route('exco.decisions.create') }}"
                    class="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">

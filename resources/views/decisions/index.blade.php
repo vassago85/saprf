@@ -1,4 +1,4 @@
-<x-layouts.public title="Decision Register — SAPRF" description="Published ExCo decisions and anonymous member reactions. Sentiment only — decisions stand as made." current="decisions">
+<x-layouts.public title="Decision Register — SAPRF" description="Published ExCo decisions with anonymous member votes. Voting does not immediately change a decision — it gives ExCo an idea whether to relook at it." current="decisions">
     <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
         <div class="mb-8">
             <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">
@@ -10,7 +10,7 @@
             <p class="mt-3 max-w-2xl text-sm sm:text-base text-stone-600 dark:text-stone-400">
                 Committee decisions published for members. Only active paid-up members may vote
                 (👍 For, 👎 Against, or 🤷 Neutral). One anonymous vote each — be careful how you use yours.
-                Reactions do not automatically change the decision; they indicate to ExCo whether a review is needed.
+                Voting does not immediately change the decision; it gives ExCo an idea of whether they need to relook at it.
             </p>
         </div>
 

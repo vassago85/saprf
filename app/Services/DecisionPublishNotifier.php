@@ -89,7 +89,7 @@ class DecisionPublishNotifier
         }
 
         $lines[] = '';
-        $lines[] = 'Only active paid-up members may vote (👍 For, 👎 Against, or 🤷 Neutral). To protect anonymity you may vote only once: the system does not record which option you chose against your name — only that you voted, so you cannot vote twice. Be careful how you use your vote.';
+        $lines[] = 'Only active paid-up members may vote (👍 For, 👎 Against, or 🤷 Neutral). Voting does not immediately change the decision; it gives ExCo an idea of whether they need to relook at it. To protect anonymity you may vote only once: the system does not record which option you chose against your name — only that you voted, so you cannot vote twice. Be careful how you use your vote.';
         $lines[] = '';
         $lines[] = route('decisions.index').'#decision-'.$decision->id;
 
