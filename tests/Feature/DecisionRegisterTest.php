@@ -232,7 +232,8 @@ it('keeps the grey threshold until 10 reactions then shows the split', function 
     $this->actingAs($member)
         ->get(route('decisions.index'))
         ->assertOk()
-        ->assertSee('Not enough reactions yet (9 of 10)')
+        ->assertSee('Not enough reactions yet')
+        ->assertSee('(9 of 10)', false)
         ->assertDontSee('% for');
 
     $this->actingAs($member)
