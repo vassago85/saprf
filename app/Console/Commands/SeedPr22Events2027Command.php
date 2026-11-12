@@ -25,12 +25,12 @@ use Illuminate\Support\Str;
  *
  * Re-running is safe: a match that already exists for the same name and
  * date is left untouched, including any fee, director, or status an
- * admin has set since the first seed. The 21 February national was first
- * seeded at Balmoral. Re-running renames that untouched placeholder to
- * Sungiti. A row an admin has already edited is left as it is, and a
+ * admin has set since the first seed. A row can name the placeholder it
+ * replaces. Re-running moves that untouched row onto the new date and
+ * venue. A row an admin has already edited is left as it is, and a
  * second match is not created. New matches are published with entries
- * closed, no fee, and the director left as "To be confirmed", so they
- * show on the calendar as "Not open yet".
+ * closed, no fee, and the director left as "To be confirmed" unless the
+ * row names one, so they show on the calendar as "Not open yet".
  */
 class SeedPr22Events2027Command extends Command
 {
@@ -44,7 +44,7 @@ class SeedPr22Events2027Command extends Command
     private const NOTE = 'Provisional 2027 PR22 calendar entry. Entries are not open. The date and venue may still change.';
 
     /**
-     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string, replaces?: string}>
+     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string, director?: string, replaces?: array{name: string, date: string, venue: ?string, city: ?string}}>
      */
     private const EVENTS = [
         [
@@ -56,17 +56,28 @@ class SeedPr22Events2027Command extends Command
             'venue' => 'Sungiti',
             'city' => 'Sungiti',
             'note' => null,
-            'replaces' => 'PR22 2027 National - Balmoral',
+            'replaces' => [
+                'name' => 'PR22 2027 National - Balmoral',
+                'date' => '2027-02-21',
+                'venue' => 'Balmoral',
+                'city' => 'Balmoral',
+            ],
         ],
         [
-            'name' => 'PR22 2027 National - Klipskuur Warrior',
-            'date' => '2027-03-14',
+            'name' => 'PR22 2027 National - Rassie',
+            'date' => '2027-03-20',
             'end' => null,
             'level' => 'national',
-            'province' => 'GP',
-            'venue' => 'Klipskuur Warrior',
-            'city' => 'Klipskuur',
+            'province' => 'LP',
+            'venue' => 'Rassie',
+            'city' => 'Rassie',
             'note' => null,
+            'replaces' => [
+                'name' => 'PR22 2027 National - Klipskuur Warrior',
+                'date' => '2027-03-14',
+                'venue' => 'Klipskuur Warrior',
+                'city' => 'Klipskuur',
+            ],
         ],
         [
             'name' => 'PR22 2027 National - Cape Town',
@@ -89,34 +100,53 @@ class SeedPr22Events2027Command extends Command
             'note' => null,
         ],
         [
-            'name' => 'PR22 2027 National - Gauteng',
-            'date' => '2027-06-13',
+            'name' => 'PR22 2027 National - Legends',
+            'date' => '2027-06-19',
             'end' => null,
             'level' => 'national',
             'province' => 'GP',
-            'venue' => null,
+            'venue' => 'Legends Adventure Farm',
             'city' => 'Gauteng',
-            'note' => 'Venue still to be confirmed.',
+            'note' => null,
+            'director' => 'Stelios Christofi',
+            'replaces' => [
+                'name' => 'PR22 2027 National - Gauteng',
+                'date' => '2027-06-13',
+                'venue' => null,
+                'city' => 'Gauteng',
+            ],
         ],
         [
             'name' => 'PR22 2027 National - Cape Town',
-            'date' => '2027-07-24',
+            'date' => '2027-07-31',
             'end' => null,
             'level' => 'national',
             'province' => 'WC',
             'venue' => 'Cape Town',
             'city' => 'Cape Town',
             'note' => null,
+            'replaces' => [
+                'name' => 'PR22 2027 National - Cape Town',
+                'date' => '2027-07-24',
+                'venue' => 'Cape Town',
+                'city' => 'Cape Town',
+            ],
         ],
         [
-            'name' => 'PR22 2027 National - Rassie',
-            'date' => '2027-08-15',
+            'name' => 'PR22 2027 National - Leopard\'s Valley',
+            'date' => '2027-08-21',
             'end' => null,
             'level' => 'national',
-            'province' => 'LP',
-            'venue' => 'Rassie',
-            'city' => 'Rassie',
+            'province' => 'GP',
+            'venue' => 'Leopard\'s Valley',
+            'city' => 'Gauteng',
             'note' => null,
+            'replaces' => [
+                'name' => 'PR22 2027 National - Rassie',
+                'date' => '2027-08-15',
+                'venue' => 'Rassie',
+                'city' => 'Rassie',
+            ],
         ],
         [
             'name' => 'PR22 2027 National - Hippo Creek',
@@ -177,43 +207,38 @@ class SeedPr22Events2027Command extends Command
             foreach (self::EVENTS as $event) {
                 $name = MatchName::normalize($event['name']);
                 $province = $provinces->get($event['province']);
-                $match = MatchEvent::query()
-                    ->where('match_type', 'PR22')
-                    ->where('season', self::SEASON)
-                    ->where('name', $name)
-                    ->whereDate('match_date', $event['date'])
-                    ->first();
-
-                if (! $match && isset($event['replaces'])) {
-                    $match = MatchEvent::query()
-                        ->where('match_type', 'PR22')
-                        ->where('season', self::SEASON)
-                        ->where('name', MatchName::normalize($event['replaces']))
-                        ->whereDate('match_date', $event['date'])
-                        ->first();
-
-                    if ($match && $match->venue_name === 'Balmoral'
-                        && $match->city === 'Balmoral'
-                        && $match->match_director === 'To be confirmed'
-                        && $match->status === 'closed') {
-                        $rows[] = [$event['date'], $name, $event['province'], $event['level'], $dryRun ? 'would rename' : 'renamed'];
-                        $renamed++;
-
-                        if (! $dryRun) {
-                            $match->update([
-                                'name' => $name,
-                                'slug' => Str::slug($name).'-'.Str::random(5),
-                                'venue_name' => $event['venue'],
-                                'venue_location' => $event['city'] ? $event['city'].', '.$province->name : $province->name,
-                                'city' => $event['city'],
-                            ]);
-                        }
-
-                        continue;
-                    }
-                }
+                $match = $this->findSeasonMatch($name, $event['date']);
 
                 if ($match) {
+                    $existing++;
+                    $rows[] = [$event['date'], $name, $event['province'], $event['level'], 'already present'];
+
+                    continue;
+                }
+
+                $previous = isset($event['replaces'])
+                    ? $this->findSeasonMatch(
+                        MatchName::normalize($event['replaces']['name']),
+                        $event['replaces']['date'],
+                    )
+                    : null;
+
+                if ($previous && $this->isUntouchedPlaceholder($previous, $event['replaces'])) {
+                    $rows[] = [$event['date'], $name, $event['province'], $event['level'], $dryRun ? 'would rename' : 'renamed'];
+                    $renamed++;
+
+                    if (! $dryRun) {
+                        $attributes = $this->calendarAttributes($event, $province, $name);
+                        if ($previous->name !== $name) {
+                            $attributes['slug'] = Str::slug($name).'-'.Str::random(5);
+                        }
+                        $previous->update($attributes);
+                    }
+
+                    continue;
+                }
+
+                if ($previous) {
                     $existing++;
                     $rows[] = [$event['date'], $name, $event['province'], $event['level'], 'already present'];
 
@@ -228,31 +253,18 @@ class SeedPr22Events2027Command extends Command
                     continue;
                 }
 
-                $description = self::NOTE;
-                if ($event['note']) {
-                    $description .= ' '.$event['note'];
-                }
-
                 $match = MatchEvent::create([
-                    'name' => $name,
+                    ...$this->calendarAttributes($event, $province, $name),
                     'match_type' => 'PR22',
                     'series' => 'PR22',
                     'series_level' => $event['level'],
                     'season' => self::SEASON,
-                    'province_id' => $province->id,
-                    'venue_name' => $event['venue'],
-                    'venue_location' => $event['city'] ? $event['city'].', '.$province->name : $province->name,
-                    'city' => $event['city'],
-                    'match_date' => $event['date'],
-                    'match_end_date' => $event['end'],
                     'status' => 'closed',
                     'created_by' => $creator->id,
-                    'match_director' => 'To be confirmed',
                     'active_member_fee' => null,
                     'non_member_fee' => 0,
                     'lapsed_member_fee' => 0,
                     'published' => true,
-                    'description' => $description,
                 ]);
 
                 if ($divisionIds->isNotEmpty()) {
@@ -273,5 +285,50 @@ class SeedPr22Events2027Command extends Command
         $this->info(($dryRun ? 'Dry run. ' : '')."{$created} created, {$renamed} renamed, {$existing} already present.");
 
         return self::SUCCESS;
+    }
+
+    private function findSeasonMatch(string $name, string $date): ?MatchEvent
+    {
+        return MatchEvent::query()
+            ->where('match_type', 'PR22')
+            ->where('season', self::SEASON)
+            ->where('name', $name)
+            ->whereDate('match_date', $date)
+            ->first();
+    }
+
+    /**
+     * @param  array{name: string, date: string, venue: ?string, city: ?string}  $previous
+     */
+    private function isUntouchedPlaceholder(MatchEvent $match, array $previous): bool
+    {
+        return $match->status === 'closed'
+            && $match->match_director === 'To be confirmed'
+            && $match->venue_name === $previous['venue']
+            && $match->city === $previous['city'];
+    }
+
+    /**
+     * @param  array{name: string, date: string, end: ?string, province: string, venue: ?string, city: ?string, note: ?string, director?: string}  $event
+     * @return array<string, mixed>
+     */
+    private function calendarAttributes(array $event, Province $province, string $name): array
+    {
+        $description = self::NOTE;
+        if ($event['note']) {
+            $description .= ' '.$event['note'];
+        }
+
+        return [
+            'name' => $name,
+            'province_id' => $province->id,
+            'venue_name' => $event['venue'],
+            'venue_location' => $event['city'] ? $event['city'].', '.$province->name : $province->name,
+            'city' => $event['city'],
+            'match_date' => $event['date'],
+            'match_end_date' => $event['end'],
+            'match_director' => $event['director'] ?? 'To be confirmed',
+            'description' => $description,
+        ];
     }
 }
