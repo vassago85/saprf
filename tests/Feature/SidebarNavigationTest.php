@@ -55,6 +55,7 @@ it('lists the expected shooter items for a member', function () {
         'My barrels',
         'Load tools',
         'Rules & documents',
+        'Decisions',
         'Inbox',
         'IPRF',
     ]);
