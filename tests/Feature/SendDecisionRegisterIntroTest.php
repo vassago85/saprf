@@ -36,8 +36,14 @@ it('emails active members the Decision Register intro once and is idempotent on 
         ->toContain('👍 For')
         ->toContain('👎 Against')
         ->toContain('🤷 Neutral')
+        ->toContain('only records that you voted')
+        ->toContain('never linked')
         ->toContain('vote only once')
         ->toContain('does not immediately change')
+        ->toContain('Please use your vote')
+        ->toContain('guide ExCo')
+        ->toContain('Without a broad response')
+        ->toContain('quiet, anonymous way to be counted')
         ->toContain('relook')
         ->toContain(route('decisions.index'));
 

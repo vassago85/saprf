@@ -75,15 +75,19 @@ Members,
 
 We’ve added a **Decision Register** on the SAPRF website. Items decided at ExCo will be published there shortly, so you can see what was decided and give anonymous feedback.
 
+**Please use your vote** — it will guide ExCo on decisions. Voting does not immediately change a decision, but it gives ExCo a clear idea of whether something needs to be relooked at.
+
+Without a broad response, ExCo only hears from the few who speak up. If a small group votes against something many members support — or are content with — that imbalance is hard to see unless others vote too. Your vote is a quiet, anonymous way to be counted.
+
 **How it works**
 
 - Find it under **Decisions** once you are logged in, or open the link from the notice when a decision goes live.
 - Active paid-up members can react with 👍 For, 👎 Against, or 🤷 Neutral.
-- Voting does not immediately change the decision — the decision stands as made. It gives ExCo an idea of whether a decision needs to be relooked at.
+- One anonymous vote each. The decision stands as made until ExCo reviews the feedback.
 
 **Anonymity**
 
-To protect anonymity, you may vote only once. The system does not record which option you chose against your name — only that you voted, so you cannot vote twice. **Be careful how you use your vote.**
+The system only records that you voted — not which option you chose. Your name is never linked to For, Against, or Neutral. Because of that, you can vote only once: there is no way to look up or change what you cast. **Be careful how you use your vote.**
 
 Feedback is open for a limited window after each decision is published (normally seven days). After that, the final tally stays on the register.
 
