@@ -44,7 +44,7 @@ class SeedPr22Events2027Command extends Command
     private const NOTE = 'Provisional 2027 PR22 calendar entry. Entries are not open. The date and venue may still change.';
 
     /**
-     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string, director?: string, replaces?: array{name: string, date: string, venue: ?string, city: ?string}}>
+     * @var list<array{name: string, date: string, end: ?string, level: string, province: string, venue: ?string, city: ?string, note: ?string, director?: string, replaces?: array{name: string, date: string, venue: ?string, city: ?string}, also_replaces?: list<array{name: string, date: string, venue: ?string, city: ?string}>}>
      */
     private const EVENTS = [
         [
@@ -64,19 +64,27 @@ class SeedPr22Events2027Command extends Command
             ],
         ],
         [
-            'name' => 'PR22 2027 National - Rassie',
-            'date' => '2027-03-20',
+            'name' => 'PR22 2027 National - Danielsrust',
+            'date' => '2027-03-14',
             'end' => null,
             'level' => 'national',
-            'province' => 'LP',
-            'venue' => 'Rassie',
-            'city' => 'Rassie',
+            'province' => 'GP',
+            'venue' => 'Danielsrust',
+            'city' => 'Danielsrust',
             'note' => null,
             'replaces' => [
                 'name' => 'PR22 2027 National - Klipskuur Warrior',
                 'date' => '2027-03-14',
                 'venue' => 'Klipskuur Warrior',
                 'city' => 'Klipskuur',
+            ],
+            'also_replaces' => [
+                [
+                    'name' => 'PR22 2027 National - Rassie',
+                    'date' => '2027-03-20',
+                    'venue' => 'Rassie',
+                    'city' => 'Rassie',
+                ],
             ],
         ],
         [
@@ -216,29 +224,39 @@ class SeedPr22Events2027Command extends Command
                     continue;
                 }
 
-                $previous = isset($event['replaces'])
-                    ? $this->findSeasonMatch(
-                        MatchName::normalize($event['replaces']['name']),
-                        $event['replaces']['date'],
-                    )
-                    : null;
+                $untouched = null;
+                $edited = null;
+                foreach ($this->previousPlaceholders($event) as $candidate) {
+                    $found = $this->findSeasonMatch(
+                        MatchName::normalize($candidate['name']),
+                        $candidate['date'],
+                    );
+                    if (! $found) {
+                        continue;
+                    }
+                    if ($this->isUntouchedPlaceholder($found, $candidate)) {
+                        $untouched = $found;
+                        break;
+                    }
+                    $edited ??= $found;
+                }
 
-                if ($previous && $this->isUntouchedPlaceholder($previous, $event['replaces'])) {
+                if ($untouched) {
                     $rows[] = [$event['date'], $name, $event['province'], $event['level'], $dryRun ? 'would rename' : 'renamed'];
                     $renamed++;
 
                     if (! $dryRun) {
                         $attributes = $this->calendarAttributes($event, $province, $name);
-                        if ($previous->name !== $name) {
+                        if ($untouched->name !== $name) {
                             $attributes['slug'] = Str::slug($name).'-'.Str::random(5);
                         }
-                        $previous->update($attributes);
+                        $untouched->update($attributes);
                     }
 
                     continue;
                 }
 
-                if ($previous) {
+                if ($edited) {
                     $existing++;
                     $rows[] = [$event['date'], $name, $event['province'], $event['level'], 'already present'];
 
@@ -285,6 +303,23 @@ class SeedPr22Events2027Command extends Command
         $this->info(($dryRun ? 'Dry run. ' : '')."{$created} created, {$renamed} renamed, {$existing} already present.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  array{replaces?: array{name: string, date: string, venue: ?string, city: ?string}, also_replaces?: list<array{name: string, date: string, venue: ?string, city: ?string}>}  $event
+     * @return list<array{name: string, date: string, venue: ?string, city: ?string}>
+     */
+    private function previousPlaceholders(array $event): array
+    {
+        $previous = [];
+        if (isset($event['replaces'])) {
+            $previous[] = $event['replaces'];
+        }
+        foreach ($event['also_replaces'] ?? [] as $candidate) {
+            $previous[] = $candidate;
+        }
+
+        return $previous;
     }
 
     private function findSeasonMatch(string $name, string $date): ?MatchEvent

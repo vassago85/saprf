@@ -51,10 +51,11 @@ it('seeds the provisional 2027 rimfire calendar and leaves existing rows alone',
         ->and($sungiti->match_end_date)->toBeNull()
         ->and($sungiti->divisions->pluck('id')->all())->toContain($division->id);
 
-    $rassie = $matches->firstWhere('name', 'PR22 2027 National - Rassie');
-    expect($rassie->match_date->toDateString())->toBe('2027-03-20')
-        ->and($rassie->venue_name)->toBe('Rassie')
-        ->and($rassie->province->abbreviation)->toBe('LP');
+    $danielsrust = $matches->firstWhere('name', 'PR22 2027 National - Danielsrust');
+    expect($danielsrust->match_date->toDateString())->toBe('2027-03-14')
+        ->and($danielsrust->venue_name)->toBe('Danielsrust')
+        ->and($danielsrust->city)->toBe('Danielsrust')
+        ->and($danielsrust->province->abbreviation)->toBe('GP');
 
     $capeTown = $matches->where('name', 'PR22 2027 National - Cape Town')->values();
     expect($capeTown)->toHaveCount(2)
@@ -210,10 +211,10 @@ it('moves the March, June, July, and August nationals onto the revised dates', f
 
     $this->artisan('pr22:seed-2027-events')->assertSuccessful();
 
-    expect($existing[0]->fresh()->name)->toBe('PR22 2027 National - Rassie')
-        ->and($existing[0]->fresh()->match_date->toDateString())->toBe('2027-03-20')
-        ->and($existing[0]->fresh()->venue_name)->toBe('Rassie')
-        ->and($existing[0]->fresh()->province->abbreviation)->toBe('LP')
+    expect($existing[0]->fresh()->name)->toBe('PR22 2027 National - Danielsrust')
+        ->and($existing[0]->fresh()->match_date->toDateString())->toBe('2027-03-14')
+        ->and($existing[0]->fresh()->venue_name)->toBe('Danielsrust')
+        ->and($existing[0]->fresh()->province->abbreviation)->toBe('GP')
         ->and($existing[1]->fresh()->name)->toBe('PR22 2027 National - Legends')
         ->and($existing[1]->fresh()->match_date->toDateString())->toBe('2027-06-19')
         ->and($existing[1]->fresh()->venue_name)->toBe('Legends Adventure Farm')
@@ -227,10 +228,43 @@ it('moves the March, June, July, and August nationals onto the revised dates', f
         ->and($existing[3]->fresh()->venue_name)->toBe("Leopard's Valley")
         ->and($existing[3]->fresh()->province->abbreviation)->toBe('GP')
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9)
-        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-03-14')->exists())->toBeFalse()
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-03-20')->exists())->toBeFalse()
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-06-13')->exists())->toBeFalse()
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-07-24')->exists())->toBeFalse()
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-08-15')->exists())->toBeFalse();
+});
+
+it('moves a 20 March Rassie placeholder back to Danielsrust on 14 March', function () {
+    seedPr22CalendarProvinces();
+    $owner = User::factory()->create();
+
+    $existing = MatchEvent::create([
+        'name' => 'PR22 2027 National - Rassie',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2027',
+        'province_id' => Province::where('abbreviation', 'LP')->first()->id,
+        'venue_name' => 'Rassie',
+        'city' => 'Rassie',
+        'match_date' => '2027-03-20',
+        'status' => 'closed',
+        'created_by' => $owner->id,
+        'match_director' => 'To be confirmed',
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'published' => true,
+    ]);
+
+    $this->artisan('pr22:seed-2027-events')->assertSuccessful();
+
+    expect($existing->fresh()->name)->toBe('PR22 2027 National - Danielsrust')
+        ->and($existing->fresh()->match_date->toDateString())->toBe('2027-03-14')
+        ->and($existing->fresh()->venue_name)->toBe('Danielsrust')
+        ->and($existing->fresh()->province->abbreviation)->toBe('GP')
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-03-14')->count())->toBe(1)
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-03-20')->count())->toBe(0)
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
 });
 
 it('leaves an opened 14 March Klipskuur national on its original date', function () {
@@ -260,7 +294,7 @@ it('leaves an opened 14 March Klipskuur national on its original date', function
     expect($existing->fresh()->name)->toBe('PR22 2027 National - Klipskuur Warrior')
         ->and($existing->fresh()->match_date->toDateString())->toBe('2027-03-14')
         ->and($existing->fresh()->status)->toBe('open')
-        ->and(MatchEvent::query()->where('name', 'PR22 2027 National - Rassie')->whereDate('match_date', '2027-03-20')->count())->toBe(0)
+        ->and(MatchEvent::query()->where('name', 'PR22 2027 National - Danielsrust')->count())->toBe(0)
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
 });
 
