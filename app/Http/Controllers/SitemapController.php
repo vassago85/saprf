@@ -25,6 +25,7 @@ class SitemapController extends Controller
             $this->url(route('contact.create'), 'monthly', '0.6'),
             $this->url(route('documents.index'), 'weekly', '0.7'),
             $this->url(route('documents.search'), 'weekly', '0.4'),
+            $this->url(route('decisions.index'), 'weekly', '0.7'),
             $this->url(route('rules.regulations'), 'monthly', '0.7'),
             $this->url(route('rules.divisions'), 'monthly', '0.6'),
             $this->url(route('rules.pr22-rimfire'), 'monthly', '0.6'),

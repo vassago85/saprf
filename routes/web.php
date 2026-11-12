@@ -14,12 +14,14 @@ use App\Http\Controllers\CommunicationsController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CreditRefundController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DecisionController;
 use App\Http\Controllers\Developer\BackupController;
 use App\Http\Controllers\Developer\MailSettingsController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\EmailLogController;
 use App\Http\Controllers\EmailUnsubscribeController;
+use App\Http\Controllers\Exco\DecisionController as ExcoDecisionController;
 use App\Http\Controllers\Exco\DisciplinaryCaseController;
 use App\Http\Controllers\Exco\ExcoActionController;
 use App\Http\Controllers\Exco\ExcoAgendaItemController;
@@ -221,6 +223,13 @@ Route::get('/documents', [DocumentsController::class, 'index'])
     ->name('documents.index');
 Route::get('/documents/search', [DocumentsController::class, 'search'])
     ->name('documents.search');
+
+// Public Decision Register — ExCo decisions with anonymous member reactions.
+Route::get('/decisions', [DecisionController::class, 'index'])
+    ->name('decisions.index');
+Route::post('/decisions/{decision}/react', [DecisionController::class, 'react'])
+    ->middleware(['auth', 'verified'])
+    ->name('decisions.react');
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
 Route::post('/webhooks/payfast', [PaymentController::class, 'notify'])
@@ -509,6 +518,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::put('/actions/{action}', [ExcoActionController::class, 'update'])->name('actions.update');
         Route::post('/actions/{action}/status', [ExcoActionController::class, 'setStatus'])->name('actions.set-status');
         Route::delete('/actions/{action}', [ExcoActionController::class, 'destroy'])->name('actions.destroy');
+
+        // Public Decision Register (ExCo writes / publishes).
+        Route::get('/decisions', [ExcoDecisionController::class, 'index'])->name('decisions.index');
+        Route::get('/decisions/create', [ExcoDecisionController::class, 'create'])->name('decisions.create');
+        Route::post('/decisions', [ExcoDecisionController::class, 'store'])->name('decisions.store');
+        Route::get('/decisions/{decision}/edit', [ExcoDecisionController::class, 'edit'])->name('decisions.edit');
+        Route::put('/decisions/{decision}', [ExcoDecisionController::class, 'update'])->name('decisions.update');
+        Route::post('/decisions/{decision}/publish', [ExcoDecisionController::class, 'publish'])->name('decisions.publish');
+        Route::delete('/decisions/{decision}', [ExcoDecisionController::class, 'destroy'])->name('decisions.destroy');
+        Route::post('/decisions/visibility', [ExcoDecisionController::class, 'updateVisibility'])->name('decisions.visibility');
 
         // Disciplinary case register.
         Route::get('/disciplinary', [DisciplinaryCaseController::class, 'index'])->name('disciplinary.index');

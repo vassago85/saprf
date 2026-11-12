@@ -7,6 +7,7 @@ use App\Models\Announcement;
 use App\Models\Barrel;
 use App\Models\Club;
 use App\Models\ContactMessage;
+use App\Models\Decision;
 use App\Models\DisciplinaryCase;
 use App\Models\ExcoMeeting;
 use App\Models\LadderSession;
@@ -31,6 +32,7 @@ use App\Policies\AnnouncementPolicy;
 use App\Policies\BarrelPolicy;
 use App\Policies\ClubPolicy;
 use App\Policies\ContactMessagePolicy;
+use App\Policies\DecisionPolicy;
 use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\ExcoMeetingPolicy;
 use App\Policies\LadderSessionPolicy;
@@ -111,6 +113,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LadderSession::class, LadderSessionPolicy::class);
         Gate::policy(AmmoString::class, AmmoStringPolicy::class);
         Gate::policy(ExcoMeeting::class, ExcoMeetingPolicy::class);
+        Gate::policy(Decision::class, DecisionPolicy::class);
         Gate::policy(DisciplinaryCase::class, DisciplinaryCasePolicy::class);
         Gate::policy(Payout::class, PayoutPolicy::class);
 

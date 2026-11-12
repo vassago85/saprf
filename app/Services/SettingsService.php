@@ -14,6 +14,17 @@ class SettingsService
     public const NATIONAL_SERIES_2027_PUBLISHED = 'national_series_2027_published';
 
     /**
+     * After a decision reaches 10 reactions: `public` shows the split to
+     * everyone; `after_reaction` hides it until the viewer has reacted.
+     */
+    public const DECISION_REACTION_VISIBILITY = 'decision_reaction_visibility';
+
+    /**
+     * Days after publish that members may react. Default 7.
+     */
+    public const DECISION_REACTION_WINDOW_DAYS = 'decision_reaction_window_days';
+
+    /**
      * Phase 4.7: whether non-member scores are eligible for podium /
      * division-winner callouts on the public match page. Default is false
      * so a casual non-member walk-in doesn't appear "above" a paid-up

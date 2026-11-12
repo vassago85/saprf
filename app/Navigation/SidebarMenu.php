@@ -416,6 +416,15 @@ final class SidebarMenu
                         'current_route_is' => ['exco.actions.*'],
                     ],
                     [
+                        'id' => 'exco-decisions',
+                        'label' => 'Decisions',
+                        'route' => 'exco.decisions.index',
+                        'icon' => 'hand-thumb-up',
+                        'contexts' => [self::CONTEXT_ADMIN],
+                        'roles' => ['developer', 'exco', 'chair'],
+                        'current_route_is' => ['exco.decisions.*'],
+                    ],
+                    [
                         'id' => 'exco-disciplinary',
                         'label' => 'Disciplinary',
                         'route' => 'exco.disciplinary.index',

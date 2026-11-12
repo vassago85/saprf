@@ -30,6 +30,10 @@
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'documents' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     Documents
                 </a>
+                <a href="{{ route('decisions.index') }}"
+                   class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'decisions' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
+                    Decisions
+                </a>
                 <a href="{{ route('faq.index') }}"
                    class="px-3 py-2 rounded-lg text-sm font-medium transition {{ $current === 'faq' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50' }}">
                     FAQ
@@ -83,6 +87,7 @@
                         </a>
                         <a href="{{ route('media.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'media' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Media</a>
                         <a href="{{ route('documents.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'documents' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Documents</a>
+                        <a href="{{ route('decisions.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'decisions' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Decisions</a>
                         <a href="{{ route('faq.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'faq' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">FAQ</a>
                         <a href="{{ route('contact.create') }}" class="block px-3 py-2 rounded-lg text-sm font-medium {{ $current === 'contact' ? 'text-emerald-700 bg-emerald-50' : 'text-stone-700 hover:bg-stone-50' }}">Contact</a>
                         @auth
