@@ -31,7 +31,8 @@ class DecisionController extends Controller
             ->with('tally')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->get();
+            ->paginate(12)
+            ->withQueryString();
 
         $reactions = [];
         foreach ($decisions as $decision) {

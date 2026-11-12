@@ -520,10 +520,11 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::post('/actions/{action}/status', [ExcoActionController::class, 'setStatus'])->name('actions.set-status');
         Route::delete('/actions/{action}', [ExcoActionController::class, 'destroy'])->name('actions.destroy');
 
-        // Public Decision Register (ExCo writes / publishes).
+        // Decision Register (ExCo writes / publishes).
         Route::get('/decisions', [ExcoDecisionController::class, 'index'])->name('decisions.index');
         Route::get('/decisions/create', [ExcoDecisionController::class, 'create'])->name('decisions.create');
         Route::post('/decisions', [ExcoDecisionController::class, 'store'])->name('decisions.store');
+        Route::post('/decisions/publish-batch', [ExcoDecisionController::class, 'publishBatch'])->name('decisions.publish-batch');
         Route::get('/decisions/{decision}/edit', [ExcoDecisionController::class, 'edit'])->name('decisions.edit');
         Route::put('/decisions/{decision}', [ExcoDecisionController::class, 'update'])->name('decisions.update');
         Route::post('/decisions/{decision}/publish', [ExcoDecisionController::class, 'publish'])->name('decisions.publish');

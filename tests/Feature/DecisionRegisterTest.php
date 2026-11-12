@@ -607,3 +607,92 @@ it('shows Decisions in the nav only when logged in and omits it from the sitemap
         ->assertOk()
         ->assertDontSee(route('decisions.index'), false);
 });
+
+it('publishes selected drafts in one digest announcement', function () {
+    Queue::fake();
+    Notification::fake();
+
+    $exco = decisionExco();
+    $drafts = collect([
+        ['title' => 'Batch alpha', 'body' => 'Alpha body', 'reference' => 'ExCo A'],
+        ['title' => 'Batch beta', 'body' => 'Beta body', 'reference' => 'ExCo B'],
+        ['title' => 'Batch gamma', 'body' => 'Gamma body'],
+    ])->map(function (array $data) use ($exco) {
+        $decision = Decision::create([
+            ...$data,
+            'status' => DecisionStatus::Draft,
+            'published_at' => null,
+            'created_by' => $exco->id,
+        ]);
+        DecisionTally::create([
+            'decision_id' => $decision->id,
+            'likes' => 0,
+            'dislikes' => 0,
+            'neutrals' => 0,
+        ]);
+
+        return $decision;
+    });
+
+    $this->actingAs($exco)
+        ->post(route('exco.decisions.publish-batch'), [
+            'decision_ids' => $drafts->pluck('id')->all(),
+        ])
+        ->assertRedirect(route('exco.decisions.index'))
+        ->assertSessionHas('success', '3 decisions published in one email to active members.');
+
+    Notification::assertNothingSent();
+    Queue::assertPushed(ResolveAudienceJob::class, 1);
+
+    $fresh = Decision::query()->whereIn('id', $drafts->pluck('id'))->get();
+    expect($fresh)->toHaveCount(3)
+        ->and($fresh->every(fn (Decision $d) => $d->isPublished()))->toBeTrue()
+        ->and($fresh->pluck('announcement_id')->unique()->count())->toBe(1);
+
+    $announcement = Announcement::query()->findOrFail($fresh->first()->announcement_id);
+    expect($announcement->title)->toBe('Decision Register: 3 new decisions')
+        ->and($announcement->body)->toContain('Batch alpha')
+        ->and($announcement->body)->toContain('Batch beta')
+        ->and($announcement->body)->toContain('Batch gamma')
+        ->and($announcement->body)->toContain(route('decisions.index').'#decision-'.$fresh->first()->id)
+        ->and($announcement->body)->not->toContain('Alpha body')
+        ->and($announcement->audiences()->first()->type)->toBe(AudienceType::ActiveMembers);
+
+    // Re-posting the same IDs must not create another announcement.
+    Queue::fake();
+    $this->actingAs($exco)
+        ->post(route('exco.decisions.publish-batch'), [
+            'decision_ids' => $drafts->pluck('id')->all(),
+        ])
+        ->assertRedirect(route('exco.decisions.index'))
+        ->assertSessionHas('error');
+
+    Queue::assertNothingPushed();
+    expect(Announcement::query()->where('title', 'like', 'Decision Register:%')->count())->toBe(1);
+});
+
+it('paginates the public Decision Register', function () {
+    $exco = decisionExco();
+    for ($i = 1; $i <= 13; $i++) {
+        $n = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+        Decision::create([
+            'title' => "Paged decision {$n}",
+            'body' => "Body {$n}",
+            'status' => DecisionStatus::Published,
+            'published_at' => now()->subMinutes(13 - $i),
+            'created_by' => $exco->id,
+        ])->tally()->create(['likes' => 0, 'dislikes' => 0, 'neutrals' => 0]);
+    }
+
+    $member = decisionMember();
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
+        ->assertOk()
+        ->assertSee('Paged decision 13')
+        ->assertDontSee('Paged decision 01');
+
+    $this->actingAs($member)
+        ->get(route('decisions.index', ['page' => 2]))
+        ->assertOk()
+        ->assertSee('Paged decision 01');
+});

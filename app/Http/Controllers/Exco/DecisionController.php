@@ -158,6 +158,43 @@ class DecisionController extends Controller
             ->with('success', 'Decision published and emailed to active members.');
     }
 
+    public function publishBatch(Request $request): RedirectResponse
+    {
+        $this->authorize('viewAny', Decision::class);
+
+        $data = $request->validate([
+            'decision_ids' => ['required', 'array', 'min:1'],
+            'decision_ids.*' => ['integer', 'distinct', 'exists:decisions,id'],
+        ]);
+
+        $drafts = Decision::query()
+            ->whereIn('id', $data['decision_ids'])
+            ->where('status', DecisionStatus::Draft)
+            ->whereNull('announcement_id')
+            ->orderBy('id')
+            ->get();
+
+        if ($drafts->isEmpty()) {
+            return redirect()
+                ->route('exco.decisions.index')
+                ->with('error', 'Select at least one draft decision to publish.');
+        }
+
+        foreach ($drafts as $draft) {
+            $this->authorize('publish', $draft);
+        }
+
+        $this->publishNotifier->notifyPublishedBatch($drafts, publishDrafts: true);
+
+        $count = $drafts->count();
+
+        return redirect()
+            ->route('exco.decisions.index')
+            ->with('success', $count === 1
+                ? 'Decision published and emailed to active members.'
+                : $count.' decisions published in one email to active members.');
+    }
+
     public function destroy(Decision $decision): RedirectResponse
     {
         $this->authorize('delete', $decision);

@@ -1,5 +1,5 @@
 <x-layouts.app :title="'ExCo Decisions'">
-    <div class="max-w-5xl space-y-6">
+    <div class="max-w-5xl space-y-6" x-data="{ selected: [] }">
         <x-page-header title="Decision Register" subtitle="Publish committee decisions for members. Votes are anonymous and do not immediately change a decision — they give ExCo an idea whether to relook at it.">
             <x-slot:actions>
                 <a href="{{ route('exco.decisions.create') }}"
@@ -9,7 +9,7 @@
                 <a href="{{ route('decisions.index') }}"
                    class="inline-flex items-center rounded-xl bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-200"
                    target="_blank" rel="noopener">
-                    View public page
+                    View register
                 </a>
             </x-slot:actions>
         </x-page-header>
@@ -17,6 +17,11 @@
         @if (session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 {{ session('success') }}
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {{ session('error') }}
             </div>
         @endif
 
@@ -49,10 +54,31 @@
             </form>
         </div>
 
+        {{-- Batch form is outside the table so row forms are not nested. Checkboxes use form="…". --}}
+        <form id="decision-publish-batch"
+              method="POST"
+              action="{{ route('exco.decisions.publish-batch') }}"
+              @submit="if (selected.length === 0) { $event.preventDefault(); alert('Select at least one draft.'); return false; } if (!confirm('Publish ' + selected.length + ' decision(s) and send one email to paid-up members?')) { $event.preventDefault(); }">
+            @csrf
+            <div class="mb-3 flex flex-wrap items-center gap-3">
+                <button type="submit"
+                        class="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-40"
+                        :disabled="selected.length === 0">
+                    Publish selected
+                </button>
+                <p class="text-xs text-stone-500">
+                    Tick draft decisions, then publish together — members get one digest email.
+                </p>
+            </div>
+        </form>
+
         <x-admin-table>
             <table class="min-w-full divide-y divide-stone-200 text-sm">
                 <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                     <tr>
+                        <th class="w-10 px-4 py-3 text-left font-semibold">
+                            <span class="sr-only">Select</span>
+                        </th>
                         <th class="px-4 py-3 text-left font-semibold">Decision</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-left font-semibold">Reactions</th>
@@ -69,6 +95,16 @@
                             $percentages = $decision->reactionPercentages();
                         @endphp
                         <tr>
+                            <td class="px-4 py-3">
+                                @if ($decision->isDraft())
+                                    <input type="checkbox"
+                                           form="decision-publish-batch"
+                                           name="decision_ids[]"
+                                           value="{{ $decision->id }}"
+                                           class="rounded border-stone-300 text-emerald-700 focus:ring-emerald-600"
+                                           x-model.number="selected">
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-stone-900">
                                 <p class="font-medium">{{ $decision->title }}</p>
                                 @if ($decision->reference)
@@ -95,19 +131,20 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <div class="inline-flex items-center gap-1">
+                                <div class="inline-flex items-center justify-end gap-1">
                                     <a href="{{ route('exco.decisions.edit', $decision) }}"
                                        class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200">
                                         Edit
                                     </a>
                                     @if ($decision->isDraft())
-                                        <form method="POST" action="{{ route('exco.decisions.publish', $decision) }}">
+                                        <form method="POST" action="{{ route('exco.decisions.publish', $decision) }}" class="inline">
                                             @csrf
                                             <button type="submit" class="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-                                                Publish
+                                                Publish alone
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('exco.decisions.destroy', $decision) }}"
+                                              class="inline"
                                               onsubmit="return confirm('Delete this draft?');">
                                             @csrf
                                             @method('DELETE')
@@ -121,8 +158,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-sm text-stone-500">
-                                No decisions yet. Create one to publish to the public register.
+                            <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-500">
+                                No decisions yet. Create drafts, then publish selected together.
                             </td>
                         </tr>
                     @endforelse

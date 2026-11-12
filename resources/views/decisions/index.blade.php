@@ -132,5 +132,11 @@
                 <p class="mt-1 text-sm text-stone-500">When the committee publishes a decision, it will appear here.</p>
             </div>
         @endforelse
+
+        @if ($decisions->hasPages())
+            <div class="mt-8">
+                {{ $decisions->links() }}
+            </div>
+        @endif
     </div>
 </x-layouts.public>
