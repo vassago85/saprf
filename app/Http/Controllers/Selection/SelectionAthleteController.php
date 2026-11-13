@@ -9,12 +9,14 @@ use App\Models\SelectionCycle;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\Selection\DeclarationAttestations;
+use App\Services\Selection\DeclarationReminderService;
 use App\Services\Selection\EligibilityEvaluator;
 use App\Services\Selection\ParticipationEvaluator;
 use App\Services\Selection\SelectionAthleteStateService;
 use App\Services\Selection\SelectionCriteriaStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -35,11 +37,17 @@ class SelectionAthleteController extends Controller
 
         $state = $request->get('state');
         $divisionId = $request->get('division_id');
+        $search = trim($request->string('q')->toString());
+        $sort = $request->string('sort')->toString();
+        if (! in_array($sort, ['criteria_desc', 'criteria_asc', 'name', 'state'], true)) {
+            $sort = 'criteria_desc';
+        }
 
         $query = SelectionAthlete::forCycle($cycle->id)
             ->with([
                 'user.membership', 'user.club', 'declaration',
                 'participationSnapshot', 'claimedDivision:id,name',
+                'cycle.activePolicy',
             ]);
         if ($state) {
             $query->inState($state);
@@ -47,15 +55,20 @@ class SelectionAthleteController extends Controller
         if ($divisionId) {
             $query->inDivision((int) $divisionId);
         }
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->whereHas('user', function ($user) use ($like) {
+                $user->where(function ($match) use ($like) {
+                    $match->where('name', 'like', $like)
+                        ->orWhere('email', 'like', $like);
+                });
+            });
+        }
 
-        $athletes = $query->orderBy('state')->paginate(50)->withQueryString();
-        $divisions = Division::orderBy('display_order')->get();
-        $stateCounts = SelectionAthlete::forCycle($cycle->id)
-            ->selectRaw('state, COUNT(*) as total')
-            ->groupBy('state')
-            ->pluck('total', 'state');
-
-        $progress = $athletes->getCollection()->mapWithKeys(function (SelectionAthlete $a) {
+        // Criteria met is computed live, so sort (and the page) happen in
+        // memory after the status pass. A cycle's athlete list stays small.
+        $all = $query->get();
+        $progress = $all->mapWithKeys(function (SelectionAthlete $a) {
             $c = $this->criteria->for($a);
 
             return [$a->id => [
@@ -65,7 +78,92 @@ class SelectionAthleteController extends Controller
             ]];
         });
 
-        return view('selection.athletes.index', compact('cycle', 'athletes', 'divisions', 'state', 'divisionId', 'stateCounts', 'progress'));
+        $sorted = match ($sort) {
+            'criteria_asc' => $all->sortBy(fn (SelectionAthlete $a) => [
+                $progress[$a->id]['met'],
+                mb_strtolower($a->user?->name ?? ''),
+                $a->id,
+            ]),
+            'name' => $all->sortBy(fn (SelectionAthlete $a) => [
+                mb_strtolower($a->user?->name ?? ''),
+                $a->id,
+            ]),
+            'state' => $all->sortBy(fn (SelectionAthlete $a) => [
+                $a->state,
+                mb_strtolower($a->user?->name ?? ''),
+                $a->id,
+            ]),
+            default => $all->sortBy(fn (SelectionAthlete $a) => [
+                -$progress[$a->id]['met'],
+                mb_strtolower($a->user?->name ?? ''),
+                $a->id,
+            ]),
+        };
+
+        $sorted = $sorted->values();
+        $perPage = 50;
+        $page = max(1, (int) $request->get('page', 1));
+        $athletes = (new LengthAwarePaginator(
+            $sorted->forPage($page, $perPage)->values(),
+            $sorted->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url()],
+        ))->withQueryString();
+
+        $divisions = Division::orderBy('display_order')->get();
+        $stateCounts = SelectionAthlete::forCycle($cycle->id)
+            ->selectRaw('state, COUNT(*) as total')
+            ->groupBy('state')
+            ->pluck('total', 'state');
+
+        return view('selection.athletes.index', compact(
+            'cycle',
+            'athletes',
+            'divisions',
+            'state',
+            'divisionId',
+            'stateCounts',
+            'progress',
+            'search',
+            'sort',
+        ));
+    }
+
+    public function remindDeclarations(Request $request, SelectionCycle $cycle, DeclarationReminderService $reminders): RedirectResponse
+    {
+        Gate::authorize('create', SelectionAthlete::class);
+
+        if ($cycle->status !== 'open') {
+            return redirect()->route('selection.cycles.athletes.index', $cycle)
+                ->with('error', 'This cycle is not open, so shooters cannot submit the declaration. No reminders were sent.');
+        }
+
+        $result = $reminders->sendForCycle($cycle->loadMissing('activePolicy'));
+        $sent = $result['sent'];
+        $undeliverable = $result['undeliverable'];
+
+        $this->audit->log(
+            $request->user(),
+            'selection_declaration_reminders_sent',
+            'SelectionCycle',
+            $cycle->id,
+            null,
+            ['sent' => $sent, 'undeliverable' => $undeliverable],
+            "Queued {$sent} declaration reminders for {$cycle->series} {$cycle->season}",
+        );
+
+        $message = match (true) {
+            $sent === 0 && $undeliverable === 0 => 'No shooters are waiting only on the declaration.',
+            $sent === 0 && $undeliverable === 1 => '1 shooter is only missing the declaration, but their email address has bounced or was marked as spam.',
+            $sent === 0 => "{$undeliverable} shooters are only missing the declaration, but their email addresses have bounced or were marked as spam.",
+            $sent === 1 && $undeliverable === 0 => 'Queued a declaration reminder for 1 shooter.',
+            $undeliverable === 0 => "Queued declaration reminders for {$sent} shooters.",
+            default => "Queued declaration reminders for {$sent} shooters. {$undeliverable} more could not be emailed because the address bounced or was marked as spam.",
+        };
+
+        return redirect()->route('selection.cycles.athletes.index', $cycle)
+            ->with('success', $message);
     }
 
     public function create(SelectionCycle $cycle): View

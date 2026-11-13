@@ -4,6 +4,10 @@
             <x-slot:breadcrumb>Athlete registry</x-slot:breadcrumb>
             @can('create', App\Models\SelectionAthlete::class)
                 <x-slot:actions>
+                    <form method="POST" action="{{ route('selection.cycles.athletes.declaration-reminders', $cycle) }}">
+                        @csrf
+                        <button type="submit" onclick="return confirm('Email every shooter who has met every criterion except the Eligibility to Compete declaration?')" class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Email declaration reminders</button>
+                    </form>
                     <form method="POST" action="{{ route('selection.cycles.athletes.bulk-register', $cycle) }}">
                         @csrf
                         <button type="submit" onclick="return confirm('Bulk-register every shooter with a qualifying score?')" class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Bulk-register from scores</button>
@@ -15,6 +19,9 @@
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ session('error') }}</div>
         @endif
 
         <x-filter-bar :action="route('selection.cycles.athletes.index', $cycle)" label="Athlete filters">
@@ -36,6 +43,19 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <label for="athlete-search" class="block text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Search</label>
+                <input id="athlete-search" type="search" name="q" value="{{ $search }}" placeholder="Name or email" class="rounded-lg border border-stone-300 text-sm">
+            </div>
+            <div>
+                <label for="athlete-sort" class="block text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Order</label>
+                <select id="athlete-sort" name="sort" class="rounded-lg border border-stone-300 text-sm">
+                    <option value="criteria_desc" @selected($sort === 'criteria_desc')>Criteria met (most first)</option>
+                    <option value="criteria_asc" @selected($sort === 'criteria_asc')>Criteria met (least first)</option>
+                    <option value="name" @selected($sort === 'name')>Name</option>
+                    <option value="state" @selected($sort === 'state')>State</option>
+                </select>
+            </div>
         </x-filter-bar>
 
         <x-admin-table>
@@ -45,7 +65,12 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Shooter</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Division</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">State</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Criteria met</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => $sort === 'criteria_desc' ? 'criteria_asc' : 'criteria_desc', 'page' => null]) }}" class="hover:text-stone-800">
+                                Criteria met
+                                @if ($sort === 'criteria_desc') ↓ @elseif ($sort === 'criteria_asc') ↑ @endif
+                            </a>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Last evaluated</th>
                         <th class="px-6 py-3 text-right"></th>
                     </tr>

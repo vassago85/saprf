@@ -1100,6 +1100,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/cycles/{cycle}/athletes/create', [SelectionAthleteController::class, 'create'])->name('cycles.athletes.create');
             Route::post('/cycles/{cycle}/athletes', [SelectionAthleteController::class, 'store'])->name('cycles.athletes.store');
             Route::post('/cycles/{cycle}/athletes/bulk-register', [SelectionAthleteController::class, 'bulkRegister'])->name('cycles.athletes.bulk-register');
+            Route::post('/cycles/{cycle}/athletes/declaration-reminders', [SelectionAthleteController::class, 'remindDeclarations'])->name('cycles.athletes.declaration-reminders');
             Route::get('/cycles/{cycle}/athletes/{athlete}', [SelectionAthleteController::class, 'show'])->name('cycles.athletes.show');
             Route::put('/cycles/{cycle}/athletes/{athlete}', [SelectionAthleteController::class, 'update'])->name('cycles.athletes.update');
             Route::post('/cycles/{cycle}/athletes/{athlete}/reevaluate', [SelectionAthleteController::class, 'reevaluate'])->name('cycles.athletes.reevaluate');

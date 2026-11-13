@@ -110,7 +110,7 @@
                 @endif
 
                 {{-- 2. Eligibility to Compete form --}}
-                <div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+                <div id="declaration-{{ $cycle->id }}" class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                     <h3 class="text-sm font-semibold text-stone-900">Eligibility to Compete form</h3>
                     <p class="mt-1 text-sm text-stone-600">
                         This is the combined intention-to-participate and Eligibility to Compete
