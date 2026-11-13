@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             DivisionCategorySeeder::class,
             FederationDemoSeeder::class,
             SelectionCycleSeeder::class,
+            ExcoNov2026DecisionSeeder::class,
         ]);
     }
 }
