@@ -14,31 +14,19 @@
         }
         .mast { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
         .mast td { vertical-align: middle; }
-        .logo { width: 150px; }
-        .logo img { height: 42px; }
-        .crest {
-            width: 118px;
-            text-align: center;
-            border: 1.5px solid #1f4d3a;
-            padding: 6px 4px 5px;
-        }
-        .crest.iprf { border-color: #7f1d1d; }
-        .crest .mark {
+        .brands { border-collapse: collapse; }
+        .brands td { vertical-align: middle; padding: 0 4mm 0 0; }
+        .brands img.saprf { height: 14mm; }
+        .brands img.series { height: 13mm; }
+        .brands img.iprf { width: 42mm; }
+        .brands .mark {
             font-size: 16px;
             font-weight: 700;
             letter-spacing: 1.5px;
             color: #1f4d3a;
             margin: 0;
         }
-        .crest.iprf .mark { color: #7f1d1d; }
-        .crest .sub {
-            font-size: 6.5px;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            color: #57534e;
-            margin: 1px 0 0;
-        }
-        .title-cell { padding-left: 14px; }
+        .title-cell { padding-left: 2mm; }
         .kicker {
             font-size: 8px;
             letter-spacing: 1.4px;
@@ -160,22 +148,30 @@
 <body>
     <table class="mast">
         <tr>
-            <td class="logo">
-                @if ($logo)
-                    <img src="{{ $logo }}" alt="SAPRF">
-                @else
-                    <div class="mark">SAPRF</div>
-                @endif
-            </td>
-            <td style="width: 8px;"></td>
-            <td class="crest">
-                <p class="mark">{{ $cycle->series }}</p>
-                <p class="sub">{{ $cycle->series === 'PR22' ? 'Rimfire series' : 'Precision rifle' }}</p>
-            </td>
-            <td style="width: 8px;"></td>
-            <td class="crest iprf">
-                <p class="mark">IPRF</p>
-                <p class="sub">World championships</p>
+            <td>
+                <table class="brands">
+                    <tr>
+                        <td>
+                            @if ($logo)
+                                <img class="saprf" src="{{ $logo }}" alt="SAPRF">
+                            @else
+                                <p class="mark">SAPRF</p>
+                            @endif
+                        </td>
+                        <td>
+                            @if ($seriesLogo)
+                                <img class="series" src="{{ $seriesLogo }}" alt="{{ $cycle->series }}">
+                            @else
+                                <p class="mark">{{ $cycle->series }}</p>
+                            @endif
+                        </td>
+                        <td>
+                            @if ($iprfLogo)
+                                <img class="iprf" src="{{ $iprfLogo }}" alt="International Precision Rifle Federation">
+                            @endif
+                        </td>
+                    </tr>
+                </table>
             </td>
             <td class="title-cell">
                 <p class="kicker">South African Precision Rifle Federation</p>
@@ -206,17 +202,17 @@
                 <p class="value">{{ $report['summary']['divisions'] }}</p>
             </td>
             <td>
-                <p class="label">Protea line</p>
-                <p class="value">{{ rtrim(rtrim(number_format($report['threshold'], 1), '0'), '.') }}%</p>
+                <p class="label">On this report</p>
+                <p class="value">{{ $report['summary']['qualified'] + $report['summary']['declaration_outstanding'] }}</p>
             </td>
         </tr>
     </table>
 
     <p class="intro">
         Listed shooters have met every eligibility and participation criterion, or have met every criterion except the Eligibility to Compete declaration.
-        Rank is within the claimed division, on the policy weighted score: top three provincial 1-day results at 10% each, top two national or international 2-day results at 20% each, and the SA Championship at 30%.
-        Division % is that score scaled so the division leader is 100. {{ rtrim(rtrim(number_format($report['threshold'], 1), '0'), '.') }}% and above is the Protea line used in the policy; below it is Federation colours.
-        This paper is the evidence for selectors. It is not the announced team.
+        Each shooter is placed in the division their counted matches were shot in. Where a season spans two divisions, the division that carries more of the weighted score is used, and only matches in that division are counted.
+        The score is the policy formula: top three provincial 1-day results at 10% each, top two national or international 2-day results at 20% each, and the SA Championship at 30%. Selection % is that score scaled so the division leader is 100.
+        This paper is the selection order. It is not the announced team.
     </p>
 
     @forelse ($report['divisions'] as $division)
@@ -230,8 +226,7 @@
                     <th>Standing</th>
                     <th class="num">Criteria</th>
                     <th class="num">Weighted</th>
-                    <th class="num">Division %</th>
-                    <th>Colours line</th>
+                    <th class="num">Selection %</th>
                 </tr>
             </thead>
             <tbody>
@@ -256,13 +251,6 @@
                         <td class="num">{{ $shooter['criteria_met'] }}/{{ $shooter['criteria_total'] }}</td>
                         <td class="num">{{ number_format($shooter['raw_weighted_pct'], 2) }}</td>
                         <td class="num">{{ number_format($shooter['division_pct'], 2) }}</td>
-                        <td>
-                            @if ($shooter['colour'] === 'protea')
-                                <span class="pill protea">Protea line</span>
-                            @else
-                                <span class="pill fed">Federation</span>
-                            @endif
-                        </td>
                     </tr>
                 @endforeach
             </tbody>
@@ -289,8 +277,11 @@
                                     </td>
                                     <td class="right">
                                         Weighted {{ number_format($shooter['raw_weighted_pct'], 2) }}
-                                        · Division {{ number_format($shooter['division_pct'], 2) }}%<br>
+                                        · Selection {{ number_format($shooter['division_pct'], 2) }}%<br>
                                         {{ $shooter['status'] === 'qualified' ? 'All criteria met' : 'Declaration still outstanding' }}
+                                        @if (($shooter['other_division_scores'] ?? 0) > 0)
+                                            <br>{{ $shooter['other_division_scores'] }} {{ $shooter['other_division_scores'] === 1 ? 'match' : 'matches' }} in another division not counted
+                                        @endif
                                     </td>
                                 </tr>
                             </table>
@@ -349,7 +340,7 @@
 
     <p class="footer">
         SAPRF selector working paper · {{ $cycle->series }} {{ $cycle->season }} · Policy v{{ $cycle->activePolicy?->version ?? '—' }}
-        · Weighted score follows the published selection formula. Colours remain subject to the selection panel and to SASCOC for Protea.
+        · Order follows the published selection formula inside the division the counted matches were shot in.
     </p>
 </body>
 </html>

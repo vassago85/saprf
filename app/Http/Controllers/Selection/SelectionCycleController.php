@@ -80,17 +80,17 @@ class SelectionCycleController extends Controller
         Gate::authorize('view', $cycle);
 
         $built = $report->build($cycle);
-        $logoPath = public_path('saprf-logo-black-text.png');
-        $logo = is_file($logoPath)
-            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
-            : null;
 
         $filename = 'SAPRF-'.$cycle->series.'-'.$cycle->season.'-selection-report.pdf';
 
         return Pdf::loadView('selection.reports.qualification', [
             'cycle' => $cycle,
             'report' => $built,
-            'logo' => $logo,
+            'logo' => $this->pngDataUri(public_path('saprf-logo-black-text.png')),
+            'seriesLogo' => $cycle->series === 'PR22'
+                ? $this->pngDataUri(public_path('images/pr22-logo.png'))
+                : null,
+            'iprfLogo' => $this->pngDataUri(public_path('images/iprf-logo.png')),
             'generatedAt' => now(),
         ])
             ->setPaper('a4', 'landscape')
@@ -152,5 +152,14 @@ class SelectionCycleController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'open', 'frozen', 'announced', 'closed'])],
             'evaluation_mode' => ['required', Rule::in(array_keys(SelectionCycle::MODES))],
         ]);
+    }
+
+    private function pngDataUri(string $path): ?string
+    {
+        if (! is_file($path)) {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode((string) file_get_contents($path));
     }
 }

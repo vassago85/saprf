@@ -2,6 +2,7 @@
 
 namespace App\Services\Selection;
 
+use App\Models\Division;
 use App\Models\Score;
 use App\Models\SelectionAthlete;
 use App\Models\SelectionCycle;
@@ -31,7 +32,7 @@ class SelectionQualificationReport
     {
         $cycle->loadMissing('activePolicy');
         $declarationCode = $this->reminders->declarationRuleId($cycle);
-        $threshold = (float) ($cycle->activePolicy?->spec_json['scoring']['formula']['protea_threshold_pct'] ?? 85);
+        $divisionCatalog = Division::query()->get()->keyBy('id');
 
         $athletes = SelectionAthlete::forCycle($cycle->id)
             ->with([
@@ -58,15 +59,25 @@ class SelectionQualificationReport
         $scores = $this->scoresFor($cycle, $included);
         $components = $this->components($cycle);
 
-        $rows = $included->map(function (SelectionAthlete $athlete) use ($scores, $components, $declarationCode) {
+        $rows = $included->map(function (SelectionAthlete $athlete) use ($scores, $components, $declarationCode, $divisionCatalog) {
             $status = $athlete->getAttribute('report_criteria');
             $complete = $status['overall_met'] === $status['overall_total'];
-            $scored = $this->scoreAthlete($scores->get($athlete->user_id, collect()), $components);
+            $userScores = $scores->get($athlete->user_id, collect());
+            $acrossDivisions = $this->scoreAthlete($userScores, $components);
+            $shotDivisionId = $this->divisionFromCountedMatches($acrossDivisions);
+            $divisionId = $shotDivisionId ?? $athlete->claimed_division_id;
+            $scored = $shotDivisionId === null
+                ? $acrossDivisions
+                : $this->scoreAthlete($userScores, $components, $shotDivisionId);
+            $division = $divisionId ? $divisionCatalog->get($divisionId) : null;
 
             return [
-                'division_id' => $athlete->claimed_division_id,
-                'division_order' => $athlete->claimedDivision?->display_order ?? 9999,
-                'division_name' => $athlete->claimedDivision?->name ?? 'Division not claimed',
+                'division_id' => $divisionId,
+                'division_order' => $division?->display_order ?? 9999,
+                'division_name' => $division?->name ?? 'Division not claimed',
+                'other_division_scores' => $shotDivisionId === null
+                    ? 0
+                    : $userScores->filter(fn (Score $score) => (int) $score->division_id !== $shotDivisionId)->count(),
                 'name' => $athlete->user?->name ?? 'Unknown shooter',
                 'email' => $athlete->user?->email,
                 'club' => $athlete->user?->club?->name,
@@ -81,10 +92,9 @@ class SelectionQualificationReport
             ];
         });
 
-        $divisions = $this->rankByDivision($rows, $threshold);
+        $divisions = $this->rankByDivision($rows);
 
         return [
-            'threshold' => $threshold,
             'summary' => [
                 'qualified' => $rows->where('status', 'qualified')->count(),
                 'declaration_outstanding' => $rows->where('status', 'declaration_outstanding')->count(),
@@ -165,8 +175,12 @@ class SelectionQualificationReport
      * @param  list<array{source: string, label: string, levels: list<string>, take: int, weight: float, cap: float}>  $components
      * @return array{raw_weighted_pct: float, components: list<array<string, mixed>>}
      */
-    private function scoreAthlete(Collection $scores, array $components): array
+    private function scoreAthlete(Collection $scores, array $components, ?int $onlyDivisionId = null): array
     {
+        if ($onlyDivisionId !== null) {
+            $scores = $scores->filter(fn (Score $score) => (int) $score->division_id === $onlyDivisionId)->values();
+        }
+
         $built = [];
         $raw = 0.0;
 
@@ -187,6 +201,7 @@ class SelectionQualificationReport
                     'name' => $score->match?->name ?? 'Match',
                     'date' => $score->match?->match_date?->format('j M Y'),
                     'level' => $score->match?->series_level,
+                    'division_id' => $score->division_id ? (int) $score->division_id : null,
                     'normalized' => round($normalized, 2),
                     'contribution' => round($share, 2),
                 ];
@@ -208,6 +223,37 @@ class SelectionQualificationReport
             'raw_weighted_pct' => round($raw, 2),
             'components' => $built,
         ];
+    }
+
+    /**
+     * The division the counted selection matches were actually shot in.
+     * Weight follows the policy: a 2-day national match counts twice a
+     * provincial, and the SA Championship counts more than either. Scores
+     * with no division recorded are ignored here so the claimed division
+     * remains the fallback.
+     *
+     * @param  array{components: list<array<string, mixed>>}  $scored
+     */
+    private function divisionFromCountedMatches(array $scored): ?int
+    {
+        $weightByDivision = [];
+        foreach ($scored['components'] as $component) {
+            foreach ($component['matches'] as $match) {
+                $divisionId = $match['division_id'] ?? null;
+                if ($divisionId === null) {
+                    continue;
+                }
+                $weightByDivision[$divisionId] = ($weightByDivision[$divisionId] ?? 0) + (float) $match['contribution'];
+            }
+        }
+
+        if ($weightByDivision === []) {
+            return null;
+        }
+
+        arsort($weightByDivision);
+
+        return (int) array_key_first($weightByDivision);
     }
 
     /**
@@ -271,7 +317,7 @@ class SelectionQualificationReport
      * @param  Collection<int, array<string, mixed>>  $rows
      * @return list<array{name: string, shooters: list<array<string, mixed>>}>
      */
-    private function rankByDivision(Collection $rows, float $threshold): array
+    private function rankByDivision(Collection $rows): array
     {
         $groups = [];
         foreach ($rows as $row) {
@@ -305,7 +351,6 @@ class SelectionQualificationReport
                 $divisionPct = $top > 0 ? round($raw / $top * 100, 2) : 0.0;
                 $shooters[$index]['rank'] = $rank;
                 $shooters[$index]['division_pct'] = $divisionPct;
-                $shooters[$index]['colour'] = $divisionPct >= $threshold ? 'protea' : 'federation';
                 $previous = $raw;
             }
 

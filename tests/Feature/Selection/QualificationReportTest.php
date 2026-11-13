@@ -96,7 +96,7 @@ function qualReportShooter(SelectionCycle $cycle, string $name, ?Division $divis
     return $athlete->fresh('user');
 }
 
-function qualReportScore(SelectionCycle $cycle, User $user, string $level, float $normalized, string $label): void
+function qualReportScore(SelectionCycle $cycle, User $user, string $level, float $normalized, string $label, ?Division $division = null): void
 {
     $match = MatchEvent::create([
         'name' => $label.' '.uniqid(),
@@ -117,6 +117,7 @@ function qualReportScore(SelectionCycle $cycle, User $user, string $level, float
         'user_id' => $user->id,
         'raw_score' => $normalized,
         'normalized_score' => $normalized,
+        'division_id' => $division?->id,
         'status' => 'valid',
         'counts_for_season' => true,
         'match_date' => '2026-06-15',
@@ -163,10 +164,8 @@ it('ranks qualified shooters by division and keeps declaration-only shooters in 
         ->and($openRows->pluck('name')->all())->toBe(['Amy Leader', 'Zoe Waiting'])
         ->and($openRows[0]['rank'])->toBe(1)
         ->and($openRows[0]['status'])->toBe('qualified')
-        ->and($openRows[0]['colour'])->toBe('protea')
         ->and($openRows[0]['division_pct'])->toBe(100.0)
         ->and($openRows[1]['status'])->toBe('declaration_outstanding')
-        ->and($openRows[1]['colour'])->toBe('federation')
         ->and($openRows[0]['components'][2]['matches'])->not->toBeEmpty()
         ->and(collect($report['divisions'])->pluck('shooters')->flatten(1)->pluck('name'))->not->toContain('Chris Short');
 
@@ -177,6 +176,34 @@ it('ranks qualified shooters by division and keeps declaration-only shooters in 
     $response->assertOk();
     expect($response->headers->get('content-type'))->toContain('application/pdf')
         ->and(substr($response->getContent(), 0, 5))->toBe('%PDF-');
+});
+
+it('places a shooter in the division their counted matches were shot in', function () {
+    $cycle = qualReportCycle();
+    $factory = Division::create(['slug' => 'factory-shot-'.uniqid(), 'name' => 'Factory', 'is_active' => true, 'display_order' => 1]);
+    $open = Division::create(['slug' => 'open-shot-'.uniqid(), 'name' => 'Open', 'is_active' => true, 'display_order' => 2]);
+
+    // Registered as Open, but the matches that carry the selection weight
+    // were shot in Factory: one 2-day national outweighs two lighter Opens.
+    $shooter = qualReportShooter($cycle, 'Justin Coverly', $open, declared: true);
+    qualReportScore($cycle, $shooter->user, 'provincial', 70, 'Early Open', $open);
+    qualReportScore($cycle, $shooter->user, 'provincial', 72, 'Second Open', $open);
+    qualReportScore($cycle, $shooter->user, 'provincial', 90, 'Factory provincial', $factory);
+    qualReportScore($cycle, $shooter->user, 'national', 90, 'Factory national', $factory);
+    qualReportScore($cycle, $shooter->user, 'final', 90, 'Factory champs', $factory);
+
+    $report = app(SelectionQualificationReport::class)->build($cycle);
+    $names = collect($report['divisions'])->mapWithKeys(fn ($division) => [
+        $division['name'] => collect($division['shooters'])->pluck('name')->all(),
+    ]);
+
+    expect($names->get('Factory'))->toBe(['Justin Coverly'])
+        ->and($names->get('Open'))->toBeNull();
+
+    $row = $report['divisions'][0]['shooters'][0];
+    expect($row['other_division_scores'])->toBe(2)
+        ->and(collect($row['components'])->flatMap(fn ($component) => collect($component['matches'])->pluck('name'))->implode(' '))
+        ->not->toContain('Open');
 });
 
 it('refuses the selection report to a member', function () {
