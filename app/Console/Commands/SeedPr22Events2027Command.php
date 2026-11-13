@@ -65,7 +65,7 @@ class SeedPr22Events2027Command extends Command
         ],
         [
             'name' => 'PR22 2027 National - Danielsrust',
-            'date' => '2027-03-14',
+            'date' => '2027-03-13',
             'end' => null,
             'level' => 'national',
             'province' => 'GP',
@@ -73,12 +73,18 @@ class SeedPr22Events2027Command extends Command
             'city' => 'Danielsrust',
             'note' => null,
             'replaces' => [
-                'name' => 'PR22 2027 National - Klipskuur Warrior',
+                'name' => 'PR22 2027 National - Danielsrust',
                 'date' => '2027-03-14',
-                'venue' => 'Klipskuur Warrior',
-                'city' => 'Klipskuur',
+                'venue' => 'Danielsrust',
+                'city' => 'Danielsrust',
             ],
             'also_replaces' => [
+                [
+                    'name' => 'PR22 2027 National - Klipskuur Warrior',
+                    'date' => '2027-03-14',
+                    'venue' => 'Klipskuur Warrior',
+                    'city' => 'Klipskuur',
+                ],
                 [
                     'name' => 'PR22 2027 National - Rassie',
                     'date' => '2027-03-20',
@@ -158,13 +164,19 @@ class SeedPr22Events2027Command extends Command
         ],
         [
             'name' => 'PR22 2027 National - Hippo Creek',
-            'date' => '2027-10-18',
-            'end' => null,
+            'date' => '2027-10-16',
+            'end' => '2027-10-17',
             'level' => 'national',
             'province' => 'GP',
             'venue' => 'Hippo Creek',
             'city' => 'Gauteng',
             'note' => null,
+            'replaces' => [
+                'name' => 'PR22 2027 National - Hippo Creek',
+                'date' => '2027-10-18',
+                'venue' => 'Hippo Creek',
+                'city' => 'Gauteng',
+            ],
         ],
         [
             'name' => 'PR22 SA Champs 2027',
