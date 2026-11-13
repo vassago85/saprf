@@ -72,6 +72,7 @@
                     @endforeach
                 </div>
                 <a href="{{ route('selection.cycles.athletes.index', $cycle) }}" class="mt-3 inline-flex text-sm text-emerald-700 hover:text-emerald-900">Open registry →</a>
+                <a href="{{ route('selection.cycles.qualification-report', $cycle) }}" class="mt-1 block text-sm text-emerald-700 hover:text-emerald-900">Download selection report →</a>
             </div>
         </div>
 

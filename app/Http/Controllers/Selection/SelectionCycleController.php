@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Selection;
 use App\Http\Controllers\Controller;
 use App\Models\SelectionCycle;
 use App\Services\AuditLogService;
+use App\Services\Selection\SelectionQualificationReport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -70,6 +73,28 @@ class SelectionCycleController extends Controller
             ->pluck('total', 'state');
 
         return view('selection.cycles.show', compact('cycle', 'athleteCounts'));
+    }
+
+    public function qualificationReport(SelectionCycle $cycle, SelectionQualificationReport $report): Response
+    {
+        Gate::authorize('view', $cycle);
+
+        $built = $report->build($cycle);
+        $logoPath = public_path('saprf-logo-black-text.png');
+        $logo = is_file($logoPath)
+            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
+            : null;
+
+        $filename = 'SAPRF-'.$cycle->series.'-'.$cycle->season.'-selection-report.pdf';
+
+        return Pdf::loadView('selection.reports.qualification', [
+            'cycle' => $cycle,
+            'report' => $built,
+            'logo' => $logo,
+            'generatedAt' => now(),
+        ])
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
     }
 
     public function edit(SelectionCycle $cycle): View

@@ -4,6 +4,7 @@
             <x-slot:breadcrumb>Athlete registry</x-slot:breadcrumb>
             @can('create', App\Models\SelectionAthlete::class)
                 <x-slot:actions>
+                    <a href="{{ route('selection.cycles.qualification-report', $cycle) }}" class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Selection report</a>
                     <form method="POST" action="{{ route('selection.cycles.athletes.declaration-reminders', $cycle) }}">
                         @csrf
                         <button type="submit" onclick="return confirm('Email every shooter who has met every criterion except the Eligibility to Compete declaration?')" class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Email declaration reminders</button>

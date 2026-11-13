@@ -1088,6 +1088,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/cycles/create', [SelectionCycleController::class, 'create'])->name('cycles.create');
             Route::post('/cycles', [SelectionCycleController::class, 'store'])->name('cycles.store');
             Route::get('/cycles/{cycle}', [SelectionCycleController::class, 'show'])->name('cycles.show');
+            Route::get('/cycles/{cycle}/qualification-report', [SelectionCycleController::class, 'qualificationReport'])->name('cycles.qualification-report');
             Route::get('/cycles/{cycle}/edit', [SelectionCycleController::class, 'edit'])->name('cycles.edit');
             Route::put('/cycles/{cycle}', [SelectionCycleController::class, 'update'])->name('cycles.update');
 
