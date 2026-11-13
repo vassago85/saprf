@@ -8,6 +8,7 @@ use App\Models\Decision;
 use App\Models\DecisionTally;
 use App\Services\DecisionPublishNotifier;
 use App\Services\SettingsService;
+use App\Support\DecisionNumberer;
 use App\Support\DecisionReactionPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class DecisionController extends Controller
     public function __construct(
         private readonly SettingsService $settings,
         private readonly DecisionPublishNotifier $publishNotifier,
+        private readonly DecisionNumberer $numberer,
     ) {}
 
     public function index(): View
@@ -30,11 +32,12 @@ class DecisionController extends Controller
             ->with(['tally', 'creator:id,name'])
             ->orderByRaw("CASE status WHEN 'draft' THEN 0 ELSE 1 END")
             ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            ->orderBy('id')
             ->paginate(30);
 
         return view('exco.decisions.index', [
             'decisions' => $decisions,
+            'numbers' => $this->numberer->label($decisions->getCollection()),
             'visibility' => app(DecisionReactionPresenter::class)->visibilityMode(),
             'windowDays' => (int) $this->settings->get(
                 SettingsService::DECISION_REACTION_WINDOW_DAYS,

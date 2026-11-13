@@ -20,6 +20,7 @@ use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\FederationAnnouncementNotification;
 use App\Services\SettingsService;
+use App\Support\DecisionNumberer;
 use App\Support\DecisionReactionPresenter;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -108,7 +109,7 @@ it('lets an active member react once and never stores the direction', function (
 
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
-        ->assertRedirect(route('decisions.index'))
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id)
         ->assertSessionHas('success', 'You have reacted.');
 
     expect($decision->fresh()->tally->likes)->toBe(1)
@@ -118,9 +119,12 @@ it('lets an active member react once and never stores the direction', function (
         ->and(Schema::getColumnListing('decision_members'))->not->toContain('reaction')
         ->and(Schema::getColumnListing('decision_members'))->not->toContain('created_at');
 
+    // Second vote is a silent no-op in the service (already reacted), so the
+    // controller still takes the success path and sends the member back to
+    // their card.
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'dislike'])
-        ->assertRedirect(route('decisions.index'));
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id);
 
     expect($decision->fresh()->tally->likes)->toBe(1)
         ->and($decision->fresh()->tally->dislikes)->toBe(0)
@@ -218,7 +222,7 @@ it('lets exco change the reaction window length', function () {
 
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
-        ->assertRedirect(route('decisions.index'))
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id)
         ->assertSessionHas('success', 'You have reacted.');
 
     expect($decision->fresh()->tally->likes)->toBe(1);
@@ -238,7 +242,7 @@ it('keeps the grey threshold until 10 reactions then shows the split', function 
 
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
-        ->assertRedirect(route('decisions.index'));
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id);
 
     expect($decision->fresh()->totalReactions())->toBe(10);
 
@@ -259,7 +263,7 @@ it('records a neutral reaction and shows it in the three-way split', function ()
     $member = decisionMember();
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'neutral'])
-        ->assertRedirect(route('decisions.index'))
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id)
         ->assertSessionHas('success', 'You have reacted.');
 
     expect($decision->fresh()->tally->likes)->toBe(4)
@@ -307,7 +311,7 @@ it('hides the split until the viewer reacts when visibility is after_reaction', 
 
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'dislike'])
-        ->assertRedirect(route('decisions.index'));
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id);
 
     // 7 for + 4 against + 0 neutral after this reaction → 64% / 36% / 0%.
     $this->actingAs($member)
@@ -574,7 +578,7 @@ it('writes no audit log for a reaction and refuses impersonation', function () {
 
     $this->actingAs($member)
         ->post(route('decisions.react', $decision), ['reaction' => 'like'])
-        ->assertRedirect(route('decisions.index'));
+        ->assertRedirect(route('decisions.index').'#decision-'.$decision->id);
 
     expect(AuditLog::query()->count())->toBe(0);
 
@@ -696,4 +700,80 @@ it('paginates the public Decision Register', function () {
         ->get(route('decisions.index', ['page' => 2]))
         ->assertOk()
         ->assertSee('Paged decision 01');
+});
+
+it('numbers decisions 1, 2, 3 within each reference and starts over for a new reference', function () {
+    $exco = decisionExco();
+
+    // First meeting — three decisions, created in meeting order.
+    $firstA = publishDecision($exco, [
+        'title' => 'First meeting item A',
+        'reference' => 'ExCo, 10 Nov 2026',
+        'published_at' => now()->subMinutes(10),
+    ]);
+    $firstB = publishDecision($exco, [
+        'title' => 'First meeting item B',
+        'reference' => 'ExCo, 10 Nov 2026',
+        'published_at' => now()->subMinutes(10),
+    ]);
+    $firstC = publishDecision($exco, [
+        'title' => 'First meeting item C',
+        'reference' => 'ExCo, 10 Nov 2026',
+        'published_at' => now()->subMinutes(10),
+    ]);
+
+    // Second meeting — numbering restarts.
+    $secondA = publishDecision($exco, [
+        'title' => 'Second meeting item A',
+        'reference' => 'ExCo, 24 Nov 2026',
+        'published_at' => now(),
+    ]);
+
+    $labels = app(DecisionNumberer::class)->label(collect([
+        $firstA, $firstB, $firstC, $secondA,
+    ]));
+
+    expect($labels[$firstA->id])->toBe('Decision 1')
+        ->and($labels[$firstB->id])->toBe('Decision 2')
+        ->and($labels[$firstC->id])->toBe('Decision 3')
+        ->and($labels[$secondA->id])->toBe('Decision 1');
+
+    $member = decisionMember();
+    $response = $this->actingAs($member)->get(route('decisions.index'))->assertOk();
+
+    // Newest meeting first on the page, numbered from 1; then meeting 1 ordered
+    // Decision 1, 2, 3 by id.
+    $html = $response->getContent();
+    $positions = [
+        'second1' => strpos($html, 'Second meeting item A'),
+        'firstA' => strpos($html, 'First meeting item A'),
+        'firstB' => strpos($html, 'First meeting item B'),
+        'firstC' => strpos($html, 'First meeting item C'),
+    ];
+
+    expect($positions['firstA'])->toBeLessThan($positions['firstB'])
+        ->and($positions['firstB'])->toBeLessThan($positions['firstC']);
+
+    $response->assertSeeInOrder([
+        'Decision 1',
+        'Second meeting item A',
+        'Decision 1',
+        'First meeting item A',
+        'Decision 2',
+        'First meeting item B',
+        'Decision 3',
+        'First meeting item C',
+    ]);
+});
+
+it('does not number decisions that have no reference', function () {
+    $exco = decisionExco();
+    $decision = publishDecision($exco, [
+        'title' => 'Unreferenced decision',
+        'reference' => null,
+    ]);
+
+    $labels = app(DecisionNumberer::class)->label(collect([$decision]));
+
+    expect($labels)->toBeEmpty();
 });

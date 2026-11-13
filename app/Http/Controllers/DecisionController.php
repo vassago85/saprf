@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Decision;
 use App\Services\DecisionReactionService;
+use App\Support\DecisionNumberer;
 use App\Support\DecisionReactionPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class DecisionController extends Controller
     public function __construct(
         private readonly DecisionReactionPresenter $presenter,
         private readonly DecisionReactionService $reactions,
+        private readonly DecisionNumberer $numberer,
     ) {}
 
     public function index(Request $request): View
@@ -30,7 +32,7 @@ class DecisionController extends Controller
             ->published()
             ->with('tally')
             ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            ->orderBy('id')
             ->paginate(12)
             ->withQueryString();
 
@@ -39,9 +41,12 @@ class DecisionController extends Controller
             $reactions[$decision->id] = $this->presenter->forDecision($decision, $viewer);
         }
 
+        $numbers = $this->numberer->label($decisions->getCollection());
+
         return view('decisions.index', [
             'decisions' => $decisions,
             'reactions' => $reactions,
+            'numbers' => $numbers,
         ]);
     }
 
@@ -78,14 +83,17 @@ class DecisionController extends Controller
         try {
             $this->reactions->react($decision, $user, $data['reaction']);
         } catch (RuntimeException $e) {
+            // Error banner lives at the top of the page, so leave the scroll
+            // position at the top for errors.
             return redirect()
                 ->route('decisions.index')
                 ->with('error', $e->getMessage());
         }
 
         // Never flash the direction — the flash only confirms participation.
-        return redirect()
-            ->route('decisions.index')
+        // Keep the viewer on the decision they voted on so the inline
+        // "You have reacted" lands right under their eye.
+        return redirect(route('decisions.index').'#decision-'.$decision->id)
             ->with('success', 'You have reacted.');
     }
 }

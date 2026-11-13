@@ -106,6 +106,9 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-stone-900">
+                                @if (! empty($numbers[$decision->id]))
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">{{ $numbers[$decision->id] }}</p>
+                                @endif
                                 <p class="font-medium">{{ $decision->title }}</p>
                                 @if ($decision->reference)
                                     <p class="mt-0.5 text-xs text-stone-500">{{ $decision->reference }}</p>

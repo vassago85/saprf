@@ -36,6 +36,11 @@
                     class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                     <header class="mb-4">
+                        @if (! empty($numbers[$decision->id]))
+                            <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                                {{ $numbers[$decision->id] }}
+                            </p>
+                        @endif
                         <h2 class="text-xl font-semibold tracking-tight text-stone-900">
                             {{ $decision->title }}
                         </h2>
