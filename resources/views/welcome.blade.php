@@ -42,8 +42,9 @@
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
             <div class="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-                {{-- LEFT — Content --}}
-                <div class="lg:col-span-5 xl:col-span-5">
+                {{-- LEFT — Content. min-w-0 lets the column shrink below
+                     the live panel's nowrap match titles on a phone. --}}
+                <div class="min-w-0 lg:col-span-5 xl:col-span-5">
                     <div class="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-100 px-4 py-1.5 mb-6">
                         <span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">2026 Season Live</span>
@@ -81,7 +82,7 @@
                 </div>
 
                 {{-- RIGHT — Live Data Panel --}}
-                <div class="lg:col-span-7 xl:col-span-7">
+                <div class="min-w-0 lg:col-span-7 xl:col-span-7">
                     <div class="bg-white rounded-2xl shadow-xl shadow-stone-900/8 overflow-hidden border border-stone-200 ring-1 ring-stone-100">
                         {{-- Panel header bar --}}
                         <div class="flex items-center gap-2.5 px-5 py-3 bg-stone-50 border-b border-stone-200">
@@ -92,7 +93,7 @@
 
                         <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
                             {{-- Upcoming Matches --}}
-                            <div class="p-4 sm:p-5">
+                            <div class="min-w-0 p-4 sm:p-5">
                                 {{-- Live now: matches that fall on today. Lead with
                                      these so weekend nationals are not hidden by the
                                      "match_date is in the past" filter after midnight. --}}
@@ -176,7 +177,7 @@
                             </div>
 
                             {{-- Standings with Tabs --}}
-                            <div class="p-4 sm:p-5">
+                            <div class="min-w-0 p-4 sm:p-5">
                                 {{-- The tab group is this panel's visible title; screen readers
                                      still need a heading to sit between it and the page h1. --}}
                                 <h2 class="sr-only">Standings snapshot</h2>
@@ -430,7 +431,7 @@
 
             <div class="grid lg:grid-cols-2 gap-6">
                 {{-- PRS --}}
-                <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                <div class="min-w-0 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 border-b border-stone-100 flex items-center gap-3">
                         <span class="text-lg font-semibold text-stone-900">PRS</span>
                         <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Precision Rifle Series</span>
@@ -463,7 +464,7 @@
                 </div>
 
                 {{-- PR22 --}}
-                <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                <div class="min-w-0 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 border-b border-stone-100 flex items-center gap-3">
                         <span class="text-lg font-semibold text-stone-900">PR22</span>
                         <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Precision Rimfire</span>
