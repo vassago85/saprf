@@ -164,8 +164,8 @@ class SeedPr22Events2027Command extends Command
         ],
         [
             'name' => 'PR22 2027 National - Hippo Creek',
-            'date' => '2027-10-16',
-            'end' => '2027-10-17',
+            'date' => '2027-10-17',
+            'end' => null,
             'level' => 'national',
             'province' => 'GP',
             'venue' => 'Hippo Creek',
@@ -173,9 +173,17 @@ class SeedPr22Events2027Command extends Command
             'note' => null,
             'replaces' => [
                 'name' => 'PR22 2027 National - Hippo Creek',
-                'date' => '2027-10-18',
+                'date' => '2027-10-16',
                 'venue' => 'Hippo Creek',
                 'city' => 'Gauteng',
+            ],
+            'also_replaces' => [
+                [
+                    'name' => 'PR22 2027 National - Hippo Creek',
+                    'date' => '2027-10-18',
+                    'venue' => 'Hippo Creek',
+                    'city' => 'Gauteng',
+                ],
             ],
         ],
         [
@@ -303,6 +311,8 @@ class SeedPr22Events2027Command extends Command
 
                 $created++;
             }
+
+            $this->moveCentrefireHippo($dryRun, $rows, $renamed);
         };
 
         if ($dryRun) {
@@ -332,6 +342,42 @@ class SeedPr22Events2027Command extends Command
         }
 
         return $previous;
+    }
+
+    /**
+     * The centrefire Hippo Creek national was published on the Sunday.
+     * Rimfire takes that day, so the centrefire row moves to the Saturday
+     * when it is still closed and has no entries.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string, 4: string}>  $rows
+     */
+    private function moveCentrefireHippo(bool $dryRun, array &$rows, int &$renamed): void
+    {
+        $match = MatchEvent::query()
+            ->where('match_type', 'PRS')
+            ->where('season', self::SEASON)
+            ->where('series_level', 'national')
+            ->where('venue_name', 'Hippo Creek')
+            ->whereDate('match_date', '2027-10-17')
+            ->where('status', 'closed')
+            ->whereDoesntHave('registrations')
+            ->first();
+
+        if (! $match) {
+            return;
+        }
+
+        $rows[] = ['2027-10-16', $match->name, 'GP', 'national', $dryRun ? 'would rename' : 'renamed'];
+        $renamed++;
+
+        if ($dryRun) {
+            return;
+        }
+
+        $match->update([
+            'match_date' => '2027-10-16',
+            'match_end_date' => null,
+        ]);
     }
 
     private function findSeasonMatch(string $name, string $date): ?MatchEvent

@@ -58,8 +58,8 @@ it('seeds the provisional 2027 rimfire calendar and leaves existing rows alone',
         ->and($danielsrust->province->abbreviation)->toBe('GP');
 
     $hippo = $matches->firstWhere('name', 'PR22 2027 National - Hippo Creek');
-    expect($hippo->match_date->toDateString())->toBe('2027-10-16')
-        ->and($hippo->match_end_date->toDateString())->toBe('2027-10-17')
+    expect($hippo->match_date->toDateString())->toBe('2027-10-17')
+        ->and($hippo->match_end_date)->toBeNull()
         ->and($hippo->venue_name)->toBe('Hippo Creek')
         ->and($hippo->city)->toBe('Gauteng')
         ->and($hippo->province->abbreviation)->toBe('GP');
@@ -307,7 +307,7 @@ it('moves a 20 March Rassie placeholder back to Danielsrust on 13 March', functi
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
 });
 
-it('moves a Monday 18 October Hippo Creek placeholder onto the 16 and 17 October weekend', function () {
+it('moves a Monday 18 October Hippo Creek placeholder onto Sunday 17 October', function () {
     seedPr22CalendarProvinces();
     $owner = User::factory()->create();
 
@@ -333,11 +333,71 @@ it('moves a Monday 18 October Hippo Creek placeholder onto the 16 and 17 October
 
     $this->artisan('pr22:seed-2027-events')->assertSuccessful();
 
-    expect($existing->fresh()->match_date->toDateString())->toBe('2027-10-16')
-        ->and($existing->fresh()->match_end_date->toDateString())->toBe('2027-10-17')
+    expect($existing->fresh()->match_date->toDateString())->toBe('2027-10-17')
+        ->and($existing->fresh()->match_end_date)->toBeNull()
         ->and($existing->fresh()->slug)->toBe($previousSlug)
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-10-18')->count())->toBe(0)
         ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
+});
+
+it('collapses the two-day Hippo Creek rimfire national onto Sunday 17 October', function () {
+    seedPr22CalendarProvinces();
+    $owner = User::factory()->create();
+
+    $existing = MatchEvent::create([
+        'name' => 'PR22 2027 National - Hippo Creek',
+        'match_type' => 'PR22',
+        'series' => 'PR22',
+        'series_level' => 'national',
+        'season' => '2027',
+        'province_id' => Province::where('abbreviation', 'GP')->first()->id,
+        'venue_name' => 'Hippo Creek',
+        'city' => 'Gauteng',
+        'match_date' => '2027-10-16',
+        'match_end_date' => '2027-10-17',
+        'status' => 'closed',
+        'created_by' => $owner->id,
+        'match_director' => 'To be confirmed',
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'published' => true,
+    ]);
+
+    $this->artisan('pr22:seed-2027-events')->assertSuccessful();
+
+    expect($existing->fresh()->match_date->toDateString())->toBe('2027-10-17')
+        ->and($existing->fresh()->match_end_date)->toBeNull()
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->whereDate('match_date', '2027-10-16')->count())->toBe(0)
+        ->and(MatchEvent::query()->where('season', '2027')->where('match_type', 'PR22')->count())->toBe(9);
+});
+
+it('moves the centrefire Hippo Creek national from Sunday 17 October to Saturday 16 October', function () {
+    seedPr22CalendarProvinces();
+    $owner = User::factory()->create();
+
+    $centrefire = MatchEvent::create([
+        'name' => 'Centrefire 2027 National — Hippo Creek',
+        'match_type' => 'PRS',
+        'series' => 'PRS',
+        'series_level' => 'national',
+        'season' => '2027',
+        'province_id' => Province::where('abbreviation', 'GP')->first()->id,
+        'venue_name' => 'Hippo Creek',
+        'city' => 'Hippo Creek',
+        'match_date' => '2027-10-17',
+        'status' => 'closed',
+        'created_by' => $owner->id,
+        'match_director' => 'SAPRF Developer',
+        'non_member_fee' => 0,
+        'lapsed_member_fee' => 0,
+        'published' => true,
+    ]);
+
+    $this->artisan('pr22:seed-2027-events')->assertSuccessful();
+
+    expect($centrefire->fresh()->match_date->toDateString())->toBe('2027-10-16')
+        ->and($centrefire->fresh()->match_end_date)->toBeNull()
+        ->and(MatchEvent::query()->where('match_type', 'PR22')->where('venue_name', 'Hippo Creek')->first()->match_date->toDateString())->toBe('2027-10-17');
 });
 
 it('leaves an opened 14 March Klipskuur national on its original date', function () {
