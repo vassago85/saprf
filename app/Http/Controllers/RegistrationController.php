@@ -610,7 +610,9 @@ class RegistrationController extends Controller
     {
         $user = $request->user();
 
-        if ($registration->user_id !== $user->id) {
+        $managesShooter = $user->findManagedAccount($registration->user_id) !== null;
+
+        if ($registration->user_id !== $user->id && ! $managesShooter) {
             abort(403, 'You can only withdraw your own registration.');
         }
 
@@ -1077,9 +1079,10 @@ class RegistrationController extends Controller
     }
 
     /**
-     * The shooter on the entry, an owner/admin, or the match director who
-     * created this match. Any other match director is refused — they used
-     * to pass a role check that ignored match ownership.
+     * The shooter on the entry, the parent of a managed account, an
+     * owner/admin, or the match director who created this match. Any other
+     * match director is refused — they used to pass a role check that
+     * ignored match ownership.
      */
     private function actorMayReviseEntry(Request $request, MatchRegistration $registration): bool
     {
@@ -1090,6 +1093,12 @@ class RegistrationController extends Controller
         }
 
         if ((int) $registration->user_id === (int) $user->id) {
+            return true;
+        }
+
+        // Managed juniors cannot sign in. The parent who holds the account
+        // is the only person who can change division or shot count.
+        if ($user->findManagedAccount($registration->user_id) !== null) {
             return true;
         }
 

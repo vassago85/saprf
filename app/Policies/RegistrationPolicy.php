@@ -18,7 +18,8 @@ class RegistrationPolicy
      *   - match director — their own matches
      *   - the shooter themselves
      *   - the account that created the entry (parent, sponsor)
-     *   - anyone who has paid for it (sponsor paying an unpaid entry)
+     *   - anyone who has completed payment for it (a pending checkout
+     *     does not count — that row can be created by any member)
      */
     public function view(User $user, MatchRegistration $registration): bool
     {
@@ -38,10 +39,13 @@ class RegistrationPolicy
             return true;
         }
 
-        // Any past or in-flight payer of this entry can see it, so a sponsor
-        // who paid another member's fee can return to the receipt page.
+        // A completed payment is a real relationship: the sponsor paid and
+        // may return to the receipt. A pending checkout is not — any member
+        // can start one, and treating it as access leaked the shooter's
+        // email on this page.
         return $registration->payments()
             ->where('user_id', $user->id)
+            ->where('status', 'completed')
             ->exists();
     }
 

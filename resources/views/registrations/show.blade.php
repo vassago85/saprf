@@ -322,7 +322,8 @@
         {{-- Division change — allowed until registration closes (staff any time) --}}
         @php
             $isStaffViewer = auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director']);
-            $ownsRegistration = $registration->user_id === auth()->id();
+            $managesShooter = auth()->user()?->findManagedAccount($registration->user_id) !== null;
+            $ownsRegistration = $registration->user_id === auth()->id() || $managesShooter;
             $canEditEntry = $registration->canEditEntry();
         @endphp
         @if(($ownsRegistration || $isStaffViewer) && ($canEditEntry || $isStaffViewer) && $divisions->isNotEmpty())
@@ -387,7 +388,7 @@
         @endif
 
         {{-- Shots fired tracker --}}
-        @if(($registration->user_id === auth()->id() || auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director'])) && $registration->registration_status !== 'cancelled')
+        @if(($ownsRegistration || auth()->user()?->hasAnyRole(['owner', 'admin', 'match_director'])) && $registration->registration_status !== 'cancelled')
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Shots Fired</h2>
                 <form method="POST" action="{{ route('registrations.update-shots', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
@@ -415,7 +416,7 @@
         @endif
 
         {{-- Pay Now button for unpaid registrations --}}
-        @if($registration->user_id === auth()->id() && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
+        @if($ownsRegistration && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
             @php
                 $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled();
                 $creditPreview = app(\App\Services\AccountCreditService::class)->preview(auth()->user(), $registration);
@@ -615,7 +616,7 @@
         @endif
 
         {{-- Withdraw button for the registrant --}}
-        @if($registration->user_id === auth()->id() && $registration->isWithdrawable())
+        @if($ownsRegistration && $registration->isWithdrawable())
             @php
                 $calc = $registration->calculateRefund();
                 $hasChoice = in_array($calc['reason'], ['before_deadline', 'paid_offline'], true);
