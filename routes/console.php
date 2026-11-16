@@ -53,3 +53,11 @@ Schedule::command('saprf:invoice-charsley')
     ->monthlyOn(1, '07:00')
     ->timezone('Africa/Johannesburg')
     ->withoutOverlapping();
+
+// Decision Register: move published items to archived once the voting
+// window ends. Hourly is enough — members still see a closed window
+// immediately via reactionsAreOpen(); this only flips the status badge.
+Schedule::command('saprf:archive-closed-decisions')
+    ->hourly()
+    ->timezone('Africa/Johannesburg')
+    ->withoutOverlapping();

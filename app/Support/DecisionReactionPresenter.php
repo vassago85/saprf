@@ -21,6 +21,8 @@ use App\Services\SettingsService;
  *   dislikes: int,
  *   neutrals: int,
  *   window_open: bool,
+ *   voting_closes_label: string|null,
+ *   is_archived: bool,
  *   has_reacted: bool,
  *   can_react: bool,
  *   guest: bool,
@@ -64,11 +66,18 @@ class DecisionReactionPresenter
         $guest = $viewer === null;
         $notActiveMember = $viewer !== null && ! $viewer->isActiveMember();
         $windowOpen = $decision->reactionsAreOpen();
+        $isArchived = $decision->isArchived() || $decision->votingWindowHasClosed();
 
+        // Once the window has closed, show the final split even below the
+        // usual 10-reaction threshold so the archive is still useful.
         $showSplit = false;
-        if ($hasEnough) {
-            $mode = $this->visibilityMode();
-            $showSplit = $mode === self::VISIBILITY_PUBLIC || $hasReacted;
+        if ($hasEnough || $isArchived) {
+            if ($hasEnough) {
+                $mode = $this->visibilityMode();
+                $showSplit = $mode === self::VISIBILITY_PUBLIC || $hasReacted || $isArchived;
+            } elseif ($isArchived && $total > 0) {
+                $showSplit = true;
+            }
         }
 
         $percentages = $showSplit ? $decision->reactionPercentages() : null;
@@ -84,6 +93,8 @@ class DecisionReactionPresenter
             'dislikes' => $dislikes,
             'neutrals' => $neutrals,
             'window_open' => $windowOpen,
+            'voting_closes_label' => $decision->votingClosesLabel(),
+            'is_archived' => $isArchived,
             'has_reacted' => $hasReacted,
             'can_react' => $windowOpen
                 && $viewer !== null

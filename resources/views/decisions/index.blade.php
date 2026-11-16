@@ -33,14 +33,29 @@
                 @php($r = $reactions[$decision->id])
                 <article
                     id="decision-{{ $decision->id }}"
-                    class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"
+                    @class([
+                        'rounded-2xl border p-5 shadow-sm sm:p-6',
+                        'border-stone-200 bg-white' => ! $r['is_archived'],
+                        'border-stone-200 bg-stone-50' => $r['is_archived'],
+                    ])
                 >
                     <header class="mb-4">
-                        @if (! empty($numbers[$decision->id]))
-                            <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                                {{ $numbers[$decision->id] }}
-                            </p>
-                        @endif
+                        <div class="mb-2 flex flex-wrap items-center gap-2">
+                            @if (! empty($numbers[$decision->id]))
+                                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                                    {{ $numbers[$decision->id] }}
+                                </p>
+                            @endif
+                            @if ($r['is_archived'])
+                                <span class="inline-flex rounded-full bg-stone-200 px-2 py-0.5 text-xs font-semibold text-stone-700">
+                                    Archived
+                                </span>
+                            @elseif ($r['voting_closes_label'])
+                                <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                    {{ $r['voting_closes_label'] }}
+                                </span>
+                            @endif
+                        </div>
                         <h2 class="text-xl font-semibold tracking-tight text-stone-900">
                             {{ $decision->title }}
                         </h2>
@@ -131,7 +146,9 @@
                                     <span aria-hidden="true">✓</span> You have reacted
                                 </p>
                             @elseif (! $r['window_open'])
-                                <p class="text-sm text-stone-500">Feedback window closed. Final tally stays on the register.</p>
+                                <p class="text-sm text-stone-500">
+                                    Voting closed{{ $r['is_archived'] ? ' — archived' : '' }}. Final tally stays on the register.
+                                </p>
                             @elseif ($r['guest'])
                                 <a href="{{ route('login') }}"
                                    class="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800">

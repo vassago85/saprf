@@ -30,7 +30,7 @@ class DecisionController extends Controller
 
         $decisions = Decision::query()
             ->with(['tally', 'creator:id,name'])
-            ->orderByRaw("CASE status WHEN 'draft' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END")
             ->orderByDesc('published_at')
             ->orderBy('id')
             ->paginate(30);

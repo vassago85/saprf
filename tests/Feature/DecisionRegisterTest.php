@@ -203,7 +203,38 @@ it('closes reactions after the configured window (default 7 days)', function () 
     $this->actingAs($member)
         ->get(route('decisions.index'))
         ->assertOk()
-        ->assertSee('Feedback window closed');
+        ->assertSee('Voting closed')
+        ->assertSee('Archived');
+
+    expect($decision->fresh()->status)->toBe(DecisionStatus::Archived);
+});
+
+it('shows how long voting remains open', function () {
+    $decision = publishDecision(overrides: [
+        'published_at' => now()->subDays(2),
+    ]);
+    $member = decisionMember();
+
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
+        ->assertOk()
+        ->assertSee('Voting closes in')
+        ->assertDontSee('Archived');
+
+    expect($decision->fresh()->votingClosesLabel())->toContain('Voting closes in')
+        ->and($decision->fresh()->status)->toBe(DecisionStatus::Published);
+});
+
+it('archives closed decisions via the artisan command', function () {
+    $open = publishDecision(overrides: ['published_at' => now()->subDays(2)]);
+    $closed = publishDecision(overrides: ['published_at' => now()->subDays(10)]);
+
+    $this->artisan('saprf:archive-closed-decisions')
+        ->assertSuccessful()
+        ->expectsOutputToContain('Archived 1');
+
+    expect($open->fresh()->status)->toBe(DecisionStatus::Published)
+        ->and($closed->fresh()->status)->toBe(DecisionStatus::Archived);
 });
 
 it('lets exco change the reaction window length', function () {

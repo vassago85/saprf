@@ -56,15 +56,88 @@ class Decision extends Model
             ->whereNotNull('published_at');
     }
 
+    /**
+     * Decisions members can see on the register: open for voting or archived.
+     */
+    public function scopeOnRegister(Builder $query): Builder
+    {
+        return $query->whereIn('status', [
+            DecisionStatus::Published,
+            DecisionStatus::Archived,
+        ])->whereNotNull('published_at');
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->where('status', DecisionStatus::Archived)
+            ->whereNotNull('published_at');
+    }
+
     public function isPublished(): bool
     {
         return $this->status === DecisionStatus::Published
             && $this->published_at !== null;
     }
 
+    public function isArchived(): bool
+    {
+        return $this->status === DecisionStatus::Archived
+            && $this->published_at !== null;
+    }
+
     public function isDraft(): bool
     {
         return $this->status === DecisionStatus::Draft;
+    }
+
+    /**
+     * True when the voting window has ended (whether or not status has
+     * been flipped to archived yet).
+     */
+    public function votingWindowHasClosed(): bool
+    {
+        $closesAt = $this->reactionWindowClosesAt();
+
+        return $closesAt !== null && ! now()->lt($closesAt);
+    }
+
+    /**
+     * Move a published decision to archived once its voting window ends.
+     * Idempotent.
+     */
+    public function archiveIfVotingClosed(): bool
+    {
+        if (! $this->isPublished() || ! $this->votingWindowHasClosed()) {
+            return false;
+        }
+
+        $this->forceFill(['status' => DecisionStatus::Archived])->save();
+
+        return true;
+    }
+
+    /**
+     * Human label for time left, e.g. "Voting closes in 2 days · 16 Nov 2026".
+     * Null when the window is closed or the decision is not open for voting.
+     */
+    public function votingClosesLabel(): ?string
+    {
+        if (! $this->reactionsAreOpen()) {
+            return null;
+        }
+
+        $closesAt = $this->reactionWindowClosesAt();
+        if ($closesAt === null) {
+            return null;
+        }
+
+        $remaining = $closesAt->diffForHumans(now(), [
+            'syntax' => Carbon::DIFF_ABSOLUTE,
+            'parts' => 2,
+        ]);
+
+        return 'Voting closes in '.$remaining
+            .' · '.$closesAt->timezone(config('app.timezone'))->format('d M Y H:i');
     }
 
     public function reactionWindowDays(): int
@@ -88,11 +161,13 @@ class Decision extends Model
 
     public function reactionsAreOpen(): bool
     {
+        if ($this->isArchived() || ! $this->isPublished()) {
+            return false;
+        }
+
         $closesAt = $this->reactionWindowClosesAt();
 
-        return $this->isPublished()
-            && $closesAt !== null
-            && now()->lt($closesAt);
+        return $closesAt !== null && now()->lt($closesAt);
     }
 
     public function totalReactions(): int

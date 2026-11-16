@@ -28,9 +28,17 @@ class DecisionController extends Controller
     {
         $viewer = $request->user();
 
-        $decisions = Decision::query()
+        // Catch anything the hourly job has not flipped yet.
+        Decision::query()
             ->published()
+            ->whereNotNull('published_at')
+            ->orderBy('id')
+            ->each(fn (Decision $decision) => $decision->archiveIfVotingClosed());
+
+        $decisions = Decision::query()
+            ->onRegister()
             ->with('tally')
+            ->orderByRaw("CASE status WHEN 'published' THEN 0 ELSE 1 END")
             ->orderByDesc('published_at')
             ->orderBy('id')
             ->paginate(12)

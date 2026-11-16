@@ -38,6 +38,7 @@ class DecisionNumberer
         }
 
         $rows = Decision::query()
+            ->onRegister()
             ->whereIn('reference', $references->all())
             ->orderBy('reference')
             ->orderBy('id')
