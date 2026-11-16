@@ -15,6 +15,7 @@ use App\Models\ScoreImport;
 use App\Models\Venue;
 use App\Services\AuditLogService;
 use App\Services\FinancialService;
+use App\Services\ImpactScoring\Day1ProvincialSubmitService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\ImpactScoring\ImpactShooterExport;
 use App\Services\MatchCloseoutWizard;
@@ -26,10 +27,12 @@ use App\Services\SettingsService;
 use App\Services\StandingsCalculationService;
 use App\Services\StandingsSnapshotRecorder;
 use App\Support\ScoreFormat;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use RuntimeException;
 
 /**
  * One match. One URL per tab. One controller.
@@ -513,6 +516,47 @@ class MatchWorkspaceController extends Controller
      * MD unmarks and re-marks (e.g. to fix a typo), re-finalising keeps
      * the fresh timestamp but will NOT re-blast the audience.
      */
+    /**
+     * Pull the current Impact stages so the director can mark day 1 and day 2
+     * before any provincial scores are written.
+     */
+    public function previewDay1Provincial(Request $request, MatchEvent $match, Day1ProvincialSubmitService $submit): JsonResponse
+    {
+        $this->authorize('update', $match);
+
+        try {
+            return response()->json($submit->preview($match));
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Write the confirmed day-1 stage totals onto the provincial sibling.
+     * Live scoring on the national keeps running.
+     */
+    public function storeDay1Provincial(Request $request, MatchEvent $match, Day1ProvincialSubmitService $submit): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $data = $request->validate([
+            'stage_days' => ['required', 'array'],
+            'stage_days.*' => ['required', 'in:1,2'],
+        ]);
+
+        try {
+            $result = $submit->submit($match, $data['stage_days']);
+        } catch (RuntimeException $e) {
+            return redirect()
+                ->route('matches.scores', $match)
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('matches.scores', $match)
+            ->with('success', $result['message']);
+    }
+
     public function completeScores(Request $request, MatchEvent $match): RedirectResponse
     {
         $this->authorize('update', $match);

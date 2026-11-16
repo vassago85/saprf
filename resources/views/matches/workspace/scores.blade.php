@@ -57,6 +57,123 @@
         </div>
     @endif
 
+    @if($match->isTwoDayNational() && $match->impact_live_sync && $match->impact_match_id && ! $match->scoresAreFinalized())
+        @can('update', $match)
+            {{-- window global, not Alpine.data(): wire:navigate keeps one Alpine
+                 instance, so alpine:init would not run again on this tab. --}}
+            <script>
+                window.day1Provincial = function () {
+                    return {
+                        loading: false,
+                        error: null,
+                        preview: null,
+                        days: {},
+                        async load() {
+                            this.loading = true;
+                            this.error = null;
+                            try {
+                                const response = await fetch(@js(route('matches.scores.day1-provincial.preview', $match)), {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                        'Accept': 'application/json',
+                                    },
+                                });
+                                const data = await response.json();
+                                if (!response.ok) {
+                                    this.error = data.message || 'Impact could not be reached.';
+                                    this.preview = null;
+                                    return;
+                                }
+                                this.preview = data;
+                                this.days = {};
+                                for (const stage of data.stages) {
+                                    this.days[stage.id] = stage.day;
+                                }
+                            } catch (e) {
+                                this.error = 'Impact could not be reached.';
+                                this.preview = null;
+                            } finally {
+                                this.loading = false;
+                            }
+                        },
+                        mark(id) {
+                            this.days[id] = this.days[id] === 1 ? 2 : 1;
+                        },
+                        count(day) {
+                            return Object.values(this.days).filter((value) => value === day).length;
+                        },
+                        shootersWithDay1() {
+                            if (!this.preview) return 0;
+                            const day1Ids = Object.entries(this.days)
+                                .filter(([, day]) => day === 1)
+                                .map(([id]) => String(id));
+                            return (this.preview.linked_shooters || []).filter((shooter) => {
+                                const hits = shooter.hits || {};
+                                const sum = day1Ids.reduce((total, id) => total + Number(hits[id] || 0), 0);
+                                return sum > 0;
+                            }).length;
+                        },
+                        canSubmit() {
+                            return this.preview
+                                && this.count(null) === 0
+                                && this.count(1) > 0
+                                && !this.loading;
+                        },
+                    };
+                };
+            </script>
+            <div class="mt-6 rounded-xl border border-blue-200 bg-white p-4" x-data="day1Provincial()">
+                <h2 class="font-heading text-lg font-bold text-stone-900">Submit day 1 as the provincial</h2>
+                <p class="mt-1 text-xs text-stone-600">
+                    Mark every stage as day 1 or day 2. Submitting copies the day-1 hits onto the provincial.
+                    Live scoring stays on, and day 2 keeps adding to the combined national.
+                </p>
+
+                <button type="button"
+                        class="mt-3 inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-900 hover:bg-blue-100 disabled:opacity-50"
+                        @click="load()"
+                        :disabled="loading">
+                    <span x-text="loading ? 'Loading stages…' : 'Review day 1 stages'"></span>
+                </button>
+
+                <p class="mt-2 text-sm text-red-700" x-show="error" x-text="error"></p>
+
+                <form x-show="preview" method="POST" action="{{ route('matches.scores.day1-provincial.store', $match) }}" class="mt-4 space-y-4">
+                    @csrf
+                    <template x-for="stage in preview?.stages || []" :key="stage.id">
+                        <input type="hidden" :name="'stage_days[' + stage.id + ']'" :value="days[stage.id] || ''">
+                    </template>
+
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="stage in preview?.stages || []" :key="'btn-' + stage.id">
+                            <button type="button"
+                                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium"
+                                    :class="days[stage.id] === 1 ? 'border-blue-600 bg-blue-600 text-white' : (days[stage.id] === 2 ? 'border-stone-400 bg-stone-700 text-white' : 'border-stone-300 bg-white text-stone-700')"
+                                    @click="mark(stage.id)">
+                                <span x-text="stage.number + '. ' + stage.name"></span>
+                                <span x-text="days[stage.id] === 1 ? 'Day 1' : (days[stage.id] === 2 ? 'Day 2' : 'Not set')"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <p class="text-xs text-stone-600">
+                        <span x-text="count(1)"></span> day 1 ·
+                        <span x-text="count(2)"></span> day 2 ·
+                        <span x-text="count(null)"></span> not set ·
+                        <span x-text="shootersWithDay1()"></span> shooters with a day-1 total
+                    </p>
+
+                    <button type="submit"
+                            class="inline-flex items-center rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="!canSubmit()">
+                        Submit day 1 as the provincial
+                    </button>
+                </form>
+            </div>
+        @endcan
+    @endif
+
     {{-- Wizard stepper + the current step's panel. --}}
     @include('matches.workspace._wizard-stepper', ['wizard' => $wizard])
 

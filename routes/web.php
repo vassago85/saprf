@@ -687,6 +687,10 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             // mark a match complete.
             Route::post('/scores/complete', [MatchWorkspaceController::class, 'completeScores'])
                 ->name('matches.scores.complete');
+            Route::post('/scores/day1-provincial/preview', [MatchWorkspaceController::class, 'previewDay1Provincial'])
+                ->name('matches.scores.day1-provincial.preview');
+            Route::post('/scores/day1-provincial', [MatchWorkspaceController::class, 'storeDay1Provincial'])
+                ->name('matches.scores.day1-provincial.store');
             Route::post('/scores/uncomplete', [MatchWorkspaceController::class, 'uncompleteScores'])
                 ->name('matches.scores.uncomplete');
             // Wizard: step 2 (names & allocations). Division override on a

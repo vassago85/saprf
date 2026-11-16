@@ -77,6 +77,7 @@ class MatchEvent extends Model
         'impact_live_error',
         'impact_live_unmatched',
         'impact_live_name_map',
+        'impact_stage_days',
         'source_national_match_id',
         'provincial_stage_columns',
     ];
@@ -112,6 +113,7 @@ class MatchEvent extends Model
             'impact_live_ended_at' => 'datetime',
             'impact_live_unmatched' => 'array',
             'impact_live_name_map' => 'array',
+            'impact_stage_days' => 'array',
             // Phase 3.3: structured match-day details. Each JSON blob is
             // optional and the UI only renders cards when its payload is
             // non-empty — see the matching accessors below for shape.
