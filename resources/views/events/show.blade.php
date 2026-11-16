@@ -474,6 +474,10 @@
                                                             </template>
                                                         </span>
                                                     </template>
+                                                    <template x-if="row.country">
+                                                        <span class="ml-2 inline-flex items-center rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 ring-1 ring-inset ring-stone-200"
+                                                              x-text="row.country"></span>
+                                                    </template>
                                                     <template x-if="row.badge">
                                                         {{-- Phase 4.6: badge now carries a tooltip explaining what the status means. --}}
                                                         <span class="ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset uppercase tracking-wide cursor-help"

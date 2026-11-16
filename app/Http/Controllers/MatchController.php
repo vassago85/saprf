@@ -810,7 +810,7 @@ class MatchController extends Controller
         // Phase 4.8: eager-load each score's user + membership so the view can
         // link shooter names to their canonical profile (SAPRF number when
         // available, legacy user-id fallback otherwise).
-        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->with(['division', 'user:id,name', 'user.membership:id,user_id,saprf_number'])->orderBy('overall_rank')]);
+        $match->load(['province', 'creator:id,name', 'scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)->with(['division', 'user:id,name,country_of_residence', 'user.membership:id,user_id,saprf_number'])->orderBy('overall_rank')]);
         // "Registered" must exclude withdrawn/cancelled entries so the stat matches
         // the public entrant list (which already hides cancelled registrations).
         $match->loadCount([
@@ -924,7 +924,7 @@ class MatchController extends Controller
         }
 
         $match->load(['scores' => fn ($q) => $q->whereIn('status', ScoreValidationService::VISIBLE_STATUSES)
-            ->with(['division', 'user:id,name', 'user.membership:id,user_id,saprf_number'])
+            ->with(['division', 'user:id,name,country_of_residence', 'user.membership:id,user_id,saprf_number'])
             ->orderBy('overall_rank')]);
 
         $viewer = Auth::user();
@@ -980,6 +980,10 @@ class MatchController extends Controller
             }
             $saBadge = $saBadgesByUser[$score->user_id] ?? null;
             $orderedStages = \App\Support\ImpactStages::forDisplay($score->raw_meta['impact']['stages'] ?? null);
+            $countryCode = $score->user?->country_of_residence;
+            $country = $countryCode && $countryCode !== 'ZA'
+                ? (User::COUNTRY_OPTIONS[$countryCode] ?? null)
+                : null;
 
             return [
                 'id' => $score->id,
@@ -1006,6 +1010,7 @@ class MatchController extends Controller
                 'status' => $score->status,
                 'profile_url' => $profileUrl,
                 'can_remove' => $viewerCanRemoveZeroScores && (float) $score->raw_score === 0.0,
+                'country' => $country,
                 'badge' => match ($score->status) {
                     'non_member' => ['label' => 'Non-member', 'class' => 'bg-stone-100 text-stone-600 ring-stone-200', 'tip' => 'This shooter was not a SAPRF member on the match date — their score is displayed but does not contribute to season standings.'],
                     'lapsed'     => ['label' => 'Lapsed',     'class' => 'bg-rose-50 text-rose-700 ring-rose-200', 'tip' => 'This shooter had a lapsed membership on the match date — their score is displayed but does not contribute to season standings.'],

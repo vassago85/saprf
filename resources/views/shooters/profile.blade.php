@@ -57,7 +57,9 @@
                         <x-sa-team-badge :years="$headerSaYears" :tooltip="$headerSaTooltip" />
                     </div>
                     <div class="flex flex-wrap items-center gap-2 mt-2">
-                        @if($shooter->province)
+                        @if($shooter->country_of_residence && $shooter->country_of_residence !== 'ZA')
+                            <span class="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ \App\Models\User::COUNTRY_OPTIONS[$shooter->country_of_residence] ?? $shooter->country_of_residence }}</span>
+                        @elseif($shooter->province)
                             <span class="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">{{ $shooter->province->name }}</span>
                         @endif
                         @if($saprfNumber && is_numeric($saprfNumber))
