@@ -682,6 +682,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         ->group(function (): void {
             Route::get('/', [MatchWorkspaceController::class, 'overview'])->name('matches.overview');
             Route::get('/entries', [MatchWorkspaceController::class, 'entries'])->name('matches.entries');
+            Route::get('/entries/squads', [MatchWorkspaceController::class, 'squadRecommendation'])->name('matches.squad-recommendation');
+            Route::get('/entries/squads/export', [MatchWorkspaceController::class, 'exportSquadRecommendation'])->name('matches.squad-recommendation.export');
             Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
             // MD "scores are checked — send the notifications" gate. POST
             // routes (not GET) so a prefetch / crawler can't accidentally

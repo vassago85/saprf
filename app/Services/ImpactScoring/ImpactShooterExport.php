@@ -36,9 +36,14 @@ class ImpactShooterExport
     ];
 
     /**
+     * Squad numbers are optional. The plain export leaves Squad blank so
+     * Impact does not create one squad per shooter. A recommendation
+     * download passes registration id => squad number.
+     *
+     * @param  array<int, int>  $squadByRegistrationId
      * @return array{headers: list<string>, rows: list<list<string>>, omitted: list<array{id: int, name: string}>}
      */
-    public function build(MatchEvent $match): array
+    public function build(MatchEvent $match, array $squadByRegistrationId = []): array
     {
         $registrations = $match->registrations()
             ->where('registration_status', '!=', 'cancelled')
@@ -68,7 +73,8 @@ class ImpactShooterExport
                 continue;
             }
 
-            $rows[] = $this->row($registration, $email);
+            $squad = $squadByRegistrationId[$registration->id] ?? null;
+            $rows[] = $this->row($registration, $email, $squad === null ? '' : (string) $squad);
         }
 
         return [
@@ -181,7 +187,7 @@ class ImpactShooterExport
     /**
      * @return list<string>
      */
-    private function row(MatchRegistration $registration, string $email): array
+    private function row(MatchRegistration $registration, string $email, string $squad = ''): array
     {
         $slug = $registration->division?->slug;
         $category = $slug !== null ? (self::CATEGORY_BY_SLUG[$slug] ?? '') : '';
@@ -194,7 +200,7 @@ class ImpactShooterExport
             $firstName,
             $lastName,
             $registration->contactPhone(),
-            '',
+            $squad,
             $division,
             $category,
             $saprfNumber,

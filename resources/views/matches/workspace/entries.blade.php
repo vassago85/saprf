@@ -88,6 +88,66 @@
             </div>
         </div>
 
+        @can('update', $match)
+            <div class="rounded-xl border border-stone-200 bg-white p-4">
+                <h2 class="text-sm font-semibold text-stone-900">Squad recommendation</h2>
+                <p class="mt-1 text-xs text-stone-500">Split the entered shooters evenly by the current overall season rank. Ladies and juniors take a squad when they can fill it.</p>
+                <form method="GET" action="{{ route('matches.squad-recommendation', $match) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                    <div>
+                        <label for="squads" class="block text-xs font-semibold uppercase tracking-wide text-stone-500">Squads</label>
+                        <input type="number" name="squads" id="squads" min="1" required
+                               value="{{ $squadPreview['requested'] ?? '' }}"
+                               class="mt-1 w-24 rounded-md border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    </div>
+                    <button type="submit" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-stone-800">
+                        Recommend
+                    </button>
+                    @if (! empty($squadPreview))
+                        <a href="{{ route('matches.squad-recommendation.export', ['match' => $match, 'squads' => $squadPreview['requested']]) }}"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                            <flux:icon.arrow-down-tray class="size-4" />
+                            Download for Impact
+                        </a>
+                    @endif
+                </form>
+
+                @if (! empty($squadPreview))
+                    <div class="mt-4 space-y-4">
+                        @foreach ($squadPreview['squads'] as $squad)
+                            <div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Squad {{ $squad['number'] }}</h3>
+                                <ul class="mt-1 divide-y divide-stone-100 rounded-lg border border-stone-200">
+                                    @foreach ($squad['members'] as $member)
+                                        <li class="flex flex-wrap items-baseline justify-between gap-2 px-3 py-1.5 text-sm">
+                                            <span class="font-medium text-stone-900">{{ $member['name'] }}</span>
+                                            <span class="text-xs text-stone-500">
+                                                {{ $member['rank'] === null ? 'No rank' : 'Rank '.$member['rank'] }}
+                                                @if ($member['division'] !== '')
+                                                    · {{ $member['division'] }}
+                                                @endif
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endforeach
+
+                        @if (($squadPreview['unranked_count'] ?? 0) > 0)
+                            <p class="text-sm text-amber-800">
+                                {{ $squadPreview['unranked_count'] }} {{ $squadPreview['unranked_count'] === 1 ? 'shooter has' : 'shooters have' }} no overall rank. They were placed after the ranked field.
+                            </p>
+                        @endif
+                        @if (($squadPreview['omitted'] ?? []) !== [])
+                            <p class="text-sm text-amber-800">
+                                Not in the Impact file (no email):
+                                {{ collect($squadPreview['omitted'])->pluck('name')->join(', ') }}
+                            </p>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        @endcan
+
         {{-- Add-a-shooter card (MD/admin only). Moved from the Settings
              sidebar so adding a walk-in or comp'd entry happens right
              next to the list of existing entries. The partial handles

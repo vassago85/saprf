@@ -18,6 +18,7 @@ use App\Services\FinancialService;
 use App\Services\ImpactScoring\Day1ProvincialSubmitService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\ImpactScoring\ImpactShooterExport;
+use App\Services\ImpactScoring\SquadRecommendation;
 use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\MatchWhatsappInviteMailer;
@@ -32,6 +33,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use RuntimeException;
 
 /**
@@ -103,7 +105,10 @@ class MatchWorkspaceController extends Controller
 
     // ── Entries ──
 
-    public function entries(Request $request, MatchEvent $match): View
+    /**
+     * @param  array{requested: int, squads: list<mixed>, unranked_count: int, squad_by_registration: array<int, int>, omitted: list<array{id: int, name: string}>}|null  $squadPreview
+     */
+    public function entries(Request $request, MatchEvent $match, ?array $squadPreview = null): View
     {
         $this->authorize('view', $match);
 
@@ -260,7 +265,73 @@ class MatchWorkspaceController extends Controller
             'scoresByUser' => $scoresByUser,
             'liveBoard' => $liveBoard,
             'impactExportOmitted' => $impactExportOmitted,
+            'squadPreview' => $squadPreview ?? null,
         ]));
+    }
+
+    /**
+     * @param  array{requested: int, squads: list<array{number: int, members: list<array{registration_id: int, name: string, rank: ?int, division: string}>}>, unranked_count: int, squad_by_registration: array<int, int>, omitted: list<array{id: int, name: string}>}|null  $squadPreview
+     */
+    public function squadRecommendation(Request $request, MatchEvent $match, SquadRecommendation $recommendation, ImpactShooterExport $export): View|RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $count = $this->squadCountOrRedirect($request, $match);
+        if ($count instanceof RedirectResponse) {
+            return $count;
+        }
+
+        $preview = $recommendation->recommend($match, $count);
+        $preview['omitted'] = $export->build($match)['omitted'];
+
+        return $this->entries($request, $match, $preview);
+    }
+
+    public function exportSquadRecommendation(Request $request, MatchEvent $match, SquadRecommendation $recommendation, ImpactShooterExport $export): StreamedResponse|RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $count = $this->squadCountOrRedirect($request, $match);
+        if ($count instanceof RedirectResponse) {
+            return $count;
+        }
+
+        $preview = $recommendation->recommend($match, $count);
+        $built = $export->build($match, $preview['squad_by_registration']);
+        $filename = str($match->name)->slug().'-impact-squads.csv';
+
+        return response()->streamDownload(function () use ($built) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $built['headers']);
+            foreach ($built['rows'] as $row) {
+                fputcsv($out, $row);
+            }
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    private function squadCountOrRedirect(Request $request, MatchEvent $match): int|RedirectResponse
+    {
+        $count = $request->integer('squads');
+        $field = $match->registrations()
+            ->where('registration_status', '!=', 'cancelled')
+            ->count();
+
+        if ($field === 0) {
+            return redirect()
+                ->route('matches.entries', $match)
+                ->with('error', 'There are no shooters to squad.');
+        }
+
+        if ($count < 1 || $count > $field) {
+            return redirect()
+                ->route('matches.entries', $match)
+                ->with('error', "Enter a squad count between 1 and {$field}.");
+        }
+
+        return $count;
     }
 
     /**
