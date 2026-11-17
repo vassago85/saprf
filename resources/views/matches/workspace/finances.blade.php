@@ -102,10 +102,10 @@
                             <td class="pt-3 text-base font-semibold text-stone-900">Net payout to you</td>
                             <td class="pt-3 text-right text-base font-bold tabular-nums text-stone-900">R {{ number_format((float) $money['md_net'], 2) }}</td>
                         </tr>
-                        @if($payout)
+                        @if($mdPayouts->isNotEmpty())
                             <tr>
                                 <td class="py-1.5 text-xs text-stone-500">Paid to date</td>
-                                <td class="py-1.5 text-right text-xs tabular-nums text-stone-500">R {{ number_format((float) $payout->paid_amount, 2) }}</td>
+                                <td class="py-1.5 text-right text-xs tabular-nums text-stone-500">R {{ number_format((float) $mdPayouts->sum('paid_amount'), 2) }}</td>
                             </tr>
                         @endif
                     </tbody>
@@ -142,18 +142,35 @@
                     </div>
                 @endif
 
-                @if($payout)
-                    <div class="mt-4 flex gap-2">
-                        <a href="{{ route('my-payouts.pdf', $payout) }}"
+                @if($mdPayouts->isNotEmpty())
+                    <div class="mt-4 space-y-2">
+                        @foreach($mdPayouts as $row)
+                            <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm">
+                                <span class="text-stone-700">
+                                    {{ $row->payout_phase === 'after_match' ? 'After the match' : 'Before the match' }}
+                                    · {{ $row->reference }}
+                                    · R {{ number_format((float) $row->net_amount, 2) }}
+                                    · {{ ucfirst($row->status) }}
+                                </span>
+                                <span class="flex gap-3">
+                                    <a href="{{ route('my-payouts.pdf', $row) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">PDF</a>
+                                    <a href="{{ route('my-payouts.csv', $row) }}" class="text-xs font-semibold text-stone-600 hover:text-stone-800">CSV</a>
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if($openPayoutPhase && $mdPayouts->isNotEmpty() && $match->registrationsAreClosed() && auth()->user()?->can('update', $match))
+                    <div class="mt-4">
+                        <a href="{{ route('matches.request-payout', $match) }}" wire:navigate
                            class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
-                            <flux:icon.document-arrow-down class="size-4" />
-                            Download PDF
+                            <flux:icon.banknotes class="size-4" />
+                            {{ $openPayoutPhase === 'before_match' ? 'Request before-match payout' : 'Request post-match payout' }}
                         </a>
-                        <a href="{{ route('my-payouts.csv', $payout) }}"
-                           class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                            <flux:icon.table-cells class="size-4" />
-                            Download CSV
-                        </a>
+                        <p class="mt-2 text-xs text-stone-500">
+                            Comp and cash deductions stay on the earlier payout. This one is for entries that have paid since, including shooters who were still outstanding.
+                        </p>
                     </div>
                 @endif
 

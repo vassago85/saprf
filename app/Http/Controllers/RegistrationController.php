@@ -1209,23 +1209,23 @@ class RegistrationController extends Controller
      */
     private function refreshPendingPayoutSnapshot(MatchRegistration $registration): void
     {
-        $payout = Payout::query()
+        $payouts = Payout::query()
             ->where('status', 'pending')
+            ->where('payee_type', 'match_director')
             ->where('match_id', $registration->match_id)
-            ->first();
+            ->get()
+            ->sortBy(fn (Payout $payout) => $payout->payout_phase === 'after_match' ? 1 : 0);
 
-        if (! $payout) {
-            return;
-        }
-
-        try {
-            app(FinancialService::class)->regenerateMatchPayoutStatement($payout);
-        } catch (\Throwable $e) {
-            Log::warning('Failed to auto-regenerate payout statement after registration update', [
-                'payout_id' => $payout->id,
-                'registration_id' => $registration->id,
-                'error' => $e->getMessage(),
-            ]);
+        foreach ($payouts as $payout) {
+            try {
+                app(FinancialService::class)->regenerateMatchPayoutStatement($payout);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to auto-regenerate payout statement after registration update', [
+                    'payout_id' => $payout->id,
+                    'registration_id' => $registration->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 

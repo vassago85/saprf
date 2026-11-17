@@ -222,10 +222,11 @@ it('does not show the unpaid warning when every entry is paid', function () {
         ->assertDontSee('still owe you money');
 });
 
-it('bounces the MD to the existing statement when a payout is already raised', function () {
+it('bounces the MD to the existing statement when the post-match payout is already raised', function () {
     $existing = Payout::create([
         'reference' => Payout::generateReference(),
         'payee_type' => 'match_director',
+        'payout_phase' => 'after_match',
         'payee_user_id' => $this->md->id,
         'match_id' => $this->match->id,
         'gross_amount' => 500,
@@ -495,7 +496,7 @@ it('lets the match director request a payout once registration is closed', funct
     $this->actingAs($this->md)
         ->get(route('matches.overview', $this->match))
         ->assertOk()
-        ->assertSee('Request MD payout');
+        ->assertSee('Request post-match payout');
 });
 
 it('refuses a payout request while registration is still open', function () {

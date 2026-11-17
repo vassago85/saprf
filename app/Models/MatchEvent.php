@@ -626,6 +626,79 @@ class MatchEvent extends Model
     }
 
     /**
+     * Match day has arrived (today is the start date, or later).
+     * A match with no date is treated as already started so it keeps a
+     * single full payout instead of a before-match slot that never closes.
+     */
+    public function matchDayHasArrived(): bool
+    {
+        if ($this->match_date === null) {
+            return true;
+        }
+
+        return $this->match_date->copy()->startOfDay()->lte(now()->startOfDay());
+    }
+
+    /**
+     * Match-director payouts already raised for this match.
+     *
+     * @return Collection<int, Payout>
+     */
+    public function mdPayouts(): Collection
+    {
+        $payouts = $this->relationLoaded('payouts')
+            ? $this->payouts
+            : $this->payouts()->get();
+
+        return $payouts->where('payee_type', 'match_director')->values();
+    }
+
+    /**
+     * The payout slot that can be requested right now.
+     *
+     * One before the match starts, one from match day onward. A payout
+     * raised before this split has no phase and counts as the before-match
+     * payout, so the post-match slot stays open for entries that pay later.
+     * Two payouts is the cap.
+     *
+     * @return 'before_match'|'after_match'|null
+     */
+    public function openMdPayoutPhase(): ?string
+    {
+        $payouts = $this->mdPayouts();
+
+        if ($payouts->count() >= 2) {
+            return null;
+        }
+
+        $taken = $payouts->map(function (Payout $payout) {
+            return $payout->payout_phase === 'after_match' ? 'after_match' : 'before_match';
+        })->unique();
+
+        if (! $this->matchDayHasArrived()) {
+            return $taken->contains('before_match') ? null : 'before_match';
+        }
+
+        return $taken->contains('after_match') ? null : 'after_match';
+    }
+
+    public function hasBeforeMatchPayout(): bool
+    {
+        return $this->mdPayouts()->contains(function (Payout $payout) {
+            return $payout->payout_phase !== 'after_match';
+        });
+    }
+
+    public function mdPayoutRequestBlockReason(): string
+    {
+        if (! $this->matchDayHasArrived() && $this->hasBeforeMatchPayout()) {
+            return 'The before-match payout is already requested. The post-match payout opens on match day, for entries that pay after this one.';
+        }
+
+        return 'This match already has its before-match and post-match payouts.';
+    }
+
+    /**
      * Walk-ins the director still has to score. They are not in a payout
      * raised before that score lands, so the levies open as a negative
      * on the next payout.
@@ -1148,6 +1221,10 @@ class MatchEvent extends Model
             return $this->status === 'completed' ? 'Paid' : 'Awaiting request';
         }
 
+        if ($this->openMdPayoutPhase() === 'after_match' && $this->hasBeforeMatchPayout()) {
+            return 'Post-match payout still open';
+        }
+
         return match ($payout->status) {
             'paid' => 'Paid R '.number_format((float) $payout->paid_amount, 2),
             'partial' => 'Partially paid',
@@ -1205,30 +1282,32 @@ class MatchEvent extends Model
                 'params' => ['match' => $this->id],
                 'variant' => 'primary',
             ]),
-            MatchStage::Results => $payout
-                ? [
-                    'label' => 'View payout statement',
-                    'detail' => 'Payout '.$payout->reference.' already requested.',
-                    'route' => 'matches.finances',
-                    'params' => ['match' => $this->id],
-                    'variant' => 'primary',
-                ]
-                : [
-                    'label' => 'Request MD payout',
-                    'detail' => 'Fill in your banking details and raise the payout statement.',
-                    'route' => 'matches.request-payout',
-                    'params' => ['match' => $this->id],
-                    'variant' => 'primary',
-                ],
-            MatchStage::Payout => $payout
-                ? [
-                    'label' => 'View payout statement',
-                    'detail' => $this->payoutStatusLine().' · '.$payout->reference,
-                    'route' => 'matches.finances',
-                    'params' => ['match' => $this->id],
-                    'variant' => $payout->status === 'paid' ? 'ghost' : 'primary',
-                ]
-                : null,
+            MatchStage::Results => $this->payoutRequestAction()
+                ?? ($payout
+                    ? [
+                        'label' => 'View payout statement',
+                        'detail' => 'Payout '.$payout->reference.' already requested.',
+                        'route' => 'matches.finances',
+                        'params' => ['match' => $this->id],
+                        'variant' => 'primary',
+                    ]
+                    : [
+                        'label' => 'Request MD payout',
+                        'detail' => 'Fill in your banking details and raise the payout statement.',
+                        'route' => 'matches.request-payout',
+                        'params' => ['match' => $this->id],
+                        'variant' => 'primary',
+                    ]),
+            MatchStage::Payout => $this->payoutRequestAction()
+                ?? ($payout
+                    ? [
+                        'label' => 'View payout statement',
+                        'detail' => $this->payoutStatusLine().' · '.$payout->reference,
+                        'route' => 'matches.finances',
+                        'params' => ['match' => $this->id],
+                        'variant' => $payout->status === 'paid' ? 'ghost' : 'primary',
+                    ]
+                    : null),
         };
     }
 
@@ -1245,16 +1324,42 @@ class MatchEvent extends Model
             return $action;
         }
 
-        if ($this->payouts()->where('payee_type', 'match_director')->exists()) {
+        $offer = $this->payoutRequestAction();
+        if ($offer === null) {
             return $action;
         }
 
         $action['secondary'] = [
-            'label' => 'Request MD payout',
-            'route' => 'matches.request-payout',
-            'params' => ['match' => $this->id],
+            'label' => $offer['label'],
+            'route' => $offer['route'],
+            'params' => $offer['params'],
         ];
 
         return $action;
+    }
+
+    /**
+     * The payout request the director can raise right now, if either slot is open.
+     *
+     * @return array{label: string, detail: string, route: string, params: array<string, mixed>, variant: string}|null
+     */
+    private function payoutRequestAction(): ?array
+    {
+        $phase = $this->openMdPayoutPhase();
+        if ($phase === null || ! $this->registrationsAreClosed() || $this->status === 'cancelled') {
+            return null;
+        }
+
+        $before = $phase === 'before_match';
+
+        return [
+            'label' => $before ? 'Request before-match payout' : 'Request post-match payout',
+            'detail' => $before
+                ? 'Comp and cash deductions come off this payout. Online entries that have not paid yet wait until after the match.'
+                : 'Pays entries that were not on the before-match payout, including anyone who pays late.',
+            'route' => 'matches.request-payout',
+            'params' => ['match' => $this->id],
+            'variant' => 'primary',
+        ];
     }
 }

@@ -43,6 +43,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MatchController extends Controller
@@ -415,9 +416,8 @@ class MatchController extends Controller
      * banking details SAPRF needs to transfer the money. The form POSTs back
      * to {@see completeAndRequestPayout()} below.
      *
-     * If the match already has a payout we skip the form and bounce the MD
-     * straight to the existing statement — there is nothing to request a
-     * second time, and letting them re-submit would create a duplicate row.
+     * A match has two slots: one before match day, and one from match day
+     * on. Once the open slot is used, the form bounces to the latest statement.
      */
     public function showRequestPayout(
         Request $request,
@@ -433,27 +433,28 @@ class MatchController extends Controller
                 ->with('error', 'You can request the payout once registration is closed.');
         }
 
-        $existingPayout = $match->payouts()
-            ->where('payee_type', 'match_director')
-            ->latest('id')
-            ->first();
+        $phase = $match->openMdPayoutPhase();
+        if ($phase === null) {
+            $existingPayout = $match->mdPayouts()->sortByDesc('id')->first();
+            $message = $match->mdPayoutRequestBlockReason();
+            if ($existingPayout) {
+                return redirect()
+                    ->route('my-payouts.show', $existingPayout)
+                    ->with('info', $message);
+            }
 
-        if ($existingPayout) {
             return redirect()
-                ->route('my-payouts.show', $existingPayout)
-                ->with('info', "A payout request already exists for this match ({$existingPayout->reference}).");
+                ->route('matches.finances', $match)
+                ->with('error', $message);
         }
 
         // Registration being closed is the only gate. Scores, names, and
         // walk-in acknowledgement can still be unfinished — the form warns
         // that a later payout can open negative if those land afterwards.
 
-        // `matchFinancials` gives us the settled numbers; `matchMoney` adds
-        // the worst-case projection (pending entries treated as if the MD
-        // chases them for payment) which is what the form shows alongside
-        // the settled total so the MD can see what they'll realistically
-        // end up with.
-        $summary = $financials->matchFinancials($match);
+        // The slot figures are what this request will actually pay. `matchMoney`
+        // adds the worst-case projection so the MD can see what is still outstanding.
+        $summary = $financials->mdPayoutFinancials($match, $phase);
         $money = $workspaceMoney->matchMoney($match);
         $banking = Payout::lastBankingDetailsForUser($match->created_by);
 
@@ -462,6 +463,8 @@ class MatchController extends Controller
             'summary' => $summary,
             'money' => $money,
             'banking' => $banking,
+            'payoutPhase' => $phase,
+            'hasBeforeMatchPayout' => $match->hasBeforeMatchPayout(),
             'walkInsNeedingScores' => $match->walkInsNeedingScores(),
             'scoresNotImported' => ! $match->scores()->exists(),
         ]);
@@ -478,9 +481,9 @@ class MatchController extends Controller
      * four fields on the way in and persist them onto the payout record so
      * the admin can process the transfer without further back-and-forth.
      *
-     * Guarded so the same match can't be double-requested: if the match
-     * already has an MD payout row, we short-circuit with a soft warning
-     * rather than creating a duplicate.
+     * One before-match payout and one post-match payout. A second request
+     * in the same slot is refused. The post-match payout only includes
+     * entries the earlier payout did not already claim.
      */
     public function completeAndRequestPayout(
         Request $request,
@@ -497,12 +500,8 @@ class MatchController extends Controller
 
         $back = url()->previous() ?: route('matches.show', $match);
 
-        $alreadyHasPayout = $match->payouts()
-            ->where('payee_type', 'match_director')
-            ->exists();
-
-        if ($alreadyHasPayout) {
-            return redirect($back)->with('success', 'A match director payout has already been requested for this match.');
+        if ($match->openMdPayoutPhase() === null) {
+            return redirect($back)->with('error', $match->mdPayoutRequestBlockReason());
         }
 
         $banking = $request->validate([
@@ -522,12 +521,16 @@ class MatchController extends Controller
         // can be paid out while day 2 is still on the range; marking it
         // completed here dropped it off the public live board and stopped
         // the Impact pull.
-        $payout = $financials->createMdPayout(
-            $match,
-            $request->user(),
-            'Requested by match director with banking details.',
-            $banking,
-        );
+        try {
+            $payout = $financials->createMdPayout(
+                $match,
+                $request->user(),
+                'Requested by match director with banking details.',
+                $banking,
+            );
+        } catch (RuntimeException $e) {
+            return redirect($back)->with('error', $e->getMessage());
+        }
 
         $this->auditLogService->log(
             $request->user(),
@@ -538,6 +541,7 @@ class MatchController extends Controller
             [
                 'match_id' => $match->id,
                 'payout_reference' => $payout->reference,
+                'payout_phase' => $payout->payout_phase,
                 'net_amount' => $payout->net_amount,
                 // Record that banking details were captured, but never log
                 // the actual account number — audit log entries are visible
@@ -548,7 +552,11 @@ class MatchController extends Controller
 
         $this->notifyTreasurerOfPayoutRequest($payout);
 
-        $message = "Payout {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment. The match stays open.';
+        $which = $payout->payout_phase === 'before_match' ? 'Before-match payout' : 'Post-match payout';
+        $message = "{$which} {$payout->reference} requested for R".number_format($payout->net_amount, 2).'. An admin will process the payment. The match stays open.';
+        if ($payout->payout_phase === 'before_match') {
+            $message .= ' Comp and cash deductions are on this payout. Entries that pay later can be requested once the match has started.';
+        }
         if (! $match->scoresAreFinalized()) {
             $message .= ' Scores stay provisional, and a live Impact pull keeps running through the end date. Mark the scores complete when you are ready so shooters are notified. If walk-ins or other deductions still come in, a later payout can start off negative.';
         }

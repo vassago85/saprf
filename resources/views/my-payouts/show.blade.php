@@ -3,6 +3,9 @@
         <div>
             <a href="{{ route('my-payouts.index') }}" class="text-sm text-emerald-700 hover:text-emerald-800 font-medium">&larr; All payouts</a>
             <h1 class="font-heading text-3xl font-bold text-stone-900 tracking-tight mt-2">{{ $payout->reference }}</h1>
+            @if($payout->phaseLabel() !== '')
+                <p class="mt-1 text-sm font-medium text-stone-700">{{ $payout->phaseLabel() }}</p>
+            @endif
             <p class="mt-1 text-sm text-stone-500">
                 {{ $meta['name'] ?? ($payout->match?->name ?? 'Match') }}
                 @if($meta['match_date'] ?? null) &middot; {{ \Carbon\Carbon::parse($meta['match_date'])->format('d M Y') }} @endif

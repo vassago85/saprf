@@ -710,11 +710,14 @@ class MatchWorkspaceController extends Controller
         $money = $this->matchFinance->matchMoney($match);
         $counts = $this->matchFinance->entryCounts($match);
 
-        $payout = Payout::query()
+        $mdPayouts = Payout::query()
             ->where('match_id', $match->id)
             ->where('payee_type', 'match_director')
-            ->latest('id')
-            ->first();
+            ->orderBy('id')
+            ->get();
+        $payout = $mdPayouts->last();
+        $match->setRelation('payouts', $mdPayouts);
+        $openPayoutPhase = $match->openMdPayoutPhase();
 
         // Label the line from the surcharge amounts stored on paid rows.
         // The global rate and a headcount of non-member categories can
@@ -731,6 +734,8 @@ class MatchWorkspaceController extends Controller
             'money' => $money,
             'counts' => $counts,
             'payout' => $payout,
+            'mdPayouts' => $mdPayouts,
+            'openPayoutPhase' => $openPayoutPhase,
             'viewerIsMatchDirector' => $viewerIsMatchDirector,
             'expenses' => $match->expenses->sortByDesc('created_at'),
             'surchargedEntryCount' => $surchargeRows->count(),

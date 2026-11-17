@@ -8,7 +8,7 @@
 
         @if($matches->isEmpty())
         <div class="rounded-xl border border-stone-200 bg-stone-50 p-6 text-center">
-            <p class="text-sm text-stone-500">All completed matches already have payouts generated, or there are no completed matches.</p>
+            <p class="text-sm text-stone-500">No match has an open before-match or post-match payout.</p>
         </div>
         @else
         <form method="POST" action="{{ route('financials.payouts.store') }}" class="rounded-xl border border-stone-200 bg-white shadow-sm p-6 space-y-5 max-w-xl">
@@ -21,7 +21,7 @@
                     <option value="">— Choose a match —</option>
                     @foreach($matches as $match)
                     <option value="{{ $match->id }}">
-                        {{ $match->name }} ({{ $match->match_date?->format('d M Y') }}) — MD: {{ $match->user?->name }}
+                        {{ $match->name }} ({{ $match->match_date?->format('d M Y') }}) — {{ $match->openMdPayoutPhase() === 'before_match' ? 'Before the match' : 'After the match' }} — MD: {{ $match->user?->name }}
                     </option>
                     @endforeach
                 </select>

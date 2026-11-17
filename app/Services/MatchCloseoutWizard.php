@@ -80,7 +80,7 @@ class MatchCloseoutWizard
             && $unconfirmedZeroCount === 0;
         $walkinsReady = $namesReady && $walkinAcknowledged;
         $completeReady = $walkinsReady && $scoresFinalized;
-        $payoutReady = $completeReady && $payout !== null;
+        $payoutReady = $completeReady && $match->openMdPayoutPhase() === null;
 
         $current = match (true) {
             ! $hasScores => self::STEP_IMPORT,

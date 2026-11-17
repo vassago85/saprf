@@ -437,11 +437,13 @@ class FinancialController extends Controller
 
     public function createPayout(Request $request): View
     {
-        $matches = MatchEvent::where('status', 'completed')
-            ->whereDoesntHave('payouts', fn ($q) => $q->where('payee_type', 'match_director'))
-            ->with('user')
+        $matches = MatchEvent::query()
+            ->with(['user', 'payouts' => fn ($q) => $q->where('payee_type', 'match_director')])
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->orderByDesc('match_date')
-            ->get();
+            ->get()
+            ->filter(fn (MatchEvent $match) => $match->registrationsAreClosed() && $match->openMdPayoutPhase() !== null)
+            ->values();
 
         return view('financials.create-payout', compact('matches'));
     }
@@ -455,11 +457,15 @@ class FinancialController extends Controller
 
         $match = MatchEvent::findOrFail($validated['match_id']);
 
-        $payout = $this->financials->createMdPayout(
-            $match,
-            $request->user(),
-            $validated['notes'] ?? null,
-        );
+        try {
+            $payout = $this->financials->createMdPayout(
+                $match,
+                $request->user(),
+                $validated['notes'] ?? null,
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         $this->audit->log(
             $request->user(),

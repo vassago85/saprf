@@ -4,8 +4,12 @@
         <div class="flex-1">
             <h2 class="font-heading text-lg font-bold text-emerald-950">Step 5 · Request your payout</h2>
             <p class="mt-1 text-sm text-emerald-900">
-                Scores are complete and your fees are acknowledged. File your match-director payout
-                request — an admin will review and settle payment.
+                @if($wizard['payout'] ?? null)
+                    The earlier payout is already requested. This step is the post-match payout for entries that paid later. Comp and cash deductions are not taken again.
+                @else
+                    Scores are complete and your fees are acknowledged. File your match-director payout
+                    request — an admin will review and settle payment.
+                @endif
             </p>
         </div>
     </div>

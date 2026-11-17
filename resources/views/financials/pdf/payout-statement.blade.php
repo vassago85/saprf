@@ -87,6 +87,9 @@
                     <div class="ref">
                         Payout statement
                         <strong>{{ $payout->reference }}</strong>
+                        @if($payout->phaseLabel() !== '')
+                            <div>{{ $payout->phaseLabel() }}</div>
+                        @endif
                         Generated {{ $generatedAt->format('d M Y H:i') }} &middot; v{{ $payout->statement_version }}
                     </div>
                 </td>

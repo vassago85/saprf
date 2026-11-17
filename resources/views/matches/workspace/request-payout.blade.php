@@ -34,6 +34,15 @@
             <p class="mt-1 text-sm text-stone-600">
                 Confirm the amount and give us the account to pay. Requesting the payout does not finish the match — live scores keep running until you mark the scores complete. An admin processes payment from here.
             </p>
+            <p class="mt-2 text-sm text-stone-600">
+                @if(($payoutPhase ?? null) === 'before_match')
+                    This is the before-match payout. Comp and cash deductions on the match now come off this amount. Shooters who have not paid online are left for the post-match payout.
+                @elseif($hasBeforeMatchPayout ?? false)
+                    This is the post-match payout. It pays entries that were not on the before-match request. Comp and cash deductions are not taken again.
+                @else
+                    This is the post-match payout. No before-match payout was requested, so comp and cash deductions are included here.
+                @endif
+            </p>
         </div>
 
         {{-- Amount summary. We show BOTH the settled payout (money collected
@@ -291,7 +300,12 @@
             </div>
 
             <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
-                <strong class="font-semibold">Heads up:</strong> once you submit, the payout request is locked.
+                <strong class="font-semibold">Heads up:</strong>
+                @if(($payoutPhase ?? null) === 'before_match')
+                    this request is locked once you submit. One more payout can be requested after the match starts, for entries that pay later.
+                @else
+                    this request is locked once you submit. It is the post-match payout for this match.
+                @endif
                 The match itself stays open, and live scores keep updating through the end date. If you spot an
                 incorrect banking detail after submitting, ask an admin to update it before they pay.
             </div>
@@ -301,10 +315,13 @@
                    class="text-sm font-medium text-stone-600 hover:text-stone-900">
                     Cancel
                 </a>
-                <button type="submit"
-                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800">
+                @if($counts['paid'] === 0)
+                    <p class="text-sm text-stone-600">Nothing new to include yet. Unpaid entries join this payout once they pay.</p>
+                @endif
+                <button type="submit" @disabled($counts['paid'] === 0)
+                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
                     <flux:icon.banknotes class="size-4" />
-                    Complete match &amp; request payout
+                    {{ ($payoutPhase ?? null) === 'before_match' ? 'Request before-match payout' : 'Request post-match payout' }}
                 </button>
             </div>
         </form>

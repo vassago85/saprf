@@ -11,6 +11,7 @@ class Payout extends Model
     protected $fillable = [
         'reference',
         'payee_type',
+        'payout_phase',
         'payee_user_id',
         'match_id',
         'period_start',
@@ -96,6 +97,15 @@ class Payout extends Model
     public function isPaid(): bool
     {
         return $this->status === 'paid';
+    }
+
+    public function phaseLabel(): string
+    {
+        return match ($this->payout_phase) {
+            'before_match' => 'Before the match',
+            'after_match' => 'After the match',
+            default => '',
+        };
     }
 
     public static function generateReference(): string

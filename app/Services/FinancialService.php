@@ -8,14 +8,17 @@ use App\Models\MatchRegistration;
 use App\Models\MembershipPayment;
 use App\Models\Payment;
 use App\Models\Payout;
+use App\Models\PayoutItem;
 use App\Models\PlatformExpense;
 use App\Models\PlatformIncome;
 use App\Models\User;
 use App\Notifications\MdPayoutStatementNotification;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class FinancialService
 {
@@ -342,17 +345,42 @@ class FinancialService
     }
 
     /**
-     * Create a pending match-director payout for a completed match and record
-     * the matching finance-transaction ledger entry. Returns the fresh payout.
+     * Figures for the payout slot that is about to be raised.
      *
-     * Callers must guard against duplicate payouts (a match should never carry
-     * more than one MD payout row) and against un-completed matches. Both the
-     * admin "Create Payout" screen and the match-director "Complete & request
-     * payout" flow funnel through this method so amounts, references, and the
-     * transaction log stay consistent regardless of who initiated the payout.
+     * Before the match: platform payments already in, plus every comp and
+     * cash deduction. Walk-ins and unpaid online entries stay off it.
+     * After the match, with a before-match payout already on file: only
+     * entries that payout did not already claim. With no earlier payout,
+     * the post-match request is the full settlement, comps and cash included.
+     *
+     * `$except` is the payout being rebuilt, so its own rows are not treated
+     * as already claimed.
+     *
+     * @param  'before_match'|'after_match'  $phase
+     * @return array<string, mixed>
      */
+    public function mdPayoutFinancials(MatchEvent $match, string $phase, ?Payout $except = null): array
+    {
+        $financials = $this->matchFinancials($match);
+        $claimed = $this->claimedRegistrationIds($match, $except);
+
+        $paid = $financials['paid_entries']->reject(function ($reg) use ($phase, $claimed) {
+            if (in_array((int) $reg->id, $claimed, true)) {
+                return true;
+            }
+
+            return $phase === 'before_match' && $reg->isWalkIn();
+        })->values();
+
+        $excluded = $financials['excluded_entries']
+            ->reject(fn ($reg) => in_array((int) $reg->id, $claimed, true))
+            ->values();
+
+        return $this->summarisePayoutSlice($financials, $paid, $excluded);
+    }
+
     /**
-     * Create a pending MD payout for a completed match.
+     * Create a pending MD payout for the open before-match or post-match slot.
      *
      * `$banking` carries the account the MD nominated at request time. The
      * four keys (`account_holder`, `bank_name`, `account_number`,
@@ -370,12 +398,30 @@ class FinancialService
         ?string $notes = null,
         ?array $banking = null,
     ): Payout {
-        $financials = $this->matchFinancials($match);
+        $phase = $match->openMdPayoutPhase();
+        if ($phase === null) {
+            throw new RuntimeException($match->mdPayoutRequestBlockReason());
+        }
 
-        return DB::transaction(function () use ($match, $creator, $notes, $financials, $banking) {
+        return DB::transaction(function () use ($match, $creator, $notes, $banking, $phase) {
+            $match->unsetRelation('payouts');
+            if ($match->openMdPayoutPhase() !== $phase) {
+                throw new RuntimeException($match->mdPayoutRequestBlockReason());
+            }
+
+            $financials = $this->mdPayoutFinancials($match, $phase);
+            if ($financials['paid_entries']->isEmpty()) {
+                throw new RuntimeException(
+                    $phase === 'after_match'
+                        ? 'Nothing new to pay out yet. Outstanding entries are included once they pay.'
+                        : 'Nothing to pay out yet.'
+                );
+            }
+
             $payout = Payout::create([
                 'reference' => Payout::generateReference(),
                 'payee_type' => 'match_director',
+                'payout_phase' => $phase,
                 'payee_user_id' => $match->created_by,
                 'match_id' => $match->id,
                 'gross_amount' => $financials['gross_revenue'],
@@ -514,7 +560,32 @@ class FinancialService
         }
 
         return DB::transaction(function () use ($payout) {
-            $financials = $this->matchFinancials($payout->match);
+            $phase = in_array($payout->payout_phase, ['before_match', 'after_match'], true)
+                ? $payout->payout_phase
+                : ($payout->match->matchDayHasArrived() ? 'after_match' : 'before_match');
+
+            $financials = $this->mdPayoutFinancials($payout->match, $phase, $payout);
+
+            // A before-match statement keeps the online entries it was raised
+            // with. Comp and cash deductions added later still come off it.
+            // Online entries that pay afterwards stay for the post-match payout.
+            if ($phase === 'before_match') {
+                $alreadyOnStatement = $payout->items()
+                    ->where('excluded', false)
+                    ->get(['match_registration_id', 'source_id'])
+                    ->map(fn ($item) => (int) ($item->match_registration_id ?: $item->source_id))
+                    ->all();
+
+                $paid = $financials['paid_entries']->filter(function ($reg) use ($alreadyOnStatement) {
+                    if ($reg->settledOnPlatform()) {
+                        return in_array((int) $reg->id, $alreadyOnStatement, true);
+                    }
+
+                    return true;
+                })->values();
+
+                $financials = $this->summarisePayoutSlice($financials, $paid, $financials['excluded_entries']);
+            }
 
             $payout->update([
                 'gross_amount' => $financials['gross_revenue'],
@@ -567,6 +638,68 @@ class FinancialService
         }
 
         return $query->orderByDesc('matches.match_date')->get()->toArray();
+    }
+
+    /**
+     * Registrations already frozen onto a match-director payout for this match.
+     * Excluded (unpaid) statement rows are not claimed, so they can join the
+     * post-match payout once the shooter pays.
+     *
+     * @return list<int>
+     */
+    private function claimedRegistrationIds(MatchEvent $match, ?Payout $except = null): array
+    {
+        $payoutIds = $match->payouts()
+            ->where('payee_type', 'match_director')
+            ->when($except, fn ($query) => $query->where('id', '!=', $except->id))
+            ->pluck('id');
+        if ($payoutIds->isEmpty()) {
+            return [];
+        }
+
+        return PayoutItem::query()
+            ->whereIn('payout_id', $payoutIds)
+            ->where('excluded', false)
+            ->get(['match_registration_id', 'source_id', 'source_type'])
+            ->map(function (PayoutItem $item) {
+                if ($item->source_type !== 'match_registration' && ! $item->match_registration_id) {
+                    return null;
+                }
+
+                return (int) ($item->match_registration_id ?: $item->source_id);
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $paid
+     * @param  Collection<int, mixed>  $excluded
+     * @return array<string, mixed>
+     */
+    private function summarisePayoutSlice(array $financials, Collection $paid, Collection $excluded): array
+    {
+        $paid = $paid->values();
+        $excluded = $excluded->values();
+
+        $financials['paid_registrations'] = $paid->count();
+        $financials['pending_registrations'] = $excluded->count();
+        $financials['platform_collected_count'] = $paid->filter(fn ($reg) => $reg->settledOnPlatform())->count();
+        $financials['saprf_levy_count'] = $paid->filter(fn ($reg) => (float) $reg->saprf_fee > 0)->count();
+        $financials['platform_fee_count'] = $paid->filter(fn ($reg) => (float) $reg->platform_fee > 0)->count();
+        $financials['gross_revenue'] = round((float) $paid->sum('fee_amount'), 2);
+        $financials['saprf_fees'] = round((float) $paid->sum('saprf_fee'), 2);
+        $financials['platform_fees'] = round((float) $paid->sum('platform_fee'), 2);
+        $financials['gateway_fees'] = round((float) $paid->sum('gateway_fee'), 2);
+        $financials['surcharges'] = round((float) $paid->sum('surcharge_amount'), 2);
+        $financials['md_net'] = round((float) $paid->sum('md_net_amount'), 2);
+        $financials['profit_loss'] = $financials['md_net'] - (float) ($financials['total_expenses'] ?? 0);
+        $financials['paid_entries'] = $paid;
+        $financials['excluded_entries'] = $excluded;
+
+        return $financials;
     }
 
     // ── Monthly Trend ──
