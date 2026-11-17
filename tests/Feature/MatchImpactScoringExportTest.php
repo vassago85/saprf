@@ -137,13 +137,13 @@ it('emits an empty Squad column on every row so Impact Scoring does not create o
 
     // Header + three shooters.
     expect($rows)->toHaveCount(4);
-    expect($rows[0])->toBe('Email,"First Name","Last Name",Phone,Squad,Division,Categories,"Member Number","Shooter Number"');
+    expect($rows[0])->toBe('Email,"First Name","Last Name",Phone,Squad,Division,Categories,"Member Number"');
 
     // Squad is the fifth field. A per-shooter counter here would read
     // "1", "2", or "3" and Impact would create one squad per shooter.
     foreach (array_slice($rows, 1) as $row) {
         $cols = str_getcsv($row);
-        expect($cols)->toHaveCount(9);
+        expect($cols)->toHaveCount(8);
         expect($cols[4])->toBe('');
     }
 });
@@ -195,12 +195,10 @@ it('keeps both registrations when they share an email on the entry', function ()
     expect($byName['First Shooter']['First Name'])->toBe('First');
     expect($byName['First Shooter']['Last Name'])->toBe('Shooter');
     expect($byName['First Shooter']['Member Number'])->toBe('910');
-    expect($byName['First Shooter']['Shooter Number'])->toBe('910');
     // The entry copied the other shooter's address, but this account has its own.
     expect($byName['Duplicate Shooter']['Email'])->toBe('duplicate.shooter@example.test');
     expect($byName['Duplicate Shooter']['Division'])->toBe('Factory');
     expect($byName['Duplicate Shooter']['Member Number'])->toBe('911');
-    expect($byName['Duplicate Shooter']['Shooter Number'])->toBe('911');
 });
 
 it('excludes cancelled registrations from the export', function () {
@@ -335,7 +333,6 @@ it('exports a managed member on their own row when they share the parent email',
         'Division' => 'Open',
         'Categories' => '',
         'Member Number' => '1001',
-        'Shooter Number' => '1001',
     ]);
     expect($byName['Pierre van der Merwe'])->toMatchArray([
         'Email' => '',
@@ -346,7 +343,6 @@ it('exports a managed member on their own row when they share the parent email',
         'Division' => '',
         'Categories' => 'Junior',
         'Member Number' => '1842',
-        'Shooter Number' => '1842',
     ]);
 });
 
@@ -395,6 +391,5 @@ it('uses a managed member own email and phone when they have them', function () 
         'Phone' => '0830000000',
         'Categories' => 'Junior',
         'Member Number' => '1843',
-        'Shooter Number' => '1843',
     ]);
 });

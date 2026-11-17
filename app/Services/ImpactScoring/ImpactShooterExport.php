@@ -17,10 +17,12 @@ use Illuminate\Support\Collection;
  * for indemnity with their own name, phone, division, category and member
  * number. A registration with no email at all is omitted and reported.
  *
- * PractiScore reads First Name and Last Name as separate columns, and a
- * column whose header contains "shooter" as the shooter number. The SAPRF
- * number is written to both Member Number and Shooter Number so a name
- * that does not match the PractiScore account can still be checked.
+ * Impact stores a full name from First Name and Last Name together
+ * (https://www.impactscoring.net/match/view-shooters-csv-format). The first
+ * word is the first name and the remainder is the last name, so
+ * "van der Merwe" stays intact. Member Number is the SAPRF number, which
+ * is how a shooter is checked when their Impact email or display name
+ * differs from the SAPRF account.
  */
 class ImpactShooterExport
 {
@@ -70,7 +72,7 @@ class ImpactShooterExport
         }
 
         return [
-            'headers' => ['Email', 'First Name', 'Last Name', 'Phone', 'Squad', 'Division', 'Categories', 'Member Number', 'Shooter Number'],
+            'headers' => ['Email', 'First Name', 'Last Name', 'Phone', 'Squad', 'Division', 'Categories', 'Member Number'],
             'rows' => $rows,
             'omitted' => $omitted,
         ];
@@ -156,9 +158,8 @@ class ImpactShooterExport
     }
 
     /**
-     * PractiScore keeps a full name only when first and last are separate
-     * columns. The first word is the first name and the remainder is the
-     * last name, so "van der Merwe" stays intact.
+     * Impact keeps the full name when First Name and Last Name are separate.
+     * The first word is the first name and the remainder is the last name.
      *
      * @return array{0: string, 1: string}
      */
@@ -196,7 +197,6 @@ class ImpactShooterExport
             '',
             $division,
             $category,
-            $saprfNumber,
             $saprfNumber,
         ];
     }
