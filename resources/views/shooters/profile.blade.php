@@ -68,6 +68,26 @@
                             </span>
                         @endif
                     </div>
+                    @if (! empty($federationColours))
+                        <div class="mt-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-1.5">Federation Colour</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($federationColours as $colour)
+                                    @php
+                                        $colourClass = match ($colour['award']) {
+                                            'Gold' => 'bg-amber-50 text-amber-800 ring-amber-200',
+                                            'Silver' => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                            'Bronze' => 'bg-orange-50 text-orange-800 ring-orange-200',
+                                            default => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                        };
+                                    @endphp
+                                    <span class="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $colourClass }}">
+                                        {{ $colour['award'] }} · {{ $colour['series_label'] }} · {{ $colour['division'] }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Career totals bar. All values are cheap aggregate counts

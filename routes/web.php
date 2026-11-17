@@ -30,6 +30,7 @@ use App\Http\Controllers\Exco\ExcoMemberController;
 use App\Http\Controllers\Exco\ExcoMinuteAmendmentController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\FederationColourAwardsController;
 use App\Http\Controllers\FinancialController;
 use App\Http\Controllers\FirearmReferenceController;
 use App\Http\Controllers\ImpersonationController;
@@ -859,6 +860,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/federation-colours', [ReportsController::class, 'federationColours'])->name('federation-colours');
         Route::get('/federation-colours/csv', [ReportsController::class, 'federationColoursCsv'])->name('federation-colours.csv');
         Route::get('/federation-colours/pdf', [ReportsController::class, 'federationColoursPdf'])->name('federation-colours.pdf');
+        Route::get('/federation-colour-awards', [FederationColourAwardsController::class, 'index'])->name('federation-colour-awards');
+        Route::get('/federation-colour-awards/csv', [FederationColourAwardsController::class, 'csv'])->name('federation-colour-awards.csv');
         Route::post('/federation-colours/overrides', [ReportsController::class, 'storeFederationColourOverride'])->name('federation-colours.overrides.store');
         Route::delete('/federation-colours/overrides/{override}', [ReportsController::class, 'destroyFederationColourOverride'])->name('federation-colours.overrides.destroy');
     });

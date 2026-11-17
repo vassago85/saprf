@@ -35,7 +35,7 @@
             </a>
 
             {{-- Federation colours --}}
-            <a href="{{ route('reports.federation-colours') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-amber-300 transition">
+            <a href="{{ route('reports.federation-colour-awards') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-amber-300 transition">
                 <div class="flex items-start justify-between mb-3">
                     <div class="rounded-xl bg-amber-50 p-2.5 ring-1 ring-amber-100">
                         <svg class="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -45,7 +45,7 @@
                     <svg class="h-4 w-4 text-stone-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
                 </div>
                 <h3 class="font-semibold text-stone-900">Federation Colours</h3>
-                <p class="mt-1 text-sm text-stone-500">Centrefire and PR22 provincial logs by division and province, as a percentage of the highest shooter in that group. Set the colour cutoffs, require SA Championships, and download CSV or PDF.</p>
+                <p class="mt-1 text-sm text-stone-500">National gold, silver and bronze per division. Each shooter is a percentage of the highest series score in that division. Download CSV.</p>
             </a>
 
             {{-- Participation --}}

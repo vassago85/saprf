@@ -7,6 +7,7 @@ use App\Models\QualificationRule;
 use App\Models\RifleConfiguration;
 use App\Models\Score;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -24,6 +25,7 @@ class ShooterProfileService
 {
     public function __construct(
         private readonly ShooterStandingsSummaryService $standingsSummary,
+        private readonly FederationColourAwards $federationColours,
     ) {}
 
     /**
@@ -99,6 +101,7 @@ class ShooterProfileService
             'rule' => $rule,
             'matchDates' => $matchDates,
             'profileRifles' => $profileRifles,
+            'federationColours' => $this->federationColours->forShooter($user->id, $season),
         ];
     }
 
@@ -121,8 +124,8 @@ class ShooterProfileService
      *         national_podiums:int,
      *         provincial_podiums:int,
      *         wins:int,
-     *         first_match_date:?\Illuminate\Support\Carbon,
-     *         latest_match_date:?\Illuminate\Support\Carbon,
+     *         first_match_date:?Carbon,
+     *         latest_match_date:?Carbon,
      *         seasons_active:int
      *     },
      *     availableSeasons: Collection<int, string>,
