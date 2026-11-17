@@ -188,7 +188,7 @@ test('everyone_counts match forces valid regardless of membership state', functi
 
     expect($result->status)->toBe('valid')
         ->and($result->is_member)->toBeTrue()
-        ->and($result->validation_reason)->toContain('all shooters count');
+        ->and($result->validation_reason)->toContain('members count');
 });
 
 test('everyone_counts flag does not affect a normal match with the same shooter', function () {

@@ -43,8 +43,8 @@ class ImportLegacyDay1ProvincialCommand extends Command
         if ($result['shortened'] !== []) {
             $this->line('Names matched to the national scoreboard: '.implode('; ', $result['shortened']));
         }
-        if ($result['created'] !== []) {
-            $this->warn('New accounts, counted as paid members: '.implode(', ', $result['created']));
+        if ($result['non_members'] !== []) {
+            $this->line('Non-members, score stays on the match and off the standings: '.implode(', ', $result['non_members']));
         }
         if ($result['unmatched'] !== []) {
             $this->warn('Left off the provincial (name was not unique): '.implode(', ', $result['unmatched']));

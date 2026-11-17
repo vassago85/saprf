@@ -83,7 +83,7 @@ function toggleTestScore(MatchEvent $match, User $user, Carbon $matchDate): Scor
         // an admin unticks the box.
         'status' => 'valid',
         'is_member' => true,
-        'validation_reason' => 'Match rule: all shooters count regardless of membership state on the day.',
+        'validation_reason' => 'Match rule: members count regardless of membership state on the day.',
     ]);
 }
 

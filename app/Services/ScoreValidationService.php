@@ -71,22 +71,34 @@ class ScoreValidationService
         // (MD save, bulk reevaluate, re-import) would demote these scores.
         $score->loadMissing('match');
         if ($score->match?->everyone_counts) {
-            $score->status = 'valid';
-            $score->is_member = true;
-            $score->validation_reason = 'Match rule: all shooters count regardless of membership state on the day.';
-            $score->save();
-            $this->syncOfficialLog($score);
-
-            $this->auditLogService->log(
-                auth()->user(),
-                'score.status.evaluated',
-                'Score',
-                $score->id,
-                $old,
-                $score->only(['status', 'is_member', 'validation_reason'])
+            $user = User::query()->with('membership')->find($score->user_id);
+            $type = $user?->membership?->membership_type;
+            // A legacy day counts the members who were already on the books,
+            // even when the paid window does not cover the match date.
+            // Someone with no membership stays a non-member.
+            $isMember = $user?->membership !== null && (
+                $type === null
+                || $type === ''
+                || in_array($type, MembershipValidationService::STANDINGS_ELIGIBLE_TYPES, true)
             );
+            if ($isMember) {
+                $score->status = 'valid';
+                $score->is_member = true;
+                $score->validation_reason = 'Match rule: members count regardless of membership state on the day.';
+                $score->save();
+                $this->syncOfficialLog($score);
 
-            return $score;
+                $this->auditLogService->log(
+                    auth()->user(),
+                    'score.status.evaluated',
+                    'Score',
+                    $score->id,
+                    $old,
+                    $score->only(['status', 'is_member', 'validation_reason'])
+                );
+
+                return $score;
+            }
         }
 
         $user = User::query()->with('membership')->find($score->user_id);

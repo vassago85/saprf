@@ -71,6 +71,22 @@ it('posts the first day of stages as a provincial and counts every shooter', fun
         'counts_for_season' => true,
         'match_date' => $this->national->match_date,
     ]);
+    $tinus = User::factory()->create([
+        'name' => 'Tinus Cronje',
+        'email' => 'tinus.cronje@import.saprf.local',
+        'province_id' => $this->province->id,
+    ]);
+    $tinus->assignRole('member');
+    Membership::create([
+        'user_id' => $tinus->id,
+        'saprf_number' => 'SAPRF-IMPORT-'.$tinus->id,
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'waived',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2026-12-31',
+    ]);
+
     Score::create([
         'match_id' => $this->national->id,
         'user_id' => $chris->id,
@@ -94,7 +110,7 @@ it('posts the first day of stages as a provincial and counts every shooter', fun
     $sibling = MatchEvent::query()->where('source_national_match_id', $this->national->id)->first();
     $johanDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $johan->id)->first();
     $chrisDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $chris->id)->first();
-    $tinus = User::query()->where('name', 'Tinus Cronje')->first();
+    $tinus->refresh();
     $tinusDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $tinus->id)->first();
 
     expect($sibling->everyone_counts)->toBeTrue()
@@ -104,8 +120,8 @@ it('posts the first day of stages as a provincial and counts every shooter', fun
         ->and($johanDay1->status)->toBe('valid')
         ->and($chrisDay1->shooter_name)->toBe('Chris Pretorius')
         ->and($chrisDay1->status)->toBe('valid')
-        ->and($tinusDay1->status)->toBe('valid')
-        ->and($tinus->membership->membership_type)->toBe('paid')
+        ->and($tinusDay1->status)->toBe('non_member')
+        ->and($tinus->membership)->toBeNull()
         ->and((float) Score::query()->where('match_id', $this->national->id)->where('user_id', $johan->id)->value('raw_score'))->toBe(114.0)
         ->and((int) $this->national->fresh()->impact_stage_days[101])->toBe(1)
         ->and((int) $this->national->fresh()->impact_stage_days[103])->toBe(2);

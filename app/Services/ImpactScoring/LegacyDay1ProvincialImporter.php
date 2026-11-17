@@ -4,7 +4,6 @@ namespace App\Services\ImpactScoring;
 
 use App\Models\Division;
 use App\Models\MatchEvent;
-use App\Models\Membership;
 use App\Models\Score;
 use App\Models\ShooterLog;
 use App\Models\User;
@@ -37,7 +36,7 @@ class LegacyDay1ProvincialImporter
      *   day1_stages:list<string>,
      *   written:int,
      *   shortened:list<string>,
-     *   created:list<string>,
+     *   non_members:list<string>,
      *   unmatched:list<string>
      * }
      */
@@ -83,7 +82,7 @@ class LegacyDay1ProvincialImporter
             $sibling = $national->findOrCreateProvincialDay1Sibling();
             $sibling->forceFill([
                 'everyone_counts' => true,
-                'description' => 'Day-1 provincial from a legacy 2-day national. Every shooter counts as a paid member on the day.',
+                'description' => 'Day-1 provincial from a legacy 2-day national. Members count even if the paid window does not cover the day. Someone who is not a member stays a non-member.',
             ])->save();
 
             $nationalScores = Score::query()
@@ -101,7 +100,7 @@ class LegacyDay1ProvincialImporter
             $written = 0;
             $keep = [];
             $shortened = [];
-            $created = [];
+            $nonMembers = [];
             $unmatched = [];
 
             foreach ($live['shooters'] as $shooter) {
@@ -138,13 +137,14 @@ class LegacyDay1ProvincialImporter
 
                 if ($userId === null) {
                     $divisionId = $this->divisionId((string) ($shooter['divisionName'] ?? ''));
-                    $userId = $this->createCountedShooter(
+                    $userId = $this->createShooterName(
                         $impactName,
                         (int) $national->province_id,
                         $divisionId,
                     );
-                    $created[] = $impactName;
                 }
+
+                $this->releaseImportMembership($userId);
 
                 if ($divisionId === null) {
                     $divisionId = $this->divisionId((string) ($shooter['divisionName'] ?? ''));
@@ -184,7 +184,10 @@ class LegacyDay1ProvincialImporter
                     ],
                 ]);
                 $score->save();
-                $this->scoreValidation->evaluateScoreStatus($score->fresh(['match']));
+                $evaluated = $this->scoreValidation->evaluateScoreStatus($score->fresh(['match']));
+                if ($evaluated->status === 'non_member') {
+                    $nonMembers[] = $displayName;
+                }
                 $keep[] = $userId;
                 $written++;
             }
@@ -200,7 +203,7 @@ class LegacyDay1ProvincialImporter
                 'sibling_name' => $sibling->name,
                 'written' => $written,
                 'shortened' => $shortened,
-                'created' => $created,
+                'non_members' => $nonMembers,
                 'unmatched' => array_values(array_unique($unmatched)),
             ];
         });
@@ -394,7 +397,29 @@ class LegacyDay1ProvincialImporter
         return Division::query()->where('slug', $slug)->value('id');
     }
 
-    private function createCountedShooter(string $name, int $provinceId, ?int $divisionId): int
+    /**
+     * The paid membership stamped on the first import made a non-member count.
+     * Drop only that import membership. A real member number is left alone.
+     */
+    private function releaseImportMembership(int $userId): void
+    {
+        $user = User::query()->with('membership')->find($userId);
+        if ($user === null || ! str_ends_with((string) $user->email, '@import.saprf.local')) {
+            return;
+        }
+
+        $membership = $user->membership;
+        if ($membership === null || ! str_starts_with((string) $membership->saprf_number, 'SAPRF-IMPORT-')) {
+            return;
+        }
+
+        $membership->delete();
+        if ($user->hasRole('member')) {
+            $user->removeRole('member');
+        }
+    }
+
+    private function createShooterName(string $name, int $provinceId, ?int $divisionId): int
     {
         $parts = preg_split('/\s+/', $this->cleanName($name)) ?: [];
         $first = Str::slug((string) ($parts[0] ?? 'shooter')) ?: 'shooter';
@@ -415,17 +440,6 @@ class LegacyDay1ProvincialImporter
             'is_active' => true,
             'email_verified_at' => null,
             'must_change_password' => false,
-        ]);
-        $user->assignRole('member');
-
-        Membership::create([
-            'user_id' => $user->id,
-            'saprf_number' => 'SAPRF-IMPORT-'.$user->id,
-            'membership_type' => 'paid',
-            'status' => 'active',
-            'payment_status' => 'waived',
-            'start_date' => '2026-01-01',
-            'expiry_date' => '2026-12-31',
         ]);
 
         return $user->id;
