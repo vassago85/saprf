@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Decision;
 use App\Services\DecisionReactionService;
+use App\Services\DecisionResultsNotifier;
 use App\Support\DecisionNumberer;
 use App\Support\DecisionReactionPresenter;
 use Illuminate\Http\RedirectResponse;
@@ -22,18 +23,21 @@ class DecisionController extends Controller
         private readonly DecisionReactionPresenter $presenter,
         private readonly DecisionReactionService $reactions,
         private readonly DecisionNumberer $numberer,
+        private readonly DecisionResultsNotifier $resultsNotifier,
     ) {}
 
     public function index(Request $request): View
     {
         $viewer = $request->user();
 
-        // Catch anything the hourly job has not flipped yet.
+        // Catch anything the hourly job has not flipped yet, then email
+        // ExCo + voters any pending close digests.
         Decision::query()
             ->published()
             ->whereNotNull('published_at')
             ->orderBy('id')
             ->each(fn (Decision $decision) => $decision->archiveIfVotingClosed());
+        $this->resultsNotifier->sendPending();
 
         $decisions = Decision::query()
             ->onRegister()

@@ -146,6 +146,11 @@ class DecisionPublishNotifier
             $decision->body,
         ];
 
+        if (filled($decision->note)) {
+            $lines[] = '';
+            $lines[] = '**Note.** '.$decision->note;
+        }
+
         if ($decision->reference) {
             $lines[] = '';
             $lines[] = '_'.$decision->reference.'_';

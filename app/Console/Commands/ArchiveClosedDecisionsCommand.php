@@ -4,20 +4,20 @@ namespace App\Console\Commands;
 
 use App\Enums\DecisionStatus;
 use App\Models\Decision;
+use App\Services\DecisionResultsNotifier;
 use Illuminate\Console\Command;
 
 /**
- * Flip published decisions to archived once their voting window has ended.
- * Safe to run often — only touches rows that are still `published` and past
- * the configured reaction window.
+ * Flip published decisions to archived once their voting window has ended,
+ * then email ExCo + voters a results digest (one per publish batch).
  */
 class ArchiveClosedDecisionsCommand extends Command
 {
     protected $signature = 'saprf:archive-closed-decisions';
 
-    protected $description = 'Archive Decision Register items whose voting window has closed.';
+    protected $description = 'Archive Decision Register items whose voting window has closed and email results to ExCo and voters.';
 
-    public function handle(): int
+    public function handle(DecisionResultsNotifier $resultsNotifier): int
     {
         $archived = 0;
 
@@ -31,9 +31,13 @@ class ArchiveClosedDecisionsCommand extends Command
                 }
             });
 
-        $this->info($archived === 0
-            ? 'No decisions to archive.'
-            : "Archived {$archived} decision(s).");
+        $digests = $resultsNotifier->sendPending();
+
+        if ($archived === 0 && $digests === 0) {
+            $this->info('No decisions to archive.');
+        } else {
+            $this->info("Archived {$archived} decision(s); sent {$digests} results digest(s).");
+        }
 
         return self::SUCCESS;
     }

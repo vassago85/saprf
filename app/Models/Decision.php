@@ -20,11 +20,13 @@ class Decision extends Model
     protected $fillable = [
         'title',
         'body',
+        'note',
         'reference',
         'status',
         'published_at',
         'created_by',
         'announcement_id',
+        'results_announcement_id',
     ];
 
     protected function casts(): array
@@ -43,6 +45,11 @@ class Decision extends Model
     public function announcement(): BelongsTo
     {
         return $this->belongsTo(Announcement::class);
+    }
+
+    public function resultsAnnouncement(): BelongsTo
+    {
+        return $this->belongsTo(Announcement::class, 'results_announcement_id');
     }
 
     public function tally(): HasOne

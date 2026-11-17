@@ -24,7 +24,7 @@ class ExcoNov2026DecisionSeeder extends Seeder
     private const REFERENCE = 'ExCo, 10 Nov 2026';
 
     /**
-     * @var array<int, array{title: string, body: string}>
+     * @var array<int, array{title: string, body: string, note?: string}>
      */
     private const DECISIONS = [
         [
@@ -38,6 +38,7 @@ class ExcoNov2026DecisionSeeder extends Seeder
         [
             'title' => 'Squadding at SA Champs by ranking and division',
             'body' => 'ExCo resolved that squadding at SA Championships will be set by overall ranking within division: 1 to 10 in Squad 1, 11 to 20 in Squad 2, 21 to 30 in Squad 3, and so on. Ladies and juniors will each have their own squad if there are enough entries to fill one. Other matches during the year will continue to allow shooters to select their own squad.',
+            'note' => 'As set out in the notice for SA Champs 21-22 November, squadding is by overall ranking. Ladies and juniors will each have their own squad if there are enough entries to fill one, or they will be squadded together in one squad. The first day of the SA Champs will also count as the last provincial match for the season.',
         ],
         [
             'title' => 'National match minimum of 100 rounds per day for 2027 centerfire and rimfire',
@@ -80,6 +81,7 @@ class ExcoNov2026DecisionSeeder extends Seeder
 
         $created = 0;
         $updated = 0;
+        $notes = 0;
 
         foreach (self::DECISIONS as $row) {
             $decision = Decision::query()->where('title', $row['title'])->first();
@@ -88,9 +90,13 @@ class ExcoNov2026DecisionSeeder extends Seeder
                 if ($decision->isDraft()) {
                     $decision->update([
                         'body' => $row['body'],
+                        'note' => $row['note'] ?? null,
                         'reference' => self::REFERENCE,
                     ]);
                     $updated++;
+                } elseif ($decision->note === null && filled($row['note'] ?? null)) {
+                    $decision->update(['note' => $row['note']]);
+                    $notes++;
                 }
 
                 $this->ensureTally($decision);
@@ -101,6 +107,7 @@ class ExcoNov2026DecisionSeeder extends Seeder
             $decision = Decision::create([
                 'title' => $row['title'],
                 'body' => $row['body'],
+                'note' => $row['note'] ?? null,
                 'reference' => self::REFERENCE,
                 'status' => DecisionStatus::Draft,
                 'published_at' => null,
@@ -111,7 +118,7 @@ class ExcoNov2026DecisionSeeder extends Seeder
             $created++;
         }
 
-        $this->command?->info("10 Nov 2026 ExCo decisions: {$created} created, {$updated} drafts refreshed. Held as drafts for batch publish.");
+        $this->command?->info("10 Nov 2026 ExCo decisions: {$created} created, {$updated} drafts refreshed, {$notes} notes added.");
     }
 
     private function ensureTally(Decision $decision): void

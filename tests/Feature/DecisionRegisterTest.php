@@ -226,6 +226,8 @@ it('shows how long voting remains open', function () {
 });
 
 it('archives closed decisions via the artisan command', function () {
+    Queue::fake();
+
     $open = publishDecision(overrides: ['published_at' => now()->subDays(2)]);
     $closed = publishDecision(overrides: ['published_at' => now()->subDays(10)]);
 
@@ -234,7 +236,81 @@ it('archives closed decisions via the artisan command', function () {
         ->expectsOutputToContain('Archived 1');
 
     expect($open->fresh()->status)->toBe(DecisionStatus::Published)
-        ->and($closed->fresh()->status)->toBe(DecisionStatus::Archived);
+        ->and($closed->fresh()->status)->toBe(DecisionStatus::Archived)
+        ->and($closed->fresh()->results_announcement_id)->not->toBeNull();
+});
+
+it('emails ExCo and voters a results digest when a batch closes', function () {
+    Queue::fake();
+    Notification::fake();
+
+    $exco = decisionExco();
+    $voter = decisionMember();
+    $nonVoter = decisionMember();
+
+    $a = publishDecision($exco, [
+        'title' => 'Results alpha',
+        'published_at' => now()->subDays(10),
+        'announcement_id' => null,
+    ]);
+    $b = publishDecision($exco, [
+        'title' => 'Results beta',
+        'published_at' => now()->subDays(10),
+        'announcement_id' => null,
+    ]);
+
+    // Simulate a shared publish-batch announcement id.
+    $publishNotice = Announcement::create([
+        'title' => 'Decision Register: 2 new decisions',
+        'body' => 'placeholder',
+        'category' => AnnouncementCategory::AgmGovernance,
+        'retention' => \App\Enums\AnnouncementRetention::Permanent,
+        'priority' => \App\Enums\AnnouncementPriority::Normal,
+        'requires_acknowledgement' => false,
+        'deliver_via' => [DeliveryChannel::Mail->value],
+        'status' => AnnouncementStatus::Sent,
+        'created_by' => $exco->id,
+        'published_at' => now()->subDays(10),
+    ]);
+    $a->forceFill(['announcement_id' => $publishNotice->id])->save();
+    $b->forceFill(['announcement_id' => $publishNotice->id])->save();
+
+    seedTally($a, 6, 2, 2);
+    seedTally($b, 4, 4, 2);
+
+    DecisionMember::query()->insert([
+        ['decision_id' => $a->id, 'member_id' => $voter->id],
+        ['decision_id' => $b->id, 'member_id' => $voter->id],
+    ]);
+
+    $this->artisan('saprf:archive-closed-decisions')->assertSuccessful();
+
+    Queue::assertPushed(ResolveAudienceJob::class, 1);
+
+    $a->refresh();
+    $b->refresh();
+    expect($a->status)->toBe(DecisionStatus::Archived)
+        ->and($b->status)->toBe(DecisionStatus::Archived)
+        ->and($a->results_announcement_id)->toBe($b->results_announcement_id);
+
+    $results = Announcement::query()->findOrFail($a->results_announcement_id);
+    expect($results->title)->toBe('Decision Register results: 2 decisions')
+        ->and($results->body)->toContain('Results alpha')
+        ->and($results->body)->toContain('Results beta')
+        ->and($results->body)->toContain('6 for (60%)')
+        ->and($results->body)->toContain('4 for (40%)')
+        ->and($results->audiences()->where('type', AudienceType::Role)->count())->toBe(2)
+        ->and($results->audiences()->where('type', AudienceType::Individual)->count())->toBe(1);
+
+    $individual = $results->audiences()->where('type', AudienceType::Individual)->first();
+    expect($individual->value['user_ids'])->toContain($voter->id)
+        ->and($individual->value['user_ids'])->not->toContain($nonVoter->id);
+
+    // Second run must not create another digest.
+    Queue::fake();
+    $this->artisan('saprf:archive-closed-decisions')->assertSuccessful();
+    Queue::assertNothingPushed();
+    expect(Announcement::query()->where('title', 'like', 'Decision Register results:%')->count())->toBe(1);
 });
 
 it('lets exco change the reaction window length', function () {
@@ -795,6 +871,38 @@ it('numbers decisions 1, 2, 3 within each reference and starts over for a new re
         'Decision 3',
         'First meeting item C',
     ]);
+});
+
+it('shows a note under the decision without changing the resolution', function () {
+    $note = 'Squadding is by overall ranking. The first day of the SA Champs counts as the last provincial match for the season.';
+    $decision = publishDecision(null, ['note' => $note]);
+    $member = decisionMember();
+
+    $this->actingAs($member)
+        ->get(route('decisions.index'))
+        ->assertOk()
+        ->assertSee('The committee resolved to adopt the proposal.')
+        ->assertSee('Note')
+        ->assertSee($note);
+
+    $exco = User::query()->findOrFail($decision->created_by);
+    $publishedAt = $decision->published_at->copy();
+
+    $this->actingAs($exco)
+        ->put(route('exco.decisions.update', $decision), [
+            'title' => $decision->title,
+            'body' => $decision->body,
+            'note' => 'Updated clarification.',
+            'reference' => $decision->reference,
+            'publish' => '0',
+        ])
+        ->assertRedirect(route('exco.decisions.index'));
+
+    $decision->refresh();
+
+    expect($decision->note)->toBe('Updated clarification.')
+        ->and($decision->body)->toBe('The committee resolved to adopt the proposal.')
+        ->and($decision->published_at->equalTo($publishedAt))->toBeTrue();
 });
 
 it('does not number decisions that have no reference', function () {

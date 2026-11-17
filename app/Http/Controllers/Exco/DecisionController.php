@@ -66,6 +66,7 @@ class DecisionController extends Controller
             $decision = Decision::create([
                 'title' => $data['title'],
                 'body' => $data['body'],
+                'note' => $data['note'] ?? null,
                 'reference' => $data['reference'] ?? null,
                 'status' => $publish ? DecisionStatus::Published : DecisionStatus::Draft,
                 'published_at' => $publish ? now() : null,
@@ -111,6 +112,7 @@ class DecisionController extends Controller
         $decision->fill([
             'title' => $data['title'],
             'body' => $data['body'],
+            'note' => $data['note'] ?? null,
             'reference' => $data['reference'] ?? null,
         ]);
 
@@ -242,14 +244,20 @@ class DecisionController extends Controller
     }
 
     /**
-     * @return array{title: string, body: string, reference: ?string}
+     * @return array{title: string, body: string, note: ?string, reference: ?string}
      */
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'title' => ['required', 'string', 'max:200'],
             'body' => ['required', 'string', 'max:10000'],
+            'note' => ['nullable', 'string', 'max:2000'],
             'reference' => ['nullable', 'string', 'max:200'],
         ]);
+
+        $note = trim((string) ($data['note'] ?? ''));
+        $data['note'] = $note === '' ? null : $note;
+
+        return $data;
     }
 }
