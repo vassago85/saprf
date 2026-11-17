@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\AnnouncementCategory;
+use App\Enums\AnnouncementPriority;
+use App\Enums\AnnouncementRetention;
 use App\Enums\AnnouncementStatus;
 use App\Enums\AudienceType;
 use App\Enums\DecisionStatus;
@@ -18,7 +20,9 @@ use App\Models\DecisionTally;
 use App\Models\Membership;
 use App\Models\NotificationPreference;
 use App\Models\User;
+use App\Notifications\Channels\WebPushChannel;
 use App\Notifications\FederationAnnouncementNotification;
+use App\Services\Announcements\AnnouncementPublisher;
 use App\Services\SettingsService;
 use App\Support\DecisionNumberer;
 use App\Support\DecisionReactionPresenter;
@@ -264,8 +268,8 @@ it('emails ExCo and voters a results digest when a batch closes', function () {
         'title' => 'Decision Register: 2 new decisions',
         'body' => 'placeholder',
         'category' => AnnouncementCategory::AgmGovernance,
-        'retention' => \App\Enums\AnnouncementRetention::Permanent,
-        'priority' => \App\Enums\AnnouncementPriority::Normal,
+        'retention' => AnnouncementRetention::Permanent,
+        'priority' => AnnouncementPriority::Normal,
         'requires_acknowledgement' => false,
         'deliver_via' => [DeliveryChannel::Mail->value],
         'status' => AnnouncementStatus::Sent,
@@ -544,7 +548,7 @@ it('emails every paid-up member through the announcement pipeline on publish and
     // Run the audience freeze for the published decision.
     Queue::fake();
     (new ResolveAudienceJob($announcement->id))
-        ->handle(app(\App\Services\Announcements\AnnouncementPublisher::class));
+        ->handle(app(AnnouncementPublisher::class));
 
     $announcement->refresh();
     $recipientIds = AnnouncementRecipient::query()
@@ -580,7 +584,7 @@ it('emails every paid-up member through the announcement pipeline on publish and
         $announcement->id,
         DeliveryChannel::Mail->value,
         $expectedPaid,
-    ))->handle(app(SettingsService::class), app(\App\Notifications\Channels\WebPushChannel::class));
+    ))->handle(app(SettingsService::class), app(WebPushChannel::class));
 
     Notification::assertSentTo($paidA, FederationAnnouncementNotification::class);
     Notification::assertSentTo($paidB, FederationAnnouncementNotification::class);
@@ -647,14 +651,14 @@ it('respects normal AGM/governance mute prefs for email but still archives in-ap
     $announcement = $decision->announcement;
 
     (new ResolveAudienceJob($announcement->id))
-        ->handle(app(\App\Services\Announcements\AnnouncementPublisher::class));
+        ->handle(app(AnnouncementPublisher::class));
 
     Notification::fake();
     (new SendAnnouncementChunkJob(
         $announcement->id,
         DeliveryChannel::Mail->value,
         [$member->id],
-    ))->handle(app(SettingsService::class), app(\App\Notifications\Channels\WebPushChannel::class));
+    ))->handle(app(SettingsService::class), app(WebPushChannel::class));
 
     Notification::assertNotSentTo($member, FederationAnnouncementNotification::class);
 
@@ -873,7 +877,7 @@ it('numbers decisions 1, 2, 3 within each reference and starts over for a new re
     ]);
 });
 
-it('shows a note under the decision without changing the resolution', function () {
+it('shows a correction after the vote without changing the resolution', function () {
     $note = 'Squadding is by overall ranking. The first day of the SA Champs counts as the last provincial match for the season.';
     $decision = publishDecision(null, ['note' => $note]);
     $member = decisionMember();
@@ -881,9 +885,12 @@ it('shows a note under the decision without changing the resolution', function (
     $this->actingAs($member)
         ->get(route('decisions.index'))
         ->assertOk()
-        ->assertSee('The committee resolved to adopt the proposal.')
-        ->assertSee('Note')
-        ->assertSee($note);
+        ->assertSeeInOrder([
+            'The committee resolved to adopt the proposal.',
+            'For',
+            'Correction',
+            $note,
+        ]);
 
     $exco = User::query()->findOrFail($decision->created_by);
     $publishedAt = $decision->published_at->copy();

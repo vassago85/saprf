@@ -57,10 +57,10 @@
             </div>
 
             <div>
-                <label for="note" class="block text-xs font-semibold uppercase text-stone-500">Note <span class="font-normal normal-case text-stone-400">(optional)</span></label>
+                <label for="note" class="block text-xs font-semibold uppercase text-stone-500">Correction <span class="font-normal normal-case text-stone-400">(optional)</span></label>
                 <textarea name="note" id="note" rows="4" maxlength="2000"
                           class="mt-1 block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm @error('note') border-red-400 @enderror">{{ old('note', $decision?->note) }}</textarea>
-                <p class="mt-1 text-xs text-stone-400">Shown under the decision on the register. The resolution text stays as published.</p>
+                <p class="mt-1 text-xs text-stone-400">Shown after the vote. It does not change the decision members voted on.</p>
                 @error('note')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror

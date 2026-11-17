@@ -71,13 +71,6 @@
 
                     <div class="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">{{ $decision->body }}</div>
 
-                    @if (filled($decision->note))
-                        <div class="mt-4 border-l-4 border-stone-300 pl-4">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">Note</p>
-                            <p class="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-stone-600">{{ $decision->note }}</p>
-                        </div>
-                    @endif
-
                     <div class="mt-5 space-y-3 border-t border-stone-100 pt-5">
                         @if ($r['show_split'])
                             <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -166,6 +159,13 @@
                             @endif
                         </div>
                     </div>
+
+                    @if (filled($decision->note))
+                        <div class="mt-5 border-l-4 border-amber-400 pl-4">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-amber-800">Correction</p>
+                            <p class="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-stone-700">{{ $decision->note }}</p>
+                        </div>
+                    @endif
                 </article>
             @empty
                 <div class="rounded-2xl border border-dashed border-stone-300 bg-stone-50 px-6 py-14 text-center">

@@ -8,8 +8,8 @@ use App\Enums\AnnouncementRetention;
 use App\Enums\AnnouncementStatus;
 use App\Enums\AudienceMode;
 use App\Enums\AudienceType;
-use App\Enums\DeliveryChannel;
 use App\Enums\DecisionStatus;
+use App\Enums\DeliveryChannel;
 use App\Models\Announcement;
 use App\Models\Decision;
 use App\Services\Announcements\AnnouncementPublisher;
@@ -148,7 +148,7 @@ class DecisionPublishNotifier
 
         if (filled($decision->note)) {
             $lines[] = '';
-            $lines[] = '**Note.** '.$decision->note;
+            $lines[] = '**Correction.** '.$decision->note;
         }
 
         if ($decision->reference) {
