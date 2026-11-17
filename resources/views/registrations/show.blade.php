@@ -191,10 +191,16 @@
                         loading: false,
                         searched: false,
                         selected: null,
+                        mode: 'move',
+                        withdraw: false,
+                        sourcePaid: @js($registration->payment_status === 'paid'),
                         searchUrl: @js(route('events.members.search', $registration->match)),
+                        moveUrl: @js(route('registrations.move-member', $registration)),
+                        transferUrl: @js(route('registrations.transfer-fee', $registration)),
                         currentUserId: @js((int) $registration->user_id),
                         search() {
                             this.selected = null;
+                            this.withdraw = false;
                             const term = this.query.trim();
                             if (term.length < 2) {
                                 this.results = [];
@@ -217,23 +223,41 @@
                                     this.searched = true;
                                 });
                         },
-                        choose(member) {
+                        choose(member, nextMode) {
                             this.selected = member;
+                            this.mode = nextMode;
+                            this.withdraw = false;
                             this.results = [];
                             this.query = member.saprf_number ? member.name + ' (' + member.saprf_number + ')' : member.name;
+                        },
+                        confirmMove() {
+                            if (!this.selected) {
+                                return false;
+                            }
+                            if (this.mode === 'transfer') {
+                                const tail = this.withdraw
+                                    ? ' This entry will be withdrawn. No refund is issued.'
+                                    : ' This entry will be left unpaid.';
+                                return confirm('Transfer this fee to ' + this.selected.name + '?' + tail);
+                            }
+                            return confirm('Move this entry to ' + this.selected.name + '? The fee and the payment stay as they are.');
                         },
                      }">
                     <h2 class="font-heading text-lg font-semibold text-stone-900 mb-1">Move this entry</h2>
                     <p class="text-sm text-stone-600 mb-4">
                         This entry sits on <strong>{{ $registration->user?->name ?? 'no account' }}</strong>@if($registration->user && $registration->shooter_name && strcasecmp((string) $registration->shooter_name, (string) $registration->user->name) !== 0), even though the label says {{ $registration->shooter_name }}@endif.
-                        Search for the member who should open it from their own profile. The fee stays
+                        Search for a member who is not on this match to move the entry onto their profile. The fee stays
                         <strong>R {{ number_format((float) $registration->fee_amount, 2) }}</strong>
                         and the payment stays with whoever paid.
+                        @if($registration->payment_status === 'paid')
+                            If they are already entered and still unpaid, transfer this fee onto their entry instead. Both members are emailed.
+                        @endif
                     </p>
                     <form method="POST"
                           action="{{ route('registrations.move-member', $registration) }}"
+                          :action="mode === 'transfer' ? transferUrl : moveUrl"
                           class="space-y-3"
-                          @submit="if (!selected || !confirm('Move this entry to ' + selected.name + '? The fee and the payment stay as they are.')) { $event.preventDefault() }">
+                          @submit="if (!confirmMove()) { $event.preventDefault() }">
                         @csrf
                         @method('PUT')
                         <input type="hidden" name="user_id" :value="selected ? selected.id : ''">
@@ -254,12 +278,19 @@
                                         <p class="text-sm font-medium text-stone-900" x-text="member.saprf_number ? member.name + ' (' + member.saprf_number + ')' : member.name"></p>
                                         <p class="text-xs text-stone-500" x-show="member.province" x-text="member.province"></p>
                                     </div>
-                                    <template x-if="member.entry_state === 'paid' || member.entry_state === 'unpaid'">
-                                        <span class="shrink-0 text-xs font-semibold text-stone-500">Already entered</span>
+                                    <template x-if="sourcePaid && member.entry_state === 'unpaid'">
+                                        <button type="button"
+                                                @click="choose(member, 'transfer')"
+                                                class="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                            Transfer fee
+                                        </button>
+                                    </template>
+                                    <template x-if="member.entry_state === 'paid' || (!sourcePaid && member.entry_state === 'unpaid')">
+                                        <span class="shrink-0 text-xs font-semibold text-stone-500" x-text="member.entry_state === 'paid' ? 'Already paid' : 'Already entered'"></span>
                                     </template>
                                     <template x-if="member.entry_state !== 'paid' && member.entry_state !== 'unpaid'">
                                         <button type="button"
-                                                @click="choose(member)"
+                                                @click="choose(member, 'move')"
                                                 class="shrink-0 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800">
                                             Select
                                         </button>
@@ -270,14 +301,22 @@
                         <p x-show="searched && !loading && query.trim().length >= 2 && results.length === 0" x-cloak class="text-xs text-stone-500">No other member matches that search.</p>
                         <p x-show="selected" x-cloak class="text-sm text-stone-700">
                             Selected: <span class="font-semibold" x-text="selected ? selected.name : ''"></span>
-                            <button type="button" @click="selected = null; query = ''" class="ml-2 text-xs font-semibold text-stone-500 underline">Clear</button>
+                            <button type="button" @click="selected = null; query = ''; withdraw = false" class="ml-2 text-xs font-semibold text-stone-500 underline">Clear</button>
                         </p>
+                        <template x-if="selected && mode === 'transfer'">
+                            <label class="flex items-start gap-2 text-sm text-stone-700">
+                                <input type="checkbox" name="withdraw_source" value="1" x-model="withdraw"
+                                       class="mt-0.5 rounded border border-stone-300 text-emerald-600 focus:ring-emerald-500">
+                                <span>Withdraw this entry after the fee moves. They are no longer entered, and no refund is issued because the fee now sits on the other entry.</span>
+                            </label>
+                        </template>
                         @error('user_id')
                             <p class="text-xs text-red-600">{{ $message }}</p>
                         @enderror
                         <button type="submit"
                                 :disabled="!selected"
-                                class="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40">
+                                class="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                x-text="mode === 'transfer' ? 'Transfer this fee' : 'Move this entry'">
                             Move this entry
                         </button>
                     </form>
@@ -325,10 +364,14 @@
             $managesShooter = auth()->user()?->findManagedAccount($registration->user_id) !== null;
             $ownsRegistration = $registration->user_id === auth()->id() || $managesShooter;
             $canEditEntry = $registration->canEditEntry();
+            $mustChooseDivision = $registration->mustChooseDivision();
         @endphp
-        @if(($ownsRegistration || $isStaffViewer) && ($canEditEntry || $isStaffViewer) && $divisions->isNotEmpty())
+        @if(($ownsRegistration || $isStaffViewer) && ($canEditEntry || $isStaffViewer || ($ownsRegistration && $mustChooseDivision)) && $divisions->isNotEmpty())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Change Division</h2>
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">{{ $mustChooseDivision ? 'Choose your division' : 'Change Division' }}</h2>
+                @if($mustChooseDivision)
+                    <p class="text-sm text-stone-600 mb-4">Payment is still required. Choose a division and your rifle, then pay. A junior division uses the junior fee when this match has one.</p>
+                @endif
                 <form method="POST" action="{{ route('registrations.update-division', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                     @csrf
                     @method('PUT')
@@ -348,7 +391,9 @@
                     </button>
                 </form>
                 <p class="mt-2 text-xs text-stone-400">
-                    @if($registration->match?->registration_close_date)
+                    @if($mustChooseDivision)
+                        You need a division before you can pay.
+                    @elseif($registration->match?->registration_close_date)
                         You can change your division until registration closes on {{ $registration->match->registration_close_date->format('D, d M Y H:i') }}.
                     @else
                         You can change your division until registration closes.
@@ -360,7 +405,7 @@
         {{-- Rifle selection / update --}}
         @if($registration->user_id === auth()->id() && $registration->registration_status !== 'cancelled' && $rifles->isNotEmpty())
             <div class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">Update Rifle</h2>
+                <h2 class="font-heading text-lg font-semibold text-stone-900 mb-4">{{ $mustChooseDivision ? 'Choose your rifle' : 'Update Rifle' }}</h2>
                 <form method="POST" action="{{ route('registrations.update-rifle', $registration) }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                     @csrf
                     @method('PUT')
@@ -416,7 +461,12 @@
         @endif
 
         {{-- Pay Now button for unpaid registrations --}}
-        @if($ownsRegistration && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
+        @if($ownsRegistration && $registration->mustChooseDivision())
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-amber-900">Payment still required</h2>
+                <p class="text-sm text-amber-800 mt-1">Choose your division and rifle first. The pay button appears once a division is saved.</p>
+            </div>
+        @elseif($ownsRegistration && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
             @php
                 $pfEnabled = app(\App\Services\PayFastService::class)->isEnabled();
                 $creditPreview = app(\App\Services\AccountCreditService::class)->preview(auth()->user(), $registration);

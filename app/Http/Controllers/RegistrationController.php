@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRegistrationRequest;
 use App\Models\AccountCredit;
+use App\Models\FinancialTransaction;
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Score;
 use App\Models\User;
+use App\Notifications\FeeTransferNotification;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\PaymentInquiryNotification;
 use App\Policies\RegistrationPolicy;
@@ -256,9 +259,11 @@ class RegistrationController extends Controller
 
         abort_unless($this->actorMayReviseEntry($request, $registration), 403);
 
-        // Members can only change their entry while registration is open; staff
-        // may adjust it at any time.
-        if (! $isStaff && ! $registration->canEditEntry()) {
+        // Members can only change a chosen division while registration is
+        // open. A late entry with no division yet can still be completed
+        // by the shooter, because they have to choose one before paying.
+        // Staff may adjust a division at any time.
+        if (! $isStaff && ! $registration->canEditEntry() && ! $registration->mustChooseDivision()) {
             return back()->with('error', 'Registration has closed — the division can no longer be changed.');
         }
 
@@ -271,8 +276,32 @@ class RegistrationController extends Controller
             'division_id.in' => 'The selected division is not available for this match.',
         ]);
 
-        $old = $registration->only(['division_id']);
-        $registration->update($validated);
+        $old = $registration->only(['division_id', 'fee_amount', 'membership_fee_category']);
+        $updates = ['division_id' => $validated['division_id']];
+
+        if (! in_array($registration->payment_status, ['paid', 'waived'], true) && $registration->division_id === null) {
+            $registration->loadMissing('match', 'user');
+            $slug = $registration->match?->availableDivisions()
+                ->firstWhere('id', (int) $validated['division_id'])
+                ?->slug;
+            $breakdown = $this->pricingService->calculateBreakdown(
+                $registration->match,
+                $registration->user,
+                $registration->match?->match_date ?: now(),
+                $slug,
+            );
+            $updates = array_merge($updates, [
+                'membership_fee_category' => $breakdown['category'],
+                'fee_amount' => $breakdown['total_fee'],
+                'surcharge_amount' => $breakdown['surcharge'],
+                'saprf_fee' => $breakdown['saprf_fee'],
+                'platform_fee' => $breakdown['platform_fee'],
+                'gateway_fee' => $breakdown['gateway_fee'],
+                'md_net_amount' => $breakdown['md_net'],
+            ]);
+        }
+
+        $registration->update($updates);
 
         $this->auditLogService->log(
             $request->user(),
@@ -451,6 +480,212 @@ class RegistrationController extends Controller
 
         return redirect()->route('registrations.show', $registration)
             ->with('success', 'Entry moved to '.$target->name.'. The fee and the payment stay as they were.');
+    }
+
+    /**
+     * Move a completed fee onto a member who already has an unpaid entry
+     * on this match. The source entry stays, unpaid, unless staff choose
+     * to withdraw it. No refund is issued: the money now pays the other entry.
+     */
+    public function transferFee(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'withdraw_source' => ['sometimes', 'boolean'],
+        ]);
+
+        $target = User::query()->findOrFail($validated['user_id']);
+        $withdraw = $request->boolean('withdraw_source');
+        $registration->loadMissing(['match', 'user']);
+
+        if ((int) $target->id === (int) $registration->user_id) {
+            return back()->with('info', $target->name.' already holds this entry.');
+        }
+
+        if (! $target->is_active) {
+            return back()->withErrors([
+                'user_id' => 'That member is inactive and cannot take this fee.',
+            ]);
+        }
+
+        if ($target->is_managed_account) {
+            return back()->withErrors([
+                'user_id' => 'Managed family accounts stay with their parent. Choose the member\'s own login.',
+            ]);
+        }
+
+        if ($registration->payment_status === 'waived') {
+            return back()->withErrors([
+                'user_id' => 'A waived entry has no fee to transfer.',
+            ]);
+        }
+
+        $existing = $registration->match?->userRegistration($target);
+        if (! $existing || (int) $existing->id === (int) $registration->id) {
+            return back()->withErrors([
+                'user_id' => $target->name.' is not entered on this match. Move the entry instead.',
+            ]);
+        }
+
+        if (in_array($existing->payment_status, ['paid', 'waived'], true)) {
+            return back()->withErrors([
+                'user_id' => $target->name.' is already paid on this match.',
+            ]);
+        }
+
+        $completed = Payment::query()
+            ->where('payable_type', MatchRegistration::class)
+            ->where('payable_id', $registration->id)
+            ->where('status', 'completed')
+            ->get();
+
+        if ($completed->isEmpty()) {
+            return back()->withErrors([
+                'user_id' => 'This entry has no completed payment to transfer.',
+            ]);
+        }
+
+        $amount = round((float) $completed->sum('amount'), 2);
+        $previous = $registration->user;
+        $sourceBefore = $registration->only(['payment_status', 'registration_status']);
+        $targetBefore = $existing->only(['payment_status', 'registration_status']);
+        $paymentIds = $completed->pluck('id')->all();
+
+        DB::transaction(function () use ($registration, $existing, $withdraw, $target, $paymentIds): void {
+            Payment::query()
+                ->where('payable_type', MatchRegistration::class)
+                ->where('payable_id', $registration->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
+
+            Payment::query()
+                ->whereIn('id', $paymentIds)
+                ->update(['payable_id' => $existing->id]);
+
+            Payment::query()
+                ->where('payable_type', MatchRegistration::class)
+                ->where('payable_id', $existing->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
+
+            FinancialTransaction::query()
+                ->where('source_type', 'match_registration')
+                ->where('source_id', $registration->id)
+                ->where('type', 'payment')
+                ->update(['source_id' => $existing->id]);
+
+            $sourceUpdate = ['payment_status' => 'unpaid'];
+            if ($withdraw) {
+                $sourceUpdate['registration_status'] = 'cancelled';
+                $sourceUpdate['cancelled_at'] = now();
+                $sourceUpdate['cancellation_reason'] = 'Fee transferred to '.$target->name.'.';
+            }
+            $registration->update($sourceUpdate);
+
+            $existing->update([
+                'payment_status' => 'paid',
+                'registration_status' => in_array($existing->registration_status, ['pending', 'waitlisted'], true)
+                    ? 'confirmed'
+                    : $existing->registration_status,
+            ]);
+        });
+
+        $registration->refresh();
+        $existing->refresh();
+
+        $fromName = $previous?->name ?? $registration->shooter_name ?? 'the original entry';
+        $auditNew = [
+            'from_user_id' => $previous?->id,
+            'from_name' => $fromName,
+            'to_user_id' => $target->id,
+            'to_name' => $target->name,
+            'to_registration_id' => $existing->id,
+            'from_registration_id' => $registration->id,
+            'amount' => $amount,
+            'payment_ids' => $paymentIds,
+            'withdrawn' => $withdraw,
+            'payment_status' => $registration->payment_status,
+            'registration_status' => $registration->registration_status,
+        ];
+
+        $reason = 'Fee of R '.number_format($amount, 2).' transferred from '.$fromName.' to '.$target->name.'.'
+            .($withdraw ? ' Source entry withdrawn.' : ' Source entry left unpaid.');
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.fee.transferred',
+            'MatchRegistration',
+            $registration->id,
+            $sourceBefore,
+            $auditNew,
+            $reason,
+        );
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.fee.transferred',
+            'MatchRegistration',
+            $existing->id,
+            $targetBefore,
+            array_merge($auditNew, [
+                'payment_status' => $existing->payment_status,
+                'registration_status' => $existing->registration_status,
+            ]),
+            $reason,
+        );
+
+        $this->notifyFeeTransfer($existing, $target, $fromName, $amount, 'received', false);
+        $this->notifyFeeTransfer($registration, $previous, $target->name, $amount, 'sent', $withdraw);
+
+        $message = 'Fee of R '.number_format($amount, 2).' transferred from '.$fromName.' to '.$target->name.'.';
+        $message .= $withdraw
+            ? ' '.$fromName.'\'s entry was withdrawn.'
+            : ' '.$fromName.'\'s entry is now unpaid.';
+
+        return redirect()->route('registrations.show', $registration)
+            ->with('success', $message);
+    }
+
+    private function notifyFeeTransfer(
+        MatchRegistration $registration,
+        ?User $recipient,
+        string $counterpartyName,
+        float $amount,
+        string $direction,
+        bool $withdrawn,
+    ): void {
+        if ($recipient === null || ! $this->memberHasDeliverableEmail($recipient)) {
+            return;
+        }
+
+        try {
+            $recipient->notify(new FeeTransferNotification(
+                $registration,
+                $counterpartyName,
+                $amount,
+                $direction,
+                $withdrawn,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send fee transfer notification', [
+                'registration_id' => $registration->id,
+                'direction' => $direction,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function memberHasDeliverableEmail(?User $user): bool
+    {
+        $email = strtolower(trim((string) $user?->email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        return ! str_ends_with($email, '@import.saprf.local')
+            && ! str_contains($email, '@saprf.walkin');
     }
 
     public function updateShotCount(Request $request, MatchRegistration $registration): RedirectResponse

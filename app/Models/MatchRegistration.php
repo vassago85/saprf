@@ -486,6 +486,34 @@ class MatchRegistration extends Model
         return $match->match_date ? $match->match_date->isFuture() : true;
     }
 
+    /**
+     * Staff added this shooter without a division. They still have to
+     * choose one (and a rifle) and pay, including after entries have closed.
+     */
+    public function mustChooseDivision(): bool
+    {
+        if ($this->division_id) {
+            return false;
+        }
+
+        if ($this->registration_status === 'cancelled') {
+            return false;
+        }
+
+        if (in_array($this->payment_status, ['paid', 'waived'], true)) {
+            return false;
+        }
+
+        $match = $this->match;
+
+        // While entries are still open, an older row with no division can
+        // be paid as before. After entries close, a shooter added without
+        // a division has to choose one before the fee can be taken.
+        return $match
+            && ! in_array($match->status, ['completed', 'cancelled'], true)
+            && $match->registration_status === 'closed';
+    }
+
     // ── Withdrawal Logic ──
 
     public function isWithdrawable(): bool

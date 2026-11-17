@@ -622,6 +622,11 @@ class PaymentController extends Controller
                 ->with('info', 'This registration is already paid.');
         }
 
+        if ($registration->mustChooseDivision()) {
+            return redirect()->route('registrations.show', $registration)
+                ->with('error', 'Choose your division before paying. Payment is still required.');
+        }
+
         $fee = (float) $registration->fee_amount;
 
         if ($fee <= 0) {

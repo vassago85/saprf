@@ -588,6 +588,25 @@ class MatchEvent extends Model
     }
 
     /**
+     * Staff who can edit this match may still book a shooter after entries
+     * have closed. The entry is a normal unpaid registration, so the shooter
+     * still has to pay. Completed, cancelled, draft, and unpublished matches
+     * stay closed.
+     */
+    public function staffMayEnterDespiteClosedRegistration(?User $actor): bool
+    {
+        if ($actor === null || ! $actor->can('update', $this)) {
+            return false;
+        }
+
+        if (in_array($this->status, ['completed', 'cancelled', 'draft'], true) || ! $this->published) {
+            return false;
+        }
+
+        return $this->registration_status === 'closed';
+    }
+
+    /**
      * Entries are finished: the match was closed, registration's close
      * date has passed, or the match date itself is in the past. A draft
      * or a cancelled match is not a payout candidate.

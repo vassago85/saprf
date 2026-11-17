@@ -1,5 +1,8 @@
 @php
     $availableDivisionsForAdd = $match->availableDivisions();
+    $entriesClosedForLatePay = $match->registration_status === 'closed'
+        && $match->published
+        && ! in_array($match->status, ['completed', 'cancelled', 'draft'], true);
 @endphp
 <div class="rounded-xl border border-stone-200 bg-white p-5"
      id="add-shooter"
@@ -11,7 +14,11 @@
         <div>
             <h3 class="text-sm font-semibold text-stone-900">Add a shooter</h3>
             <p class="mt-0.5 text-xs text-stone-500">
-                Book a shooter in manually — cash, EFT, comp'd. Confirmed and marked paid on save; no PayFast charge.
+                @if($entriesClosedForLatePay)
+                    Registration is closed. Add a shooter and they get an email that payment is still required. They choose their own division and rifle, then pay. Use “confirm as paid” only when cash or EFT was already collected.
+                @else
+                    Book a shooter in manually — cash, EFT, comp'd. Confirmed and marked paid on save; no PayFast charge. Or add them unpaid so they still have to pay.
+                @endif
             </p>
         </div>
         <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">
@@ -29,6 +36,9 @@
               class="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5">
             @csrf
             <input type="hidden" name="user_id" value="{{ auth()->id() }}">
+            @if($entriesClosedForLatePay)
+                <input type="hidden" name="collection" value="due">
+            @endif
             <p class="text-sm font-medium text-stone-800">Shooting this match yourself?</p>
             <select name="division_id" aria-label="Your division" required
                     class="rounded-lg border border-stone-300 text-sm py-1.5 focus:ring-emerald-500 focus:border-emerald-500">
@@ -38,7 +48,7 @@
             </select>
             <button type="submit"
                     class="ml-auto px-4 py-1.5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition shadow-sm">
-                Add me
+                {{ $entriesClosedForLatePay ? 'Add me — fee still due' : 'Add me' }}
             </button>
         </form>
     @endif
@@ -145,14 +155,15 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label for="add_division_id" class="block text-sm font-medium text-stone-700 mb-1">Division <span class="text-red-500">*</span></label>
-                    <select name="division_id" id="add_division_id" required
+                    <label for="add_division_id" class="block text-sm font-medium text-stone-700 mb-1">Division <span class="text-stone-400 font-normal">required when confirming as paid</span></label>
+                    <select name="division_id" id="add_division_id"
                             class="block w-full rounded-lg border border-stone-300 text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="" disabled selected>— Select division —</option>
+                        <option value="">— They will choose —</option>
                         @foreach($availableDivisionsForAdd as $division)
                             <option value="{{ $division->id }}">{{ $division->name }}</option>
                         @endforeach
                     </select>
+                    <p class="mt-1 text-[11px] text-stone-500">Leave this blank when they must pay. They get an email to choose a division and rifle, then pay.</p>
                 </div>
             </div>
 
@@ -185,14 +196,32 @@
                 </div>
             </template>
 
-            <div class="flex items-center justify-end gap-3 pt-1">
+            <div class="flex flex-wrap items-center justify-end gap-3 pt-1">
                 <button type="button" @click="clear()"
                         class="text-sm text-stone-500 hover:text-stone-700">Cancel</button>
-                <button type="submit"
-                        :disabled="showNewShooter && newShooterName.trim().length < 2"
-                        class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm">
-                    Add &amp; Confirm as Paid
-                </button>
+                @if($entriesClosedForLatePay)
+                    <button type="submit" name="collection" value="paid"
+                            :disabled="showNewShooter && newShooterName.trim().length < 2"
+                            class="px-4 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 text-sm font-semibold hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        Add &amp; confirm as paid
+                    </button>
+                    <button type="submit" name="collection" value="due"
+                            :disabled="showNewShooter && newShooterName.trim().length < 2"
+                            class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm">
+                        Add — they must pay
+                    </button>
+                @else
+                    <button type="submit" name="collection" value="due"
+                            :disabled="showNewShooter && newShooterName.trim().length < 2"
+                            class="px-4 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 text-sm font-semibold hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        Add — they must pay
+                    </button>
+                    <button type="submit" name="collection" value="paid"
+                            :disabled="showNewShooter && newShooterName.trim().length < 2"
+                            class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm">
+                        Add &amp; Confirm as Paid
+                    </button>
+                @endif
             </div>
         </form>
     </template>

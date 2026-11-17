@@ -607,3 +607,38 @@ it('labels the payout surcharge from the amounts stored on the entries', functio
         ->assertSee('Non-member surcharge (2 × R100, to SAPRF)', false)
         ->assertDontSee('× R200');
 });
+
+it('can add a shooter who still has to pay', function () {
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $this->actingAs($this->md)
+        ->post(route('matches.entries.store', $this->match), [
+            'user_id' => $this->activeMember->id,
+            'division_id' => $this->ladies->id,
+            'collection' => 'due',
+        ])
+        ->assertRedirect(route('matches.edit', $this->match))
+        ->assertSessionHas('success');
+
+    $registration = MatchRegistration::where('match_id', $this->match->id)
+        ->where('user_id', $this->activeMember->id)
+        ->firstOrFail();
+
+    expect($registration->registration_status)->toBe('pending')
+        ->and($registration->payment_status)->toBe('pending')
+        ->and($registration->division_id)->toBeNull()
+        ->and((float) $registration->fee_amount)->toBeGreaterThan(0);
+
+    \Illuminate\Support\Facades\Notification::assertSentTo(
+        $this->activeMember,
+        \App\Notifications\EntryPaymentRequiredNotification::class,
+        function (\App\Notifications\EntryPaymentRequiredNotification $notification) {
+            $mail = $notification->toMail($this->activeMember);
+            $body = implode("\n", $mail->introLines);
+
+            return str_contains($mail->subject, 'Payment still required')
+                && str_contains($body, 'Payment is still required')
+                && str_contains($body, 'division');
+        },
+    );
+});

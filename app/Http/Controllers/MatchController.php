@@ -15,6 +15,7 @@ use App\Models\Province;
 use App\Models\Score;
 use App\Models\User;
 use App\Models\Venue;
+use App\Notifications\EntryPaymentRequiredNotification;
 use App\Notifications\MatchRegistrationConfirmedNotification;
 use App\Notifications\TreasurerPayoutRequestNotification;
 use App\Services\AccountCreditService;
@@ -1308,6 +1309,11 @@ class MatchController extends Controller
                 ->with('info', 'This match isn’t open for sign-up yet — the match director still needs to set the entry fee and details.');
         }
 
+        if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen() && ! $match->staffMayEnterDespiteClosedRegistration($actor)) {
+            return redirect()->route('events.show', $match)
+                ->with('error', 'Registration is closed for this match.');
+        }
+
         // Sponsor-only view (the actor is already entered and came to add
         // someone else) stays open so they can look up a full member. Every
         // other visit is for the resolved shooter, and a new name is always
@@ -1423,7 +1429,7 @@ class MatchController extends Controller
             return $blocked;
         }
 
-        if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen()) {
+        if (! $match->isRegistrationOpen() && ! $match->isWaitlistOpen() && ! $match->staffMayEnterDespiteClosedRegistration($actor)) {
             return back()->with('error', 'Registration is not available for this match.');
         }
 
@@ -1593,9 +1599,10 @@ class MatchController extends Controller
             'user_id' => ['nullable', 'required_without:new_shooter_name', 'integer', 'exists:users,id'],
             'new_shooter_name' => ['nullable', 'required_without:user_id', 'string', 'min:2', 'max:100'],
             'new_shooter_email' => ['nullable', 'email', 'max:150'],
-            'division_id' => ['required', 'integer', Rule::in($allowedDivisionIds)],
+            'division_id' => ['nullable', 'integer', Rule::in($allowedDivisionIds)],
             'waive_lapsed_surcharge' => ['sometimes', 'boolean'],
             'fee_override_reason' => ['nullable', 'string', 'max:500'],
+            'collection' => ['nullable', Rule::in(['paid', 'due'])],
         ], [
             'division_id.in' => 'The selected division is not available for this match.',
             'user_id.exists' => 'That member no longer exists.',
@@ -1698,17 +1705,23 @@ class MatchController extends Controller
 
         $forcedCategory = ($waiveLapsed && $currentCategory === 'lapsed_member') ? 'active_member' : null;
 
-        $division = Division::findOrFail($validated['division_id']);
-        $divisionSlug = $division->slug;
+        // "due" leaves the fee unpaid. Someone else chooses their own
+        // division and rifle after the email. Adding yourself keeps the
+        // division selected on this form. "paid" is cash or EFT already
+        // collected, so a division is required and the card fee is zeroed.
+        $mustPay = ($validated['collection'] ?? 'paid') === 'due';
+        $forSelf = (int) $shooter->id === (int) $request->user()->id;
+        $leaveDivisionToShooter = $mustPay && ! $forSelf;
 
-        // A match-director-seeded entry never passes through PayFast, so the
-        // pricing service is told the money was collected by the director.
-        // On a club_entry row that drops SAPRF, platform, and gateway to
-        // zero — the platform did not provide the payment service. On every
-        // other bracket the breakdown is unchanged, and we still have to
-        // manually zero the gateway below because the card-rate estimate
-        // would otherwise silently shave ~3.5% + R2 off the MD's payout for
-        // money that was handed to them in cash / EFT.
+        if (! $leaveDivisionToShooter && empty($validated['division_id'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['division_id' => 'Please choose a division.']);
+        }
+
+        $division = $leaveDivisionToShooter ? null : Division::findOrFail($validated['division_id']);
+        $divisionSlug = $division?->slug;
+
         $breakdown = app(RegistrationPricingService::class)
             ->calculateBreakdown(
                 $match,
@@ -1717,24 +1730,35 @@ class MatchController extends Controller
                 $divisionSlug,
                 $forcedCategory,
                 null,
-                RegistrationPricingService::COLLECTED_BY_DIRECTOR,
+                $mustPay
+                    ? RegistrationPricingService::COLLECTED_BY_PLATFORM
+                    : RegistrationPricingService::COLLECTED_BY_DIRECTOR,
             );
 
-        $gatewayFee = 0.00;
-        $mdNet = round(
-            (float) $breakdown['total_fee']
-            - (float) $breakdown['saprf_fee']
-            - (float) $breakdown['platform_fee']
-            - (float) $breakdown['surcharge']
-            - $gatewayFee,
-            2
-        );
+        if ($mustPay) {
+            $gatewayFee = (float) $breakdown['gateway_fee'];
+            $mdNet = (float) $breakdown['md_net'];
+            $paymentStatus = 'pending';
+            $registrationStatus = 'pending';
+        } else {
+            $gatewayFee = 0.00;
+            $mdNet = round(
+                (float) $breakdown['total_fee']
+                - (float) $breakdown['saprf_fee']
+                - (float) $breakdown['platform_fee']
+                - (float) $breakdown['surcharge']
+                - $gatewayFee,
+                2
+            );
+            $paymentStatus = 'paid';
+            $registrationStatus = 'confirmed';
+        }
 
         $registration = MatchRegistration::query()->create([
             'match_id' => $match->id,
             'user_id' => $shooter->id,
             'registered_by_user_id' => $request->user()->id,
-            'division_id' => $division->id,
+            'division_id' => $division?->id,
             'shooter_name' => $shooter->name,
             'email' => $shooter->email,
             'phone' => $shooter->phone,
@@ -1746,8 +1770,8 @@ class MatchController extends Controller
             'gateway_fee' => $gatewayFee,
             'md_net_amount' => $mdNet,
             'fee_override_reason' => $reason !== '' ? $reason : null,
-            'payment_status' => 'paid',
-            'registration_status' => 'confirmed',
+            'payment_status' => $paymentStatus,
+            'registration_status' => $registrationStatus,
             'registered_at' => now(),
         ]);
 
@@ -1760,12 +1784,57 @@ class MatchController extends Controller
             array_merge($registration->toArray(), [
                 'forced_category' => $forcedCategory,
                 'seeded_via' => 'match_edit_ui',
+                'collection' => $mustPay ? 'due' : 'paid',
             ]),
         );
 
+        $feeLabel = number_format((float) $registration->fee_amount, 2);
+        if ($mustPay) {
+            $mailed = $this->notifyShooterFeeStillDue($shooter, $registration);
+            $message = $leaveDivisionToShooter
+                ? $shooter->name.' added. They have been emailed to choose a division and rifle, then pay R '.$feeLabel.'.'
+                : $shooter->name.' added. Payment of R '.$feeLabel.' is still required.';
+            if (! $mailed) {
+                $message .= ' No email was sent — this account has no deliverable address.';
+            }
+        } else {
+            $message = $shooter->name.' added to the entry list (confirmed, paid).';
+        }
+
         return redirect()
             ->route('matches.edit', $match)
-            ->with('success', $shooter->name.' added to the entry list (confirmed, paid).');
+            ->with('success', $message);
+    }
+
+    private function notifyShooterFeeStillDue(User $shooter, MatchRegistration $registration): bool
+    {
+        if (! $this->shooterHasDeliverableEmail($shooter)) {
+            return false;
+        }
+
+        try {
+            $shooter->notify(new EntryPaymentRequiredNotification($registration));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send unpaid entry notification', [
+                'registration_id' => $registration->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function shooterHasDeliverableEmail(User $shooter): bool
+    {
+        $email = strtolower(trim((string) $shooter->email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        return ! str_ends_with($email, '@import.saprf.local')
+            && ! str_contains($email, '@saprf.walkin');
     }
 
     // ── API ──
