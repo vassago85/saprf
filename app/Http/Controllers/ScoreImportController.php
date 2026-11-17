@@ -438,15 +438,8 @@ class ScoreImportController extends Controller
             ->filter(fn (Score $s) => ! empty(($s->raw_meta['impact']['needs_member_link'] ?? false)))
             ->values();
 
-        // Candidates for linking: non-cancelled registrations on the SAPRF match
-        // (or the national parent when scores landed on a Day-1 sibling).
-        $linkMatchId = $scoreImport->match_id;
-        $parentNational = MatchEvent::query()
-            ->whereHas('provincialDay1Match', fn ($q) => $q->where('id', $scoreImport->match_id))
-            ->first();
-        if ($parentNational) {
-            $linkMatchId = $parentNational->id;
-        }
+        // Day 1 of a national is scores only. The one paid entry is on the national.
+        $linkMatchId = $scoreImport->match?->paidEntryMatch()->id ?? $scoreImport->match_id;
 
         // All active entries — members and non-members (incl. name-only walk-ins).
         $linkRegistrations = MatchRegistration::query()

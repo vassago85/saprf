@@ -200,6 +200,22 @@ class MatchEvent extends Model
     }
 
     /**
+     * The match that holds the paid entry.
+     *
+     * Day 1 of a 2-day national is the provincial result, but the shooter
+     * paid once, on the national. Score imports and the link picker read
+     * that entry (and its division) instead of a second provincial entry.
+     */
+    public function paidEntryMatch(): self
+    {
+        if ($this->source_national_match_id === null) {
+            return $this;
+        }
+
+        return $this->sourceNationalMatch ?? $this;
+    }
+
+    /**
      * Day-1 provincial sibling created from this 2-day national (at most one).
      */
     public function provincialDay1Match(): HasOne

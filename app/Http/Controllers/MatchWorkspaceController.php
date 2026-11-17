@@ -481,13 +481,11 @@ class MatchWorkspaceController extends Controller
         $counts = $this->matchFinance->entryCounts($match);
         $wizard = $this->wizard->state($match);
 
-        // Candidates for linking an assign-later Impact row to a real
-        // match entry. Mirrors the picker on the import show page: all
-        // live entries on the match (members and non-members) sorted by
-        // display name.
+        // Candidates for linking an assign-later row. A day-1 provincial
+        // lists the national's entries: one payment covers day 1.
         $linkRegistrations = MatchRegistration::query()
             ->with(['user:id,name', 'division:id,name,slug'])
-            ->where('match_id', $match->id)
+            ->where('match_id', $match->paidEntryMatch()->id)
             ->where(function ($q) {
                 $q->whereNull('registration_status')
                     ->orWhereNotIn('registration_status', ['cancelled']);

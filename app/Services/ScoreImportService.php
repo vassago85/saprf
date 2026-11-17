@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Score;
 use App\Models\ScoreImport;
 use App\Models\User;
 use App\Support\NameNormalizer;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -30,6 +33,7 @@ class ScoreImportService
                 $match = $scoreImport->match;
                 $provincialColumns = $this->parseProvincialColumns($match);
                 $day = $scoreImport->day; // 1 or 2 for 2-day matches, null otherwise
+                $entryDivisionByUser = $this->paidEntryDivisionByUser($match);
 
                 foreach ($parsed['rows'] as $index => $rawRow) {
                     // Normalize the row: combine first+last, alias Impact-scoring columns, etc.
@@ -60,6 +64,11 @@ class ScoreImportService
                     // even though they count correctly in the Overall table.
                     $divisionId = $this->resolveDivision($row)
                         ?? $this->userDefaultDivisionId($userId);
+                    // Day 1 of a national is the provincial. The division they
+                    // entered (and paid) on the national wins over the CSV column.
+                    if ($userId !== null && $entryDivisionByUser->has($userId)) {
+                        $divisionId = (int) $entryDivisionByUser->get($userId);
+                    }
                     $csvScore = (float) $row['raw_score'];
 
                     // Day-tagged imports upsert onto the same score row for this shooter
@@ -580,6 +589,34 @@ class ScoreImportService
      * so we accept them directly (plus a few common aliases). Anything else
      * (Open, Factory, Limited, Production…) also resolves by slug or name.
      */
+    /**
+     * National entry division for each shooter, when this score file landed
+     * on a day-1 provincial. Empty for every other match.
+     *
+     * @return Collection<int, int>
+     */
+    private function paidEntryDivisionByUser(MatchEvent $match): Collection
+    {
+        $entryMatch = $match->paidEntryMatch();
+        if ($entryMatch->id === $match->id) {
+            return collect();
+        }
+
+        return MatchRegistration::query()
+            ->where('match_id', $entryMatch->id)
+            ->whereNotNull('user_id')
+            ->whereNotNull('division_id')
+            ->where(function ($query) {
+                $query->whereNull('registration_status')
+                    ->orWhere('registration_status', '!=', 'cancelled');
+            })
+            ->orderBy('id')
+            ->get(['user_id', 'division_id'])
+            ->mapWithKeys(fn (MatchRegistration $registration) => [
+                (int) $registration->user_id => (int) $registration->division_id,
+            ]);
+    }
+
     /**
      * Shooter's registered default division (users.division_id), or null when
      * the shooter has none on file. Used as the last-resort fallback by

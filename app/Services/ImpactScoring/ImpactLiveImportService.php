@@ -75,7 +75,9 @@ class ImpactLiveImportService
             $day1StageIds = $idsByDay[1] ?? [];
         }
 
-        $registrations = $match->registrations()
+        // A day-1 provincial is scores only. The paid entry, including the
+        // division they shot, lives on the parent national.
+        $registrations = $match->paidEntryMatch()->registrations()
             ->with(['user:id,name,email', 'division:id,name,slug'])
             ->where(function ($q) {
                 $q->whereNull('registration_status')
@@ -265,8 +267,10 @@ class ImpactLiveImportService
             $notes[] = 'Overall scores on the national match.';
         }
 
+        $entryMatch = $selectedMatch->paidEntryMatch();
+
         return DB::transaction(function () use (
-            $selectedMatch, $targetMatch, $actor, $preview, $scoreScope, $day1StageIds,
+            $selectedMatch, $entryMatch, $targetMatch, $actor, $preview, $scoreScope, $day1StageIds,
             $replaceExisting, $links, $scoreOverrides, $notes
         ) {
             if ($replaceExisting) {
@@ -311,7 +315,7 @@ class ImpactLiveImportService
                 $registration = null;
                 if (! $assignLater && is_string($link) && str_starts_with($link, 'reg:')) {
                     $registration = MatchRegistration::query()
-                        ->where('match_id', $selectedMatch->id)
+                        ->where('match_id', $entryMatch->id)
                         ->where('id', (int) substr($link, 4))
                         ->first();
                 } elseif (! $assignLater && $row['match_status'] === 'exact' && $row['registration_id']) {
@@ -382,7 +386,7 @@ class ImpactLiveImportService
                 } else {
                     // Unmatched: member walk-in vs non-member stub
                     $resolved = $this->resolveUnmatchedShooter(
-                        $selectedMatch,
+                        $entryMatch,
                         $row,
                         $actor,
                     );

@@ -170,9 +170,16 @@ class BackfillScoreDivisionFromRegistrationCommand extends Command
 
         $userIds = $scores->pluck('user_id')->filter()->unique()->all();
 
+        // Day 1 of a national keeps its scores on the provincial sibling, but
+        // the shooter paid once, on the national. Read that entry.
+        $entryMatch = $match->paidEntryMatch();
+        if ($entryMatch->id !== $match->id) {
+            $this->line("  Paid entries: national #{$entryMatch->id} {$entryMatch->name}");
+        }
+
         // Registration lookup: for each user_id, their most recent
-        // non-cancelled MR on this match.
-        $registrations = MatchRegistration::where('match_id', $match->id)
+        // non-cancelled MR on the paid entry match.
+        $registrations = MatchRegistration::where('match_id', $entryMatch->id)
             ->where('registration_status', '!=', 'cancelled')
             ->whereIn('user_id', $userIds)
             ->orderByDesc('id')

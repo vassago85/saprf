@@ -126,6 +126,7 @@ class CsvScoreAssignmentService
         array $options = [],
     ): ScoreImport {
         $preview = $this->preview($selectedMatch, $fullPath);
+        $entryMatch = $selectedMatch->paidEntryMatch();
         /** @var array<string, string> $links */
         $links = $options['links'] ?? [];
         /** @var array<string, array{impacts?:mixed}> $overrides */
@@ -151,7 +152,7 @@ class CsvScoreAssignmentService
         $notes[] = 'CSV import with entry assignment.';
 
         return DB::transaction(function () use (
-            $selectedMatch, $targetMatch, $actor, $preview, $links, $overrides,
+            $entryMatch, $targetMatch, $actor, $preview, $links, $overrides,
             $replaceExisting, $notes, $sourceType, $originalFilename
         ) {
             if ($replaceExisting) {
@@ -195,7 +196,7 @@ class CsvScoreAssignmentService
                 if (! $assignLater && is_string($link) && str_starts_with($link, 'reg:')) {
                     $registration = MatchRegistration::query()
                         ->with(['user', 'division'])
-                        ->where('match_id', $selectedMatch->id)
+                        ->where('match_id', $entryMatch->id)
                         ->where('id', (int) substr($link, 4))
                         ->first();
                     if (! $registration) {
@@ -236,7 +237,7 @@ class CsvScoreAssignmentService
                         ]);
                     }
                 } else {
-                    $resolved = $this->resolveUnmatched($selectedMatch, $row, $actor);
+                    $resolved = $this->resolveUnmatched($entryMatch, $row, $actor);
                     $userId = $resolved['user_id'];
                     $divisionId = $resolved['division_id'] ?: $divisionId;
                     if ($resolved['collection'] ?? null) {
@@ -347,7 +348,7 @@ class CsvScoreAssignmentService
      */
     private function registrationsFor(MatchEvent $match)
     {
-        return $match->registrations()
+        return $match->paidEntryMatch()->registrations()
             ->with(['user.membership', 'division:id,name,slug'])
             ->where(function ($q) {
                 $q->whereNull('registration_status')

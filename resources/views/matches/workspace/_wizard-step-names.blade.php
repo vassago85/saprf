@@ -33,6 +33,9 @@
                 <p class="mt-0.5 text-sm text-violet-900/80">
                     Attach the real match entry (member or non-member). Entry division wins; the imported
                     name stays as shown on the scoreboard.
+                    @if($match->source_national_match_id)
+                        This day 1 uses the entry they already paid on the national. Linking it does not create a second payment.
+                    @endif
                 </p>
             </div>
         </div>
