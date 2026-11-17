@@ -57,6 +57,30 @@ class ImpactNameMatcher
             return ['status' => 'exact', 'key' => $compact[0]['key'], 'score' => 98.0, 'candidates' => []];
         }
 
+        // Extra given name on the scoreboard: "Petrus Bosman Le Roux" is
+        // "Petrus Le Roux" when that is the only entry contained in the name.
+        $contained = [];
+        foreach ($candidates as $c) {
+            $candidateTokens = $this->tokens($this->normalize($c['name']));
+            if (count($candidateTokens) < 2 || count($needleTokens) < 2) {
+                continue;
+            }
+            if ($candidateTokens === $needleTokens) {
+                continue;
+            }
+            $shorter = count($candidateTokens) < count($needleTokens) ? $candidateTokens : $needleTokens;
+            $longer = count($candidateTokens) < count($needleTokens) ? $needleTokens : $candidateTokens;
+            if (count($shorter) < 2) {
+                continue;
+            }
+            if (array_diff($shorter, $longer) === []) {
+                $contained[] = $c;
+            }
+        }
+        if (count($contained) === 1) {
+            return ['status' => 'exact', 'key' => $contained[0]['key'], 'score' => 97.0, 'candidates' => []];
+        }
+
         $fuzzy = [];
         foreach ($candidates as $c) {
             $score = $this->similarity($needle, $this->normalize($c['name']));
@@ -87,8 +111,17 @@ class ImpactNameMatcher
     public function normalize(string $name): string
     {
         $name = Str::lower(trim(preg_replace('/\s+/', ' ', $name) ?? ''));
+        // O'Neill and Oneill are the same shooter.
+        $name = str_replace(["'", '’', '`'], '', $name);
         // Strip common honorifics
         $name = preg_replace('/\b(snr|jnr|sr|jr|ii|iii)\b\.?/u', '', $name) ?? $name;
+        // "Le Roux" and "Leroux", "Van der Merwe" and "Vandermerwe".
+        $particles = 'le|la|van|von|de|du|da|den|der|ten|ter';
+        $previous = '';
+        while ($previous !== $name) {
+            $previous = $name;
+            $name = preg_replace('/\b('.$particles.')\s+(?=\S)/u', '$1', $name) ?? $name;
+        }
 
         return trim(preg_replace('/\s+/', ' ', $name) ?? '');
     }

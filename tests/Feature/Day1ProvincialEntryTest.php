@@ -211,6 +211,65 @@ it('aligns stored day-1 scores to the national entry and links an exact scoreboa
         ->and($lericheScore->raw_meta['impact']['needs_member_link'])->toBeFalse();
 });
 
+it('links a longer scoreboard name and a club shooter apostrophe spelling', function () {
+    $petrus = day1PaidMember('Petrus Le Roux');
+    day1PaidEntry($this->national, $petrus, $this->open);
+    Score::create([
+        'match_id' => $this->provincial->id,
+        'user_id' => User::factory()->create(['name' => 'Petrus Bosman Le Roux'])->id,
+        'shooter_name' => 'Petrus Bosman Le Roux',
+        'division_id' => $this->open->id,
+        'raw_score' => 50,
+        'day1_raw_score' => 50,
+        'status' => 'invalid',
+        'is_member' => false,
+        'match_date' => $this->provincial->match_date,
+        'raw_meta' => ['impact' => ['needs_member_link' => true, 'impact_name' => 'Petrus Bosman Le Roux']],
+    ]);
+
+    $oneill = User::factory()->create(['name' => "O'Neill Kammies", 'email_verified_at' => now()]);
+    MatchRegistration::create([
+        'match_id' => $this->national->id,
+        'user_id' => $oneill->id,
+        'division_id' => $this->open->id,
+        'shooter_name' => $oneill->name,
+        'email' => $oneill->email,
+        'membership_fee_category' => 'club_entry',
+        'fee_amount' => 0,
+        'saprf_fee' => 0,
+        'platform_fee' => 0,
+        'gateway_fee' => 0,
+        'md_net_amount' => 0,
+        'payment_status' => 'paid',
+        'registration_status' => 'confirmed',
+        'registered_at' => now(),
+    ]);
+    Score::create([
+        'match_id' => $this->provincial->id,
+        'user_id' => User::factory()->create(['name' => 'Oneill Kammies'])->id,
+        'shooter_name' => 'Oneill Kammies',
+        'division_id' => $this->open->id,
+        'raw_score' => 34,
+        'day1_raw_score' => 34,
+        'status' => 'invalid',
+        'is_member' => false,
+        'match_date' => $this->provincial->match_date,
+        'raw_meta' => ['impact' => ['needs_member_link' => true, 'impact_name' => 'Oneill Kammies']],
+    ]);
+
+    $this->artisan('scores:align-day1-provincial', ['match' => $this->provincial->id])
+        ->assertSuccessful();
+
+    $petrusScore = Score::query()->where('shooter_name', 'Petrus Bosman Le Roux')->first();
+    $oneillScore = Score::query()->where('shooter_name', 'Oneill Kammies')->first();
+
+    expect($petrusScore->user_id)->toBe($petrus->id)
+        ->and($petrusScore->raw_meta['impact']['needs_member_link'])->toBeFalse()
+        ->and($oneillScore->user_id)->toBe($oneill->id)
+        ->and($oneillScore->status)->toBe('non_member')
+        ->and($oneillScore->raw_meta['impact']['needs_member_link'])->toBeFalse();
+});
+
 it('reads a csv imported onto the day-1 provincial against the national entry', function () {
     $etienne = day1PaidMember('Etienne De Waal');
     day1PaidEntry($this->national, $etienne, $this->senior);
