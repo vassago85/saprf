@@ -86,6 +86,16 @@ function seedImpactRegistration(MatchEvent $match, string $name, string $saprf, 
 }
 
 /**
+ * @return \Illuminate\Support\Collection<string, array<string, string>>
+ */
+function impactExportByName(string $csv): \Illuminate\Support\Collection
+{
+    return collect(impactExportRows($csv))->keyBy(
+        fn (array $row) => trim($row['First Name'].' '.$row['Last Name'])
+    );
+}
+
+/**
  * @return list<array<string, string>>
  */
 function impactExportRows(string $csv): array
@@ -127,15 +137,14 @@ it('emits an empty Squad column on every row so Impact Scoring does not create o
 
     // Header + three shooters.
     expect($rows)->toHaveCount(4);
-    expect($rows[0])->toBe('Email,Name,Phone,Squad,Division,Categories,"Member Number"');
+    expect($rows[0])->toBe('Email,"First Name","Last Name",Phone,Squad,Division,Categories,"Member Number","Shooter Number"');
 
-    // Every data row's Squad column (index 3) must be blank. If someone
-    // reintroduces a per-shooter counter, one of these will read "1", "2",
-    // or "3" and the assertion fails.
+    // Squad is the fifth field. A per-shooter counter here would read
+    // "1", "2", or "3" and Impact would create one squad per shooter.
     foreach (array_slice($rows, 1) as $row) {
         $cols = str_getcsv($row);
-        expect($cols)->toHaveCount(7);
-        expect($cols[3])->toBe('');
+        expect($cols)->toHaveCount(9);
+        expect($cols[4])->toBe('');
     }
 });
 
@@ -157,7 +166,7 @@ it('puts equipment classes in Division and demographic classes in Categories', f
     $byName = [];
     foreach (array_slice($rows, 1) as $row) {
         $cols = str_getcsv($row);
-        $byName[$cols[1]] = ['division' => $cols[4], 'categories' => $cols[5]];
+        $byName[trim($cols[1].' '.$cols[2])] = ['division' => $cols[5], 'categories' => $cols[6]];
     }
 
     expect($byName['Open Shooter'])->toBe(['division' => 'Open', 'categories' => '']);
@@ -179,15 +188,19 @@ it('keeps both registrations when they share an email on the entry', function ()
         ->get(route('matches.export-impact-scoring', $this->match))
         ->assertOk();
 
-    $byName = collect(impactExportRows($response->streamedContent()))->keyBy('Name');
+    $byName = impactExportByName($response->streamedContent());
 
     expect($byName)->toHaveCount(2);
     expect($byName['First Shooter']['Email'])->toBe('first.shooter@example.test');
+    expect($byName['First Shooter']['First Name'])->toBe('First');
+    expect($byName['First Shooter']['Last Name'])->toBe('Shooter');
     expect($byName['First Shooter']['Member Number'])->toBe('910');
+    expect($byName['First Shooter']['Shooter Number'])->toBe('910');
     // The entry copied the other shooter's address, but this account has its own.
     expect($byName['Duplicate Shooter']['Email'])->toBe('duplicate.shooter@example.test');
     expect($byName['Duplicate Shooter']['Division'])->toBe('Factory');
     expect($byName['Duplicate Shooter']['Member Number'])->toBe('911');
+    expect($byName['Duplicate Shooter']['Shooter Number'])->toBe('911');
 });
 
 it('excludes cancelled registrations from the export', function () {
@@ -202,8 +215,10 @@ it('excludes cancelled registrations from the export', function () {
         ->assertOk();
 
     $csv = $response->streamedContent();
-    expect($csv)->toContain('Active Shooter')
-        ->not->toContain('Cancelled Shooter');
+    expect($csv)->toContain('active.shooter@example.test')
+        ->toContain('Active,Shooter')
+        ->not->toContain('cancelled.shooter@example.test')
+        ->not->toContain('Cancelled');
 });
 
 it('includes an unpaid registration and leaves out one with no email address', function () {
@@ -240,7 +255,7 @@ it('includes an unpaid registration and leaves out one with no email address', f
         ->get(route('matches.export-impact-scoring', $this->match))
         ->assertOk();
 
-    $byName = collect(impactExportRows($response->streamedContent()))->keyBy('Name');
+    $byName = impactExportByName($response->streamedContent());
 
     expect($byName->keys()->all())->toBe(['Paid Shooter', 'Unpaid Shooter']);
 
@@ -309,24 +324,29 @@ it('exports a managed member on their own row when they share the parent email',
         ->get(route('matches.export-impact-scoring', $this->match))
         ->assertOk();
 
-    $byName = collect(impactExportRows($response->streamedContent()))->keyBy('Name');
+    $byName = impactExportByName($response->streamedContent());
 
     expect($byName)->toHaveCount(2);
     expect($byName['Stephan van der Merwe'])->toMatchArray([
         'Email' => 'stepvandermerwe@gmail.com',
+        'First Name' => 'Stephan',
+        'Last Name' => 'van der Merwe',
         'Phone' => '0821111111',
         'Division' => 'Open',
         'Categories' => '',
         'Member Number' => '1001',
+        'Shooter Number' => '1001',
     ]);
     expect($byName['Pierre van der Merwe'])->toMatchArray([
         'Email' => '',
-        'Name' => 'Pierre van der Merwe',
+        'First Name' => 'Pierre',
+        'Last Name' => 'van der Merwe',
         'Phone' => '0821111111',
         'Squad' => '',
         'Division' => '',
         'Categories' => 'Junior',
         'Member Number' => '1842',
+        'Shooter Number' => '1842',
     ]);
 });
 
@@ -370,9 +390,11 @@ it('uses a managed member own email and phone when they have them', function () 
 
     expect($row)->toMatchArray([
         'Email' => 'own.contact.junior@example.test',
-        'Name' => 'Own Contact Junior',
+        'First Name' => 'Own',
+        'Last Name' => 'Contact Junior',
         'Phone' => '0830000000',
         'Categories' => 'Junior',
         'Member Number' => '1843',
+        'Shooter Number' => '1843',
     ]);
 });

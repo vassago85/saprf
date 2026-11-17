@@ -16,6 +16,11 @@ use Illuminate\Support\Collection;
  * still written, with Email left blank, so the shooter stays on the list
  * for indemnity with their own name, phone, division, category and member
  * number. A registration with no email at all is omitted and reported.
+ *
+ * PractiScore reads First Name and Last Name as separate columns, and a
+ * column whose header contains "shooter" as the shooter number. The SAPRF
+ * number is written to both Member Number and Shooter Number so a name
+ * that does not match the PractiScore account can still be checked.
  */
 class ImpactShooterExport
 {
@@ -65,7 +70,7 @@ class ImpactShooterExport
         }
 
         return [
-            'headers' => ['Email', 'Name', 'Phone', 'Squad', 'Division', 'Categories', 'Member Number'],
+            'headers' => ['Email', 'First Name', 'Last Name', 'Phone', 'Squad', 'Division', 'Categories', 'Member Number', 'Shooter Number'],
             'rows' => $rows,
             'omitted' => $omitted,
         ];
@@ -151,6 +156,28 @@ class ImpactShooterExport
     }
 
     /**
+     * PractiScore keeps a full name only when first and last are separate
+     * columns. The first word is the first name and the remainder is the
+     * last name, so "van der Merwe" stays intact.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function splitName(string $name): array
+    {
+        $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+        if ($name === '') {
+            return ['', ''];
+        }
+
+        $space = strpos($name, ' ');
+        if ($space === false) {
+            return [$name, ''];
+        }
+
+        return [substr($name, 0, $space), substr($name, $space + 1)];
+    }
+
+    /**
      * @return list<string>
      */
     private function row(MatchRegistration $registration, string $email): array
@@ -158,15 +185,19 @@ class ImpactShooterExport
         $slug = $registration->division?->slug;
         $category = $slug !== null ? (self::CATEGORY_BY_SLUG[$slug] ?? '') : '';
         $division = $category !== '' ? '' : ($registration->division?->name ?: '');
+        [$firstName, $lastName] = $this->splitName($this->nameFor($registration));
+        $saprfNumber = $this->memberNumber($registration);
 
         return [
             $email,
-            $this->nameFor($registration),
+            $firstName,
+            $lastName,
             $registration->contactPhone(),
             '',
             $division,
             $category,
-            $this->memberNumber($registration),
+            $saprfNumber,
+            $saprfNumber,
         ];
     }
 
