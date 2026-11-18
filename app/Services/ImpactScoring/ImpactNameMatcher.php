@@ -111,6 +111,8 @@ class ImpactNameMatcher
     public function normalize(string $name): string
     {
         $name = Str::lower(trim(preg_replace('/\s+/', ' ', $name) ?? ''));
+        // Rörich and Rorich are the same shooter.
+        $name = Str::ascii($name);
         // O'Neill and Oneill are the same shooter.
         $name = str_replace(["'", '’', '`'], '', $name);
         // Strip common honorifics

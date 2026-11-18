@@ -4,6 +4,7 @@ namespace App\Services\ImpactScoring;
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Score;
 use App\Models\ShooterLog;
 use App\Models\User;
@@ -148,6 +149,11 @@ class LegacyDay1ProvincialImporter
 
                 if ($divisionId === null) {
                     $divisionId = $this->divisionId((string) ($shooter['divisionName'] ?? ''));
+                }
+
+                $entered = $this->enteredDivisionId($national, $userId);
+                if ($entered !== null) {
+                    $divisionId = $entered;
                 }
 
                 if (in_array($userId, $keep, true)) {
@@ -367,6 +373,27 @@ class LegacyDay1ProvincialImporter
         $parts = preg_split('/\s+/', $this->names->normalize($name)) ?: [];
 
         return (string) end($parts);
+    }
+
+    /**
+     * The division on the national entry wins over the scoreboard and over
+     * Impact. A shooter who never entered keeps the division already stored
+     * on the national result.
+     */
+    private function enteredDivisionId(MatchEvent $national, int $userId): ?int
+    {
+        $id = MatchRegistration::query()
+            ->where('match_id', $national->id)
+            ->where('user_id', $userId)
+            ->whereNotNull('division_id')
+            ->where(function ($query) {
+                $query->whereNull('registration_status')
+                    ->orWhere('registration_status', '!=', 'cancelled');
+            })
+            ->orderByDesc('id')
+            ->value('division_id');
+
+        return $id ? (int) $id : null;
     }
 
     private function divisionId(string $impactDivision): ?int

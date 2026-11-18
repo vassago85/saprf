@@ -2,6 +2,7 @@
 
 use App\Models\Division;
 use App\Models\MatchEvent;
+use App\Models\MatchRegistration;
 use App\Models\Membership;
 use App\Models\Province;
 use App\Models\Score;
@@ -134,6 +135,54 @@ it('posts the first day of stages as a provincial and counts every shooter', fun
 
     expect(User::query()->where('name', 'Tinus Cronje')->count())->toBe(1)
         ->and(Score::query()->where('match_id', $sibling->id)->count())->toBe(3);
+});
+
+it('keeps the division the shooter entered, even when the national score says otherwise', function () {
+    $limited = Division::firstOrCreate(['slug' => 'limited'], ['name' => 'Limited', 'display_order' => 3, 'is_active' => true]);
+    $johan = User::factory()->create(['name' => 'Johan Nel', 'province_id' => $this->province->id]);
+    Membership::create([
+        'user_id' => $johan->id,
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2026-12-31',
+    ]);
+    Score::create([
+        'match_id' => $this->national->id,
+        'user_id' => $johan->id,
+        'shooter_name' => 'Johan Nel',
+        'division_id' => $this->senior->id,
+        'raw_score' => 114,
+        'status' => 'valid',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'match_date' => $this->national->match_date,
+    ]);
+    MatchRegistration::create([
+        'match_id' => $this->national->id,
+        'user_id' => $johan->id,
+        'division_id' => $limited->id,
+        'shooter_name' => 'Johan Nel',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'registration_status' => 'confirmed',
+        'payment_status' => 'paid',
+    ]);
+
+    fakeLegacyImpact();
+
+    $this->artisan('scores:legacy-day1-provincial', [
+        'match' => $this->national->id,
+        '--impact' => 8369,
+        '--day1-stages' => 2,
+    ])->assertSuccessful();
+
+    $sibling = MatchEvent::query()->where('source_national_match_id', $this->national->id)->first();
+    $day1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $johan->id)->first();
+
+    expect($day1->division_id)->toBe($limited->id)
+        ->and($day1->status)->toBe('valid');
 });
 
 function fakeLegacyImpact(): void
