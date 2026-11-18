@@ -236,8 +236,13 @@ class FederationColoursReport
             ->whereIn('user_id', $userIds)
             ->whereIn('division_id', $divisionIds)
             ->whereHas('match', function (Builder $query) use ($series, $season): void {
+                // Only the actual SA Championships match counts — a
+                // `series_level = 'final'` tag on its own matches every
+                // club/provincial championship too, which is not what the
+                // federation colour rule means by "SA Champs".
                 $query->where('series', $series)
                     ->where('series_level', 'final')
+                    ->where('is_sa_championships', true)
                     ->where('season', $season);
             })
             ->get(['user_id', 'division_id'])

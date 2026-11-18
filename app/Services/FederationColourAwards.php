@@ -220,20 +220,29 @@ class FederationColourAwards
                         })->orWhere(function (Builder $sibling): void {
                             $sibling->where('series_level', 'provincial')
                                 ->whereNotNull('source_national_match_id');
-                        })->orWhere('series_level', 'final');
+                        })->orWhere(function (Builder $champs): void {
+                            // Only the actual SA Championships counts for the
+                            // champs route — a `series_level = 'final'` tag on
+                            // its own is not enough (club/provincial finals
+                            // use the same tag).
+                            $champs->where('series_level', 'final')
+                                ->where('is_sa_championships', true);
+                        });
                     });
             })
             ->with([
-                'match:id,province_id,series_level,source_national_match_id',
-                'match.sourceNationalMatch:id,series_level',
+                'match:id,province_id,series_level,is_sa_championships,source_national_match_id',
+                'match.sourceNationalMatch:id,series_level,is_sa_championships',
                 'user:id,province_id',
             ])
             ->get(['id', 'user_id', 'division_id', 'match_id'])
             ->each(function (Score $score) use (&$keys): void {
                 $match = $score->match;
-                $isChampsFinal = $match?->series_level === 'final';
+                $isChampsFinal = $match?->series_level === 'final'
+                    && (bool) $match?->is_sa_championships;
                 $isChampsDay1Sibling = $match?->series_level === 'provincial'
-                    && $match?->sourceNationalMatch?->series_level === 'final';
+                    && $match?->sourceNationalMatch?->series_level === 'final'
+                    && (bool) $match?->sourceNationalMatch?->is_sa_championships;
 
                 // SA Championships qualify a shooter regardless of where they
                 // live — both the completed two-day `final` and its day-1

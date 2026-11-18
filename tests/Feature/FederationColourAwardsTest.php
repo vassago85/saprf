@@ -140,6 +140,34 @@ it('qualifies a shooter from day 1 of the SA Championships even when their home 
         ->and($rows['Regular Sibling']['qualified'])->toBeFalse();
 });
 
+it('does not treat a `final` match as the SA Championships unless the is_sa_championships flag is set', function () {
+    // A club "championship" or provincial "final" is tagged series_level = final
+    // in the DB but is NOT the real SA Champs. Shooters who shot it must not
+    // be considered qualified for federation colours.
+    $leader = colourAwardShooter('Real Leader', $this->wc);
+    colourAwardQualifyingNational($leader, 'PRS', $this->open);
+    colourAwardLog($leader, 'PRS', $this->open, 200);
+
+    $clubChamp = colourAwardShooter('Club Champ Shooter', $this->gp);
+    // A `final` with the SA Champs flag off — this is the mis-tagged scenario.
+    $match = colourAwardMatch($clubChamp, 'PRS', 'final', $this->gp, [
+        'name' => 'East Rand Club Championship',
+        'is_sa_championships' => false,
+    ]);
+    colourAwardScore($clubChamp, $match, $this->open);
+    colourAwardLog($clubChamp, 'PRS', $this->open, 190);
+
+    $division = colourAwardDivision('PRS', $this->open->id);
+    $rows = collect($division['rows'])->keyBy('name');
+
+    // Shooter still appears (we list everyone) but is NOT qualified — the
+    // club championship doesn't count, so their colour sits in pending.
+    expect($rows)->toHaveKey('Club Champ Shooter')
+        ->and($rows['Club Champ Shooter']['qualified'])->toBeFalse()
+        ->and($rows['Club Champ Shooter']['award'])->toBeNull()
+        ->and($rows['Club Champ Shooter']['pending_award'])->toBe('Gold');
+});
+
 it('qualifies a shooter who shot the SA Championships even when their home province differs from the champs venue', function () {
     $wcHost = colourAwardShooter('WC Host', $this->wc);
     $gpTraveller = colourAwardShooter('GP Traveller', $this->gp);
@@ -368,6 +396,7 @@ function colourAwardChamps(User $shooter, string $series, Division $division, Pr
 {
     $match = colourAwardMatch($shooter, $series, 'final', $venue, [
         'name' => $shooter->name.' Champs',
+        'is_sa_championships' => true,
     ]);
     colourAwardScore($shooter, $match, $division);
 }
@@ -379,6 +408,7 @@ function colourAwardChampsDay1Sibling(User $shooter, string $series, Division $d
     $final = colourAwardMatch($shooter, $series, 'final', $venue, [
         'name' => $shooter->name.' Two Day Champs',
         'match_end_date' => '2026-06-02',
+        'is_sa_championships' => true,
     ]);
     $sibling = colourAwardMatch($shooter, $series, 'provincial', $venue, [
         'name' => $shooter->name.' Champs Day 1',

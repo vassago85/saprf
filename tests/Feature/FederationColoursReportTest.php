@@ -184,6 +184,7 @@ function coloursChamps(User $user, string $series, Division $division): void
         'match_type' => $series,
         'series' => $series,
         'series_level' => 'final',
+        'is_sa_championships' => true,
         'season' => '2026',
         'province_id' => $user->province_id,
         'match_date' => '2026-09-01',

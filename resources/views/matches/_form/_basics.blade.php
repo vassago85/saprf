@@ -17,7 +17,10 @@
         : old('divisions', []);
 @endphp
 <section id="basics" class="scroll-mt-24 rounded-xl border border-stone-200 bg-white p-5"
-         x-data="{ matchType: '{{ old('match_type', $match?->match_type) }}' }">
+         x-data="{
+            matchType: '{{ old('match_type', $match?->match_type) }}',
+            seriesLevel: '{{ old('series_level', $match?->series_level) }}',
+         }">
     <header>
         <h3 class="text-sm font-semibold text-stone-900">Basics</h3>
         <p class="mt-0.5 text-xs text-stone-500">Headline details that identify the match on the public listing.</p>
@@ -48,7 +51,7 @@
 
         <div>
             <label for="series_level" class="block text-xs font-medium text-stone-600 mb-1">Series level <span class="text-red-500">*</span></label>
-            <select name="series_level" id="series_level" required
+            <select name="series_level" id="series_level" required x-model="seriesLevel"
                     class="block w-full rounded-lg border border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
                 <option value="">Select level…</option>
                 <option value="national" @selected(old('series_level', $match?->series_level) === 'national')>National</option>
@@ -59,6 +62,28 @@
             </select>
             <p class="mt-1 text-xs text-stone-400">Finals attract the configured weighting multiplier in season standings.</p>
             @error('series_level') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+            {{-- SA Championships flag. Only visible when the level is "Final /
+                 Champs" — a club or provincial championship is a final but is
+                 NOT the SA Championships, and federation colours are only
+                 awarded off matches the admin has explicitly flagged here. --}}
+            <div x-show="seriesLevel === 'final'" x-cloak class="mt-3">
+                <input type="hidden" name="is_sa_championships" value="0" />
+                <label class="flex items-start gap-2 cursor-pointer rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+                    <input type="checkbox" name="is_sa_championships" value="1"
+                           @checked(old('is_sa_championships', (bool) ($match?->is_sa_championships ?? false)))
+                           class="mt-0.5 rounded border-stone-300 text-amber-600 focus:ring-amber-500" />
+                    <span class="text-xs text-stone-700">
+                        <span class="block text-xs font-semibold text-stone-900">This is the SA Championships</span>
+                        <span class="mt-0.5 block text-[11px] text-stone-500">
+                            Tick this ONLY for the actual SAPRF SA Championships. Federation colours
+                            only count a shooter as qualified once they've shot a match flagged here —
+                            a club or provincial "championship" or "final" must stay unticked.
+                        </span>
+                    </span>
+                </label>
+                @error('is_sa_championships') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
         </div>
 
         <div class="sm:col-span-2">

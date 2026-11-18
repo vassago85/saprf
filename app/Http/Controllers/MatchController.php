@@ -108,6 +108,16 @@ class MatchController extends Controller
             $validated['club_entry_enabled'] = (bool) ($validated['club_entry_enabled'] ?? false);
         }
 
+        // The "This is the SA Championships" flag is only meaningful on a
+        // `final`. Any other series level forces it back to false so a
+        // dropdown change can't leave a stale SA Champs flag behind on a
+        // club or provincial match.
+        if (($validated['series_level'] ?? null) !== 'final') {
+            $validated['is_sa_championships'] = false;
+        } else {
+            $validated['is_sa_championships'] = (bool) ($validated['is_sa_championships'] ?? false);
+        }
+
         $validated['series'] = $validated['match_type'];
         $validated['season'] = (string) now()->year;
         $validated['created_by'] = $request->user()->id;
@@ -288,6 +298,17 @@ class MatchController extends Controller
             // and an absent key means "this form didn't ask about the flag,
             // leave the stored value alone".
             $validated['club_entry_enabled'] = $request->boolean('club_entry_enabled');
+        }
+
+        // The "This is the SA Championships" flag only applies to `final`
+        // matches. Anywhere else it is forced off so a series-level change
+        // can't leave a stale SA Champs flag behind. The form always posts a
+        // hidden `0` before the checkbox so we can tell "unchecked" from
+        // "form did not ask".
+        if ($effectiveLevel !== 'final') {
+            $validated['is_sa_championships'] = false;
+        } elseif (array_key_exists('is_sa_championships', $validated) || $request->exists('is_sa_championships')) {
+            $validated['is_sa_championships'] = $request->boolean('is_sa_championships');
         }
 
         // Fee overrides are exco/developer only. Silently drop the fields for

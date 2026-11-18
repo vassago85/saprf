@@ -56,6 +56,7 @@ class UpdateMatchRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
             'series_level' => ['nullable', Rule::in(['national', 'provincial', 'club', 'final', 'international'])],
+            'is_sa_championships' => ['boolean'],
             'province_id' => ['nullable', 'exists:provinces,id'],
             'match_date' => ['nullable', 'date'],
             'match_end_date' => ['nullable', 'date', 'after_or_equal:match_date'],
