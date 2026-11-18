@@ -32,6 +32,18 @@
                 </select>
             </div>
 
+            <div>
+                <label for="matches_series_level" class="block text-xs font-medium text-stone-500 mb-1">Series Level</label>
+                <select id="matches_series_level" name="series_level" class="rounded-lg border border-stone-300 text-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All Levels</option>
+                    <option value="national" @selected(request('series_level') === 'national')>National</option>
+                    <option value="provincial" @selected(request('series_level') === 'provincial')>Provincial</option>
+                    <option value="club" @selected(request('series_level') === 'club')>Club</option>
+                    <option value="final" @selected(request('series_level') === 'final')>Final / Champs</option>
+                    <option value="international" @selected(request('series_level') === 'international')>International</option>
+                </select>
+            </div>
+
     </x-filter-bar>
 
     <h2 class="sr-only">Matches list</h2>
@@ -79,7 +91,31 @@
                                 <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">PR22</span>
                             @endif
                         </td>
-                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-4 text-sm text-stone-700 capitalize">{{ $match->series_level }}</td>
+                        <td class="hidden md:table-cell whitespace-nowrap px-5 py-4 text-sm">
+                            {{-- Series-level badge. Finals get an amber tint so a mis-tagged
+                                 club/provincial "championship" is instantly spottable. When
+                                 is_sa_championships is set, the row carries an extra "SA CHAMPS"
+                                 flag — this is the match federation colours award off. --}}
+                            @php
+                                $levelClass = match ($match->series_level) {
+                                    'final' => 'bg-amber-50 text-amber-800 ring-amber-200',
+                                    'national' => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+                                    'international' => 'bg-indigo-50 text-indigo-800 ring-indigo-200',
+                                    'provincial' => 'bg-sky-50 text-sky-800 ring-sky-200',
+                                    'club' => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                    default => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset capitalize {{ $levelClass }}">
+                                {{ $match->series_level }}
+                            </span>
+                            @if ($match->is_sa_championships)
+                                <span class="ml-1 inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-amber-700"
+                                      title="This match is flagged as the SA Championships. Federation colours are awarded off scores on this match.">
+                                    SA Champs
+                                </span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-3 md:px-5 py-4 text-sm text-stone-700">
                             <span class="hidden md:inline">{{ $match->province?->name ?? '—' }}</span>
                             <span class="md:hidden">{{ $match->province?->abbreviation ?? '—' }}</span>

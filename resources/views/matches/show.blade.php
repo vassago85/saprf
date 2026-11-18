@@ -30,7 +30,15 @@
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Series Level</dt>
-                        <dd class="mt-1.5 text-sm text-stone-900 capitalize">{{ $match->series_level }}</dd>
+                        <dd class="mt-1.5 text-sm text-stone-900 capitalize">
+                            {{ $match->series_level }}
+                            @if ($match->is_sa_championships)
+                                <span class="ml-1 inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-amber-700"
+                                      title="Flagged as the SA Championships. Federation colours are awarded off scores on this match.">
+                                    SA Champs
+                                </span>
+                            @endif
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Province</dt>

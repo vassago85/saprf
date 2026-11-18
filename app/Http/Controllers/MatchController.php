@@ -70,7 +70,29 @@ class MatchController extends Controller
             $query->where('created_by', $user->id);
         }
 
-        $matches = $query->paginate(20);
+        // Filter bar: match_type (PRS/PR22), status (draft/open/closed/…),
+        // and series_level (national/provincial/club/final/international).
+        // Previously the filter dropdowns rendered but the controller never
+        // read them — they just reloaded the page with no effect.
+        if ($matchType = $request->input('match_type')) {
+            if (in_array($matchType, ['PRS', 'PR22'], true)) {
+                $query->where('match_type', $matchType);
+            }
+        }
+
+        if ($status = $request->input('status')) {
+            if (in_array($status, ['draft', 'open', 'closed', 'completed', 'cancelled'], true)) {
+                $query->where('status', $status);
+            }
+        }
+
+        if ($seriesLevel = $request->input('series_level')) {
+            if (in_array($seriesLevel, ['national', 'provincial', 'club', 'final', 'international'], true)) {
+                $query->where('series_level', $seriesLevel);
+            }
+        }
+
+        $matches = $query->paginate(20)->withQueryString();
 
         return view('matches.index', compact('matches'));
     }
