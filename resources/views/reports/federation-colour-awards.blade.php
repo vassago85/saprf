@@ -25,7 +25,8 @@
                     National awards for {{ $seriesLabel }} {{ $season }}, one list per division.
                     Each percentage is that shooter's series total divided by the highest series total in the same division.
                     Gold is 95% and above, silver is 90% up to 95%, and bronze is 85% up to 90%.
-                    A shooter is listed only when they are a paid-up member and have either shot the one-day national that counts as the provincial in their home province, or shot the SA Championships in that division — either the completed championship or, while it is still running, day 1 of it (home province is irrelevant for the champs route).
+                    Every paid-up member with a {{ $seriesLabel }} log appears, so the leaderboard is a live snapshot all season.
+                    A colour is awarded only once the shooter has also shot a qualifying match — either the one-day national that counts as the provincial in their home province, or the SA Championships in that division (the completed championship or, while it is still running, day 1 of it; home province is irrelevant for the champs route). Shooters sitting in a colour band without a qualifying match show a dash in the Award column until they qualify.
                 </p>
             </div>
             <a href="{{ route('reports.federation-colour-awards.csv', $query) }}"

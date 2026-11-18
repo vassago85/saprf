@@ -119,8 +119,8 @@ it('qualifies a shooter from day 1 of the SA Championships even when their home 
     colourAwardChampsDay1Sibling($wcHost, 'PRS', $this->open, $this->wc);
     colourAwardChampsDay1Sibling($gpTraveller, 'PRS', $this->open, $this->wc);
     // Day-1 sibling of a regular two-day NATIONAL (not a final) hosted in WC.
-    // The GP shooter here must still be excluded — the home-province check
-    // only lifts for champs siblings.
+    // The GP shooter here is still unqualified — the home-province check
+    // only lifts for champs siblings, so their award stays pending.
     colourAwardDayOneSibling($regularSibling, 'PRS', $this->open, $this->wc);
 
     colourAwardLog($wcHost, 'PRS', $this->open, 200);
@@ -128,11 +128,16 @@ it('qualifies a shooter from day 1 of the SA Championships even when their home 
     colourAwardLog($regularSibling, 'PRS', $this->open, 180);
 
     $division = colourAwardDivision('PRS', $this->open->id);
-    $names = collect($division['rows'])->pluck('name')->all();
+    $rows = collect($division['rows'])->keyBy('name');
 
-    expect($names)->toBe(['Live Host', 'Live Traveller'])
-        ->and($division['rows'][1]['weighted_percentage'])->toBe(95.0)
-        ->and($division['rows'][1]['award'])->toBe('Gold');
+    expect($rows->keys()->all())->toBe(['Live Host', 'Live Traveller', 'Regular Sibling'])
+        ->and($rows['Live Traveller']['weighted_percentage'])->toBe(95.0)
+        ->and($rows['Live Traveller']['award'])->toBe('Gold')
+        ->and($rows['Live Traveller']['qualified'])->toBeTrue()
+        ->and($rows['Regular Sibling']['weighted_percentage'])->toBe(90.0)
+        ->and($rows['Regular Sibling']['award'])->toBeNull()
+        ->and($rows['Regular Sibling']['pending_award'])->toBe('Silver')
+        ->and($rows['Regular Sibling']['qualified'])->toBeFalse();
 });
 
 it('qualifies a shooter who shot the SA Championships even when their home province differs from the champs venue', function () {
@@ -146,8 +151,8 @@ it('qualifies a shooter who shot the SA Championships even when their home provi
     // GP shooter travelled to Champs (held in WC) — must now qualify.
     colourAwardChamps($gpTraveller, 'PRS', $this->open, $this->wc);
 
-    // GP shooter who only has a national log but never shot champs AND the
-    // national-as-provincial wasn't in their home province: still excluded.
+    // GP shooter with no qualifying match still appears, but their colour
+    // sits in the pending column until they shoot one.
     // (No qualifying match created for didNotShootChamps.)
 
     colourAwardLog($wcHost, 'PRS', $this->open, 200);
@@ -155,14 +160,19 @@ it('qualifies a shooter who shot the SA Championships even when their home provi
     colourAwardLog($didNotShootChamps, 'PRS', $this->open, 180);
 
     $division = colourAwardDivision('PRS', $this->open->id);
-    $names = collect($division['rows'])->pluck('name')->all();
+    $rows = collect($division['rows'])->keyBy('name');
 
-    expect($names)->toBe(['WC Host', 'GP Traveller'])
-        ->and($division['rows'][1]['weighted_percentage'])->toBe(95.0)
-        ->and($division['rows'][1]['award'])->toBe('Gold');
+    expect($rows->keys()->all())->toBe(['WC Host', 'GP Traveller', 'No Champs'])
+        ->and($rows['GP Traveller']['weighted_percentage'])->toBe(95.0)
+        ->and($rows['GP Traveller']['award'])->toBe('Gold')
+        ->and($rows['GP Traveller']['qualified'])->toBeTrue()
+        ->and($rows['No Champs']['weighted_percentage'])->toBe(90.0)
+        ->and($rows['No Champs']['award'])->toBeNull()
+        ->and($rows['No Champs']['pending_award'])->toBe('Silver')
+        ->and($rows['No Champs']['qualified'])->toBeFalse();
 });
 
-it('leaves out anyone who is not a paid-up member or has not shot their provincial national', function () {
+it('excludes non-members and provincial logs, but lists unqualified members with a pending award', function () {
     $eligible = colourAwardShooter('Eligible Shooter', $this->gp);
     $lapsed = colourAwardShooter('Lapsed Leader', $this->gp, paid: false);
     $away = colourAwardShooter('Away National', $this->gp);
@@ -172,7 +182,10 @@ it('leaves out anyone who is not a paid-up member or has not shot their provinci
 
     colourAwardQualifyingNational($eligible, 'PRS', $this->open);
     colourAwardQualifyingNational($lapsed, 'PRS', $this->open);
+    // Away shot the national, but it was in WC and he lives in GP — not
+    // a qualifying match for him, so his colour will be pending.
     colourAwardQualifyingNational($away, 'PRS', $this->open, $this->wc);
+    // A 2-day national with no day-1 sibling doesn't qualify either.
     colourAwardTwoDayNational($twoDayOnly, 'PRS', $this->open);
     colourAwardDayOneSibling($sibling, 'PRS', $this->open);
 
@@ -181,19 +194,52 @@ it('leaves out anyone who is not a paid-up member or has not shot their provinci
     colourAwardLog($away, 'PRS', $this->open, 190);
     colourAwardLog($twoDayOnly, 'PRS', $this->open, 200);
     colourAwardLog($sibling, 'PRS', $this->open, 170);
+    // Provincial log row (province_id set) — should not enter the national list.
     colourAwardLog($provincialLog, 'PRS', $this->open, 200, $this->gp->id);
     colourAwardLog($eligible, 'PR22', $this->open, 200);
 
     $division = colourAwardDivision('PRS', $this->open->id);
-    $names = collect($division['rows'])->pluck('name')->all();
+    $rows = collect($division['rows'])->keyBy('name');
 
+    // Reference still uses the full field, including the lapsed shooter's 200.
     expect($division['reference_score'])->toBe(200.0)
-        ->and($names)->toBe(['Eligible Shooter', 'Day One Sibling'])
-        ->and($division['rows'][0]['weighted_percentage'])->toBe(90.0)
-        ->and($division['rows'][0]['award'])->toBe('Silver')
-        ->and($division['rows'][0]['rank'])->toBe(1)
-        ->and($division['rows'][1]['weighted_percentage'])->toBe(85.0)
-        ->and($division['rows'][1]['award'])->toBe('Bronze');
+        ->and($rows->keys()->all())->toBe([
+            'Two Day Only',       // 200 — pending Gold (2-day national doesn't qualify)
+            'Away National',      // 190 — pending Gold (national not in home province)
+            'Eligible Shooter',   // 180 — Silver (qualified)
+            'Day One Sibling',    // 170 — Bronze (qualified)
+        ])
+        ->and($rows['Two Day Only'])->toMatchArray([
+            'rank' => 1,
+            'weighted_percentage' => 100.0,
+            'qualified' => false,
+            'award' => null,
+            'pending_award' => 'Gold',
+        ])
+        ->and($rows['Away National'])->toMatchArray([
+            'rank' => 2,
+            'weighted_percentage' => 95.0,
+            'qualified' => false,
+            'award' => null,
+            'pending_award' => 'Gold',
+        ])
+        ->and($rows['Eligible Shooter'])->toMatchArray([
+            'rank' => 3,
+            'weighted_percentage' => 90.0,
+            'qualified' => true,
+            'award' => 'Silver',
+            'pending_award' => null,
+        ])
+        ->and($rows['Day One Sibling'])->toMatchArray([
+            'rank' => 4,
+            'weighted_percentage' => 85.0,
+            'qualified' => true,
+            'award' => 'Bronze',
+            'pending_award' => null,
+        ])
+        // Non-members and provincial-only shooters never enter the list.
+        ->and($rows->has('Lapsed Leader'))->toBeFalse()
+        ->and($rows->has('Provincial Log Only'))->toBeFalse();
 });
 
 it('shows the awards list and downloads one division as csv', function () {
@@ -238,6 +284,9 @@ it('shows the earned colour and series on the public profile', function () {
     $shooter = colourAwardShooter('Profile Shooter', $this->gp, number: 'PRO-1');
     colourAwardQualifyingNational($shooter, 'PRS', $this->open);
     colourAwardQualifyingNational($shooter, 'PR22', $this->factory);
+    // Also qualify in PRS Factory — the shooter has a log there, and we want
+    // this test to assert every earned colour without any pending noise.
+    colourAwardQualifyingNational($shooter, 'PRS', $this->factory);
     colourAwardLog($shooter, 'PRS', $this->open, 200);
     colourAwardLog($shooter, 'PR22', $this->factory, 100);
     colourAwardLog($shooter, 'PRS', $this->factory, 80);
@@ -253,11 +302,36 @@ it('shows the earned colour and series on the public profile', function () {
         ->assertSee('Centrefire')
         ->assertSee('PR22')
         ->assertSee('Open')
-        ->assertSee('Factory');
+        ->assertSee('Factory')
+        ->assertDontSee('Pending');
 
     $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-2', 'season' => '2026']))
         ->assertOk()
         ->assertDontSee('Federation Colour');
+});
+
+it('shows a pending colour on the profile when a shooter is sitting in a band but has not qualified yet', function () {
+    // Leader in the division — sets the reference score. Qualified.
+    $leader = colourAwardShooter('Pace Setter', $this->wc, number: 'PRO-L');
+    colourAwardQualifyingNational($leader, 'PRS', $this->open);
+    colourAwardLog($leader, 'PRS', $this->open, 200);
+
+    // Unqualified shooter sitting at 95% — should show "Pending Gold".
+    $pending = colourAwardShooter('Pending Shooter', $this->gp, number: 'PRO-3');
+    // No qualifying match — just a national log.
+    colourAwardLog($pending, 'PRS', $this->open, 190);
+
+    $response = $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-3', 'season' => '2026']))
+        ->assertOk()
+        ->assertSee('Federation Colour')
+        ->assertSee('Pending Gold')
+        ->assertSee('Centrefire')
+        ->assertSee('Open');
+
+    // The leader's profile should NOT show any pending pill.
+    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-L', 'season' => '2026']))
+        ->assertOk()
+        ->assertDontSee('Pending');
 });
 
 function colourAwardShooter(string $name, Province $province, bool $paid = true, ?string $number = null): User

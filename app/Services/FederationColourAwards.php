@@ -10,11 +10,10 @@ use Illuminate\Support\Collection;
 /**
  * National federation colour awards for one series and season.
  *
- * The score is the shooter's national series log in that division
- * (province rows are ignored). The percentage is that score divided by
- * the highest log in the same division, including shooters who are left
- * off the list. A shooter is listed only when they are a paid-up member
- * and have a valid score, in that division, on either:
+ * Every paid-up member with a national series log appears on the list so
+ * the leaderboard is honest all season. The colour itself (Gold / Silver
+ * / Bronze) is only earned when the shooter has also shot a qualifying
+ * match, which is either:
  *   - the one-day national that counts as the provincial in their home
  *     province (stored either as a one-day national or as the day-1
  *     provincial sibling of a two-day national), or
@@ -24,6 +23,12 @@ use Illuminate\Support\Collection;
  *     final. Home province is irrelevant for the champs route,
  *     because champs is a national event and anyone who travelled to
  *     it has already proven their qualifying attendance.
+ *
+ * A shooter sitting in a colour band without a qualifying match has
+ * `award = null` and `pending_award` set to the band they would earn
+ * once they do qualify. The public report shows a dash in the Award
+ * column for these rows; the shooter's profile shows a "Pending Gold"
+ * / "Pending Silver" / "Pending Bronze" pill.
  */
 class FederationColourAwards
 {
@@ -72,7 +77,10 @@ class FederationColourAwards
     }
 
     /**
-     * Awarded colours for one shooter in one season. Rows below 85% are omitted.
+     * Colour entries for one shooter in one season. Includes both earned
+     * colours (`pending = false`) and provisional ones they would earn
+     * once they shoot a qualifying match (`pending = true`). Rows below
+     * the bronze threshold are omitted — they have no colour to show.
      *
      * @return list<array{
      *     series: string,
@@ -80,6 +88,7 @@ class FederationColourAwards
      *     season: string,
      *     division: string,
      *     award: string,
+     *     pending: bool,
      *     weighted_percentage: float
      * }>
      */
@@ -90,7 +99,13 @@ class FederationColourAwards
         foreach (self::SERIES as $series) {
             foreach ($this->build($series, $season)['divisions'] as $division) {
                 foreach ($division['rows'] as $row) {
-                    if ((int) $row['user_id'] !== $userId || $row['award'] === null) {
+                    if ((int) $row['user_id'] !== $userId) {
+                        continue;
+                    }
+
+                    $colour = $row['award'] ?? $row['pending_award'] ?? null;
+
+                    if ($colour === null) {
                         continue;
                     }
 
@@ -99,7 +114,8 @@ class FederationColourAwards
                         'series_label' => $series === 'PR22' ? 'PR22' : 'Centrefire',
                         'season' => $season,
                         'division' => (string) $division['name'],
-                        'award' => (string) $row['award'],
+                        'award' => (string) $colour,
+                        'pending' => $row['award'] === null,
                         'weighted_percentage' => (float) $row['weighted_percentage'],
                     ];
                 }
@@ -270,12 +286,14 @@ class FederationColourAwards
         $lastRank = 0;
 
         foreach ($sorted as $standing) {
-            $paid = (bool) $standing->user?->isActiveMember();
-            $qualified = isset($eligible[$standing->user_id.'|'.$standing->division_id]);
-
-            if (! $paid || ! $qualified) {
+            // Non-members never appear. Unqualified members DO appear so the
+            // leaderboard is a live snapshot of where every shooter sits —
+            // their Award column is just left blank until they qualify.
+            if (! (bool) $standing->user?->isActiveMember()) {
                 continue;
             }
+
+            $qualified = isset($eligible[$standing->user_id.'|'.$standing->division_id]);
 
             $position++;
             $points = round((float) $standing->points, 2);
@@ -292,6 +310,8 @@ class FederationColourAwards
                 ? round(($points / $reference) * 100, 2)
                 : null;
 
+            $band = self::band($percentage);
+
             $listed[] = [
                 'rank' => $rank,
                 'user_id' => (int) $standing->user_id,
@@ -300,7 +320,9 @@ class FederationColourAwards
                 'division' => $division?->name ?? 'Division',
                 'raw_score' => $points,
                 'weighted_percentage' => $percentage,
-                'award' => self::band($percentage),
+                'qualified' => $qualified,
+                'award' => $qualified ? $band : null,
+                'pending_award' => $qualified ? null : $band,
             ];
         }
 

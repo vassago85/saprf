@@ -74,15 +74,22 @@
                             <div class="flex flex-wrap gap-2">
                                 @foreach ($federationColours as $colour)
                                     @php
-                                        $colourClass = match ($colour['award']) {
-                                            'Gold' => 'bg-amber-50 text-amber-800 ring-amber-200',
-                                            'Silver' => 'bg-stone-100 text-stone-700 ring-stone-300',
-                                            'Bronze' => 'bg-orange-50 text-orange-800 ring-orange-200',
-                                            default => 'bg-stone-100 text-stone-700 ring-stone-300',
-                                        };
+                                        $isPending = ! empty($colour['pending']);
+                                        $colourClass = $isPending
+                                            ? 'bg-white text-stone-500 ring-stone-300 border border-dashed border-stone-300'
+                                            : match ($colour['award']) {
+                                                'Gold' => 'bg-amber-50 text-amber-800 ring-amber-200',
+                                                'Silver' => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                                'Bronze' => 'bg-orange-50 text-orange-800 ring-orange-200',
+                                                default => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                            };
+                                        $label = $isPending
+                                            ? 'Pending '.$colour['award']
+                                            : $colour['award'];
                                     @endphp
-                                    <span class="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $colourClass }}">
-                                        {{ $colour['award'] }} · {{ $colour['series_label'] }} · {{ $colour['division'] }}
+                                    <span class="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $colourClass }}"
+                                          @if ($isPending) title="Pending qualifying match (home-province national or SA Championships)" @endif>
+                                        {{ $label }} · {{ $colour['series_label'] }} · {{ $colour['division'] }}
                                     </span>
                                 @endforeach
                             </div>

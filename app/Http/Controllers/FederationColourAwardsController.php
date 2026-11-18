@@ -49,6 +49,7 @@ class FederationColourAwardsController extends Controller
                 'Raw Score',
                 'Weighted Percentage',
                 'Award',
+                'Pending Award',
             ]);
 
             foreach ($rows as $row) {
@@ -64,6 +65,7 @@ class FederationColourAwardsController extends Controller
                         ? number_format((float) $row['weighted_percentage'], 2, '.', '')
                         : '',
                     $row['award'] ?? '',
+                    $row['pending_award'] ?? '',
                 ]);
             }
 
