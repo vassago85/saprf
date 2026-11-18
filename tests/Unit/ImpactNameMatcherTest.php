@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 use App\Services\ImpactScoring\ImpactNameMatcher;
 
+it('treats a hyphenated given name as the same name', function () {
+    $matcher = new ImpactNameMatcher;
+
+    $hit = $matcher->match('Kim leigh Ferreira', [
+        ['key' => '1', 'name' => 'Kim-Leigh Ferreira'],
+    ]);
+
+    expect($hit['status'])->toBe('exact')->and($hit['key'])->toBe('1');
+});
+
 it('treats an accented surname as the same name', function () {
     $matcher = new ImpactNameMatcher;
 

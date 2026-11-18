@@ -74,144 +74,35 @@ class LegacyDay1ProvincialImporter
         }
         $stagesByShooter = $this->client->getShooterStagesMany($impactMatchId, $shooterIds);
 
-        $result = DB::transaction(function () use ($national, $impactMatchId, $live, $stagesByShooter, $day1, $day1Ids, $stageDays) {
+        $rows = [];
+        foreach ($live['shooters'] as $shooter) {
+            $impactName = $this->cleanName((string) ($shooter['name'] ?? ''));
+            if ($impactName === '') {
+                continue;
+            }
+            $shooterId = (int) ($shooter['id'] ?? 0);
+            $sum = $this->sumHits($stagesByShooter[$shooterId] ?? [], $day1Ids);
+            if ($sum <= 0) {
+                continue;
+            }
+            $rows[] = [
+                'name' => $impactName,
+                'sheet_name' => $impactName,
+                'sum' => $sum,
+                'division' => trim((string) ($shooter['divisionName'] ?? '')),
+                'external_id' => $shooterId,
+                'stage_ids' => $day1Ids,
+                'match_id' => $impactMatchId,
+            ];
+        }
+
+        $result = DB::transaction(function () use ($national, $impactMatchId, $stageDays, $rows) {
             $national->forceFill([
                 'impact_stage_days' => $stageDays,
                 'impact_match_id' => $national->impact_match_id ?: $impactMatchId,
             ])->save();
 
-            $sibling = $national->findOrCreateProvincialDay1Sibling();
-            $sibling->forceFill([
-                'everyone_counts' => true,
-                'description' => 'Day-1 provincial from a legacy 2-day national. Members count even if the paid window does not cover the day. Someone who is not a member stays a non-member.',
-            ])->save();
-
-            $nationalScores = Score::query()
-                ->where('match_id', $national->id)
-                ->whereNotNull('user_id')
-                ->get();
-            $scoreCandidates = [];
-            foreach ($nationalScores as $score) {
-                $scoreCandidates[] = [
-                    'key' => (string) $score->id,
-                    'name' => (string) $score->shooter_name,
-                ];
-            }
-
-            $written = 0;
-            $keep = [];
-            $shortened = [];
-            $nonMembers = [];
-            $unmatched = [];
-
-            foreach ($live['shooters'] as $shooter) {
-                $impactName = $this->cleanName((string) ($shooter['name'] ?? ''));
-                if ($impactName === '') {
-                    continue;
-                }
-
-                $shooterId = (int) ($shooter['id'] ?? 0);
-                $breakdown = $stagesByShooter[$shooterId] ?? [];
-                $sum = $this->sumHits($breakdown, $day1Ids);
-                if ($sum <= 0) {
-                    continue;
-                }
-
-                $linked = $this->linkToNationalScore($impactName, $scoreCandidates, $nationalScores);
-                $userId = $linked['user_id'];
-                $divisionId = $linked['division_id'];
-                $displayName = $linked['display_name'] ?: $impactName;
-                if ($linked['shortened']) {
-                    $shortened[] = $impactName.' → '.$displayName;
-                }
-
-                if ($userId === null) {
-                    $existing = $this->linkToExistingUser($impactName);
-                    if ($existing !== null) {
-                        $userId = $existing;
-                        $displayName = User::query()->whereKey($userId)->value('name') ?: $impactName;
-                        if ($this->names->normalize($displayName) !== $this->names->normalize($impactName)) {
-                            $shortened[] = $impactName.' → '.$displayName;
-                        }
-                    }
-                }
-
-                if ($userId === null) {
-                    $divisionId = $this->divisionId((string) ($shooter['divisionName'] ?? ''));
-                    $userId = $this->createShooterName(
-                        $impactName,
-                        (int) $national->province_id,
-                        $divisionId,
-                    );
-                }
-
-                $this->releaseImportMembership($userId);
-
-                if ($divisionId === null) {
-                    $divisionId = $this->divisionId((string) ($shooter['divisionName'] ?? ''));
-                }
-
-                $entered = $this->enteredDivisionId($national, $userId);
-                if ($entered !== null) {
-                    $divisionId = $entered;
-                }
-
-                if (in_array($userId, $keep, true)) {
-                    $unmatched[] = $impactName;
-
-                    continue;
-                }
-
-                $score = Score::firstOrNew([
-                    'match_id' => $sibling->id,
-                    'user_id' => $userId,
-                ]);
-                $score->fill([
-                    'match_id' => $sibling->id,
-                    'user_id' => $userId,
-                    'division_id' => $divisionId,
-                    'shooter_name' => $displayName,
-                    'day1_raw_score' => $sum,
-                    'day2_raw_score' => null,
-                    'match_date' => $sibling->match_date,
-                    'counts_for_season' => true,
-                    'counts_for_log' => true,
-                    'status' => 'pending',
-                    'is_member' => false,
-                    'raw_meta' => [
-                        'impact' => [
-                            'legacy_day1' => true,
-                            'match_id' => $impactMatchId,
-                            'shooter_id' => $shooterId,
-                            'impact_name' => $impactName,
-                            'day1_stage_ids' => $day1Ids,
-                            'day1_impacts' => $sum,
-                        ],
-                    ],
-                ]);
-                $score->save();
-                $evaluated = $this->scoreValidation->evaluateScoreStatus($score->fresh(['match']));
-                if ($evaluated->status === 'non_member') {
-                    $nonMembers[] = $displayName;
-                }
-                $keep[] = $userId;
-                $written++;
-            }
-
-            if ($written === 0) {
-                throw new RuntimeException('Impact returned no day-1 scores. Nothing was written.');
-            }
-
-            $this->deleteScoresOutside($sibling, $keep);
-
-            return [
-                'sibling_id' => $sibling->id,
-                'sibling_name' => $sibling->name,
-                'written' => $written,
-                'shortened' => $shortened,
-                'non_members' => $nonMembers,
-                'unmatched' => array_values(array_unique($unmatched)),
-            ];
+            return $this->writeRows($national, $rows);
         });
 
         $sibling = MatchEvent::query()->findOrFail($result['sibling_id']);
@@ -220,6 +111,270 @@ class LegacyDay1ProvincialImporter
         $result['day1_stages'] = array_map(fn (array $stage): string => $stage['name'], $day1);
 
         return $result;
+    }
+
+    /**
+     * @return array{
+     *   sibling_id:int,
+     *   sibling_name:string,
+     *   day1_stages:list<string>,
+     *   written:int,
+     *   shortened:list<string>,
+     *   non_members:list<string>,
+     *   unmatched:list<string>
+     * }
+     */
+    public function importStageSheet(MatchEvent $national, string $path, int $day1StageCount): array
+    {
+        if (! $national->isTwoDayNational()) {
+            throw new InvalidArgumentException('Day 1 can only be posted from a 2-day national.');
+        }
+        if ($day1StageCount < 1) {
+            throw new InvalidArgumentException('The day-1 stage count is required.');
+        }
+
+        $parsed = $this->parseStageSheet($path, $day1StageCount);
+        if ($parsed['rows'] === []) {
+            throw new RuntimeException('The stage sheet has no day-1 scores. Nothing was written.');
+        }
+
+        $result = DB::transaction(function () use ($national, $parsed) {
+            return $this->writeRows($national, $parsed['rows']);
+        });
+
+        $sibling = MatchEvent::query()->findOrFail($result['sibling_id']);
+        $this->standings->recalculateForMatch($sibling);
+        $result['day1_stages'] = $parsed['stages'];
+
+        return $result;
+    }
+
+    /**
+     * @param  list<array{name:string,sheet_name:string,sum:float,division:string,external_id:int,stage_ids:list<int>,match_id:int}>  $rows
+     * @return array{sibling_id:int,sibling_name:string,written:int,shortened:list<string>,non_members:list<string>,unmatched:list<string>}
+     */
+    private function writeRows(MatchEvent $national, array $rows): array
+    {
+        $sibling = $national->findOrCreateProvincialDay1Sibling();
+        $sibling->forceFill([
+            'everyone_counts' => true,
+            'description' => 'Day-1 provincial from a legacy 2-day national. Members count even if the paid window does not cover the day. Someone who is not a member stays a non-member.',
+        ])->save();
+
+        $nationalScores = Score::query()
+            ->where('match_id', $national->id)
+            ->whereNotNull('user_id')
+            ->get();
+        $scoreCandidates = [];
+        foreach ($nationalScores as $score) {
+            $scoreCandidates[] = [
+                'key' => (string) $score->id,
+                'name' => (string) $score->shooter_name,
+            ];
+        }
+
+        $written = 0;
+        $keep = [];
+        $shortened = [];
+        $nonMembers = [];
+        $unmatched = [];
+
+        foreach ($rows as $row) {
+            $impactName = $row['name'];
+            $linked = $this->linkToNationalScore($impactName, $scoreCandidates, $nationalScores);
+            $userId = $linked['user_id'];
+            $divisionId = $linked['division_id'];
+            $displayName = $linked['display_name'] ?: $row['sheet_name'];
+            if ($linked['shortened']) {
+                $shortened[] = $row['sheet_name'].' → '.$displayName;
+            }
+
+            if ($userId === null) {
+                $existing = $this->linkToExistingUser($impactName);
+                if ($existing !== null) {
+                    $userId = $existing;
+                    $displayName = User::query()->whereKey($userId)->value('name') ?: $row['sheet_name'];
+                    if ($this->names->normalize($displayName) !== $this->names->normalize($impactName)) {
+                        $shortened[] = $row['sheet_name'].' → '.$displayName;
+                    }
+                }
+            }
+
+            if ($userId === null) {
+                $divisionId = $row['division'] !== '' ? $this->divisionId($row['division']) : null;
+                $userId = $this->createShooterName(
+                    $row['sheet_name'],
+                    (int) $national->province_id,
+                    $divisionId,
+                );
+            }
+
+            $this->releaseImportMembership($userId);
+
+            if ($divisionId === null && $row['division'] !== '') {
+                $divisionId = $this->divisionId($row['division']);
+            }
+
+            $entered = $this->enteredDivisionId($national, $userId);
+            if ($entered !== null) {
+                $divisionId = $entered;
+            }
+
+            if (in_array($userId, $keep, true)) {
+                $unmatched[] = $row['sheet_name'];
+
+                continue;
+            }
+
+            $score = Score::firstOrNew([
+                'match_id' => $sibling->id,
+                'user_id' => $userId,
+            ]);
+            $score->fill([
+                'match_id' => $sibling->id,
+                'user_id' => $userId,
+                'division_id' => $divisionId,
+                'shooter_name' => $displayName,
+                'day1_raw_score' => $row['sum'],
+                'day2_raw_score' => null,
+                'match_date' => $sibling->match_date,
+                'counts_for_season' => true,
+                'counts_for_log' => true,
+                'status' => 'pending',
+                'is_member' => false,
+                'raw_meta' => [
+                    'impact' => [
+                        'legacy_day1' => true,
+                        'match_id' => $row['match_id'],
+                        'shooter_id' => $row['external_id'],
+                        'impact_name' => $row['sheet_name'],
+                        'day1_stage_ids' => $row['stage_ids'],
+                        'day1_impacts' => $row['sum'],
+                    ],
+                ],
+            ]);
+            $score->save();
+            $evaluated = $this->scoreValidation->evaluateScoreStatus($score->fresh(['match']));
+            if ($evaluated->status === 'non_member') {
+                $nonMembers[] = $displayName;
+            }
+            $keep[] = $userId;
+            $written++;
+        }
+
+        if ($written === 0) {
+            throw new RuntimeException('No day-1 scores were written.');
+        }
+
+        $this->deleteScoresOutside($sibling, $keep);
+
+        return [
+            'sibling_id' => $sibling->id,
+            'sibling_name' => $sibling->name,
+            'written' => $written,
+            'shortened' => $shortened,
+            'non_members' => $nonMembers,
+            'unmatched' => array_values(array_unique($unmatched)),
+        ];
+    }
+
+    /**
+     * @return array{rows:list<array{name:string,sheet_name:string,sum:float,division:string,external_id:int,stage_ids:list<int>,match_id:int}>,stages:list<string>}
+     */
+    private function parseStageSheet(string $path, int $day1StageCount): array
+    {
+        if (! is_file($path)) {
+            throw new InvalidArgumentException('Stage sheet not found: '.$path);
+        }
+
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            throw new InvalidArgumentException('Stage sheet could not be read.');
+        }
+
+        $header = fgetcsv($handle);
+        if (! is_array($header)) {
+            fclose($handle);
+            throw new InvalidArgumentException('Stage sheet has no header.');
+        }
+        if (isset($header[0])) {
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]) ?? '';
+        }
+
+        $shooterCol = null;
+        $stageCols = [];
+        foreach ($header as $index => $label) {
+            $label = trim((string) $label);
+            if (strcasecmp($label, 'Shooter') === 0 || strcasecmp($label, 'shooter_name') === 0) {
+                $shooterCol = $index;
+            }
+            if (preg_match('/^stage\s*(\d+)$/i', $label, $match) === 1) {
+                $stageCols[(int) $match[1]] = $index;
+            }
+        }
+        if ($shooterCol === null) {
+            fclose($handle);
+            throw new InvalidArgumentException('The stage sheet needs a Shooter column.');
+        }
+
+        $missing = [];
+        $labels = [];
+        for ($number = 1; $number <= $day1StageCount; $number++) {
+            if (! isset($stageCols[$number])) {
+                $missing[] = $number;
+
+                continue;
+            }
+            $labels[] = trim((string) $header[$stageCols[$number]]);
+        }
+        if ($missing !== []) {
+            fclose($handle);
+            throw new InvalidArgumentException('The stage sheet is missing stage '.implode(', ', $missing).'.');
+        }
+
+        $rows = [];
+        while (($csvRow = fgetcsv($handle)) !== false) {
+            $sheetName = $this->cleanName((string) ($csvRow[$shooterCol] ?? ''));
+            if ($sheetName === '') {
+                continue;
+            }
+            $sum = 0.0;
+            for ($number = 1; $number <= $day1StageCount; $number++) {
+                $cell = trim((string) ($csvRow[$stageCols[$number]] ?? ''));
+                if ($cell === '') {
+                    continue;
+                }
+                if (! is_numeric($cell)) {
+                    fclose($handle);
+                    throw new InvalidArgumentException("Stage {$number} for {$sheetName} is not a number.");
+                }
+                $sum += (float) $cell;
+            }
+            if ($sum <= 0) {
+                continue;
+            }
+            $rows[] = [
+                'name' => $this->expandShortParticles($sheetName),
+                'sheet_name' => $sheetName,
+                'sum' => $sum,
+                'division' => '',
+                'external_id' => 0,
+                'stage_ids' => [],
+                'match_id' => 0,
+            ];
+        }
+        fclose($handle);
+
+        return ['rows' => $rows, 'stages' => $labels];
+    }
+
+    private function expandShortParticles(string $name): string
+    {
+        $name = preg_replace('/\bvd\b/iu', 'van der', $name) ?? $name;
+        $name = preg_replace('/\bv\b/iu', 'van', $name) ?? $name;
+        $name = preg_replace('/^nick\b/iu', 'Nicholas', $name) ?? $name;
+
+        return $this->cleanName($name);
     }
 
     /**
@@ -363,9 +518,12 @@ class LegacyDay1ProvincialImporter
         $impactFirst = (string) $impact[0];
         $candidateFirst = (string) $candidate[0];
 
+        $shorter = strlen($impactFirst) <= strlen($candidateFirst) ? $impactFirst : $candidateFirst;
+        $longer = strlen($impactFirst) <= strlen($candidateFirst) ? $candidateFirst : $impactFirst;
+
         return $impactSurname === $candidateSurname
-            && (str_starts_with($impactFirst, $candidateFirst) || str_starts_with($candidateFirst, $impactFirst))
-            && min(strlen($impactFirst), strlen($candidateFirst)) >= 3;
+            && (str_starts_with($longer, $shorter) || (strlen($shorter) >= 4 && str_contains($longer, $shorter)))
+            && strlen($shorter) >= 3;
     }
 
     private function surname(string $name): string

@@ -115,6 +115,8 @@ class ImpactNameMatcher
         $name = Str::ascii($name);
         // O'Neill and Oneill are the same shooter.
         $name = str_replace(["'", '’', '`'], '', $name);
+        // Kim-Leigh and Kim Leigh are the same shooter.
+        $name = str_replace(['-', '–', '—'], ' ', $name);
         // Strip common honorifics
         $name = preg_replace('/\b(snr|jnr|sr|jr|ii|iii)\b\.?/u', '', $name) ?? $name;
         // "Le Roux" and "Leroux", "Van der Merwe" and "Vandermerwe".
@@ -155,9 +157,11 @@ class ImpactNameMatcher
             $bSur = end($bParts);
             $aFirst = $aParts[0];
             $bFirst = $bParts[0];
-            if ($aSur === $bSur && (
-                str_starts_with($aFirst, $bFirst) || str_starts_with($bFirst, $aFirst)
-            ) && min(strlen($aFirst), strlen($bFirst)) >= 3) {
+            $shorter = strlen($aFirst) <= strlen($bFirst) ? $aFirst : $bFirst;
+            $longer = strlen($aFirst) <= strlen($bFirst) ? $bFirst : $aFirst;
+            $sameFirst = (str_starts_with($longer, $shorter) || (strlen($shorter) >= 4 && str_contains($longer, $shorter)))
+                && strlen($shorter) >= 3;
+            if ($aSur === $bSur && $sameFirst) {
                 $percent = max($percent, 88.0);
             }
         }

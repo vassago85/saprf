@@ -185,6 +185,167 @@ it('keeps the division the shooter entered, even when the national score says ot
         ->and($day1->status)->toBe('valid');
 });
 
+it('posts stages from a score sheet and keeps the entered division', function () {
+    $limited = Division::firstOrCreate(['slug' => 'limited'], ['name' => 'Limited', 'display_order' => 3, 'is_active' => true]);
+    $dirk = User::factory()->create(['name' => 'Dirk Van Staden', 'province_id' => $this->province->id]);
+    Membership::create([
+        'user_id' => $dirk->id,
+        'membership_type' => 'paid',
+        'status' => 'expired',
+        'payment_status' => 'paid',
+        'start_date' => '2025-01-01',
+        'expiry_date' => '2025-12-31',
+    ]);
+    $derick = User::factory()->create(['name' => 'Diederick Koekemoer', 'province_id' => $this->province->id]);
+    Membership::create([
+        'user_id' => $derick->id,
+        'membership_type' => 'paid',
+        'status' => 'active',
+        'payment_status' => 'paid',
+        'start_date' => '2026-01-01',
+        'expiry_date' => '2026-12-31',
+    ]);
+    $kim = User::factory()->create(['name' => 'Kim-Leigh Ferreira', 'province_id' => $this->province->id]);
+
+    Score::create([
+        'match_id' => $this->national->id,
+        'user_id' => $dirk->id,
+        'shooter_name' => 'Dirk Van Staden',
+        'division_id' => $this->open->id,
+        'raw_score' => 112,
+        'status' => 'valid',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'match_date' => $this->national->match_date,
+    ]);
+    Score::create([
+        'match_id' => $this->national->id,
+        'user_id' => $derick->id,
+        'shooter_name' => 'Diederick Koekemoer',
+        'division_id' => $this->senior->id,
+        'raw_score' => 34,
+        'status' => 'valid',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'match_date' => $this->national->match_date,
+    ]);
+    Score::create([
+        'match_id' => $this->national->id,
+        'user_id' => $kim->id,
+        'shooter_name' => 'Kim-Leigh Ferreira',
+        'division_id' => $this->open->id,
+        'raw_score' => 68,
+        'status' => 'valid',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'match_date' => $this->national->match_date,
+    ]);
+    MatchRegistration::create([
+        'match_id' => $this->national->id,
+        'user_id' => $derick->id,
+        'division_id' => $limited->id,
+        'shooter_name' => 'Diederick Koekemoer',
+        'membership_fee_category' => 'active_member',
+        'fee_amount' => 0,
+        'registration_status' => 'confirmed',
+        'payment_status' => 'paid',
+    ]);
+
+    $path = storage_path('framework/wc-day1-stages.csv');
+    file_put_contents($path, implode("\n", [
+        'Shooter,Stage 1,Stage 2,Stage 3,Totaal',
+        'Dirk v Staden,7,9,8,112',
+        'Derick Koekemoer,3,7,7,34',
+        'Kim leigh Ferreira,8,7,4,68',
+    ]));
+
+    $this->artisan('scores:legacy-day1-provincial', [
+        'match' => $this->national->id,
+        '--csv' => $path,
+        '--day1-stages' => 2,
+    ])->assertSuccessful();
+
+    $sibling = MatchEvent::query()->where('source_national_match_id', $this->national->id)->first();
+    $dirkDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $dirk->id)->first();
+    $derickDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $derick->id)->first();
+    $kimDay1 = Score::query()->where('match_id', $sibling->id)->where('user_id', $kim->id)->first();
+
+    expect((float) $dirkDay1->raw_score)->toBe(16.0)
+        ->and($dirkDay1->status)->toBe('valid')
+        ->and($dirkDay1->division_id)->toBe($this->open->id)
+        ->and((float) $derickDay1->raw_score)->toBe(10.0)
+        ->and($derickDay1->division_id)->toBe($limited->id)
+        ->and($kimDay1->status)->toBe('non_member')
+        ->and((float) $kimDay1->raw_score)->toBe(15.0)
+        ->and((float) Score::query()->where('match_id', $this->national->id)->where('user_id', $dirk->id)->value('raw_score'))->toBe(112.0);
+});
+
+it('links shortened stage-sheet names to the national scoreboard', function () {
+    $pairs = [
+        'Dirk v Staden' => 'Dirk Van Staden',
+        'Schalk vd Merwe' => 'Schalk van der Merwe',
+        'Russel Ferreira' => 'Russell Ferreira',
+        'Le Riche Coetzer' => 'Le Riche Coetzer Snr',
+        'Dennis vd Merwe' => 'Dennis Van der merwe',
+        'Hanno v Niekerk' => 'Hanno Van Niekerk',
+        'Aj Deysel' => 'AJ Deysel',
+        'Tony v Heerden' => 'Tony Van Heerden',
+        'Derick Koekemoer' => 'Diederick Koekemoer',
+        'Nick Harlow' => 'Nicholas Harlow',
+        'TW v Zyl' => 'TW Van Zyl',
+        'Patrick capes' => 'Patrick Capes',
+        'Kim leigh Ferreira' => 'Kim-Leigh Ferreira',
+    ];
+
+    $lines = ['Shooter,Stage 1,Stage 2'];
+    $expected = [];
+    $hits = 1;
+    foreach ($pairs as $sheet => $board) {
+        $user = User::factory()->create(['name' => $board, 'province_id' => $this->province->id]);
+        Membership::create([
+            'user_id' => $user->id,
+            'membership_type' => 'paid',
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => '2026-01-01',
+            'expiry_date' => '2026-12-31',
+        ]);
+        Score::create([
+            'match_id' => $this->national->id,
+            'user_id' => $user->id,
+            'shooter_name' => $board,
+            'division_id' => $this->open->id,
+            'raw_score' => 10,
+            'status' => 'valid',
+            'is_member' => true,
+            'counts_for_season' => true,
+            'match_date' => $this->national->match_date,
+        ]);
+        $lines[] = $sheet.','.$hits.',1';
+        $expected[$user->id] = $hits + 1;
+        $hits++;
+    }
+
+    $path = storage_path('framework/wc-day1-names.csv');
+    file_put_contents($path, implode("\n", $lines));
+
+    $this->artisan('scores:legacy-day1-provincial', [
+        'match' => $this->national->id,
+        '--csv' => $path,
+        '--day1-stages' => 2,
+    ])->assertSuccessful();
+
+    $sibling = MatchEvent::query()->where('source_national_match_id', $this->national->id)->first();
+    expect(Score::query()->where('match_id', $sibling->id)->count())->toBe(count($pairs));
+    foreach ($expected as $userId => $sum) {
+        $score = Score::query()->where('match_id', $sibling->id)->where('user_id', $userId)->first();
+        expect($score)->not->toBeNull()
+            ->and((float) $score->raw_score)->toBe((float) $sum)
+            ->and($score->division_id)->toBe($this->open->id)
+            ->and($score->status)->toBe('valid');
+    }
+});
+
 function fakeLegacyImpact(): void
 {
     $stages = [
