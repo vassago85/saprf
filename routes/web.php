@@ -686,6 +686,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/entries', [MatchWorkspaceController::class, 'entries'])->name('matches.entries');
             Route::get('/entries/squads', [MatchWorkspaceController::class, 'squadRecommendation'])->name('matches.squad-recommendation');
             Route::post('/entries/squads', [MatchWorkspaceController::class, 'moveSquadRecommendation'])->name('matches.squad-recommendation.move');
+            Route::post('/entries/squads/draft', [MatchWorkspaceController::class, 'saveSquadDraft'])->name('matches.squad-recommendation.draft');
+            Route::match(['get', 'post'], '/entries/squads/pdf', [MatchWorkspaceController::class, 'downloadSquadSheet'])->name('matches.squad-recommendation.pdf');
             Route::match(['get', 'post'], '/entries/squads/export', [MatchWorkspaceController::class, 'exportSquadRecommendation'])->name('matches.squad-recommendation.export');
             Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
             // MD "scores are checked — send the notifications" gate. POST

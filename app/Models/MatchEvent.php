@@ -33,6 +33,7 @@ class MatchEvent extends Model
         'venue_details',
         'schedule_json',
         'squadding_json',
+        'squad_draft',
         'attachments_json',
         'city',
         'match_director',
@@ -119,6 +120,7 @@ class MatchEvent extends Model
             // non-empty — see the matching accessors below for shape.
             'schedule_json' => 'array',
             'squadding_json' => 'array',
+            'squad_draft' => 'array',
             'attachments_json' => 'array',
             // Phase 3.4: default-false privacy guard for the MD phone.
             'show_md_contact_publicly' => 'boolean',

@@ -19,6 +19,7 @@ use App\Services\ImpactScoring\Day1ProvincialSubmitService;
 use App\Services\ImpactScoring\ImpactLiveSyncService;
 use App\Services\ImpactScoring\ImpactShooterExport;
 use App\Services\ImpactScoring\SquadRecommendation;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
 use App\Services\MatchWhatsappInviteMailer;
@@ -283,6 +284,8 @@ class MatchWorkspaceController extends Controller
 
         if ($request->boolean('fresh')) {
             session()->forget($this->squadPlacementKey($match));
+        } else {
+            $this->restoreSquadDraft($match, $count);
         }
 
         $preview = $this->attachImpactEmails(
@@ -321,6 +324,75 @@ class MatchWorkspaceController extends Controller
         return redirect()
             ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
             ->with('success', 'Squads and Impact emails saved. Download for Impact uses these.');
+    }
+
+    public function saveSquadDraft(Request $request, MatchEvent $match, SquadRecommendation $recommendation): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $count = $this->squadCountOrRedirect($request, $match);
+        if ($count instanceof RedirectResponse) {
+            return $count;
+        }
+
+        $placement = $this->placementFromRequest($request, $match, $count);
+        if ($placement instanceof RedirectResponse) {
+            return $placement;
+        }
+
+        $saved = $this->saveImpactEmails($request, $match, $count);
+        if ($saved instanceof RedirectResponse) {
+            return $saved;
+        }
+
+        session([$this->squadPlacementKey($match) => [
+            'squads' => $count,
+            'placement' => $placement,
+        ]]);
+
+        $preview = $this->squadPreviewFor($match, $count, $recommendation, $placement);
+        $match->forceFill([
+            'squad_draft' => [
+                'saved_at' => now()->toIso8601String(),
+                'requested' => $count,
+                'placement' => $placement,
+                'squads' => $this->squadSheet($preview),
+            ],
+        ])->save();
+
+        return redirect()
+            ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+            ->with('success', 'Squad draft saved. The squad sheet has names only.');
+    }
+
+    public function downloadSquadSheet(Request $request, MatchEvent $match, SquadRecommendation $recommendation)
+    {
+        $this->authorize('update', $match);
+
+        if ($request->isMethod('GET')) {
+            $draft = $match->squad_draft;
+            if (! is_array($draft) || ! is_array($draft['squads'] ?? null) || $draft['squads'] === []) {
+                return redirect()
+                    ->route('matches.entries', $match)
+                    ->with('error', 'Save a squad draft before downloading the sheet.');
+            }
+
+            return $this->squadSheetPdf($match, $draft['squads'], $draft['saved_at'] ?? null);
+        }
+
+        $count = $this->squadCountOrRedirect($request, $match);
+        if ($count instanceof RedirectResponse) {
+            return $count;
+        }
+
+        $placement = $this->placementFromRequest($request, $match, $count);
+        if ($placement instanceof RedirectResponse) {
+            return $placement;
+        }
+
+        $preview = $this->squadPreviewFor($match, $count, $recommendation, $placement);
+
+        return $this->squadSheetPdf($match, $this->squadSheet($preview), null);
     }
 
     public function exportSquadRecommendation(Request $request, MatchEvent $match, SquadRecommendation $recommendation, ImpactShooterExport $export): StreamedResponse|RedirectResponse
@@ -460,6 +532,67 @@ class MatchWorkspaceController extends Controller
     private function squadPlacementKey(MatchEvent $match): string
     {
         return 'squad-recommendation.'.$match->id;
+    }
+
+    private function restoreSquadDraft(MatchEvent $match, int $count): void
+    {
+        $stored = session($this->squadPlacementKey($match));
+        if (is_array($stored) && (int) ($stored['squads'] ?? 0) === $count && is_array($stored['placement'] ?? null)) {
+            return;
+        }
+
+        $draft = $match->squad_draft;
+        if (! is_array($draft) || (int) ($draft['requested'] ?? 0) !== $count || ! is_array($draft['placement'] ?? null)) {
+            return;
+        }
+
+        session([$this->squadPlacementKey($match) => [
+            'squads' => $count,
+            'placement' => $draft['placement'],
+        ]]);
+    }
+
+    /**
+     * Names, ranks, and divisions only. Contact details never go on the sheet.
+     *
+     * @param  array{squads: list<array{number: int, members: list<array<string, mixed>>}>}  $preview
+     * @return list<array{number: int, members: list<array{name: string, rank: ?int, division: string}>}>
+     */
+    private function squadSheet(array $preview): array
+    {
+        $squads = [];
+        foreach ($preview['squads'] as $squad) {
+            $members = [];
+            foreach ($squad['members'] as $member) {
+                $members[] = [
+                    'name' => (string) $member['name'],
+                    'rank' => $member['rank'],
+                    'division' => (string) ($member['division'] ?? ''),
+                ];
+            }
+            $squads[] = [
+                'number' => (int) $squad['number'],
+                'members' => $members,
+            ];
+        }
+
+        return $squads;
+    }
+
+    /**
+     * @param  list<array{number: int, members: list<array{name: string, rank: ?int, division: string}>}>  $squads
+     */
+    private function squadSheetPdf(MatchEvent $match, array $squads, ?string $savedAt)
+    {
+        $pdf = Pdf::loadView('matches.squad-sheet-pdf', [
+            'match' => $match,
+            'squads' => $squads,
+            'savedAt' => $savedAt,
+        ])->setPaper('a4', 'landscape');
+
+        $filename = str($match->name)->slug().'-squad-sheet.pdf';
+
+        return $pdf->download($filename);
     }
 
     /**

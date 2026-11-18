@@ -193,7 +193,7 @@ it('keeps the best ladies when they overflow a squad and leaves a short junior g
         ->and(squadNumberFor($result['squads'], 'Junior 15'))->not->toBe($ladiesSquad);
 });
 
-it('continues ranking squads in rank order and numbers a mid-pack shared squad last', function () {
+it('keeps a mid-pack shared squad where its best rank sits and continues the ranking squads around it', function () {
     foreach (range(1, 12) as $rank) {
         $slug = 'open';
         $name = sprintf('Open %02d', $rank);
@@ -210,8 +210,8 @@ it('continues ranking squads in rank order and numbers a mid-pack shared squad l
     $result = app(SquadRecommendation::class)->recommend($this->match, 3);
 
     expect(ranksInSquad($result['squads'], 1))->toBe([1, 2, 5, 6])
-        ->and(ranksInSquad($result['squads'], 2))->toBe([8, 9, 11, 12])
-        ->and(ranksInSquad($result['squads'], 3))->toBe([3, 4, 7, 10]);
+        ->and(ranksInSquad($result['squads'], 2))->toBe([3, 4, 7, 10])
+        ->and(ranksInSquad($result['squads'], 3))->toBe([8, 9, 11, 12]);
 });
 
 it('moves a shooter into another squad and downloads that squad', function () {
@@ -305,6 +305,88 @@ it('shows the preview and downloads an Impact file whose squad column matches it
     expect($plainByName['Open 01']['Squad'])->toBe('');
 
     $preview->assertSee('Rank 1');
+});
+
+it('saves a squad draft and downloads a shooter sheet without contact details', function () {
+    foreach (range(1, 4) as $rank) {
+        enterRankedShooter($this->match, sprintf('Open %02d', $rank), $rank);
+    }
+
+    $open = MatchRegistration::where('match_id', $this->match->id)->where('shooter_name', 'Open 01')->firstOrFail();
+    $others = MatchRegistration::where('match_id', $this->match->id)->where('shooter_name', '!=', 'Open 01')->pluck('id');
+    $placement = [$open->id => 2];
+    foreach ($others as $index => $id) {
+        $placement[$id] = $index === 0 ? 1 : 2;
+    }
+
+    $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.draft', $this->match), [
+            'squads' => 2,
+            'placement' => $placement,
+            'impact_email' => [$open->id => 'range.only@example.test'],
+        ])
+        ->assertRedirect(route('matches.squad-recommendation', [$this->match, 'squads' => 2]))
+        ->assertSessionHas('success');
+
+    $draft = $this->match->fresh()->squad_draft;
+    $encoded = json_encode($draft);
+    expect($encoded)->toContain('Open 01')
+        ->and($encoded)->not->toContain('range.only@example.test')
+        ->and($encoded)->not->toContain('@example.test')
+        ->and($encoded)->not->toContain('0821234567');
+
+    $this->flushSession();
+
+    $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation', [$this->match, 'squads' => 2]))
+        ->assertOk()
+        ->assertSeeInOrder(['Squad 2', 'Open 01'])
+        ->assertSee('Download saved squad sheet');
+
+    $html = view('matches.squad-sheet-pdf', [
+        'match' => $this->match,
+        'squads' => $draft['squads'],
+        'savedAt' => $draft['saved_at'],
+    ])->render();
+
+    expect($html)->toContain('Open 01')
+        ->and($html)->toContain('Squad 2')
+        ->and($html)->not->toContain('range.only@example.test')
+        ->and($html)->not->toContain('open.01@example.test')
+        ->and($html)->not->toContain('0821234567');
+
+    $sheet = $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation.pdf', $this->match))
+        ->assertOk();
+
+    expect($sheet->headers->get('content-type'))->toContain('pdf')
+        ->and($sheet->getContent())->toStartWith('%PDF')
+        ->and($sheet->headers->get('content-disposition'))->toContain('sa-champs-squadding-squad-sheet.pdf');
+
+    $current = $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.pdf', $this->match), [
+            'squads' => 2,
+            'placement' => $placement,
+        ])
+        ->assertOk();
+
+    expect($current->getContent())->toStartWith('%PDF');
+
+    $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation', [$this->match, 'squads' => 2, 'fresh' => 1]))
+        ->assertOk()
+        ->assertSeeInOrder(['Squad 1', 'Open 01']);
+
+    expect($this->match->fresh()->squad_draft['squads'])->not->toBeEmpty();
+});
+
+it('refuses a squad sheet download when nothing has been saved', function () {
+    enterRankedShooter($this->match, 'Open 01', 1);
+
+    $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation.pdf', $this->match))
+        ->assertRedirect(route('matches.entries', $this->match))
+        ->assertSessionHas('error', 'Save a squad draft before downloading the sheet.');
 });
 
 it('rejects a squad count of zero or bigger than the field', function () {

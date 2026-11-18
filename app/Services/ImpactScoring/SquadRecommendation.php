@@ -13,9 +13,9 @@ use App\Models\Standing;
  * When neither group can, they share one squad. Empty places in that squad
  * go to shooters whose rank sits between the group, closest to the middle.
  *
- * Ranking squads stay in rank order: the next squad starts at the next rank.
- * A ladies or juniors squad is numbered after that run, unless its best rank
- * is better than the first ranking squad, in which case it is numbered first.
+ * Ranking squads stay in rank order: the next ranking squad starts at the
+ * next rank. A ladies or juniors squad keeps the place its best rank gives
+ * it, so it sits between those ranking squads instead of being moved last.
  */
 class SquadRecommendation
 {
@@ -213,22 +213,10 @@ class SquadRecommendation
             $rankingOrder++;
         }
 
-        usort($ranking, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
-        usort($categorySquads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
+        $squads = array_merge($categorySquads, $ranking);
+        usort($squads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
 
-        $rankingBest = $ranking === [] ? null : ($this->ranksOf($ranking[0]['members'])[0] ?? null);
-        $leading = [];
-        $trailing = [];
-        foreach ($categorySquads as $squad) {
-            $best = $this->ranksOf($squad['members'])[0] ?? null;
-            if ($best !== null && ($rankingBest === null || $best < $rankingBest)) {
-                $leading[] = $squad;
-            } else {
-                $trailing[] = $squad;
-            }
-        }
-
-        return array_merge($leading, $ranking, $trailing);
+        return $squads;
     }
 
     /**

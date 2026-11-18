@@ -91,7 +91,16 @@
         @can('update', $match)
             <div class="rounded-xl border border-stone-200 bg-white p-4">
                 <h2 class="text-sm font-semibold text-stone-900">Squad recommendation</h2>
-                <p class="mt-1 text-xs text-stone-500">Ranking squads follow the current overall season rank, and the next squad starts on the next rank. Ladies and juniors keep a squad when they can fill it. That squad comes after the ranking squads, unless those shooters are the best ranks. Use the squad menu to move someone. The email on each row is the one Impact receives, and it can differ from the SAPRF login.</p>
+                <p class="mt-1 text-xs text-stone-500">Ranking squads follow the current overall season rank, and the next ranking squad starts on the next rank. Ladies and juniors keep a squad when they can fill it, and that squad stays where their best rank sits. Use the squad menu to move someone. The email on each row is the one Impact receives, and it can differ from the SAPRF login. Save a draft to keep the arrangement, then download a squad sheet for shooters. That sheet has names, ranks, and divisions only.</p>
+                @if (is_array($match->squad_draft) && ! empty($match->squad_draft['squads']))
+                    <p class="mt-2 text-xs text-stone-600">
+                        Draft saved {{ \Illuminate\Support\Carbon::parse($match->squad_draft['saved_at'] ?? now())->timezone('Africa/Johannesburg')->format('j M Y, H:i') }}.
+                        <a href="{{ route('matches.squad-recommendation.pdf', $match) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">Download saved squad sheet</a>
+                        @if (! empty($match->squad_draft['requested']))
+                            · <a href="{{ route('matches.squad-recommendation', ['match' => $match, 'squads' => $match->squad_draft['requested']]) }}" class="font-semibold text-emerald-700 hover:text-emerald-800">Open draft</a>
+                        @endif
+                    </p>
+                @endif
                 <form method="GET" action="{{ route('matches.squad-recommendation', $match) }}" class="mt-3 flex flex-wrap items-end gap-2">
                     <div>
                         <label for="squads" class="block text-xs font-semibold uppercase tracking-wide text-stone-500">Squads</label>
@@ -154,13 +163,22 @@
                             <button type="submit" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-stone-800">
                                 Apply moves
                             </button>
+                            <button type="submit" formaction="{{ route('matches.squad-recommendation.draft', $match) }}"
+                                    class="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                                Save draft
+                            </button>
+                            <button type="submit" formaction="{{ route('matches.squad-recommendation.pdf', $match) }}"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
+                                <flux:icon.arrow-down-tray class="size-4" />
+                                Download squad sheet
+                            </button>
                             <button type="submit" formaction="{{ route('matches.squad-recommendation.export', $match) }}"
                                     class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
                                 <flux:icon.arrow-down-tray class="size-4" />
                                 Download for Impact
                             </button>
                         </div>
-                        <p class="text-xs text-stone-500">Apply regroups this list and saves Impact emails. Download uses the squad and email on each row. The SAPRF login stays as it is.</p>
+                        <p class="text-xs text-stone-500">Apply regroups this list and saves Impact emails. Save draft keeps the squads for next time. The squad sheet is for shooters and leaves out phone numbers and email addresses. Download for Impact uses the squad and email on each row. The SAPRF login stays as it is.</p>
 
                         @if (($squadPreview['unranked_count'] ?? 0) > 0)
                             <p class="text-sm text-amber-800">

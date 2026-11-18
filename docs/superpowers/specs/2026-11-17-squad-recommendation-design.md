@@ -73,7 +73,7 @@ Someone already placed in a category squad is not a filler.
 
 Split the ranking pool across the remaining slots by the sort order above, best ranks first. Slot sizes are the sizes not used by category squads.
 
-Number ranking squads first, in rank order, so the squad after one that ends on rank 25 starts at rank 26 and continues downward. A ladies, juniors, or shared squad is numbered after those ranking squads. The exception is a category squad whose best rank is better than the best rank in the first ranking squad: that squad is numbered first, so the best shooters stay in squad 1.
+Number every squad by its best rank, so a ladies, juniors, or shared squad stays where that rank sits. Ranking squads on either side stay in rank order: the ranking squad after one that ends on rank 25 starts at rank 26 and continues downward.
 
 The match director can move a shooter to another squad from the preview. Apply regroups the list. Download for Impact uses the squad chosen on each row. Recommend again clears those moves and rebuilds from rank.
 
