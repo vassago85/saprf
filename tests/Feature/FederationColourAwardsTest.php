@@ -109,6 +109,33 @@ it('measures each division against its own national leader', function () {
         ->and($factory)->not->toHaveKey('Open Leader');
 });
 
+it('qualifies a shooter who shot the SA Championships even when their home province differs from the champs venue', function () {
+    $wcHost = colourAwardShooter('WC Host', $this->wc);
+    $gpTraveller = colourAwardShooter('GP Traveller', $this->gp);
+    $didNotShootChamps = colourAwardShooter('No Champs', $this->gp);
+
+    // WC shooter qualifies the old way: shot the national-as-provincial at home.
+    colourAwardQualifyingNational($wcHost, 'PRS', $this->open);
+
+    // GP shooter travelled to Champs (held in WC) — must now qualify.
+    colourAwardChamps($gpTraveller, 'PRS', $this->open, $this->wc);
+
+    // GP shooter who only has a national log but never shot champs AND the
+    // national-as-provincial wasn't in their home province: still excluded.
+    // (No qualifying match created for didNotShootChamps.)
+
+    colourAwardLog($wcHost, 'PRS', $this->open, 200);
+    colourAwardLog($gpTraveller, 'PRS', $this->open, 190);
+    colourAwardLog($didNotShootChamps, 'PRS', $this->open, 180);
+
+    $division = colourAwardDivision('PRS', $this->open->id);
+    $names = collect($division['rows'])->pluck('name')->all();
+
+    expect($names)->toBe(['WC Host', 'GP Traveller'])
+        ->and($division['rows'][1]['weighted_percentage'])->toBe(95.0)
+        ->and($division['rows'][1]['award'])->toBe('Gold');
+});
+
 it('leaves out anyone who is not a paid-up member or has not shot their provincial national', function () {
     $eligible = colourAwardShooter('Eligible Shooter', $this->gp);
     $lapsed = colourAwardShooter('Lapsed Leader', $this->gp, paid: false);
@@ -234,6 +261,14 @@ function colourAwardShooter(string $name, Province $province, bool $paid = true,
 function colourAwardQualifyingNational(User $shooter, string $series, Division $division, ?Province $matchProvince = null): void
 {
     $match = colourAwardMatch($shooter, $series, 'national', $matchProvince ?? $shooter->province);
+    colourAwardScore($shooter, $match, $division);
+}
+
+function colourAwardChamps(User $shooter, string $series, Division $division, Province $venue): void
+{
+    $match = colourAwardMatch($shooter, $series, 'final', $venue, [
+        'name' => $shooter->name.' Champs',
+    ]);
     colourAwardScore($shooter, $match, $division);
 }
 

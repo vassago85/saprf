@@ -14,10 +14,14 @@ use Illuminate\Support\Collection;
  * (province rows are ignored). The percentage is that score divided by
  * the highest log in the same division, including shooters who are left
  * off the list. A shooter is listed only when they are a paid-up member
- * and have a valid score, in that division, on the one-day national that
- * counts as the provincial in their home province. That match is stored
- * either as a one-day national or as the day-1 provincial sibling of a
- * two-day national.
+ * and have a valid score, in that division, on either:
+ *   - the one-day national that counts as the provincial in their home
+ *     province (stored either as a one-day national or as the day-1
+ *     provincial sibling of a two-day national), or
+ *   - the SA Championships (a `series_level = 'final'` match) in that
+ *     division — home province is irrelevant for the champs route,
+ *     because champs is a national event and anyone who travelled to
+ *     it has already proven their qualifying attendance.
  */
 class FederationColourAwards
 {
@@ -198,12 +202,24 @@ class FederationColourAwards
                         })->orWhere(function (Builder $sibling): void {
                             $sibling->where('series_level', 'provincial')
                                 ->whereNotNull('source_national_match_id');
-                        });
+                        })->orWhere('series_level', 'final');
                     });
             })
-            ->with(['match:id,province_id', 'user:id,province_id'])
+            ->with(['match:id,province_id,series_level', 'user:id,province_id'])
             ->get(['id', 'user_id', 'division_id', 'match_id'])
             ->each(function (Score $score) use (&$keys): void {
+                // SA Championships ('final') qualify a shooter regardless of
+                // where they live — champs is a national event, so home
+                // province is irrelevant for this route.
+                if ($score->match?->series_level === 'final') {
+                    $keys[$score->user_id.'|'.$score->division_id] = true;
+
+                    return;
+                }
+
+                // One-day national / day-1 sibling route: the match must have
+                // been hosted in the shooter's home province, i.e. it counted
+                // as their provincial.
                 $home = $score->user?->province_id;
                 $matchProvince = $score->match?->province_id;
 
