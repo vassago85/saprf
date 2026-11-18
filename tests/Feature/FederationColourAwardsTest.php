@@ -109,6 +109,32 @@ it('measures each division against its own national leader', function () {
         ->and($factory)->not->toHaveKey('Open Leader');
 });
 
+it('qualifies a shooter from day 1 of the SA Championships even when their home province differs from the champs venue', function () {
+    // Live champs scenario: day 1 of a 2-day WC-hosted champs. Scores live
+    // on the day-1 provincial sibling of the `final`, not on the final yet.
+    $wcHost = colourAwardShooter('Live Host', $this->wc);
+    $gpTraveller = colourAwardShooter('Live Traveller', $this->gp);
+    $regularSibling = colourAwardShooter('Regular Sibling', $this->gp);
+
+    colourAwardChampsDay1Sibling($wcHost, 'PRS', $this->open, $this->wc);
+    colourAwardChampsDay1Sibling($gpTraveller, 'PRS', $this->open, $this->wc);
+    // Day-1 sibling of a regular two-day NATIONAL (not a final) hosted in WC.
+    // The GP shooter here must still be excluded — the home-province check
+    // only lifts for champs siblings.
+    colourAwardDayOneSibling($regularSibling, 'PRS', $this->open, $this->wc);
+
+    colourAwardLog($wcHost, 'PRS', $this->open, 200);
+    colourAwardLog($gpTraveller, 'PRS', $this->open, 190);
+    colourAwardLog($regularSibling, 'PRS', $this->open, 180);
+
+    $division = colourAwardDivision('PRS', $this->open->id);
+    $names = collect($division['rows'])->pluck('name')->all();
+
+    expect($names)->toBe(['Live Host', 'Live Traveller'])
+        ->and($division['rows'][1]['weighted_percentage'])->toBe(95.0)
+        ->and($division['rows'][1]['award'])->toBe('Gold');
+});
+
 it('qualifies a shooter who shot the SA Championships even when their home province differs from the champs venue', function () {
     $wcHost = colourAwardShooter('WC Host', $this->wc);
     $gpTraveller = colourAwardShooter('GP Traveller', $this->gp);
@@ -272,6 +298,21 @@ function colourAwardChamps(User $shooter, string $series, Division $division, Pr
     colourAwardScore($shooter, $match, $division);
 }
 
+function colourAwardChampsDay1Sibling(User $shooter, string $series, Division $division, Province $venue): void
+{
+    // Live day 1 of a 2-day champs: the `final` exists but has no scores yet;
+    // scores are written to its provincial sibling in the same venue.
+    $final = colourAwardMatch($shooter, $series, 'final', $venue, [
+        'name' => $shooter->name.' Two Day Champs',
+        'match_end_date' => '2026-06-02',
+    ]);
+    $sibling = colourAwardMatch($shooter, $series, 'provincial', $venue, [
+        'name' => $shooter->name.' Champs Day 1',
+        'source_national_match_id' => $final->id,
+    ]);
+    colourAwardScore($shooter, $sibling, $division);
+}
+
 function colourAwardTwoDayNational(User $shooter, string $series, Division $division): void
 {
     $match = colourAwardMatch($shooter, $series, 'national', $shooter->province, [
@@ -280,13 +321,14 @@ function colourAwardTwoDayNational(User $shooter, string $series, Division $divi
     colourAwardScore($shooter, $match, $division);
 }
 
-function colourAwardDayOneSibling(User $shooter, string $series, Division $division): void
+function colourAwardDayOneSibling(User $shooter, string $series, Division $division, ?Province $venue = null): void
 {
-    $national = colourAwardMatch($shooter, $series, 'national', $shooter->province, [
+    $venue = $venue ?? $shooter->province;
+    $national = colourAwardMatch($shooter, $series, 'national', $venue, [
         'name' => $shooter->name.' Two Day',
         'match_end_date' => '2026-06-02',
     ]);
-    $sibling = colourAwardMatch($shooter, $series, 'provincial', $shooter->province, [
+    $sibling = colourAwardMatch($shooter, $series, 'provincial', $venue, [
         'name' => $shooter->name.' Day 1',
         'source_national_match_id' => $national->id,
     ]);

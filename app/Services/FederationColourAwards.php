@@ -18,8 +18,10 @@ use Illuminate\Support\Collection;
  *   - the one-day national that counts as the provincial in their home
  *     province (stored either as a one-day national or as the day-1
  *     provincial sibling of a two-day national), or
- *   - the SA Championships (a `series_level = 'final'` match) in that
- *     division — home province is irrelevant for the champs route,
+ *   - the SA Championships in that division — either the completed
+ *     `series_level = 'final'` match, or (while the champs is still
+ *     running on day 1) the provincial sibling whose parent is that
+ *     final. Home province is irrelevant for the champs route,
  *     because champs is a national event and anyone who travelled to
  *     it has already proven their qualifying attendance.
  */
@@ -205,23 +207,33 @@ class FederationColourAwards
                         })->orWhere('series_level', 'final');
                     });
             })
-            ->with(['match:id,province_id,series_level', 'user:id,province_id'])
+            ->with([
+                'match:id,province_id,series_level,source_national_match_id',
+                'match.sourceNationalMatch:id,series_level',
+                'user:id,province_id',
+            ])
             ->get(['id', 'user_id', 'division_id', 'match_id'])
             ->each(function (Score $score) use (&$keys): void {
-                // SA Championships ('final') qualify a shooter regardless of
-                // where they live — champs is a national event, so home
-                // province is irrelevant for this route.
-                if ($score->match?->series_level === 'final') {
+                $match = $score->match;
+                $isChampsFinal = $match?->series_level === 'final';
+                $isChampsDay1Sibling = $match?->series_level === 'provincial'
+                    && $match?->sourceNationalMatch?->series_level === 'final';
+
+                // SA Championships qualify a shooter regardless of where they
+                // live — both the completed two-day `final` and its day-1
+                // provincial sibling (used while the champs is still running).
+                // Champs is a national event, so home province is irrelevant.
+                if ($isChampsFinal || $isChampsDay1Sibling) {
                     $keys[$score->user_id.'|'.$score->division_id] = true;
 
                     return;
                 }
 
-                // One-day national / day-1 sibling route: the match must have
-                // been hosted in the shooter's home province, i.e. it counted
-                // as their provincial.
+                // One-day national / day-1 sibling of a regular two-day
+                // national: the match must have been hosted in the shooter's
+                // home province, i.e. it counted as their provincial.
                 $home = $score->user?->province_id;
-                $matchProvince = $score->match?->province_id;
+                $matchProvince = $match?->province_id;
 
                 if ($home === null || $matchProvince === null || (int) $home !== (int) $matchProvince) {
                     return;
