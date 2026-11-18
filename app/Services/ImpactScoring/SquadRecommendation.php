@@ -11,11 +11,10 @@ use App\Models\Standing;
  *
  * Ladies take one squad when they can fill it, and the same for juniors.
  * When neither group can, they share one squad. Empty places in that squad
- * go to shooters whose rank sits between the group, closest to the middle.
+ * are the next ranks after the squad in front of it.
  *
- * Ranking squads stay in rank order: the next ranking squad starts at the
- * next rank. A ladies or juniors squad keeps the place its best rank gives
- * it, so it sits between those ranking squads instead of being moved last.
+ * A ladies or juniors squad keeps the place its best rank gives it. The
+ * ranking squads on either side stay in rank order.
  */
 class SquadRecommendation
 {
@@ -194,27 +193,40 @@ class SquadRecommendation
             if (count($members) > $size) {
                 $pool = array_merge($pool, array_slice($members, $size));
                 $members = array_slice($members, 0, $size);
-            } elseif (count($members) < $size) {
-                $members = array_merge($members, $this->takeFillers($members, $pool, $size - count($members)));
             }
-            $categorySquads[] = ['order' => $group['order'], 'members' => $members];
+            $categorySquads[] = [
+                'order' => $group['order'],
+                'size' => $size,
+                'members' => $members,
+            ];
         }
 
         usort($pool, fn (array $a, array $b) => $this->byRank($a, $b));
-        $ranking = [];
-        $offset = 0;
+        usort($categorySquads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
+
+        $squads = [];
         $rankingOrder = 3;
-        foreach ($slots as $size) {
-            $ranking[] = [
+        $catIndex = 0;
+        while ($slots !== [] || $catIndex < count($categorySquads)) {
+            $category = $categorySquads[$catIndex] ?? null;
+            if ($category !== null && ($slots === [] || $this->categoryGoesBefore($category, $pool))) {
+                $need = $category['size'] - count($category['members']);
+                if ($need > 0) {
+                    $category['members'] = array_merge($category['members'], array_splice($pool, 0, $need));
+                }
+                $squads[] = ['order' => $category['order'], 'members' => $category['members']];
+                $catIndex++;
+
+                continue;
+            }
+
+            $size = array_shift($slots);
+            $squads[] = [
                 'order' => $rankingOrder,
-                'members' => array_slice($pool, $offset, $size),
+                'members' => array_splice($pool, 0, $size),
             ];
-            $offset += $size;
             $rankingOrder++;
         }
-
-        $squads = array_merge($categorySquads, $ranking);
-        usort($squads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
 
         return $squads;
     }
@@ -288,78 +300,28 @@ class SquadRecommendation
     }
 
     /**
-     * @param  list<array{registration_id: int, user_id: ?int, name: string, rank: ?int, division: string, slug: string}>  $core
-     * @param  list<array{registration_id: int, user_id: ?int, name: string, rank: ?int, division: string, slug: string}>  $pool
-     * @return list<array{registration_id: int, user_id: ?int, name: string, rank: ?int, division: string, slug: string}>
+     * The category squad is next when its best rank is better than the next
+     * shooter still waiting in the ranking pool.
+     *
+     * @param  array{members: list<array{rank: ?int}>}  $category
+     * @param  list<array{rank: ?int}>  $pool
      */
-    private function takeFillers(array $core, array &$pool, int $need): array
+    private function categoryGoesBefore(array $category, array $pool): bool
     {
-        $ranks = $this->ranksOf($core);
-        $median = $this->median($ranks);
-        $min = $ranks[0] ?? null;
-        $max = $ranks === [] ? null : $ranks[array_key_last($ranks)];
-        $chosen = [];
-
-        while (count($chosen) < $need && $pool !== []) {
-            $pick = $this->bestFiller($pool, $median, $min, $max, true)
-                ?? $this->bestFiller($pool, $median, $min, $max, false);
-            if ($pick === null) {
-                break;
-            }
-            $chosen[] = $pick;
-            $pool = array_values(array_filter(
-                $pool,
-                fn (array $shooter) => $shooter['registration_id'] !== $pick['registration_id']
-            ));
+        if ($pool === []) {
+            return true;
         }
 
-        return $chosen;
-    }
-
-    /**
-     * @param  list<array{registration_id: int, user_id: ?int, name: string, rank: ?int, division: string, slug: string}>  $pool
-     * @return array{registration_id: int, user_id: ?int, name: string, rank: ?int, division: string, slug: string}|null
-     */
-    private function bestFiller(array $pool, ?float $median, ?int $min, ?int $max, bool $betweenOnly): ?array
-    {
-        $candidates = [];
-        foreach ($pool as $shooter) {
-            $rank = $shooter['rank'];
-            if ($betweenOnly) {
-                if ($rank === null || $min === null || $max === null || $rank <= $min || $rank >= $max) {
-                    continue;
-                }
-            }
-            $candidates[] = $shooter;
+        $categoryBest = $this->ranksOf($category['members'])[0] ?? null;
+        $poolBest = $pool[0]['rank'];
+        if ($categoryBest === null) {
+            return false;
         }
-        if ($candidates === []) {
-            return null;
+        if ($poolBest === null) {
+            return true;
         }
 
-        usort($candidates, function (array $a, array $b) use ($median): int {
-            if ($a['rank'] === null && $b['rank'] === null) {
-                return strcasecmp($a['name'], $b['name']);
-            }
-            if ($a['rank'] === null) {
-                return 1;
-            }
-            if ($b['rank'] === null) {
-                return -1;
-            }
-            if ($median !== null) {
-                $distance = abs($a['rank'] - $median) <=> abs($b['rank'] - $median);
-                if ($distance !== 0) {
-                    return $distance;
-                }
-            }
-            if ($a['rank'] !== $b['rank']) {
-                return $a['rank'] <=> $b['rank'];
-            }
-
-            return strcasecmp($a['name'], $b['name']);
-        });
-
-        return $candidates[0];
+        return $categoryBest < $poolBest;
     }
 
     /**
@@ -423,22 +385,5 @@ class SquadRecommendation
         sort($ranks);
 
         return $ranks;
-    }
-
-    /**
-     * @param  list<int>  $ranks
-     */
-    private function median(array $ranks): ?float
-    {
-        if ($ranks === []) {
-            return null;
-        }
-        $count = count($ranks);
-        $mid = intdiv($count, 2);
-        if ($count % 2 === 1) {
-            return (float) $ranks[$mid];
-        }
-
-        return ($ranks[$mid - 1] + $ranks[$mid]) / 2;
     }
 }

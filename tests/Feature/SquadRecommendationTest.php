@@ -145,7 +145,7 @@ it('splits 55 ranked shooters into five squads of 11 by overall rank', function 
     expect(collect($result['squads'])->flatMap(fn (array $squad) => $squad['members']))->toHaveCount(55);
 });
 
-it('shares one squad for ladies and juniors and fills it with shooters closest to the middle', function () {
+it('shares one squad for ladies and juniors and fills the empty places from the next ranks', function () {
     $ladyRanks = [5, 8, 20, 30, 40, 50];
     $juniorRanks = [6, 25, 45];
     foreach (range(1, 55) as $rank) {
@@ -165,8 +165,30 @@ it('shares one squad for ladies and juniors and fills it with shooters closest t
     $shared = squadNumberFor($result['squads'], 'Lady 05');
 
     expect(squadNumberFor($result['squads'], 'Junior 06'))->toBe($shared)
-        ->and(ranksInSquad($result['squads'], $shared))->toContain(24, 26)
-        ->and(ranksInSquad($result['squads'], $shared))->toHaveCount(11);
+        ->and($shared)->toBe(2)
+        ->and(ranksInSquad($result['squads'], $shared))->toBe([5, 6, 8, 15, 16, 20, 25, 30, 40, 45, 50])
+        ->and(ranksInSquad($result['squads'], 1))->toBe([1, 2, 3, 4, 7, 9, 10, 11, 12, 13, 14]);
+});
+
+it('fills the ladies and juniors squad with the next ranks after the squad in front', function () {
+    foreach (range(1, 15) as $rank) {
+        $slug = 'open';
+        $name = sprintf('Open %02d', $rank);
+        if ($rank === 6) {
+            $slug = 'junior';
+            $name = 'Junior 06';
+        } elseif (in_array($rank, [9, 12, 14], true)) {
+            $slug = 'ladies';
+            $name = sprintf('Lady %02d', $rank);
+        }
+        enterRankedShooter($this->match, $name, $rank, $slug);
+    }
+
+    $result = app(SquadRecommendation::class)->recommend($this->match, 3);
+
+    expect(ranksInSquad($result['squads'], 1))->toBe([1, 2, 3, 4, 5])
+        ->and(ranksInSquad($result['squads'], 2))->toBe([6, 7, 9, 12, 14])
+        ->and(ranksInSquad($result['squads'], 3))->toBe([8, 10, 11, 13, 15]);
 });
 
 it('keeps the best ladies when they overflow a squad and leaves a short junior group in the ranking', function () {

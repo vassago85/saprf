@@ -61,19 +61,13 @@ Give a category squad size `small + 1` when a large slot remains and the group h
 
 When a category group is bigger than its squad, keep the best-ranked members and return the rest to the ranking pool. Unranked members of that group are returned first. Ties on rank use name.
 
-When a category group is smaller than its squad, fill the empty places from the ranking pool:
-
-1. Shooters with a rank strictly between the best and worst rank already in the squad. If more qualify than there are places, take those closest to the median of the ranks already in the squad. For an even count, the median is the average of the two middle ranks. Equal distance keeps the better rank, then the name.
-2. If the squad is still short, take the remaining ranked shooter closest to that same median, one at a time, with the same tie-break.
-3. If no ranked shooter remains, take unranked shooters by name.
+When a category group is smaller than its squad, the empty places are the next ranking shooters after the squad in front of it. A squad that ends on rank 26 is followed, in the ladies and juniors squad, by rank 27, then 29, and so on. Shooters farther down the list stay in the later ranking squads.
 
 Someone already placed in a category squad is not a filler.
 
 ## Ranking squads and numbers
 
-Split the ranking pool across the remaining slots by the sort order above, best ranks first. Slot sizes are the sizes not used by category squads.
-
-Number every squad by its best rank, so a ladies, juniors, or shared squad stays where that rank sits. Ranking squads on either side stay in rank order: the ranking squad after one that ends on rank 25 starts at rank 26 and continues downward.
+A ladies, juniors, or shared squad is placed where its best rank sits. Ranking squads before that point are filled from the best remaining ranks. The empty places in the category squad are then taken from the front of what remains, and the ranking squads after it continue in rank order.
 
 The match director can move a shooter to another squad from the preview. Apply regroups the list. Download for Impact uses the squad chosen on each row. Recommend again clears those moves and rebuilds from rank.
 
@@ -99,7 +93,7 @@ The existing `matches.export-impact-scoring` response is unchanged, including an
 ## Tests
 
 - 55 ranked shooters and 5 squads, no ladies or juniors: five squads of 11, squad 1 holds ranks 1–11, squad 5 holds ranks 45–55.
-- 6 ladies and 3 juniors inside a larger ranked field, 5 squads: they share one squad, and the empty places are the shooters closest to the middle of that rank span.
+- 6 ladies and 3 juniors inside a larger ranked field, 5 squads: they share one squad, and the empty places are the next ranks after the squad in front of that shared squad.
 - 14 ladies and a squad size of 11: the ladies squad keeps the 11 best, and the 3 lowest ladies sit in ranking squads.
 - Ladies reach `small` and juniors do not: juniors are in the ranking pool, not in the ladies squad.
 - An unranked shooter is after every ranked shooter.

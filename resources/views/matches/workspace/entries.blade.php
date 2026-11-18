@@ -91,7 +91,7 @@
         @can('update', $match)
             <div class="rounded-xl border border-stone-200 bg-white p-4">
                 <h2 class="text-sm font-semibold text-stone-900">Squad recommendation</h2>
-                <p class="mt-1 text-xs text-stone-500">Ranking squads follow the current overall season rank, and the next ranking squad starts on the next rank. Ladies and juniors keep a squad when they can fill it, and that squad stays where their best rank sits. Use the squad menu to move someone. The email on each row is the one Impact receives, and it can differ from the SAPRF login. Save a draft to keep the arrangement, then download a squad sheet for shooters. That sheet has names, ranks, and divisions only.</p>
+                <p class="mt-1 text-xs text-stone-500">Ranking squads follow the current overall season rank. Ladies and juniors keep the squad their best rank earns. The other places in that squad are the next ranks after the squad in front of it. Use the squad menu to move someone. The email on each row is the one Impact receives, and it can differ from the SAPRF login. Save a draft to keep the arrangement, then download a squad sheet for shooters. That sheet has names, ranks, and divisions only.</p>
                 @if (is_array($match->squad_draft) && ! empty($match->squad_draft['squads']))
                     <p class="mt-2 text-xs text-stone-600">
                         Draft saved {{ \Illuminate\Support\Carbon::parse($match->squad_draft['saved_at'] ?? now())->timezone('Africa/Johannesburg')->format('j M Y, H:i') }}.
