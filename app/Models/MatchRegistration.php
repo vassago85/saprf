@@ -20,6 +20,7 @@ class MatchRegistration extends Model
         'ammo_load_id',
         'shooter_name',
         'email',
+        'impact_email',
         'phone',
         'membership_fee_category',
         'fee_amount',
@@ -80,6 +81,49 @@ class MatchRegistration extends Model
     public function isWalkIn(): bool
     {
         return $this->registration_source === 'walk_in';
+    }
+
+    /**
+     * Address written to the Impact shooter file. An entry can carry a
+     * different address from the SAPRF login. Blank falls back to the
+     * account, then the address stored on the entry, then the parent.
+     */
+    public function impactContactEmail(): string
+    {
+        $impact = trim((string) $this->impact_email);
+        if ($impact !== '' && ! $this->isPlaceholderEmail($impact)) {
+            return $impact;
+        }
+
+        return $this->defaultContactEmail();
+    }
+
+    /**
+     * The address Impact would use when this entry has no override.
+     */
+    public function defaultContactEmail(): string
+    {
+        $user = $this->user;
+        $own = trim((string) ($user?->email ?? ''));
+        if ($own !== '' && ! $this->isPlaceholderEmail($own)) {
+            return $own;
+        }
+
+        $onEntry = trim((string) ($this->email ?? ''));
+        if ($onEntry !== '' && ! $this->isPlaceholderEmail($onEntry)) {
+            return $onEntry;
+        }
+
+        if ($user?->isManaged()) {
+            return trim((string) ($user->parent?->email ?? ''));
+        }
+
+        return '';
+    }
+
+    private function isPlaceholderEmail(string $email): bool
+    {
+        return str_ends_with(strtolower($email), '@managed.saprf.co.za');
     }
 
     /**

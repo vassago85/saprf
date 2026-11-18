@@ -393,3 +393,58 @@ it('uses a managed member own email and phone when they have them', function () 
         'Member Number' => '1843',
     ]);
 });
+
+it('writes an impact email into the file and leaves the saprf login alone', function () {
+    seedImpactRegistration($this->match, 'Open Shooter', '100', 1, 'open');
+    $registration = MatchRegistration::where('shooter_name', 'Open Shooter')->first();
+    $registration->update(['impact_email' => 'impact.login@example.test']);
+
+    $response = $this->actingAs($this->md)
+        ->get(route('matches.export-impact-scoring', $this->match))
+        ->assertOk();
+
+    expect(impactExportByName($response->streamedContent())['Open Shooter']['Email'])
+        ->toBe('impact.login@example.test')
+        ->and($registration->user->fresh()->email)->toBe('open.shooter@example.test');
+});
+
+it('saves a different impact email from the squad form', function () {
+    seedImpactRegistration($this->match, 'Open Shooter', '100', 1, 'open');
+    $registration = MatchRegistration::where('shooter_name', 'Open Shooter')->first();
+
+    $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.export', $this->match), [
+            'squads' => 1,
+            'placement' => [$registration->id => 1],
+            'impact_email' => [$registration->id => 'range.day@example.test'],
+        ])
+        ->assertOk();
+
+    $registration->refresh();
+    expect($registration->impact_email)->toBe('range.day@example.test')
+        ->and($registration->user->fresh()->email)->toBe('open.shooter@example.test');
+
+    $this->actingAs($this->md)
+        ->put(route('registrations.update-impact-email', $registration), [
+            'impact_email' => 'open.shooter@example.test',
+        ])
+        ->assertRedirect();
+
+    expect($registration->fresh()->impact_email)->toBeNull();
+});
+
+it('rejects an invalid impact email on the squad form', function () {
+    seedImpactRegistration($this->match, 'Open Shooter', '100', 1, 'open');
+    $registration = MatchRegistration::where('shooter_name', 'Open Shooter')->first();
+
+    $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.move', $this->match), [
+            'squads' => 1,
+            'placement' => [$registration->id => 1],
+            'impact_email' => [$registration->id => 'not-an-email'],
+        ])
+        ->assertRedirect(route('matches.squad-recommendation', [$this->match, 'squads' => 1]))
+        ->assertSessionHas('error');
+
+    expect($registration->fresh()->impact_email)->toBeNull();
+});

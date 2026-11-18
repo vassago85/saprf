@@ -56,6 +56,20 @@
             </div>
         @endif
 
+        <template x-if="seriesLevel === 'national' || seriesLevel === 'final'">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+                <p class="font-medium">Day 1 of this match is a provincial</p>
+                <p class="mt-1 text-xs leading-relaxed text-blue-900">
+                    This applies to a two-day national and to the national championship.
+                    The two-day total stays on this match, so a championship remains a final.
+                    Day 1 scores are stored on a separate provincial match and count in provincial standings.
+                </p>
+                @if($match?->provincialDay1Match)
+                    <a href="{{ route('matches.overview', $match->provincialDay1Match) }}" class="mt-2 inline-block text-xs font-semibold underline">Open the day 1 provincial</a>
+                @endif
+            </div>
+        </template>
+
         {{-- Day-1 dual-count — only meaningful on Nationals. When the series
              level is anything else we render *no* field at all so the save
              payload omits `also_counts_for_provincial` and the controller's

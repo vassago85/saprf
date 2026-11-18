@@ -469,21 +469,26 @@ class MatchEvent extends Model
         return $this->match_end_date && ! $this->match_end_date->isSameDay($this->match_date);
     }
 
+    /**
+     * A two-day national, including the championship stored as a final.
+     * Day 1 of either is its own provincial match. The parent keeps its level,
+     * so a championship stays a final and is not counted twice.
+     */
     public function isTwoDayNational(): bool
     {
-        return $this->isMultiDay() && $this->series_level === 'national';
+        return $this->isMultiDay() && in_array($this->series_level, ['national', 'final'], true);
     }
 
     /**
      * Find or create the provincial Day-1 sibling used so day-1 totals from a
-     * 2-day national feed shooter logs / provincial standings without dual-counting
-     * the national itself.
+     * 2-day national or championship feed shooter logs and provincial standings
+     * without dual-counting the parent match.
      */
     public function findOrCreateProvincialDay1Sibling(): self
     {
         if (! $this->isTwoDayNational()) {
             throw new \InvalidArgumentException(
-                'Provincial Day-1 siblings can only be created from a 2-day national match.'
+                'Provincial Day-1 siblings can only be created from a 2-day national or championship.'
             );
         }
 

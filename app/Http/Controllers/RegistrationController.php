@@ -378,6 +378,54 @@ class RegistrationController extends Controller
     }
 
     /**
+     * Address for the Impact shooter file. Leaves the SAPRF login alone.
+     * Blank, or the same as the account address, clears the override.
+     */
+    public function updateImpactEmail(Request $request, MatchRegistration $registration): RedirectResponse
+    {
+        $this->authorize('update', $registration);
+
+        $validated = $request->validate([
+            'impact_email' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $email = trim((string) ($validated['impact_email'] ?? ''));
+        if ($email !== '' && (! filter_var($email, FILTER_VALIDATE_EMAIL) || str_ends_with(strtolower($email), '@managed.saprf.co.za'))) {
+            return back()->withErrors([
+                'impact_email' => 'Enter the address this shooter uses in Impact.',
+            ])->withInput();
+        }
+
+        $registration->loadMissing(['user.parent']);
+        $store = ($email === '' || strcasecmp($email, $registration->defaultContactEmail()) === 0)
+            ? null
+            : $email;
+        $old = $registration->impact_email;
+
+        if ($store === $old) {
+            return back()->with('info', 'Impact email is unchanged.');
+        }
+
+        $registration->update(['impact_email' => $store]);
+
+        $this->auditLogService->log(
+            $request->user(),
+            'registration.impact_email.updated',
+            'MatchRegistration',
+            $registration->id,
+            ['impact_email' => $old],
+            ['impact_email' => $store],
+        );
+
+        return back()->with(
+            'success',
+            $store
+                ? 'Impact email set to '.$store.'. The SAPRF login is unchanged.'
+                : 'Impact email cleared. The SAPRF address will be used in the Impact file.'
+        );
+    }
+
+    /**
      * Point an entry at a different member account. The label on the row
      * (shooter_name) can already be edited on its own, which leaves the
      * entry on whoever paid or typed the name. This moves the account the

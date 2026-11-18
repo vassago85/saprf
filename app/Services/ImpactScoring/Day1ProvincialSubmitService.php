@@ -96,18 +96,48 @@ class Day1ProvincialSubmitService
             $saved[$stageId] = $posted[$stageId];
         }
 
-        $result = $this->writeProvincial($match, $live, $stagesByShooter, $day1StageIds, $saved);
+        return $this->refreshStandings(
+            $match,
+            $this->writeProvincial($match, $live, $stagesByShooter, $day1StageIds, $saved),
+        );
+    }
+
+    /**
+     * One step from the range: stages Impact has finished are day 1, the
+     * rest are day 2. Another press on day 1 picks up stages finished
+     * since the last press. From day 2 onward the split stays put and
+     * only the day 1 totals are refreshed.
+     *
+     * @return array{written:int,unmatched:list<string>,not_updated:list<string>,message:string}
+     */
+    public function importFinishedDay1(MatchEvent $match): array
+    {
+        $this->assertAvailable($match);
 
         try {
-            $sibling = $match->fresh()?->provincialDay1Match;
-            if ($sibling) {
-                $this->standings->recalculateForMatch($sibling);
-            }
-        } catch (Throwable $e) {
-            report($e);
+            [$live, $stagesByShooter] = $this->pull($match);
+        } catch (RuntimeException $e) {
+            throw new RuntimeException($this->nothingWritten($e->getMessage()), 0, $e);
         }
 
-        return $result;
+        $stageIds = $this->stageIds($live['stages']);
+        if ($stageIds === []) {
+            throw new RuntimeException($this->nothingWritten('Impact did not return any stages.'));
+        }
+
+        $map = $this->dayMapForImport($match, $stageIds, $stagesByShooter);
+        $day1StageIds = array_values(array_filter(
+            $stageIds,
+            fn (int $stageId): bool => ($map[$stageId] ?? 0) === 1
+        ));
+        if ($day1StageIds === []) {
+            throw new RuntimeException($this->nothingWritten('No day 1 stage is finished on Impact yet.'));
+        }
+
+        $result = $this->writeProvincial($match, $live, $stagesByShooter, $day1StageIds, $map);
+        $result['message'] .= ' Provincial standings are updated.';
+
+        return $this->refreshStandings($match, $result);
     }
 
     private function assertAvailable(MatchEvent $match): void
@@ -117,7 +147,7 @@ class Day1ProvincialSubmitService
         }
 
         if (! $match->isTwoDayNational() || ! $match->impact_live_sync || ! $match->impact_match_id) {
-            throw new RuntimeException('Day 1 provincial submit is only available on a 2-day national with live scoring.');
+            throw new RuntimeException('Day 1 provincial submit is only available on a 2-day national or championship with live scoring.');
         }
     }
 
@@ -383,6 +413,71 @@ class Day1ProvincialSubmitService
                 'message' => $message,
             ];
         });
+    }
+
+    /**
+     * @param  list<int>  $stageIds
+     * @param  array<int, list<array<string, mixed>>>  $stagesByShooter
+     * @return array<int, int>
+     */
+    private function dayMapForImport(MatchEvent $match, array $stageIds, array $stagesByShooter): array
+    {
+        $onDay1 = $match->match_date !== null
+            && now('Africa/Johannesburg')->toDateString() <= $match->match_date->toDateString();
+        $saved = $this->normalizeMap($match->impact_stage_days);
+        $coversAll = $saved !== [] && array_diff($stageIds, array_keys($saved)) === [];
+        if (! $onDay1 && $coversAll && in_array(1, $saved, true)) {
+            $map = [];
+            foreach ($stageIds as $stageId) {
+                $map[$stageId] = $saved[$stageId];
+            }
+
+            return $map;
+        }
+
+        $shot = [];
+        foreach ($stagesByShooter as $rows) {
+            foreach ($rows as $row) {
+                $stageId = (int) ($row['id'] ?? 0);
+                if ($stageId <= 0) {
+                    continue;
+                }
+                if (($row['completed'] ?? false) || (int) ($row['shots'] ?? 0) > 0) {
+                    $shot[$stageId] = true;
+                }
+            }
+        }
+
+        $map = [];
+        foreach ($stageIds as $stageId) {
+            $map[$stageId] = isset($shot[$stageId]) ? 1 : 2;
+        }
+
+        if (! $onDay1 && ! in_array(2, $map, true)) {
+            throw new RuntimeException($this->nothingWritten(
+                'Every stage is already finished. Mark which stages were day 1 before importing.'
+            ));
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array{written:int,unmatched:list<string>,not_updated:list<string>,message:string}  $result
+     * @return array{written:int,unmatched:list<string>,not_updated:list<string>,message:string}
+     */
+    private function refreshStandings(MatchEvent $match, array $result): array
+    {
+        try {
+            $sibling = $match->fresh()?->provincialDay1Match;
+            if ($sibling) {
+                $this->standings->recalculateForMatch($sibling);
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $result;
     }
 
     /**

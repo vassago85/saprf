@@ -51,6 +51,28 @@
                                 @endif
                             </p>
                         @endif
+                        @if($canEditShooterName)
+                            <form method="POST" action="{{ route('registrations.update-impact-email', $registration) }}" class="mt-2 flex flex-wrap items-center gap-2">
+                                @csrf
+                                @method('PUT')
+                                <label for="impact_email" class="text-xs font-semibold uppercase tracking-wide text-stone-400">Impact email</label>
+                                <input type="email"
+                                       id="impact_email"
+                                       name="impact_email"
+                                       value="{{ old('impact_email', $registration->impactContactEmail()) }}"
+                                       maxlength="255"
+                                       placeholder="Address used in Impact"
+                                       class="min-w-[16rem] flex-1 rounded-md border-stone-300 text-sm shadow-sm focus:border-emerald-500 focus:ring-emerald-500" />
+                                <button type="submit"
+                                        class="inline-flex items-center rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                    Save
+                                </button>
+                            </form>
+                            <p class="mt-1 text-xs text-stone-400">Used in the Impact file only. Leave it matching the account to keep the SAPRF address.</p>
+                            @error('impact_email')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                         @can('update', $registration)
                             @if($phone = $registration->contactPhone())
                                 <p class="mt-1 text-xs text-stone-500">

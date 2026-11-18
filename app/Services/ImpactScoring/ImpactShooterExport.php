@@ -22,7 +22,8 @@ use Illuminate\Support\Collection;
  * word is the first name and the remainder is the last name, so
  * "van der Merwe" stays intact. Member Number is the SAPRF number, which
  * is how a shooter is checked when their Impact email or display name
- * differs from the SAPRF account.
+ * differs from the SAPRF account. An entry's impact_email replaces the
+ * SAPRF login in this file only.
  */
 class ImpactShooterExport
 {
@@ -133,22 +134,7 @@ class ImpactShooterExport
 
     private function contactEmail(MatchRegistration $registration): string
     {
-        $user = $registration->user;
-        $own = trim((string) ($user?->email ?? ''));
-        if ($own !== '' && ! $this->isPlaceholder($own)) {
-            return $own;
-        }
-
-        $onEntry = trim((string) ($registration->email ?? ''));
-        if ($onEntry !== '') {
-            return $onEntry;
-        }
-
-        if ($user?->isManaged()) {
-            return trim((string) ($user->parent?->email ?? ''));
-        }
-
-        return '';
+        return $registration->impactContactEmail();
     }
 
     private function nameFor(MatchRegistration $registration): string
@@ -205,10 +191,5 @@ class ImpactShooterExport
             $category,
             $saprfNumber,
         ];
-    }
-
-    private function isPlaceholder(string $email): bool
-    {
-        return str_ends_with(strtolower($email), '@managed.saprf.co.za');
     }
 }

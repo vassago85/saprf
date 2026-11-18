@@ -188,8 +188,79 @@ it('keeps the best ladies when they overflow a squad and leaves a short junior g
     $ladyRanks = ranksInSquad($result['squads'], $ladiesSquad);
 
     expect($ladyRanks)->toBe(range(1, 11))
+        ->and($ladiesSquad)->toBe(1)
         ->and(squadNumberFor($result['squads'], 'Lady 12'))->not->toBe($ladiesSquad)
         ->and(squadNumberFor($result['squads'], 'Junior 15'))->not->toBe($ladiesSquad);
+});
+
+it('continues ranking squads in rank order and numbers a mid-pack shared squad last', function () {
+    foreach (range(1, 12) as $rank) {
+        $slug = 'open';
+        $name = sprintf('Open %02d', $rank);
+        if (in_array($rank, [3, 7, 10], true)) {
+            $slug = 'ladies';
+            $name = sprintf('Lady %02d', $rank);
+        } elseif ($rank === 4) {
+            $slug = 'junior';
+            $name = sprintf('Junior %02d', $rank);
+        }
+        enterRankedShooter($this->match, $name, $rank, $slug);
+    }
+
+    $result = app(SquadRecommendation::class)->recommend($this->match, 3);
+
+    expect(ranksInSquad($result['squads'], 1))->toBe([1, 2, 5, 6])
+        ->and(ranksInSquad($result['squads'], 2))->toBe([8, 9, 11, 12])
+        ->and(ranksInSquad($result['squads'], 3))->toBe([3, 4, 7, 10]);
+});
+
+it('moves a shooter into another squad and downloads that squad', function () {
+    foreach (range(1, 4) as $rank) {
+        enterRankedShooter($this->match, sprintf('Open %02d', $rank), $rank);
+    }
+
+    $preview = app(SquadRecommendation::class)->recommend($this->match, 2);
+    $open01 = collect($preview['squads'])->flatMap(fn (array $squad) => $squad['members'])->firstWhere('name', 'Open 01');
+    $placement = $preview['squad_by_registration'];
+    $placement[$open01['registration_id']] = 2;
+
+    $download = $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.export', $this->match), [
+            'squads' => 2,
+            'placement' => $placement,
+        ])
+        ->assertOk();
+
+    expect(squadCsvByName($download->streamedContent())['Open 01']['Squad'])->toBe('2');
+
+    $this->actingAs($this->md)
+        ->post(route('matches.squad-recommendation.move', $this->match), [
+            'squads' => 2,
+            'placement' => $placement,
+        ])
+        ->assertRedirect(route('matches.squad-recommendation', [$this->match, 'squads' => 2]));
+
+    $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation', [$this->match, 'squads' => 2]))
+        ->assertOk()
+        ->assertSeeInOrder(['Squad 2', 'Open 01']);
+
+    $saved = $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation.export', [$this->match, 'squads' => 2]))
+        ->assertOk();
+
+    expect(squadCsvByName($saved->streamedContent())['Open 01']['Squad'])->toBe('2');
+
+    $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation', [$this->match, 'squads' => 2, 'fresh' => 1]))
+        ->assertOk()
+        ->assertSeeInOrder(['Squad 1', 'Open 01']);
+
+    $reset = $this->actingAs($this->md)
+        ->get(route('matches.squad-recommendation.export', [$this->match, 'squads' => 2]))
+        ->assertOk();
+
+    expect(squadCsvByName($reset->streamedContent())['Open 01']['Squad'])->toBe('1');
 });
 
 it('places an unranked shooter after every ranked shooter', function () {

@@ -586,6 +586,7 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::post('/registrations/{registration}/withdraw', [RegistrationController::class, 'withdraw'])->name('registrations.withdraw');
     Route::put('/registrations/{registration}/shooter-name', [RegistrationController::class, 'updateShooterName'])->name('registrations.update-shooter-name');
+    Route::put('/registrations/{registration}/impact-email', [RegistrationController::class, 'updateImpactEmail'])->name('registrations.update-impact-email');
     Route::put('/registrations/{registration}/member', [RegistrationController::class, 'moveToMember'])->name('registrations.move-member');
     Route::put('/registrations/{registration}/transfer-fee', [RegistrationController::class, 'transferFee'])->name('registrations.transfer-fee');
     Route::put('/registrations/{registration}/division', [RegistrationController::class, 'updateDivision'])->name('registrations.update-division');
@@ -684,7 +685,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::get('/', [MatchWorkspaceController::class, 'overview'])->name('matches.overview');
             Route::get('/entries', [MatchWorkspaceController::class, 'entries'])->name('matches.entries');
             Route::get('/entries/squads', [MatchWorkspaceController::class, 'squadRecommendation'])->name('matches.squad-recommendation');
-            Route::get('/entries/squads/export', [MatchWorkspaceController::class, 'exportSquadRecommendation'])->name('matches.squad-recommendation.export');
+            Route::post('/entries/squads', [MatchWorkspaceController::class, 'moveSquadRecommendation'])->name('matches.squad-recommendation.move');
+            Route::match(['get', 'post'], '/entries/squads/export', [MatchWorkspaceController::class, 'exportSquadRecommendation'])->name('matches.squad-recommendation.export');
             Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
             // MD "scores are checked — send the notifications" gate. POST
             // routes (not GET) so a prefetch / crawler can't accidentally

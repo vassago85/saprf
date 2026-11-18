@@ -12,6 +12,10 @@ use App\Models\Standing;
  * Ladies take one squad when they can fill it, and the same for juniors.
  * When neither group can, they share one squad. Empty places in that squad
  * go to shooters whose rank sits between the group, closest to the middle.
+ *
+ * Ranking squads stay in rank order: the next squad starts at the next rank.
+ * A ladies or juniors squad is numbered after that run, unless its best rank
+ * is better than the first ranking squad, in which case it is numbered first.
  */
 class SquadRecommendation
 {
@@ -56,6 +60,65 @@ class SquadRecommendation
             'requested' => $squads,
             'squads' => $numbered,
             'unranked_count' => $unranked,
+            'squad_by_registration' => $squadByRegistration,
+        ];
+    }
+
+    /**
+     * Rebuild a recommendation from squad choices. A missing shooter keeps
+     * the recommended squad. A squad number outside 1..requested is ignored.
+     *
+     * @param  array{
+     *     requested: int,
+     *     squads: list<array{number: int, members: list<array{registration_id: int, name: string, rank: ?int, division: string}>}>,
+     *     unranked_count: int,
+     *     squad_by_registration: array<int, int>
+     * }  $recommendation
+     * @param  array<int|string, int|string>  $placement
+     * @return array{
+     *     requested: int,
+     *     squads: list<array{number: int, members: list<array{registration_id: int, name: string, rank: ?int, division: string}>}>,
+     *     unranked_count: int,
+     *     squad_by_registration: array<int, int>
+     * }
+     */
+    public function withPlacement(array $recommendation, array $placement): array
+    {
+        $requested = $recommendation['requested'];
+        $chosen = [];
+        foreach ($placement as $id => $squad) {
+            $squad = (int) $squad;
+            if ($squad < 1 || $squad > $requested) {
+                continue;
+            }
+            $chosen[(int) $id] = $squad;
+        }
+
+        $buckets = [];
+        for ($number = 1; $number <= $requested; $number++) {
+            $buckets[$number] = [];
+        }
+
+        $squadByRegistration = [];
+        foreach ($recommendation['squads'] as $squad) {
+            foreach ($squad['members'] as $member) {
+                $id = $member['registration_id'];
+                $number = $chosen[$id] ?? $recommendation['squad_by_registration'][$id];
+                $buckets[$number][] = $member;
+                $squadByRegistration[$id] = $number;
+            }
+        }
+
+        $numbered = [];
+        foreach ($buckets as $number => $members) {
+            usort($members, fn (array $a, array $b) => $this->byRank($a, $b));
+            $numbered[] = ['number' => $number, 'members' => $members];
+        }
+
+        return [
+            'requested' => $requested,
+            'squads' => $numbered,
+            'unranked_count' => $recommendation['unranked_count'],
             'squad_by_registration' => $squadByRegistration,
         ];
     }
@@ -150,10 +213,22 @@ class SquadRecommendation
             $rankingOrder++;
         }
 
-        $squads = array_merge($categorySquads, $ranking);
-        usort($squads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
+        usort($ranking, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
+        usort($categorySquads, fn (array $a, array $b) => $this->bySquadStrength($a, $b));
 
-        return $squads;
+        $rankingBest = $ranking === [] ? null : ($this->ranksOf($ranking[0]['members'])[0] ?? null);
+        $leading = [];
+        $trailing = [];
+        foreach ($categorySquads as $squad) {
+            $best = $this->ranksOf($squad['members'])[0] ?? null;
+            if ($best !== null && ($rankingBest === null || $best < $rankingBest)) {
+                $leading[] = $squad;
+            } else {
+                $trailing[] = $squad;
+            }
+        }
+
+        return array_merge($leading, $ranking, $trailing);
     }
 
     /**

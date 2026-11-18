@@ -124,10 +124,23 @@
                 };
             </script>
             <div class="mt-6 rounded-xl border border-blue-200 bg-white p-4" x-data="day1Provincial()">
-                <h2 class="font-heading text-lg font-bold text-stone-900">Submit day 1 as the provincial</h2>
+                <h2 class="font-heading text-lg font-bold text-stone-900">Day 1 provincial</h2>
                 <p class="mt-1 text-xs text-stone-600">
-                    Mark every stage as day 1 or day 2. Submitting copies the day-1 hits onto the provincial.
-                    Live scoring stays on, and day 2 keeps adding to the combined national.
+                    When day 1 is finished on Impact, one click copies those stages onto the provincial and updates the standings.
+                    Live scoring stays on. Press it again after a correction and the same day 1 stages are refreshed.
+                </p>
+
+                <form method="POST" action="{{ route('matches.scores.day1-provincial.store', $match) }}" class="mt-3">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+                        Import day 1 scores
+                    </button>
+                </form>
+
+                <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-500">Or mark the stages yourself</p>
+                <p class="mt-1 text-xs text-stone-600">
+                    Use this when day 2 has already started and the first import was not done on day 1.
                 </p>
 
                 <button type="button"

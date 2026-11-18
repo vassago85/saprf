@@ -281,10 +281,46 @@ class MatchWorkspaceController extends Controller
             return $count;
         }
 
-        $preview = $recommendation->recommend($match, $count);
+        if ($request->boolean('fresh')) {
+            session()->forget($this->squadPlacementKey($match));
+        }
+
+        $preview = $this->attachImpactEmails(
+            $match,
+            $this->squadPreviewFor($match, $count, $recommendation, $request->input('placement')),
+        );
         $preview['omitted'] = $export->build($match)['omitted'];
 
         return $this->entries($request, $match, $preview);
+    }
+
+    public function moveSquadRecommendation(Request $request, MatchEvent $match, SquadRecommendation $recommendation): RedirectResponse
+    {
+        $this->authorize('update', $match);
+
+        $count = $this->squadCountOrRedirect($request, $match);
+        if ($count instanceof RedirectResponse) {
+            return $count;
+        }
+
+        $placement = $this->placementFromRequest($request, $match, $count);
+        if ($placement instanceof RedirectResponse) {
+            return $placement;
+        }
+
+        $saved = $this->saveImpactEmails($request, $match, $count);
+        if ($saved instanceof RedirectResponse) {
+            return $saved;
+        }
+
+        session([$this->squadPlacementKey($match) => [
+            'squads' => $count,
+            'placement' => $placement,
+        ]]);
+
+        return redirect()
+            ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+            ->with('success', 'Squads and Impact emails saved. Download for Impact uses these.');
     }
 
     public function exportSquadRecommendation(Request $request, MatchEvent $match, SquadRecommendation $recommendation, ImpactShooterExport $export): StreamedResponse|RedirectResponse
@@ -296,7 +332,20 @@ class MatchWorkspaceController extends Controller
             return $count;
         }
 
-        $preview = $recommendation->recommend($match, $count);
+        $saved = $this->saveImpactEmails($request, $match, $count);
+        if ($saved instanceof RedirectResponse) {
+            return $saved;
+        }
+
+        $posted = $request->input('placement');
+        if (is_array($posted)) {
+            $posted = $this->placementFromRequest($request, $match, $count);
+            if ($posted instanceof RedirectResponse) {
+                return $posted;
+            }
+        }
+
+        $preview = $this->squadPreviewFor($match, $count, $recommendation, $posted);
         $built = $export->build($match, $preview['squad_by_registration']);
         $filename = str($match->name)->slug().'-impact-squads.csv';
 
@@ -332,6 +381,151 @@ class MatchWorkspaceController extends Controller
         }
 
         return $count;
+    }
+
+    /**
+     * @param  array<int|string, mixed>|null  $posted
+     * @return array{requested: int, squads: list<array{number: int, members: list<array{registration_id: int, name: string, rank: ?int, division: string}>}>, unranked_count: int, squad_by_registration: array<int, int>}
+     */
+    private function squadPreviewFor(MatchEvent $match, int $count, SquadRecommendation $recommendation, mixed $posted): array
+    {
+        $preview = $recommendation->recommend($match, $count);
+        $placement = null;
+
+        if (is_array($posted)) {
+            $placement = [];
+            foreach ($posted as $id => $squad) {
+                $placement[(int) $id] = (int) $squad;
+            }
+            session([$this->squadPlacementKey($match) => [
+                'squads' => $count,
+                'placement' => $placement,
+            ]]);
+        } else {
+            $stored = session($this->squadPlacementKey($match));
+            if (is_array($stored) && (int) ($stored['squads'] ?? 0) === $count && is_array($stored['placement'] ?? null)) {
+                $placement = $stored['placement'];
+            }
+        }
+
+        if ($placement === null) {
+            return $preview;
+        }
+
+        return $recommendation->withPlacement($preview, $placement);
+    }
+
+    /**
+     * @return array<int, int>|RedirectResponse
+     */
+    private function placementFromRequest(Request $request, MatchEvent $match, int $count): array|RedirectResponse
+    {
+        $posted = $request->input('placement');
+        if (! is_array($posted) || $posted === []) {
+            return redirect()
+                ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+                ->with('error', 'Choose a squad for each shooter.');
+        }
+
+        $allowed = $match->registrations()
+            ->where('registration_status', '!=', 'cancelled')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $placement = [];
+        foreach ($posted as $id => $squad) {
+            $id = (int) $id;
+            $squad = (int) $squad;
+            if (! in_array($id, $allowed, true)) {
+                continue;
+            }
+            if ($squad < 1 || $squad > $count) {
+                return redirect()
+                    ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+                    ->with('error', "Choose a squad between 1 and {$count} for each shooter.");
+            }
+            $placement[$id] = $squad;
+        }
+
+        if ($placement === []) {
+            return redirect()
+                ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+                ->with('error', 'Choose a squad for each shooter.');
+        }
+
+        return $placement;
+    }
+
+    private function squadPlacementKey(MatchEvent $match): string
+    {
+        return 'squad-recommendation.'.$match->id;
+    }
+
+    /**
+     * @param  array{requested: int, squads: list<array{number: int, members: list<array<string, mixed>>}>, unranked_count: int, squad_by_registration: array<int, int>}  $preview
+     * @return array{requested: int, squads: list<array{number: int, members: list<array<string, mixed>>}>, unranked_count: int, squad_by_registration: array<int, int>}
+     */
+    private function attachImpactEmails(MatchEvent $match, array $preview): array
+    {
+        $ids = array_keys($preview['squad_by_registration']);
+        $registrations = $match->registrations()
+            ->whereIn('id', $ids)
+            ->with(['user.parent'])
+            ->get()
+            ->keyBy('id');
+
+        foreach ($preview['squads'] as &$squad) {
+            foreach ($squad['members'] as &$member) {
+                $registration = $registrations->get($member['registration_id']);
+                $member['impact_email'] = $registration?->impactContactEmail() ?? '';
+            }
+        }
+        unset($squad, $member);
+
+        return $preview;
+    }
+
+    private function saveImpactEmails(Request $request, MatchEvent $match, int $count): ?RedirectResponse
+    {
+        $posted = $request->input('impact_email');
+        if (! is_array($posted)) {
+            return null;
+        }
+
+        $registrations = $match->registrations()
+            ->where('registration_status', '!=', 'cancelled')
+            ->with(['user.parent'])
+            ->get()
+            ->keyBy('id');
+
+        $updates = [];
+        foreach ($posted as $id => $value) {
+            $registration = $registrations->get((int) $id);
+            if (! $registration) {
+                continue;
+            }
+
+            $email = trim((string) $value);
+            if ($email !== '' && (! filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255 || str_ends_with(strtolower($email), '@managed.saprf.co.za'))) {
+                return redirect()
+                    ->route('matches.squad-recommendation', ['match' => $match, 'squads' => $count])
+                    ->with('error', $registration->shooter_name.' needs a valid Impact email.');
+            }
+
+            $updates[$registration->id] = ($email === '' || strcasecmp($email, $registration->defaultContactEmail()) === 0)
+                ? null
+                : $email;
+        }
+
+        foreach ($updates as $id => $email) {
+            $registration = $registrations->get($id);
+            if ($registration && $registration->impact_email !== $email) {
+                $registration->update(['impact_email' => $email]);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -608,13 +802,16 @@ class MatchWorkspaceController extends Controller
     {
         $this->authorize('update', $match);
 
-        $data = $request->validate([
-            'stage_days' => ['required', 'array'],
-            'stage_days.*' => ['required', 'in:1,2'],
-        ]);
-
         try {
-            $result = $submit->submit($match, $data['stage_days']);
+            if (! $request->exists('stage_days')) {
+                $result = $submit->importFinishedDay1($match);
+            } else {
+                $data = $request->validate([
+                    'stage_days' => ['required', 'array'],
+                    'stage_days.*' => ['required', 'in:1,2'],
+                ]);
+                $result = $submit->submit($match, $data['stage_days']);
+            }
         } catch (RuntimeException $e) {
             return redirect()
                 ->route('matches.scores', $match)

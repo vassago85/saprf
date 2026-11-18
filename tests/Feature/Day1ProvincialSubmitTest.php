@@ -35,6 +35,29 @@ beforeEach(function () {
     $this->match = day1National($this->admin, $this->province);
 });
 
+it('keeps a two-day championship as a final and makes day 1 a provincial', function () {
+    $final = day1National($this->admin, $this->province, [
+        'name' => 'Centrefire GP 2-Day National Championship',
+        'series_level' => 'final',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.scores', $final))
+        ->assertOk()
+        ->assertSee('Submit day 1 as the provincial');
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.settings', $final))
+        ->assertOk()
+        ->assertSee('Day 1 of this match is a provincial');
+
+    $sibling = $final->findOrCreateProvincialDay1Sibling();
+
+    expect($sibling->series_level)->toBe('provincial')
+        ->and($sibling->source_national_match_id)->toBe($final->id)
+        ->and($final->fresh()->series_level)->toBe('final');
+});
+
 it('shows the day 1 provincial control only on an open live two-day national', function () {
     $this->actingAs($this->admin)
         ->get(route('matches.scores', $this->match))
@@ -59,6 +82,139 @@ it('shows the day 1 provincial control only on an open live two-day national', f
         ->get(route('matches.scores', $club))
         ->assertOk()
         ->assertDontSee('Submit day 1 as the provincial');
+});
+
+it('imports finished day 1 stages in one click and updates provincial standings', function () {
+    fakeDay1Api(completedThrough: 8);
+    $member = day1Member('Kevin Goncalves', $this->province);
+    day1Register($this->match, $member, $this->open);
+
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $this->match))
+        ->assertRedirect(route('matches.scores', $this->match))
+        ->assertSessionHas('success');
+
+    $sibling = MatchEvent::where('source_national_match_id', $this->match->id)->first();
+    $score = Score::where('match_id', $sibling->id)->where('user_id', $member->id)->first();
+    $saved = $this->match->fresh()->impact_stage_days;
+
+    expect($sibling->series_level)->toBe('provincial')
+        ->and((float) $score->raw_score)->toBe(80.0)
+        ->and((int) $saved[101])->toBe(1)
+        ->and((int) $saved[108])->toBe(1)
+        ->and((int) $saved[109])->toBe(2)
+        ->and(Standing::where('user_id', $member->id)->whereNull('province_id')->exists())->toBeFalse()
+        ->and(Standing::where('user_id', $member->id)->whereNotNull('province_id')->exists())->toBeTrue();
+
+    $this->match->update([
+        'match_date' => now()->subDay()->toDateString(),
+        'match_end_date' => now()->toDateString(),
+    ]);
+    fakeDay1Api(completedThrough: 16);
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $this->match))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect((float) $score->fresh()->raw_score)->toBe(80.0)
+        ->and((int) $this->match->fresh()->impact_stage_days[109])->toBe(2);
+});
+
+it('keeps widening day 1 until the day is over, then freezes it', function () {
+    $final = day1National($this->admin, $this->province, [
+        'name' => 'Centrefire GP 2-Day National Championship',
+        'series_level' => 'final',
+    ]);
+    $member = day1Member('Kevin Goncalves', $this->province);
+    $guest = User::factory()->create(['name' => 'Guest Shooter', 'province_id' => $this->province->id]);
+    day1Register($final, $member, $this->open);
+    day1Register($final, $guest, $this->open);
+    $national = Score::create([
+        'match_id' => $final->id,
+        'user_id' => $member->id,
+        'division_id' => $this->open->id,
+        'shooter_name' => $member->name,
+        'day1_raw_score' => 160,
+        'status' => 'pending',
+        'counts_for_season' => false,
+        'counts_for_log' => false,
+        'match_date' => $final->match_date,
+    ]);
+
+    fakeDay1Api(completedThrough: 4);
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $final))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $sibling = MatchEvent::where('source_national_match_id', $final->id)->first();
+    $score = Score::where('match_id', $sibling->id)->where('user_id', $member->id)->first();
+    expect($final->fresh()->series_level)->toBe('final')
+        ->and($sibling->series_level)->toBe('provincial')
+        ->and((float) $score->raw_score)->toBe(40.0)
+        ->and((float) $national->fresh()->raw_score)->toBe(160.0)
+        ->and(Score::where('match_id', $sibling->id)->where('user_id', $guest->id)->exists())->toBeTrue()
+        ->and(Standing::where('user_id', $guest->id)->exists())->toBeFalse()
+        ->and(session('success'))->toContain('Unmatched Walker')
+        ->and(User::where('email', 'like', '%@saprf.walkin')->exists())->toBeFalse();
+
+    fakeDay1Api(completedThrough: 8, shotButOpen: [109]);
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $final))
+        ->assertSessionHas('success');
+
+    expect((float) $score->fresh()->raw_score)->toBe(90.0)
+        ->and((int) $final->fresh()->impact_stage_days[109])->toBe(1)
+        ->and((int) $final->fresh()->impact_stage_days[110])->toBe(2);
+
+    $final->update([
+        'match_date' => now()->subDay()->toDateString(),
+        'match_end_date' => now()->toDateString(),
+    ]);
+    fakeDay1Api(completedThrough: 16);
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $final))
+        ->assertSessionHas('success');
+
+    expect((float) $score->fresh()->raw_score)->toBe(90.0)
+        ->and((int) $final->fresh()->impact_stage_days[110])->toBe(2)
+        ->and(Standing::where('user_id', $member->id)->where('province_id', $this->province->id)->exists())->toBeTrue()
+        ->and(Standing::where('user_id', $member->id)->whereNull('province_id')->exists())->toBeFalse();
+});
+
+it('writes nothing when impact is down or day 1 has not started', function () {
+    Http::swap(new Factory);
+    Http::fake(fn () => Http::response(['errorCode' => -1, 'errorLabel' => 'DOWN'], 500));
+
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $this->match))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(MatchEvent::where('source_national_match_id', $this->match->id)->exists())->toBeFalse()
+        ->and(session('error'))->toContain('Nothing was written');
+
+    fakeDay1Api(completedThrough: 0);
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $this->match))
+        ->assertSessionHas('error');
+
+    expect(MatchEvent::where('source_national_match_id', $this->match->id)->exists())->toBeFalse();
+});
+
+it('does not guess a day 1 split once every stage is finished', function () {
+    $this->match->update([
+        'match_date' => now()->subDay()->toDateString(),
+        'match_end_date' => now()->toDateString(),
+    ]);
+    fakeDay1Api(completedThrough: 16);
+
+    $this->actingAs($this->admin)
+        ->post(route('matches.scores.day1-provincial.store', $this->match))
+        ->assertRedirect(route('matches.scores', $this->match))
+        ->assertSessionHas('error');
+
+    expect(MatchEvent::where('source_national_match_id', $this->match->id)->exists())->toBeFalse();
 });
 
 it('previews stages in impact order with no day guessed and writes nothing', function () {
@@ -485,7 +641,7 @@ function day1Register(MatchEvent $match, User $user, Division $division): MatchR
  * @param  array<int, array<int, int>|null>|null  $pointsByShooter  shooter id => stage id => raw points, or null for a failed breakdown
  * @param  list<array<string, mixed>>|null  $shooters
  */
-function fakeDay1Api(?array $pointsByShooter = null, ?array $shooters = null): void
+function fakeDay1Api(?array $pointsByShooter = null, ?array $shooters = null, ?int $completedThrough = null, array $shotButOpen = []): void
 {
     $pointsByShooter ??= [
         1 => day1Points(10),
@@ -501,7 +657,7 @@ function fakeDay1Api(?array $pointsByShooter = null, ?array $shooters = null): v
     ];
 
     Http::swap(new Factory);
-    Http::fake(function (Request $request) use ($pointsByShooter, $shooters) {
+    Http::fake(function (Request $request) use ($pointsByShooter, $shooters, $completedThrough, $shotButOpen) {
         $url = $request->url();
         if (str_contains($url, '/rest/website/getLiveScoresForShooter')) {
             $shooterId = (int) $request->data()['shooterId'];
@@ -511,14 +667,16 @@ function fakeDay1Api(?array $pointsByShooter = null, ?array $shooters = null): v
 
             $stages = [];
             foreach ($pointsByShooter[$shooterId] as $stageId => $points) {
+                $open = in_array($stageId, $shotButOpen, true);
+                $finished = $open || $completedThrough === null || ($stageId - 100) <= $completedThrough;
                 $stages[] = [
                     'id' => $stageId,
                     'name' => 'Stage '.($stageId - 100),
-                    'points' => $points,
+                    'points' => $finished ? $points : 0,
                     'misses' => 0,
-                    'shotsProgressCount' => 10,
+                    'shotsProgressCount' => $finished ? 10 : 0,
                     'maxShots' => 10,
-                    'completed' => true,
+                    'completed' => $finished && ! $open,
                 ];
             }
 

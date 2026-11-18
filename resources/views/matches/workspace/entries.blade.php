@@ -91,7 +91,7 @@
         @can('update', $match)
             <div class="rounded-xl border border-stone-200 bg-white p-4">
                 <h2 class="text-sm font-semibold text-stone-900">Squad recommendation</h2>
-                <p class="mt-1 text-xs text-stone-500">Split the entered shooters evenly by the current overall season rank. Ladies and juniors take a squad when they can fill it.</p>
+                <p class="mt-1 text-xs text-stone-500">Ranking squads follow the current overall season rank, and the next squad starts on the next rank. Ladies and juniors keep a squad when they can fill it. That squad comes after the ranking squads, unless those shooters are the best ranks. Use the squad menu to move someone. The email on each row is the one Impact receives, and it can differ from the SAPRF login.</p>
                 <form method="GET" action="{{ route('matches.squad-recommendation', $match) }}" class="mt-3 flex flex-wrap items-end gap-2">
                     <div>
                         <label for="squads" class="block text-xs font-semibold uppercase tracking-wide text-stone-500">Squads</label>
@@ -99,38 +99,68 @@
                                value="{{ $squadPreview['requested'] ?? '' }}"
                                class="mt-1 w-24 rounded-md border-stone-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
                     </div>
+                    <input type="hidden" name="fresh" value="1">
                     <button type="submit" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-stone-800">
                         Recommend
                     </button>
-                    @if (! empty($squadPreview))
-                        <a href="{{ route('matches.squad-recommendation.export', ['match' => $match, 'squads' => $squadPreview['requested']]) }}"
-                           class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                            <flux:icon.arrow-down-tray class="size-4" />
-                            Download for Impact
-                        </a>
-                    @endif
                 </form>
 
                 @if (! empty($squadPreview))
-                    <div class="mt-4 space-y-4">
+                    <form method="POST" action="{{ route('matches.squad-recommendation.move', $match) }}" class="mt-4 space-y-4">
+                        @csrf
+                        <input type="hidden" name="squads" value="{{ $squadPreview['requested'] }}">
                         @foreach ($squadPreview['squads'] as $squad)
                             <div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Squad {{ $squad['number'] }}</h3>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                    Squad {{ $squad['number'] }}
+                                    <span class="font-normal normal-case tracking-normal text-stone-400">· {{ count($squad['members']) }} {{ count($squad['members']) === 1 ? 'shooter' : 'shooters' }}</span>
+                                </h3>
                                 <ul class="mt-1 divide-y divide-stone-100 rounded-lg border border-stone-200">
-                                    @foreach ($squad['members'] as $member)
-                                        <li class="flex flex-wrap items-baseline justify-between gap-2 px-3 py-1.5 text-sm">
-                                            <span class="font-medium text-stone-900">{{ $member['name'] }}</span>
-                                            <span class="text-xs text-stone-500">
-                                                {{ $member['rank'] === null ? 'No rank' : 'Rank '.$member['rank'] }}
-                                                @if ($member['division'] !== '')
-                                                    · {{ $member['division'] }}
-                                                @endif
+                                    @forelse ($squad['members'] as $member)
+                                        <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                                            <span class="min-w-[12rem] flex-1">
+                                                <span class="block font-medium text-stone-900">{{ $member['name'] }}</span>
+                                                <label for="impact-email-{{ $member['registration_id'] }}" class="sr-only">Impact email for {{ $member['name'] }}</label>
+                                                <input type="email" id="impact-email-{{ $member['registration_id'] }}"
+                                                       name="impact_email[{{ $member['registration_id'] }}]"
+                                                       value="{{ $member['impact_email'] ?? '' }}"
+                                                       maxlength="255"
+                                                       placeholder="Impact email"
+                                                       class="mt-1 w-full max-w-xs rounded-md border-stone-300 py-1 text-xs focus:border-emerald-500 focus:ring-emerald-500">
+                                            </span>
+                                            <span class="flex items-center gap-2">
+                                                <span class="text-xs text-stone-500">
+                                                    {{ $member['rank'] === null ? 'No rank' : 'Rank '.$member['rank'] }}
+                                                    @if ($member['division'] !== '')
+                                                        · {{ $member['division'] }}
+                                                    @endif
+                                                </span>
+                                                <label for="squad-for-{{ $member['registration_id'] }}" class="sr-only">Squad for {{ $member['name'] }}</label>
+                                                <select id="squad-for-{{ $member['registration_id'] }}" name="placement[{{ $member['registration_id'] }}]"
+                                                        class="rounded-md border-stone-300 py-1 text-xs focus:border-emerald-500 focus:ring-emerald-500">
+                                                    @for ($squadNumber = 1; $squadNumber <= $squadPreview['requested']; $squadNumber++)
+                                                        <option value="{{ $squadNumber }}" @selected($squadNumber === $squad['number'])>Squad {{ $squadNumber }}</option>
+                                                    @endfor
+                                                </select>
                                             </span>
                                         </li>
-                                    @endforeach
+                                    @empty
+                                        <li class="px-3 py-1.5 text-xs text-stone-400">No shooters in this squad.</li>
+                                    @endforelse
                                 </ul>
                             </div>
                         @endforeach
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="submit" class="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-stone-800">
+                                Apply moves
+                            </button>
+                            <button type="submit" formaction="{{ route('matches.squad-recommendation.export', $match) }}"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                                <flux:icon.arrow-down-tray class="size-4" />
+                                Download for Impact
+                            </button>
+                        </div>
+                        <p class="text-xs text-stone-500">Apply regroups this list and saves Impact emails. Download uses the squad and email on each row. The SAPRF login stays as it is.</p>
 
                         @if (($squadPreview['unranked_count'] ?? 0) > 0)
                             <p class="text-sm text-amber-800">
@@ -143,7 +173,7 @@
                                 {{ collect($squadPreview['omitted'])->pluck('name')->join(', ') }}
                             </p>
                         @endif
-                    </div>
+                    </form>
                 @endif
             </div>
         @endcan
@@ -278,7 +308,9 @@
                                            class="block font-semibold text-stone-900 hover:text-emerald-700">
                                             {{ $reg->shooter_name ?: $reg->user?->name ?: '—' }}
                                         </a>
-                                        @if($reg->email)
+                                        @if($reg->impact_email)
+                                            <div class="text-xs text-stone-500">{{ $reg->impact_email }} · Impact</div>
+                                        @elseif($reg->email)
                                             <div class="text-xs text-stone-500">{{ $reg->email }}</div>
                                         @endif
                                         @can('update', $match)
