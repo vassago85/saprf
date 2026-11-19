@@ -41,7 +41,7 @@ class ApplyClubEntryCommand extends Command
                     ->orWhere('registration_source', '!=', 'walk_in');
             })
             ->whereHas('match', function ($q) use ($matchId) {
-                $q->whereIn('series_level', ['club', 'provincial']);
+                $q->whereIn('series_level', ['club_only', 'club_provincial', 'provincial']);
                 if ($matchId !== null && $matchId !== '') {
                     $q->whereKey((int) $matchId);
                 }

@@ -165,7 +165,7 @@ class ShooterProfileService
             ->whereNotNull('overall_rank')
             ->count();
         $provincialPodiums = $scoreRows
-            ->filter(fn (Score $s) => $s->match?->series_level === 'provincial')
+            ->filter(fn (Score $s) => in_array($s->match?->series_level, ['provincial', 'club_provincial'], true))
             ->where('overall_rank', '<=', 3)
             ->whereNotNull('overall_rank')
             ->count();

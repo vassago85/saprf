@@ -34,7 +34,7 @@ beforeEach(function () {
     $this->match = MatchEvent::create([
         'name' => 'Junior Fee Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'series' => 'PRS',
         'season' => (string) now()->year,
         'province_id' => $this->province->id,

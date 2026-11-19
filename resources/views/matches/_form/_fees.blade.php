@@ -35,8 +35,9 @@
 
     $defaultSeriesLevel = $match?->series_level;
     // Provincial permission lives under Divisions. Here the switch only
-    // picks the price on a club match, where club shooters can always enter.
-    $showClubEntryToggle = ! $createMode && old('series_level', $defaultSeriesLevel) === 'club';
+    // picks the price on a Club only match, where the host-club check IS
+    // the entry gate and anyone who got past it pays the club price.
+    $showClubEntryToggle = ! $createMode && old('series_level', $defaultSeriesLevel) === 'club_only';
 @endphp
 <section id="fees" class="scroll-mt-24 rounded-xl border border-stone-200 bg-white p-5">
     <header>

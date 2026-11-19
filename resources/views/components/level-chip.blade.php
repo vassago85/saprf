@@ -6,10 +6,12 @@
     // omitting the chip — the Phase 6 audit lists events with a null
     // level so an operator can backfill the real value rather than guess.
     $hasLevel = $level !== null && $level !== '';
-    $label = $hasLevel ? ucfirst($level) : null;
-    // Capitalise two-word levels like "international" cleanly. ucfirst is enough
-    // for the single-word values we actually use (club, provincial, national,
-    // final, international).
+    $label = $hasLevel ? match (strtolower((string) $level)) {
+        'club_only' => 'Club only',
+        'club_provincial' => 'Club / Provincial',
+        'final' => 'Final',
+        default => ucfirst((string) $level),
+    } : null;
 
     // When the match name already ends with the chip's label — e.g. a scraped
     // "Hippo Brawl 2026 Day 1 Provincial" paired with a Provincial chip — the
@@ -21,10 +23,10 @@
     }
     $classes = match(strtolower($level ?? '')) {
         'national' => 'bg-amber-50 text-amber-800 ring-amber-600/20',
-        'provincial' => 'bg-violet-50 text-violet-700 ring-violet-600/20',
+        'provincial', 'club_provincial' => 'bg-violet-50 text-violet-700 ring-violet-600/20',
         'final' => 'bg-rose-50 text-rose-700 ring-rose-600/20',
         'international' => 'bg-sky-50 text-sky-800 ring-sky-600/20',
-        'club' => 'bg-stone-100 text-stone-600 ring-stone-500/20',
+        'club_only' => 'bg-stone-100 text-stone-600 ring-stone-500/20',
         default => 'bg-stone-100 text-stone-600 ring-stone-500/20',
     };
 @endphp

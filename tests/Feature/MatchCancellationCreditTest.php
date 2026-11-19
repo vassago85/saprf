@@ -180,7 +180,7 @@ function cancelledCreditMatch(User $director, string $name, string $status = 'ca
     return MatchEvent::create([
         'name' => $name,
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'series' => 'PRS',
         'season' => (string) now()->year,
         'province_id' => Province::firstWhere('name', 'Gauteng')?->id,

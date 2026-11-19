@@ -156,10 +156,13 @@ it('lets a club member enter a provincial once the match director allows it', fu
         ->toBe('club_entry');
 });
 
-it('still lets a non-member enter a club match when the provincial gate is off', function () {
+it('still lets a non-member enter a club-only match with no host club set', function () {
+    // Legacy club rows migrated to `club_only` carry no host club; the gate
+    // stays open until a MD picks one.
     $match = provincialGateMatch([
         'name' => 'Club Gate',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
+        'club_id' => null,
         'club_entry_enabled' => false,
     ]);
     $guest = gateShooter('none');

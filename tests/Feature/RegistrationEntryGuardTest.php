@@ -27,7 +27,7 @@ beforeEach(function () {
         'name' => 'Rifle Guard Match',
         'match_type' => 'PRS',
         'series' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'season' => '2026',
         'province_id' => $province->id,
         'match_date' => now()->addWeek()->toDateString(),

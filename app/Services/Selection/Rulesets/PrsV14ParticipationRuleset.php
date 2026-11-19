@@ -107,7 +107,7 @@ class PrsV14ParticipationRuleset implements ParticipationRuleset
 
         return [
             'scores' => $scores,
-            'provincial1d' => $scores->filter(fn (Score $s) => $s->match?->series_level === 'provincial'),
+            'provincial1d' => $scores->filter(fn (Score $s) => in_array($s->match?->series_level, ['provincial', 'club_provincial'], true)),
             'saChampsScores' => $saChampsScores,
             'saChampsShot' => $saChampsShot,
             'nationalScores' => $nationalScores,
@@ -266,7 +266,7 @@ class PrsV14ParticipationRuleset implements ParticipationRuleset
                     $cycle->qualifying_period_start,
                     $cycle->qualifying_period_end,
                 ])
-                ->whereIn('series_level', ['provincial', 'national', 'international', 'final']));
+                ->whereIn('series_level', ['provincial', 'club_provincial', 'national', 'international', 'final']));
     }
 
     private function matchDateInWindow(?MatchEvent $match, CarbonInterface $start, CarbonInterface $end): bool

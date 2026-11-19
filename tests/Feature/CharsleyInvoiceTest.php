@@ -21,7 +21,7 @@ beforeEach(function () {
     $this->match = MatchEvent::create([
         'name' => 'Charsley Month Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'match_date' => '2026-09-20',
         'status' => 'open',
         'created_by' => $this->director->id,

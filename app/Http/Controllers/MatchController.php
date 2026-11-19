@@ -87,7 +87,7 @@ class MatchController extends Controller
         }
 
         if ($seriesLevel = $request->input('series_level')) {
-            if (in_array($seriesLevel, ['national', 'provincial', 'club', 'final', 'international'], true)) {
+            if (in_array($seriesLevel, ['national', 'provincial', 'club_only', 'club_provincial', 'final', 'international'], true)) {
                 $query->where('series_level', $seriesLevel);
             }
         }
@@ -117,17 +117,32 @@ class MatchController extends Controller
         $validated['non_member_fee'] = $baseFee + $nonMemberSurcharge;
         $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
 
-        // Club entry is a club/provincial-only concept. Drop the value on
-        // nationals/finals/internationals so a stale form field can't book a
-        // club price on a match that is supposed to charge the surcharge.
-        // The opt-in flag goes the same way: on nationals it is meaningless
-        // and we don't want a hidden `true` to resurface if the series level
-        // ever drops back to provincial.
-        if (! in_array($validated['series_level'] ?? null, ['club', 'provincial'], true)) {
+        // Club entry is a club-hosted / provincial-only concept. Drop the
+        // value on nationals/finals/internationals so a stale form field
+        // can't book a club price on a match that is supposed to charge
+        // the surcharge. The opt-in flag goes the same way: on nationals
+        // it is meaningless and we don't want a hidden `true` to resurface
+        // if the series level ever drops back to provincial.
+        if (! in_array($validated['series_level'] ?? null, ['club_only', 'club_provincial', 'provincial'], true)) {
             $validated['club_entry_fee'] = null;
             $validated['club_entry_enabled'] = false;
         } else {
             $validated['club_entry_enabled'] = (bool) ($validated['club_entry_enabled'] ?? false);
+        }
+
+        // Host club and registration method are club-hosted-only concepts.
+        // Other levels force `club_id` to null and always collect on-platform
+        // with no external URL — a stale form field can't ship a shooter to
+        // an outside site from a national match.
+        if (! in_array($validated['series_level'] ?? null, ['club_only', 'club_provincial'], true)) {
+            $validated['club_id'] = null;
+            $validated['registration_method'] = 'platform';
+            $validated['external_registration_url'] = null;
+        } else {
+            $validated['registration_method'] = $validated['registration_method'] ?? 'platform';
+            if ($validated['registration_method'] !== 'external') {
+                $validated['external_registration_url'] = null;
+            }
         }
 
         // The "This is the SA Championships" flag is only meaningful on a
@@ -304,14 +319,15 @@ class MatchController extends Controller
         $validated['lapsed_member_fee'] = $baseFee + $lapsedSurcharge;
 
         // Keep the club_entry_fee column honest if the series level moved off
-        // club/provincial on this edit. For club/provincial the submitted value
-        // is accepted as-is (including blank, which means "fall back to the
-        // active-member fee"); other series levels always clear it. The
-        // opt-in flag is tied to the same levels — force it off anywhere it
-        // can't apply, and normalise the checkbox to a strict bool so an
-        // unchecked box doesn't leave the old value in place.
+        // a club-hosted or provincial value on this edit. For those three
+        // levels the submitted value is accepted as-is (including blank,
+        // which means "fall back to the active-member fee"); other series
+        // levels always clear it. The opt-in flag is tied to the same levels
+        // — force it off anywhere it can't apply, and normalise the checkbox
+        // to a strict bool so an unchecked box doesn't leave the old value
+        // in place.
         $effectiveLevel = $validated['series_level'] ?? $match->series_level;
-        if (! in_array($effectiveLevel, ['club', 'provincial'], true)) {
+        if (! in_array($effectiveLevel, ['club_only', 'club_provincial', 'provincial'], true)) {
             $validated['club_entry_fee'] = null;
             $validated['club_entry_enabled'] = false;
         } elseif (array_key_exists('club_entry_enabled', $validated) || $request->exists('club_entry_enabled')) {
@@ -320,6 +336,35 @@ class MatchController extends Controller
             // and an absent key means "this form didn't ask about the flag,
             // leave the stored value alone".
             $validated['club_entry_enabled'] = $request->boolean('club_entry_enabled');
+        }
+
+        // Host club and registration method only apply to club-hosted
+        // matches. If this edit flips the level off `club_only` /
+        // `club_provincial`, force the club_id null, snap registration back
+        // to on-platform, and drop the external URL so a stale value can't
+        // route a shooter off-site from a national or provincial match.
+        if (! in_array($effectiveLevel, ['club_only', 'club_provincial'], true)) {
+            $validated['club_id'] = null;
+            $validated['registration_method'] = 'platform';
+            $validated['external_registration_url'] = null;
+        } else {
+            // On a club-hosted match, only touch the method/URL when the form
+            // submitted them. Settings forms that don't ask about them leave
+            // the stored values alone.
+            if (array_key_exists('registration_method', $validated) || $request->exists('registration_method')) {
+                $method = $validated['registration_method'] ?? 'platform';
+                $validated['registration_method'] = $method;
+                if ($method !== 'external') {
+                    $validated['external_registration_url'] = null;
+                }
+            } elseif (array_key_exists('external_registration_url', $validated)
+                || $request->exists('external_registration_url')) {
+                // URL came through on its own — keep it on the existing
+                // method. If the existing method is not external, blank it.
+                if ($match->registration_method !== 'external') {
+                    $validated['external_registration_url'] = null;
+                }
+            }
         }
 
         // The "This is the SA Championships" flag only applies to `final`
@@ -1373,7 +1418,11 @@ class MatchController extends Controller
         $entrySubject = $isNewShooter ? null : $shooter;
         if (! $skipClubGate && ! $match->allowsShooter($entrySubject)) {
             return redirect()->route('events.show', $match)
-                ->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+                ->with(
+                    'error',
+                    app(MembershipValidationService::class)->matchEntryDenialMessage($match, $entrySubject)
+                        ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE,
+                );
         }
 
         // A brand-new stub carries no membership yet, so pricing must not
@@ -1451,7 +1500,11 @@ class MatchController extends Controller
             ]);
 
             if (! $match->allowsShooter(null)) {
-                return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+                return back()->with(
+                    'error',
+                    app(MembershipValidationService::class)->matchEntryDenialMessage($match, null)
+                        ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE,
+                );
             }
 
             $shooter = app(GuestShooterService::class)->findOrCreate(
@@ -1462,7 +1515,11 @@ class MatchController extends Controller
             $shooter = $this->resolveShooter($actor, $request->input('for_user'));
 
             if (! $match->allowsShooter($shooter)) {
-                return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+                return back()->with(
+                    'error',
+                    app(MembershipValidationService::class)->matchEntryDenialMessage($match, $shooter)
+                        ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE,
+                );
             }
         }
 
@@ -1509,6 +1566,19 @@ class MatchController extends Controller
 
         $breakdown = app(RegistrationPricingService::class)
             ->calculateBreakdown($match, $shooter, $match->match_date, $divisionSlug);
+
+        // External match: the money reaches the host club off-platform, so
+        // no PayFast transaction ever happens. The estimated gateway fee
+        // (card-rate forecast for unpaid/cash rows) would silently shave
+        // ~R20 off the MD's payout — zero it and credit the MD the same
+        // way an off-platform settlement does elsewhere.
+        if ($match->usesExternalRegistration() && (float) $breakdown['gateway_fee'] > 0) {
+            $breakdown['md_net'] = round(
+                (float) $breakdown['md_net'] + (float) $breakdown['gateway_fee'],
+                2,
+            );
+            $breakdown['gateway_fee'] = 0.0;
+        }
 
         $regStatus = $match->isFull() && $match->waitlist_enabled ? 'waitlisted' : 'pending';
 
@@ -1576,6 +1646,18 @@ class MatchController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to send match registration notification', ['error' => $e->getMessage()]);
+        }
+
+        // External registration: SAPRF entry is captured and the shooter is
+        // handed off to the host club's own page (entry form, Google Form,
+        // bank-details page). No PayFast, no entry credit — the MD marks
+        // the entry paid once the club receives the money. Any success
+        // flash is a short visible message for the brief redirect frame.
+        if ($match->usesExternalRegistration()) {
+            $hostName = $match->club?->name ?: 'the host club';
+
+            return redirect()->away($match->external_registration_url)
+                ->with('success', 'Entry saved. Finish registering with '.$hostName.' at the link.');
         }
 
         // Entry credit (cancelled match, or an MD removing a paid entry) is
@@ -1675,11 +1757,15 @@ class MatchController extends Controller
         }
 
         // A brand-new shooter is a club-tier non-member. Refuse them on a
-        // members-only provincial before provisioning a stub.
+        // members-only provincial (or Club / Provincial), and on a Club
+        // only with a host club set, before provisioning a stub.
         if (! $hasUserId && ! $match->allowsShooter(null)) {
             return back()
                 ->withInput()
-                ->withErrors(['new_shooter_name' => MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE]);
+                ->withErrors(['new_shooter_name' =>
+                    app(MembershipValidationService::class)->matchEntryDenialMdMessage($match, null)
+                        ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE,
+                ]);
         }
 
         // A brand-new shooter is a non-member. Refuse the waive before
@@ -1707,7 +1793,10 @@ class MatchController extends Controller
             if (! $match->allowsShooter($shooter)) {
                 return back()
                     ->withInput()
-                    ->withErrors(['user_id' => MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE]);
+                    ->withErrors(['user_id' =>
+                        app(MembershipValidationService::class)->matchEntryDenialMdMessage($match, $shooter)
+                            ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE,
+                    ]);
             }
         } else {
             // Brand-new sponsored/comp'd shooter. Provisions a minimal stub

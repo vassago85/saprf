@@ -108,7 +108,7 @@ final class SeasonKpiBuilder
                 $parts[] = "{$natl} {$d} national".($natl === 1 ? '' : 's');
             }
         }
-        $prov = $scores->filter(fn (Score $s) => $s->match?->series_level === 'provincial')->count();
+        $prov = $scores->filter(fn (Score $s) => in_array($s->match?->series_level, ['provincial', 'club_provincial'], true))->count();
         if ($prov > 0) {
             $parts[] = "{$prov} provincial".($prov === 1 ? '' : 's');
         }

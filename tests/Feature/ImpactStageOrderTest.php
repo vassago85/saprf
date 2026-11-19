@@ -11,7 +11,7 @@ it('lists impact stages in stage-number order on the public results', function (
         'name' => 'Stage Order Match',
         'match_type' => 'PRS',
         'series' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'season' => (string) Carbon::now()->year,
         'match_date' => Carbon::today()->subDay(),
         'status' => 'completed',

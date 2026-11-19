@@ -29,6 +29,7 @@ class MatchEvent extends Model
         'series',
         'season',
         'province_id',
+        'club_id',
         'venue_name',
         'venue_location',
         'venue_details',
@@ -62,6 +63,8 @@ class MatchEvent extends Model
         'junior_fee',
         'club_entry_fee',
         'club_entry_enabled',
+        'registration_method',
+        'external_registration_url',
         'platform_fee_type',
         'platform_fee_value',
         'saprf_fee_type',
@@ -173,6 +176,17 @@ class MatchEvent extends Model
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    /**
+     * The host club for a `club_only` or `club_provincial` match. Null on
+     * every other level, and null on legacy club rows (the column did not
+     * exist when they were created) — the entry gate skips the host-club
+     * check while this is null.
+     */
+    public function club(): BelongsTo
+    {
+        return $this->belongsTo(Club::class);
     }
 
     public function creator(): BelongsTo
@@ -581,20 +595,56 @@ class MatchEvent extends Model
     }
 
     /**
-     * Club and provincial matches may offer a club-entry price: non-members
-     * pay the match-director-set club price (or the active-member fee when
-     * no club price is set) with no non-member surcharge.
+     * Club-hosted and provincial matches may offer a club-entry price:
+     * non-members pay the match-director-set club price (or the active-member
+     * fee when no club price is set) with no non-member surcharge.
      *
-     * On a provincial the same flag is the permission to enter. It is off
-     * by default, and club members cannot register until the match director
-     * turns it on. On a club match the flag only chooses the price — club
-     * shooters can always enter. Nationals, finals, and internationals
-     * ignore the flag and keep the non-member surcharge.
+     * On a provincial or club_provincial the same flag is the permission to
+     * enter. It is off by default, and club members cannot register until
+     * the match director turns it on. On a club_only match the flag only
+     * chooses the price — the host-club check (not this flag) controls who
+     * can enter. Nationals, finals, and internationals ignore the flag and
+     * keep the non-member surcharge.
      */
     public function supportsClubEntry(): bool
     {
-        return in_array($this->series_level, ['club', 'provincial'], true)
-            && (bool) $this->club_entry_enabled;
+        return in_array(
+            $this->series_level,
+            ['club_only', 'club_provincial', 'provincial'],
+            true,
+        ) && (bool) $this->club_entry_enabled;
+    }
+
+    /**
+     * Whether the match is hosted by a specific club. Both `club_only` and
+     * `club_provincial` are club-hosted; only `club_only` restricts entry to
+     * that club's members.
+     */
+    public function isClubHosted(): bool
+    {
+        return in_array($this->series_level, ['club_only', 'club_provincial'], true);
+    }
+
+    /**
+     * Whether a score on this match feeds the provincial season log.
+     * `provincial` and `club_provincial` do; `club_only` (and everything
+     * else) does not.
+     */
+    public function countsOnProvincialLog(): bool
+    {
+        return in_array($this->series_level, ['provincial', 'club_provincial'], true);
+    }
+
+    /**
+     * On an external match the shooter still creates an entry here, then is
+     * sent to the club's own registration URL. PayFast and entry credit are
+     * skipped — the club collects the fee off-platform and the MD marks the
+     * entry paid by hand once the money arrives.
+     */
+    public function usesExternalRegistration(): bool
+    {
+        return $this->registration_method === 'external'
+            && filled($this->external_registration_url);
     }
 
     /**

@@ -67,7 +67,7 @@ class Pr22V11ParticipationRuleset implements ParticipationRuleset
         $homeProvinceId = $user?->province_id;
         $scores = $this->scoresInPeriod($athlete)->get();
 
-        $provincial1d = $scores->filter(fn (Score $s) => $s->match?->series_level === 'provincial');
+        $provincial1d = $scores->filter(fn (Score $s) => in_array($s->match?->series_level, ['provincial', 'club_provincial'], true));
         $national2d = $scores->filter(fn (Score $s) => $s->match?->series_level === 'national');
         $international2d = $scores->filter(fn (Score $s) => $s->match?->series_level === 'international');
         $saChampsScores = $scores->filter(fn (Score $s) => $s->match?->series_level === 'final');
@@ -221,6 +221,6 @@ class Pr22V11ParticipationRuleset implements ParticipationRuleset
                     $cycle->qualifying_period_start,
                     $cycle->qualifying_period_end,
                 ])
-                ->whereIn('series_level', ['provincial', 'national', 'international', 'final']));
+                ->whereIn('series_level', ['provincial', 'club_provincial', 'national', 'international', 'final']));
     }
 }

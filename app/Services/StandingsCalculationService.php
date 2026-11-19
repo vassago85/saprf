@@ -41,7 +41,7 @@ class StandingsCalculationService
         // affected regardless of the host).
         if ($rule && $rule->usesNationalLog()) {
             $this->recalculateSeasonStandings($match->series, $season);
-            if ($match->series_level === 'provincial') {
+            if ($match->countsOnProvincialLog()) {
                 $this->recalculateProvincialStandings($match->series, $season);
             }
         } elseif (in_array($match->series_level, ['national', 'final'], true)) {
@@ -372,8 +372,9 @@ class StandingsCalculationService
                 // as its own separate provincial match. The legacy
                 // `also_counts_for_provincial` dual-count path is intentionally
                 // ignored here so national scores can never leak into
-                // provincial rankings.
-                return $match->series_level === 'provincial'
+                // provincial rankings. A `club_provincial` match (club-hosted
+                // but members-only) rides the same gate as a plain provincial.
+                return in_array($match->series_level, ['provincial', 'club_provincial'], true)
                     && $score->normalized_score !== null;
             });
         } else {
@@ -1055,7 +1056,7 @@ class StandingsCalculationService
         }
 
         return match ($poolKey) {
-            'provincial' => $match->series_level === 'provincial'
+            'provincial' => in_array($match->series_level, ['provincial', 'club_provincial'], true)
                 ? $this->normalizedScoreForContext($score, $context)
                 : null,
             'national' => $match->series_level === 'national'

@@ -22,7 +22,7 @@
     }
     $impactLiveSyncValue = (bool) filter_var(old('impact_live_sync', $match?->impact_live_sync), FILTER_VALIDATE_BOOLEAN);
 
-    $defaultSeriesLevel = $match?->series_level ?? 'club';
+    $defaultSeriesLevel = $match?->series_level ?? 'club_only';
 @endphp
 <section id="scoring" class="scroll-mt-24 rounded-xl border border-stone-200 bg-white p-5"
          x-data="{

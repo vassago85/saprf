@@ -34,7 +34,7 @@ function clubMatchForBackfill(array $overrides = []): MatchEvent
     return MatchEvent::create(array_merge([
         'name' => 'Existing Club Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'series' => 'PRS',
         'season' => '2026',
         'province_id' => test()->province->id,

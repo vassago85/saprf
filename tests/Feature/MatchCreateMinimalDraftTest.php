@@ -13,6 +13,7 @@
  *   - A clear flash message tells the MD what to do next.
  */
 
+use App\Models\Club;
 use App\Models\MatchEvent;
 use App\Models\Province;
 use App\Models\User;
@@ -21,6 +22,15 @@ beforeEach(function () {
     seedRoles();
 
     $this->province = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    $this->club = Club::firstOrCreate(
+        ['slug' => 'minimal-draft-club'],
+        [
+            'name' => 'Minimal Draft Club',
+            'abbreviation' => 'MDC',
+            'province_id' => $this->province->id,
+            'is_active' => true,
+        ],
+    );
 
     $this->md = User::factory()->create();
     $this->md->assignRole('match_director');
@@ -32,7 +42,8 @@ it('creates a draft match from the minimal create form and redirects to the sett
             // Just the fields the restructured create page renders.
             'name' => 'Minimal Draft Match',
             'match_type' => 'PRS',
-            'series_level' => 'club',
+            'series_level' => 'club_only',
+            'club_id' => $this->club->id,
             'match_date' => now()->addMonth()->format('Y-m-d'),
             'active_member_fee' => 250,
         ]);
@@ -46,7 +57,8 @@ it('creates a draft match from the minimal create form and redirects to the sett
         ->and((bool) $match->published)->toBeFalse()
         ->and((float) $match->active_member_fee)->toBe(250.0)
         ->and($match->match_type)->toBe('PRS')
-        ->and($match->series_level)->toBe('club');
+        ->and($match->series_level)->toBe('club_only')
+        ->and((int) $match->club_id)->toBe($this->club->id);
 });
 
 it('does not render a status select or cost estimator on the create page', function () {

@@ -82,7 +82,8 @@
                         <select id="events_type" name="type" onchange="document.getElementById('filterForm').submit()"
                                 class="w-full min-h-11 rounded-lg border-stone-300 bg-white py-2.5 pl-3 pr-8 text-base focus:border-emerald-500 focus:ring-emerald-500 sm:min-h-0 sm:w-auto sm:py-2 sm:text-sm">
                             <option value="">All Types</option>
-                            <option value="club" @selected($type === 'club')>Club</option>
+                            <option value="club_only" @selected($type === 'club_only')>Club only</option>
+                            <option value="club_provincial" @selected($type === 'club_provincial')>Club / Provincial</option>
                             <option value="provincial" @selected($type === 'provincial')>Provincial</option>
                             <option value="national" @selected($type === 'national')>National</option>
                             <option value="final" @selected($type === 'final')>Final</option>

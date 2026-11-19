@@ -126,7 +126,7 @@ class SelectionQualificationReport
                     $cycle->qualifying_period_start,
                     $cycle->qualifying_period_end,
                 ])
-                ->whereIn('series_level', ['provincial', 'national', 'international', 'final']))
+                ->whereIn('series_level', ['provincial', 'club_provincial', 'national', 'international', 'final']))
             ->get()
             ->groupBy('user_id');
     }
@@ -146,7 +146,7 @@ class SelectionQualificationReport
         }
 
         $known = [
-            'provincial_1d' => ['levels' => ['provincial'], 'label' => 'Provincial 1-day', 'take' => 3],
+            'provincial_1d' => ['levels' => ['provincial', 'club_provincial'], 'label' => 'Provincial 1-day', 'take' => 3],
             'national_or_international_2d' => ['levels' => ['national', 'international'], 'label' => 'National / international 2-day', 'take' => 2],
             'sa_champs' => ['levels' => ['final'], 'label' => 'SA Championship', 'take' => 1],
         ];

@@ -55,9 +55,30 @@ class UpdateMatchRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
-            'series_level' => ['nullable', Rule::in(['national', 'provincial', 'club', 'final', 'international'])],
+            'series_level' => ['nullable', Rule::in(['national', 'provincial', 'club_only', 'club_provincial', 'final', 'international'])],
             'is_sa_championships' => ['boolean'],
             'province_id' => ['nullable', 'exists:provinces,id'],
+            // A host club is required on every club-hosted match. The rule
+            // only fires when the submitted level is club_only / club_provincial
+            // — settings forms that don't touch the level leave `club_id` out
+            // of the payload entirely, and the controller leaves the stored
+            // value in place.
+            'club_id' => [
+                'nullable',
+                'exists:clubs,id',
+                Rule::requiredIf(fn () => in_array(
+                    $this->input('series_level'),
+                    ['club_only', 'club_provincial'],
+                    true,
+                )),
+            ],
+            'registration_method' => ['nullable', Rule::in(['platform', 'external'])],
+            'external_registration_url' => [
+                'nullable',
+                'url',
+                'max:500',
+                Rule::requiredIf(fn () => $this->input('registration_method') === 'external'),
+            ],
             'match_date' => ['nullable', 'date'],
             'match_end_date' => ['nullable', 'date', 'after_or_equal:match_date'],
             'venue_name' => ['nullable', 'string', 'max:255'],
@@ -134,6 +155,8 @@ class UpdateMatchRequest extends FormRequest
         return [
             'whatsapp_invite_url.regex' => 'The invite must be a WhatsApp group link starting with https://chat.whatsapp.com/',
             'impact_ref.required' => 'Paste the Impact match link to turn live scores on.',
+            'club_id.required' => 'Pick the host club for this club-hosted match.',
+            'external_registration_url.required' => 'Enter the club registration URL to send shooters to after they sign up on SAPRF.',
         ];
     }
 }

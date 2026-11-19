@@ -30,7 +30,7 @@ function bannerMatchFormPayload(array $overrides = []): array
     return array_merge([
         'name' => 'Banner Setup Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'provincial',
         'match_date' => now()->addMonth()->format('Y-m-d'),
         'active_member_fee' => 250,
         'status' => 'open',
@@ -42,7 +42,7 @@ function makePublicMatch(User $creator, Province $province, array $overrides = [
     return MatchEvent::create(array_merge([
         'name' => 'Public Entries Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'provincial',
         'series' => 'PRS',
         'season' => '2026',
         'province_id' => $province->id,

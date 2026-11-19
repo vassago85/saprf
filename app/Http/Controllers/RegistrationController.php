@@ -139,7 +139,11 @@ class RegistrationController extends Controller
         }
 
         if (! $match->allowsShooter($user)) {
-            return back()->with('error', MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE);
+            return back()->with(
+                'error',
+                app(MembershipValidationService::class)->matchEntryDenialMessage($match, $user)
+                    ?? MembershipValidationService::PROVINCIAL_MEMBERS_ONLY_MESSAGE,
+            );
         }
 
         $breakdown = $this->pricingService->calculateBreakdown($match, $user, $match->match_date);

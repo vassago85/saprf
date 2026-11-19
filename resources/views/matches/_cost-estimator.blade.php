@@ -72,7 +72,7 @@
 
         const seriesEl = document.getElementById('series_level');
         if(seriesEl) seriesEl.addEventListener('change', () => {
-            supportsClubEntry = ['club','provincial'].includes(seriesEl.value);
+            supportsClubEntry = ['club_only','club_provincial','provincial'].includes(seriesEl.value);
             calculate();
         });
 

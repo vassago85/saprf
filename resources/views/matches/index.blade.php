@@ -38,7 +38,8 @@
                     <option value="">All Levels</option>
                     <option value="national" @selected(request('series_level') === 'national')>National</option>
                     <option value="provincial" @selected(request('series_level') === 'provincial')>Provincial</option>
-                    <option value="club" @selected(request('series_level') === 'club')>Club</option>
+                    <option value="club_only" @selected(request('series_level') === 'club_only')>Club only</option>
+                    <option value="club_provincial" @selected(request('series_level') === 'club_provincial')>Club / Provincial</option>
                     <option value="final" @selected(request('series_level') === 'final')>Final / Champs</option>
                     <option value="international" @selected(request('series_level') === 'international')>International</option>
                 </select>
@@ -101,13 +102,19 @@
                                     'final' => 'bg-amber-50 text-amber-800 ring-amber-200',
                                     'national' => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
                                     'international' => 'bg-indigo-50 text-indigo-800 ring-indigo-200',
-                                    'provincial' => 'bg-sky-50 text-sky-800 ring-sky-200',
-                                    'club' => 'bg-stone-100 text-stone-700 ring-stone-300',
+                                    'provincial', 'club_provincial' => 'bg-sky-50 text-sky-800 ring-sky-200',
+                                    'club_only' => 'bg-stone-100 text-stone-700 ring-stone-300',
                                     default => 'bg-stone-100 text-stone-700 ring-stone-300',
                                 };
+                                $levelLabel = match ($match->series_level) {
+                                    'club_only' => 'Club only',
+                                    'club_provincial' => 'Club / Provincial',
+                                    'final' => 'Final / Champs',
+                                    default => ucfirst((string) $match->series_level),
+                                };
                             @endphp
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset capitalize {{ $levelClass }}">
-                                {{ $match->series_level }}
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $levelClass }}">
+                                {{ $levelLabel }}
                             </span>
                             @if ($match->is_sa_championships)
                                 <span class="ml-1 inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-amber-700"

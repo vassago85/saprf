@@ -52,9 +52,32 @@ class StoreMatchRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'match_type' => ['required', Rule::in(['PRS', 'PR22'])],
-            'series_level' => ['required', Rule::in(['national', 'provincial', 'club', 'final', 'international'])],
+            'series_level' => ['required', Rule::in(['national', 'provincial', 'club_only', 'club_provincial', 'final', 'international'])],
             'is_sa_championships' => ['boolean'],
             'province_id' => ['nullable', 'exists:provinces,id'],
+            // A host club is required on every club-hosted match. Legacy
+            // `club` rows were auto-migrated to `club_only` without one — the
+            // entry gate treats a null host as "permissive" so those stay
+            // open until the MD saves a club here — but new matches must
+            // commit to a host at creation time.
+            'club_id' => [
+                'nullable',
+                'exists:clubs,id',
+                Rule::requiredIf(fn () => in_array(
+                    $this->input('series_level'),
+                    ['club_only', 'club_provincial'],
+                    true,
+                )),
+            ],
+            // Registration method lives on club-hosted matches only. Any
+            // other level forces `platform` in the controller.
+            'registration_method' => ['nullable', Rule::in(['platform', 'external'])],
+            'external_registration_url' => [
+                'nullable',
+                'url',
+                'max:500',
+                Rule::requiredIf(fn () => $this->input('registration_method') === 'external'),
+            ],
             'match_date' => ['required', 'date', 'after_or_equal:today'],
             'match_end_date' => ['nullable', 'date', 'after_or_equal:match_date'],
             'venue_name' => ['nullable', 'string', 'max:255'],
@@ -101,6 +124,8 @@ class StoreMatchRequest extends FormRequest
     {
         return [
             'whatsapp_invite_url.regex' => 'The invite must be a WhatsApp group link starting with https://chat.whatsapp.com/',
+            'club_id.required' => 'Pick the host club for this club-hosted match.',
+            'external_registration_url.required' => 'Enter the club registration URL to send shooters to after they sign up on SAPRF.',
         ];
     }
 }

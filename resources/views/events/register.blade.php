@@ -23,6 +23,16 @@
                 </div>
             </div>
 
+            {{-- External-registration heads-up: the SAPRF entry is captured
+                 here, then the shooter is handed off to the club's own page.
+                 Rendered above the form so the hand-off isn't a surprise. --}}
+            @if($match->usesExternalRegistration())
+                <div class="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900">
+                    <p class="font-semibold">Entry continues on {{ $match->club?->name ?: 'the host club' }}'s site.</p>
+                    <p class="mt-1 text-sky-800">Fill in the details below. On save we'll redirect you to the host club's registration or payment page. Your SAPRF entry stays unpaid until the match director confirms the money has arrived.</p>
+                </div>
+            @endif
+
             {{-- Registration Form --}}
             <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-stone-100">
@@ -530,13 +540,23 @@
                         By continuing you confirm the shooter accepts them.
                     </p>
 
-                    {{-- Submit --}}
+                    {{-- Submit. External matches send the shooter off to the
+                         host club's own page after saving the entry, so the
+                         button reads "Register and continue" rather than
+                         promising a PayFast charge that isn't about to happen. --}}
                     <div class="flex items-center justify-between pt-2">
                         <a href="{{ url('/events/' . $match->id) }}" class="text-sm text-stone-500 hover:text-stone-700 transition">Cancel</a>
-                        <button type="submit"
-                                class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
-                            Register &amp; Pay — @if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif
-                        </button>
+                        @if($match->usesExternalRegistration())
+                            <button type="submit"
+                                    class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
+                                Register &amp; continue to {{ $match->club?->name ?: 'host club' }}
+                            </button>
+                        @else
+                            <button type="submit"
+                                    class="px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition shadow-sm">
+                                Register &amp; Pay — @if(! empty($juniorPricing))<span x-text="feeText"></span>@else R {{ number_format($pricing['fee'], 2) }}@endif
+                            </button>
+                        @endif
                     </div>
                     @else
                         {{-- Sponsor-only footer when actor is already entered. --}}

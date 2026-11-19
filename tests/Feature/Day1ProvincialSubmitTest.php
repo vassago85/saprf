@@ -74,7 +74,7 @@ it('shows the day 1 provincial control only on an open live two-day national', f
 
     $club = day1National($this->admin, $this->province, [
         'name' => 'Club Saturday',
-        'series_level' => 'club',
+        'series_level' => 'club_only',
         'match_end_date' => null,
     ]);
 

@@ -482,8 +482,22 @@
             </div>
         @endif
 
+        {{-- External registration: the fee is collected by the host club on
+             their own page, not through PayFast. Show the club link again so
+             the shooter can re-open it, and skip the pay-now panel entirely. --}}
+        @if($registration->match?->usesExternalRegistration() && in_array($registration->payment_status, ['pending', 'unpaid']) && $registration->registration_status !== 'cancelled')
+            <div class="rounded-xl border border-sky-200 bg-sky-50 p-6 shadow-sm">
+                <h2 class="font-heading text-lg font-semibold text-sky-900">Finish on {{ $registration->match->club?->name ?: 'host club' }}'s site</h2>
+                <p class="text-sm text-sky-800 mt-1">Your entry is saved. The host club is collecting the match fee off SAPRF — follow their link to register or pay there. The match director will mark this entry paid once the money reaches them.</p>
+                <a href="{{ $registration->match->external_registration_url }}" target="_blank" rel="noopener"
+                   class="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 transition shadow-sm">
+                    Continue to {{ $registration->match->club?->name ?: 'host club' }}
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                </a>
+            </div>
+
         {{-- Pay Now button for unpaid registrations --}}
-        @if($ownsRegistration && $registration->mustChooseDivision())
+        @elseif($ownsRegistration && $registration->mustChooseDivision())
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-semibold text-amber-900">Payment still required</h2>
                 <p class="text-sm text-amber-800 mt-1">Choose your division and rifle first. The pay button appears once a division is saved.</p>

@@ -892,7 +892,7 @@ function liveSyncMatch(User $owner, Province $province, array $overrides = []): 
         'name' => 'Saturday Club Match',
         'match_type' => 'PRS',
         'series' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'provincial',
         'season' => '2026',
         'province_id' => $province->id,
         'match_date' => Carbon::today()->toDateString(),
@@ -1020,7 +1020,7 @@ function liveSyncForm(array $overrides = []): array
     return array_merge([
         'name' => 'Saturday Club Match',
         'match_type' => 'PRS',
-        'series_level' => 'club',
+        'series_level' => 'provincial',
         'match_date' => Carbon::today()->toDateString(),
         'active_member_fee' => 100,
         'status' => 'closed',

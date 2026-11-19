@@ -170,7 +170,7 @@ class Pr22V11ScoringRuleset implements ScoringRuleset
         $selection = $component['match_selection'] ?? '';
 
         [$targetLevels, $takeCount] = match ($source) {
-            'provincial_1d' => [['provincial'], 3],
+            'provincial_1d' => [['provincial', 'club_provincial'], 3],
             'national_or_international_2d' => [['national', 'international'], 2],
             'sa_champs' => [['final'], 1],
             default => [[], 0],
@@ -233,6 +233,6 @@ class Pr22V11ScoringRuleset implements ScoringRuleset
                     $cycle->qualifying_period_start,
                     $cycle->qualifying_period_end,
                 ])
-                ->whereIn('series_level', ['provincial', 'national', 'international', 'final']));
+                ->whereIn('series_level', ['provincial', 'club_provincial', 'national', 'international', 'final']));
     }
 }

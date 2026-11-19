@@ -42,6 +42,10 @@ class MembershipValidationService
 
     public const PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE = 'Club members can\'t be added to this provincial. Turn on Allow club members under Divisions if this match should accept them.';
 
+    public const CLUB_ONLY_HOST_CLUB_MESSAGE = 'This match is only open to members of the host club.';
+
+    public const CLUB_ONLY_HOST_CLUB_MD_MESSAGE = 'This shooter is not a member of the host club for this match.';
+
     public function isMembershipValidOnDate(?Membership $membership, CarbonInterface $date): bool
     {
         if (! $membership) {
@@ -229,15 +233,62 @@ class MembershipValidationService
     }
 
     /**
-     * Provincial matches are members-only unless the match director opts in.
-     * Club matches and every other series level are unchanged.
+     * Provincial and Club / Provincial matches are members-only unless the
+     * match director opts in. Club only matches gate on the host club: if
+     * one is saved, only shooters attached to that club can enter. Every
+     * other series level is unchanged.
+     *
+     * Legacy `club_only` rows with no `club_id` (they were `club` before the
+     * host-club column existed) skip the host check and stay open — the MD
+     * has to save a host club before the gate kicks in.
      */
     public function mayEnterMatch(MatchEvent $match, ?User $user): bool
     {
-        if ($match->series_level !== 'provincial' || $match->club_entry_enabled) {
+        if ($match->series_level === 'club_only') {
+            if ($match->club_id === null) {
+                return true;
+            }
+
+            return $user !== null && (int) $user->club_id === (int) $match->club_id;
+        }
+
+        if (! in_array($match->series_level, ['provincial', 'club_provincial'], true)
+            || $match->club_entry_enabled) {
             return true;
         }
 
         return ! $this->isClubTierShooter($user);
+    }
+
+    /**
+     * Shooter-facing message for a mayEnterMatch() refusal, or null when the
+     * shooter is allowed in. Lets the controller pick the right copy without
+     * re-deriving which gate failed.
+     */
+    public function matchEntryDenialMessage(MatchEvent $match, ?User $user): ?string
+    {
+        if ($this->mayEnterMatch($match, $user)) {
+            return null;
+        }
+
+        return $match->series_level === 'club_only'
+            ? self::CLUB_ONLY_HOST_CLUB_MESSAGE
+            : self::PROVINCIAL_MEMBERS_ONLY_MESSAGE;
+    }
+
+    /**
+     * Match-director-facing variant of matchEntryDenialMessage(). Used when
+     * staff try to seed a shooter who the gate would reject; the copy tells
+     * the MD exactly which switch they would need to flip.
+     */
+    public function matchEntryDenialMdMessage(MatchEvent $match, ?User $user): ?string
+    {
+        if ($this->mayEnterMatch($match, $user)) {
+            return null;
+        }
+
+        return $match->series_level === 'club_only'
+            ? self::CLUB_ONLY_HOST_CLUB_MD_MESSAGE
+            : self::PROVINCIAL_MEMBERS_ONLY_MD_MESSAGE;
     }
 }
