@@ -513,6 +513,139 @@ it('collapses multiple edits of the same match into one representative snapshot'
     expect($move[$shooter->id])->toBeNull();
 });
 
+it('picks the latest-written snapshot per match, not the one with the highest taken_at, so future-dated originals never beat today retries', function () {
+    // Live bug on 21 Nov 2026: the champs match sibling had match_date in the
+    // future (Nov 22), so the recorder's first snapshot stamped taken_at =
+    // Nov 22 23:59:59. Every subsequent import that hit the "ranks moved"
+    // retry branch wrote a second snapshot at Carbon::now() — which is a
+    // SMALLER taken_at than the future original. The movement query picked
+    // the stale original ("MAX(taken_at) per match"), so every arrow flipped
+    // sign for shooters whose rank actually moved that day. This test pins
+    // the fix: snapshots are selected per match by id (insertion order), not
+    // by taken_at, and the recorder caps future taken_at at now() going
+    // forward.
+    $climber = User::factory()->create(['name' => 'Rose Climber']);
+    $faller = User::factory()->create(['name' => 'Stan Faller']);
+
+    // Match 1 = yesterday's finalised match. Climber was 10th, Faller 1st.
+    $yesterday = arrowMatch('Yesterday National', '2026-11-20', now()->subDay());
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $climber->id, 'rank' => 10, 'points' => 180.0,
+        'taken_at' => now()->subDay(),
+        'triggered_by_match_id' => $yesterday->id,
+    ]);
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $faller->id, 'rank' => 1, 'points' => 300.0,
+        'taken_at' => now()->subDay(),
+        'triggered_by_match_id' => $yesterday->id,
+    ]);
+
+    // Match 2 = today's champs sibling. match_date is TOMORROW.
+    // First snapshot: taken_at stamped at the future match_date end-of-day,
+    // written when the match had no imports yet — Climber still 10th here.
+    $sibling = arrowMatch('Champs Day-1 Sibling', '2026-11-22', now());
+    $futureTakenAt = Carbon::parse('2026-11-22')->endOfDay();
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $climber->id, 'rank' => 10, 'points' => 180.0,
+        'taken_at' => $futureTakenAt,
+        'triggered_by_match_id' => $sibling->id,
+    ]);
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $faller->id, 'rank' => 1, 'points' => 300.0,
+        'taken_at' => $futureTakenAt,
+        'triggered_by_match_id' => $sibling->id,
+    ]);
+
+    // Second snapshot (retry, written AFTER day-1 scores imported):
+    // Carbon::now(), smaller than the future taken_at above but inserted
+    // later so it has a higher id. Climber has jumped to 2nd on +100,
+    // Faller has slipped to 3rd. This is the state the standings page
+    // currently shows.
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $climber->id, 'rank' => 2, 'points' => 280.0,
+        'taken_at' => now(),
+        'triggered_by_match_id' => $sibling->id,
+    ]);
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'national',
+        'province_id' => null, 'division_id' => null,
+        'user_id' => $faller->id, 'rank' => 3, 'points' => 260.0,
+        'taken_at' => now(),
+        'triggered_by_match_id' => $sibling->id,
+    ]);
+
+    $move = app(StandingsMovement::class)->for(
+        [$climber->id, $faller->id],
+        '2026', 'PRS', 'national', null, null,
+    );
+
+    // Climber: previous 10 - current 2 = +8 (▲8 UP). With the old bug this
+    // would have been previous 10 - stale-current 10 = 0, or inverted if
+    // the retry snapshot of the previous match was fresher — either way,
+    // not +8. The fix picks row-with-highest-id per match → current = 2.
+    // Faller: previous 1 - current 3 = -2 (▼2 DOWN).
+    expect($move[$climber->id])->toBe(8)
+        ->and($move[$faller->id])->toBe(-2);
+});
+
+it('caps a future match_date taken_at at now() when recording, so the arrow query cannot be tricked by a future-dated original', function () {
+    $open = Division::firstOrCreate(
+        ['slug' => 'open'],
+        ['name' => 'Open', 'display_order' => 1, 'is_active' => true],
+    );
+    QualificationRule::firstOrCreate(
+        ['series' => 'PRS', 'season' => '2026'],
+        [
+            'scoring_mode' => 'best_n_plus_champs',
+            'best_of_count' => 3,
+            'total_qualifying_matches' => 4,
+            'min_out_of_province_matches' => 0,
+            'created_by' => User::factory()->create()->id,
+        ],
+    );
+
+    // Match in the future (champs day-1 sibling style). No scores_finalized_at,
+    // match_date tomorrow → recorder computes taken_at = tomorrow 23:59:59.
+    // The cap should pull it back to now() so a later retry can monotonically
+    // supersede it.
+    $future = arrowMatch('Future Sibling', now()->addDay()->toDateString(), now());
+    $future->scores_finalized_at = null;
+    $future->save();
+
+    $shooter = User::factory()->create();
+    Standing::create([
+        'user_id' => $shooter->id, 'series' => 'PRS', 'season' => '2026',
+        'province_id' => null, 'division_id' => null,
+        'points' => 50.0, 'rank' => 20,
+    ]);
+
+    $before = Carbon::now()->startOfSecond();
+    app(StandingsSnapshotRecorder::class)->recordForMatch($future->fresh());
+    $after = Carbon::now()->endOfSecond();
+
+    $snapshot = StandingsSnapshot::query()
+        ->where('triggered_by_match_id', $future->id)
+        ->where('user_id', $shooter->id)
+        ->first();
+
+    expect($snapshot)->not->toBeNull();
+    $takenAt = Carbon::parse($snapshot->taken_at);
+    expect($takenAt->lessThanOrEqualTo($after))->toBeTrue(
+        "taken_at {$takenAt->toDateTimeString()} must not be in the future"
+    );
+    expect($takenAt->greaterThanOrEqualTo($before->copy()->subSecond()))->toBeTrue();
+});
+
 function arrowMatch(string $name, string $date, Carbon $finalizedAt): MatchEvent
 {
     return MatchEvent::create([

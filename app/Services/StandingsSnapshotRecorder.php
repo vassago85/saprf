@@ -39,11 +39,26 @@ class StandingsSnapshotRecorder
         // spot. Only fall back to now() if the match has neither a
         // finalisation stamp nor a match_date — i.e. nothing to anchor
         // against.
+        //
+        // CAP AT now(). A match whose match_date is in the future (the
+        // 2-day champs sibling is a live example: day-1 imports happen
+        // hours before match_date->endOfDay()) must NOT stamp its first
+        // snapshot with a future taken_at. When it did, every subsequent
+        // import that hit the "ranks moved" retry path below wrote a
+        // snapshot at Carbon::now() — EARLIER than the future original —
+        // so StandingsMovement's "latest snapshot per match" picked the
+        // stale original and inverted every arrow for shooters whose rank
+        // moved that day. Capping at now() keeps taken_at monotonic with
+        // actual write order for in-progress matches.
+        $wallClock = Carbon::now();
         $takenAt = $match->scores_finalized_at
             ? Carbon::parse($match->scores_finalized_at)
             : ($match->match_date
                 ? Carbon::parse($match->match_date)->endOfDay()
-                : Carbon::now());
+                : $wallClock);
+        if ($takenAt->greaterThan($wallClock)) {
+            $takenAt = $wallClock;
+        }
 
         $takenAtStr = $takenAt->format('Y-m-d H:i:s');
 

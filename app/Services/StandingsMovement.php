@@ -70,12 +70,28 @@ class StandingsMovement
         // Compare match-to-match, not edit-to-edit. Every import path now
         // writes a snapshot, so a match can accrue several rows during
         // the day (CSV import → shooter rename → Impact live tick). The
-        // outer window pass collapses those down to one representative
-        // row per (user_id, triggered_by_match_id) — the latest state
-        // for that match — before the inner pass picks the two most
-        // recent matches. Null triggered_by_match_id values (legacy rows
-        // from before this column existed) fall through to a per-row
-        // identity so they are not accidentally merged.
+        // inner window collapses those down to one representative row per
+        // (user_id, triggered_by_match_id) — the latest state for that
+        // match — before the outer pass picks the two most recent matches.
+        // Null triggered_by_match_id values (legacy rows from before this
+        // column existed) fall through to a per-row identity so they are
+        // not accidentally merged.
+        //
+        // IMPORTANT: the inner "latest row per match" window orders by
+        // `id DESC`, not `taken_at DESC`. `id` is monotonic with insertion
+        // order, while `taken_at` can be non-monotonic for the same match
+        // (e.g. a match with future match_date that got snapshotted at a
+        // future taken_at first, then updated later via the retry branch
+        // of the recorder at a smaller `taken_at = now()`). Sorting by
+        // `taken_at` there picks the stale future-dated row and inverts
+        // the arrow sign for everyone whose rank shifted that day.
+        // Sorting by `id` always picks the row written last, which is the
+        // one carrying current ranks. See StandingsSnapshotRecorder for
+        // the matching cap-taken_at-at-now() guard.
+        //
+        // The outer window still orders by `taken_at DESC` — that is the
+        // CHRONOLOGICAL ordering across matches, which is what the two
+        // most recent snapshots should respect.
         //
         // `rank` is a reserved word in MySQL 8+ / MariaDB 10+ (it's the
         // SQL:2003 RANK() window function). Backtick it everywhere it
@@ -83,12 +99,13 @@ class StandingsMovement
         // trips on `rank, taken_at`.
         $rows = DB::select(
             'SELECT user_id, `rank`, taken_at FROM (
-                SELECT user_id, `rank`, taken_at, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY taken_at DESC) AS rn
+                SELECT id, user_id, `rank`, taken_at,
+                       ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY taken_at DESC, id DESC) AS rn
                 FROM (
-                    SELECT user_id, `rank`, taken_at, triggered_by_match_id,
+                    SELECT id, user_id, `rank`, taken_at, triggered_by_match_id,
                            ROW_NUMBER() OVER (
                                PARTITION BY user_id, COALESCE(triggered_by_match_id, -id)
-                               ORDER BY taken_at DESC
+                               ORDER BY id DESC
                            ) AS mn
                     FROM standings_snapshots
                     WHERE season = ? AND series = ? AND level = ?'
@@ -153,8 +170,20 @@ class StandingsMovement
         // produced snapshots in this scope, not the two most recent raw
         // timestamps. Prevents intra-day import noise (CSV → correction
         // → Impact live tick) from showing up as fake rank movement.
+        //
+        // Rank the matches themselves by MAX(taken_at) so the chronological
+        // picking is right (a backfilled older match does not jump ahead of
+        // a genuinely recent one). But identify each match's LATEST row by
+        // MAX(id), not MAX(taken_at), because the two are not the same for
+        // a match whose match_date is in the future: the recorder stamped
+        // the first snapshot with that future taken_at, and every retry
+        // after that uses Carbon::now() (which is smaller). MAX(id) always
+        // picks the actually-latest row. See the comment block in the
+        // for() main path for the full story.
         $matches = DB::select(
-            'SELECT triggered_by_match_id, MAX(taken_at) AS last_taken_at
+            'SELECT triggered_by_match_id,
+                    MAX(taken_at) AS last_taken_at,
+                    MAX(id) AS last_id
              FROM standings_snapshots
              WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL AND triggered_by_match_id IS NOT NULL '.$divisionSql.'
              GROUP BY triggered_by_match_id
@@ -170,12 +199,32 @@ class StandingsMovement
 
         $currentMatchId = (int) $matches[0]->triggered_by_match_id;
         $previousMatchId = (int) $matches[1]->triggered_by_match_id;
-        $currentAt = Carbon::parse($matches[0]->last_taken_at)->format('Y-m-d H:i:s');
-        $previousAt = Carbon::parse($matches[1]->last_taken_at)->format('Y-m-d H:i:s');
 
-        // Pull every snapshot for those two matches at their representative
-        // (latest) taken_at. Keyed by (match_id, taken_at) so the loop can
-        // bucket them regardless of province ordering.
+        // Pick the latest row per match by MAX(id). For each match this
+        // single row represents the most-recently-written snapshot — the
+        // one whose rank/points reflect the current Standing table at the
+        // moment it was recorded. Because MAX(id) was grouped per match
+        // above, the per-match "latest row" is a single id each. We fetch
+        // ALL snapshot rows written in the same batch as those two ids —
+        // snapshots are inserted one row per user by recordForMatch, so
+        // everyone's row shares a taken_at with the batch's lead row. The
+        // simplest and correct selector is: rows whose (match_id, taken_at)
+        // match the taken_at of that lead row for each of the two matches.
+        $currentLead = DB::selectOne(
+            'SELECT taken_at FROM standings_snapshots WHERE id = ?',
+            [(int) $matches[0]->last_id],
+        );
+        $previousLead = DB::selectOne(
+            'SELECT taken_at FROM standings_snapshots WHERE id = ?',
+            [(int) $matches[1]->last_id],
+        );
+        if ($currentLead === null || $previousLead === null) {
+            return $blank;
+        }
+
+        $currentAt = Carbon::parse($currentLead->taken_at)->format('Y-m-d H:i:s');
+        $previousAt = Carbon::parse($previousLead->taken_at)->format('Y-m-d H:i:s');
+
         $rows = DB::select(
             'SELECT user_id, points, triggered_by_match_id, taken_at FROM standings_snapshots
              WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL '.$divisionSql.'
