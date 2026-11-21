@@ -45,9 +45,11 @@ class NationalSeries2027Command extends Command
 
     protected $signature = 'saprf:national-series-2027
         {action : status | publish | unpublish | activate | notify}
-        {--force : Skip the confirmation prompt on activate and notify}';
+        {--force : Skip the confirmation prompt on activate and notify}
+        {--season= : Season to activate or inspect (default: 2027). Accepts a comma-separated list.}
+        {--series= : Series to activate or inspect (default: PRS,PR22). Accepts a comma-separated list.}';
 
-    protected $description = 'Publish and activate the 2027 SAPRF national series rules';
+    protected $description = 'Publish and activate the 2027 SAPRF national series rules (also usable to retro-fit the rule to earlier seasons)';
 
     public function handle(SettingsService $settings, StandingsCalculationService $standings, AnnouncementPublisher $publisher): int
     {
@@ -61,18 +63,54 @@ class NationalSeries2027Command extends Command
         };
     }
 
+    /**
+     * Resolve the --season option into an ordered, de-duplicated list of
+     * seasons, defaulting to the 2027 series year when the option is absent
+     * so the long-standing `activate` / `status` calls keep working.
+     *
+     * @return list<string>
+     */
+    private function seasons(): array
+    {
+        $raw = (string) ($this->option('season') ?? self::SEASON);
+        $seasons = array_values(array_unique(array_filter(array_map('trim', explode(',', $raw)))));
+
+        return $seasons !== [] ? $seasons : [self::SEASON];
+    }
+
+    /**
+     * Resolve the --series option into an ordered, de-duplicated list of
+     * series, defaulting to the full PRS+PR22 pair so the long-standing
+     * `activate` / `status` calls keep working. Values are upper-cased to
+     * match the canonical series codes used throughout the app.
+     *
+     * @return list<string>
+     */
+    private function seriesList(): array
+    {
+        $raw = (string) ($this->option('series') ?? implode(',', self::SERIES));
+        $list = array_values(array_unique(array_filter(array_map(
+            static fn (string $value): string => strtoupper(trim($value)),
+            explode(',', $raw),
+        ))));
+
+        return $list !== [] ? $list : self::SERIES;
+    }
+
     private function status(SettingsService $settings): int
     {
         $this->line('Rules document: '.($settings->nationalSeries2027Published() ? 'published' : 'parked (owner/admin preview only)'));
 
-        foreach (self::SERIES as $series) {
-            $rule = QualificationRule::where('series', $series)->where('season', self::SEASON)->first();
-            $this->line(sprintf(
-                '%s %s scoring: %s',
-                $series,
-                self::SEASON,
-                $rule ? ($rule->isNationalSeries2027() ? 'active (national_series_2027)' : "not active ({$rule->scoring_mode})") : 'not active (no rule)',
-            ));
+        foreach ($this->seasons() as $season) {
+            foreach ($this->seriesList() as $series) {
+                $rule = QualificationRule::where('series', $series)->where('season', $season)->first();
+                $this->line(sprintf(
+                    '%s %s scoring: %s',
+                    $series,
+                    $season,
+                    $rule ? ($rule->isNationalSeries2027() ? 'active (national_series_2027)' : "not active ({$rule->scoring_mode})") : 'not active (no rule)',
+                ));
+            }
         }
 
         return self::SUCCESS;
@@ -95,20 +133,33 @@ class NationalSeries2027Command extends Command
 
     private function activate(StandingsCalculationService $standings): int
     {
-        $existing = QualificationRule::whereIn('series', self::SERIES)->where('season', self::SEASON)->get()->keyBy('series');
+        $seasons = $this->seasons();
+        $seriesList = $this->seriesList();
 
-        foreach (self::SERIES as $series) {
-            $rule = $existing->get($series);
-            $this->line(sprintf(
-                '%s %s: %s -> national_series_2027 (best 3 nationals or international, max %d home province, championships as one match)',
-                $series,
-                self::SEASON,
-                $rule ? $rule->scoring_mode : 'no rule',
-                QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP,
-            ));
+        $existing = QualificationRule::query()
+            ->whereIn('series', $seriesList)
+            ->whereIn('season', $seasons)
+            ->get()
+            ->keyBy(fn (QualificationRule $r): string => $r->series.'|'.$r->season);
+
+        foreach ($seasons as $season) {
+            foreach ($seriesList as $series) {
+                $rule = $existing->get($series.'|'.$season);
+                $this->line(sprintf(
+                    '%s %s: %s -> national_series_2027 (best 3 nationals or international, max %d home province, championships as one match)',
+                    $series,
+                    $season,
+                    $rule ? $rule->scoring_mode : 'no rule',
+                    QualificationRule::NATIONAL_SERIES_2027_HOME_PROVINCE_CAP,
+                ));
+            }
         }
 
-        if (! $this->option('force') && ! $this->confirm('Switch these rules and rebuild the 2027 standings?')) {
+        $prompt = count($seasons) === 1
+            ? "Switch these rules and rebuild the {$seasons[0]} standings?"
+            : 'Switch these rules and rebuild the standings for '.implode(', ', $seasons).'?';
+
+        if (! $this->option('force') && ! $this->confirm($prompt)) {
             $this->warn('Nothing changed.');
 
             return self::FAILURE;
@@ -117,21 +168,23 @@ class NationalSeries2027Command extends Command
         $createdBy = User::whereHas('roles', fn ($q) => $q->where('name', 'owner'))->orderBy('id')->value('id')
             ?? User::query()->min('id');
 
-        foreach (self::SERIES as $series) {
-            $rule = QualificationRule::firstOrNew(['series' => $series, 'season' => self::SEASON]);
-            $rule->fill([
-                'scoring_mode' => QualificationRule::MODE_NATIONAL_SERIES_2027,
-                'best_of_count' => 3,
-                'min_out_of_province_matches' => 1,
-                'total_qualifying_matches' => 4,
-                'weighted_final_enabled' => false,
-            ]);
-            $rule->created_by ??= $createdBy;
-            $rule->save();
+        foreach ($seasons as $season) {
+            foreach ($seriesList as $series) {
+                $rule = QualificationRule::firstOrNew(['series' => $series, 'season' => $season]);
+                $rule->fill([
+                    'scoring_mode' => QualificationRule::MODE_NATIONAL_SERIES_2027,
+                    'best_of_count' => 3,
+                    'min_out_of_province_matches' => 1,
+                    'total_qualifying_matches' => 4,
+                    'weighted_final_enabled' => false,
+                ]);
+                $rule->created_by ??= $createdBy;
+                $rule->save();
 
-            $standings->recalculateSeasonStandings($series, self::SEASON);
-            $standings->recalculateProvincialStandings($series, self::SEASON);
-            $this->info("{$series} ".self::SEASON.' activated and standings rebuilt.');
+                $standings->recalculateSeasonStandings($series, $season);
+                $standings->recalculateProvincialStandings($series, $season);
+                $this->info("{$series} {$season} activated and standings rebuilt.");
+            }
         }
 
         return self::SUCCESS;

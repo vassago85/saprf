@@ -34,8 +34,15 @@
                 <p class="mt-1 text-sm text-stone-500">Qualified shooters per series and season, with rank, points, and out-of-province status.</p>
             </a>
 
-            {{-- Federation colours --}}
-            <a href="{{ route('reports.federation-colour-awards') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-amber-300 transition">
+            {{-- Federation colours.
+                 Points at the per-province Standings/Colours report, which
+                 is the one with Top-N-per-province, Standings PDF, Colours
+                 PDF and the override tooling. The older national-only
+                 /federation-colour-awards page is still reachable by URL
+                 for the 2027 gold/silver/bronze view, but is no longer the
+                 default landing — people kept bouncing off it because it
+                 is CSV-only and does not group by province. --}}
+            <a href="{{ route('reports.federation-colours') }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-amber-300 transition">
                 <div class="flex items-start justify-between mb-3">
                     <div class="rounded-xl bg-amber-50 p-2.5 ring-1 ring-amber-100">
                         <svg class="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -45,7 +52,7 @@
                     <svg class="h-4 w-4 text-stone-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
                 </div>
                 <h3 class="font-semibold text-stone-900">Federation Colours</h3>
-                <p class="mt-1 text-sm text-stone-500">National gold, silver and bronze per division. Each shooter is a percentage of the highest series score in that division. Download CSV.</p>
+                <p class="mt-1 text-sm text-stone-500">Provincial standings by division with Top&nbsp;N per province, plus gold/silver/bronze grading when the SA Championships rule is on. Download CSV, Standings PDF, or Colours PDF.</p>
             </a>
 
             {{-- Participation --}}
