@@ -22,7 +22,8 @@ The control sits on the live-scores panel of the match workspace scores page (`m
 - The viewer can update the match.
 - The match is a 2-day national (`isTwoDayNational()`).
 - Impact live sync is on and an Impact match id is set.
-- The national scores are not marked complete.
+
+The control stays available after the national scores are marked complete. Submit still writes only the provincial sibling.
 
 It is not added to the Import from Impact screen.
 
@@ -84,7 +85,7 @@ Marking the national scores complete at the end of day 2 remains the action that
 | Preview or submit pull fails | Nothing is written. Saved marks and the previous provincial stay. |
 | Any posted stage is missing, or a current stage id is absent from the post | Submit is rejected. Nothing is written. |
 | No stage is marked Day 1 | Submit is rejected. Nothing is written. |
-| National scores are already complete | The control is hidden and the store route rejects the post. |
+| National scores are already complete | The control stays available. Submit writes the provincial and leaves the completed national scores unchanged. |
 | Shooter has no stage breakdown | That shooter is listed and left unchanged. Everyone else is still written. |
 
 ## Tests

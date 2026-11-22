@@ -57,7 +57,7 @@
         </div>
     @endif
 
-    @if($match->isTwoDayNational() && $match->impact_live_sync && $match->impact_match_id && ! $match->scoresAreFinalized())
+    @if($match->isTwoDayNational() && $match->impact_live_sync && $match->impact_match_id)
         @can('update', $match)
             {{-- window global, not Alpine.data(): wire:navigate keeps one Alpine
                  instance, so alpine:init would not run again on this tab. --}}
@@ -128,6 +128,9 @@
                 <p class="mt-1 text-xs text-stone-600">
                     When day 1 is finished on Impact, one click copies those stages onto the provincial and updates the standings.
                     Live scoring stays on. Press it again after a correction and the same day 1 stages are refreshed.
+                    @if($match->scoresAreFinalized())
+                        The championship stays marked complete. This only copies day 1 onto the provincial.
+                    @endif
                 </p>
 
                 <form method="POST" action="{{ route('matches.scores.day1-provincial.store', $match) }}" class="mt-3">

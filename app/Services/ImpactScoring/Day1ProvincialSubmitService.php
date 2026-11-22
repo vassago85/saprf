@@ -142,10 +142,6 @@ class Day1ProvincialSubmitService
 
     private function assertAvailable(MatchEvent $match): void
     {
-        if ($match->scoresAreFinalized()) {
-            throw new RuntimeException('National scores are already complete.');
-        }
-
         if (! $match->isTwoDayNational() || ! $match->impact_live_sync || ! $match->impact_match_id) {
             throw new RuntimeException('Day 1 provincial submit is only available on a 2-day national or championship with live scoring.');
         }

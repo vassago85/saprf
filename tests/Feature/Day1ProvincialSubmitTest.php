@@ -549,18 +549,42 @@ it('leaves the provincial and the saved marks alone when impact is down', functi
         ->and(session('error'))->toContain('Nothing was written');
 });
 
-it('rejects a submit after the national scores are marked complete', function () {
+it('writes day 1 onto the provincial after the national scores are marked complete', function () {
+    Notification::fake();
     fakeDay1Api();
-    $this->match->update(['scores_finalized_at' => now()]);
+    $finalizedAt = now();
+    $this->match->update(['scores_finalized_at' => $finalizedAt]);
+
+    $member = day1Member('Kevin Goncalves', $this->province);
+    day1Register($this->match, $member, $this->open);
+    $national = Score::create([
+        'match_id' => $this->match->id,
+        'user_id' => $member->id,
+        'division_id' => $this->open->id,
+        'shooter_name' => $member->name,
+        'day1_raw_score' => 160,
+        'status' => 'pending',
+        'is_member' => true,
+        'counts_for_season' => true,
+        'counts_for_log' => true,
+        'match_date' => $this->match->match_date,
+    ]);
 
     $this->actingAs($this->admin)
         ->post(route('matches.scores.day1-provincial.store', $this->match), [
             'stage_days' => day1StageMap(1, 8),
         ])
-        ->assertRedirect()
-        ->assertSessionHas('error');
+        ->assertRedirect(route('matches.scores', $this->match))
+        ->assertSessionHas('success');
 
-    expect(MatchEvent::where('source_national_match_id', $this->match->id)->exists())->toBeFalse();
+    $sibling = MatchEvent::where('source_national_match_id', $this->match->id)->first();
+    $provincial = Score::where('match_id', $sibling->id)->where('user_id', $member->id)->first();
+
+    expect($sibling)->not->toBeNull()
+        ->and($this->match->fresh()->scores_finalized_at)->not->toBeNull()
+        ->and((float) $national->fresh()->raw_score)->toBe(160.0)
+        ->and($provincial)->not->toBeNull()
+        ->and((float) $provincial->day1_raw_score)->toBe(80.0);
 });
 
 it('blocks a member who cannot update the match', function () {
