@@ -243,6 +243,38 @@ it('renders the HTML report with every division top-5 shooter', function () {
         ->assertSee('Division Winner');
 });
 
+it('redirects the annual standings report to the championship for that series and season', function () {
+    $champs = pmrMatch('Centrefire SA Championship', 'final', '2026-11-22', $this->gp, [
+        'match_end_date' => '2026-11-22',
+    ]);
+    $member = pmrShooter('Open Winner', $this->gp);
+    pmrScore($champs, User::factory()->create(['name' => 'Baseline']), 100.0, null, test()->open->id);
+    pmrScore($champs, $member, 85.0, null, test()->open->id);
+    pmrRebuild();
+
+    $this->actingAs($this->admin)
+        ->get(route('reports.annual-standings', ['series' => 'PRS', 'season' => '2026']))
+        ->assertRedirect(route('matches.post-match-report', $champs));
+});
+
+it('shows the missing champs page when no final has been staged for the season', function () {
+    pmrMatch('GP National', 'national', '2026-07-11', $this->gp);
+
+    $this->actingAs($this->admin)
+        ->get(route('reports.annual-standings', ['series' => 'PRS', 'season' => '2026']))
+        ->assertOk()
+        ->assertSee('No PRS championship is set up for 2026');
+});
+
+it('picks the latest final when more than one championship exists in a season', function () {
+    pmrMatch('Early final', 'final', '2026-03-22', $this->gp);
+    $later = pmrMatch('SA Championship late', 'final', '2026-11-22', $this->gp);
+
+    $this->actingAs($this->admin)
+        ->get(route('reports.annual-standings', ['series' => 'PRS', 'season' => '2026']))
+        ->assertRedirect(route('matches.post-match-report', $later));
+});
+
 it('refuses the report page to a member who cannot view the match', function () {
     $champs = pmrMatch('Centrefire SA Championship', 'final', '2026-11-22', $this->gp, [
         'match_end_date' => '2026-11-22',

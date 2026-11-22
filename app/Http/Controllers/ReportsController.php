@@ -38,6 +38,51 @@ class ReportsController extends Controller
         return view('reports.index');
     }
 
+    /**
+     * Annual standings report. Resolves a series + season to the single
+     * SA Championships (final) match for that year and hands off to
+     * `matches.post-match-report` — the per-match and the annual report
+     * are the same table, just reachable from two places.
+     *
+     * No championship → an explanation page with the standings link, so
+     * the report card never dead-ends on a 404.
+     * More than one `final` for that season → pick the latest one by
+     * match date (a PR22 and a Centrefire championship will still each
+     * resolve correctly because the series filter separates them).
+     */
+    public function annualStandings(Request $request): View|RedirectResponse
+    {
+        $series = strtoupper((string) $request->input('series', 'PRS'));
+        if (! in_array($series, ['PRS', 'PR22'], true)) {
+            $series = 'PRS';
+        }
+
+        $season = (string) $request->input('season', (string) now()->year);
+
+        $championships = MatchEvent::query()
+            ->where('series', $series)
+            ->where('season', $season)
+            ->where('series_level', 'final')
+            ->orderByDesc('match_date')
+            ->get();
+
+        if ($championships->isEmpty()) {
+            return view('reports.annual-standings-missing', [
+                'series' => $series,
+                'season' => $season,
+                'seasons' => MatchEvent::query()
+                    ->where('series_level', 'final')
+                    ->orderByDesc('season')
+                    ->distinct()
+                    ->pluck('season')
+                    ->filter()
+                    ->values(),
+            ]);
+        }
+
+        return redirect()->route('matches.post-match-report', $championships->first());
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Sponsorship Report
     // ──────────────────────────────────────────────────────────────────────

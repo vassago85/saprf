@@ -34,6 +34,22 @@
                 <p class="mt-1 text-sm text-stone-500">Qualified shooters per series and season, with rank, points, and out-of-province status.</p>
             </a>
 
+            {{-- Annual standings (post-match championship report in Reports form).
+                 Redirects to the per-match report for the current year's SA
+                 Champs so the same table is reachable from both places. --}}
+            <a href="{{ route('reports.annual-standings', ['series' => 'PRS', 'season' => now()->year]) }}" class="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-emerald-300 transition">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="rounded-xl bg-emerald-50 p-2.5 ring-1 ring-emerald-100">
+                        <svg class="h-5 w-5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+                        </svg>
+                    </div>
+                    <svg class="h-4 w-4 text-stone-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                </div>
+                <h3 class="font-semibold text-stone-900">Annual Standings Report</h3>
+                <p class="mt-1 text-sm text-stone-500">Top 5 in every division for the year with counted nationals and the SA Championships contribution. Only shooters who shot the championship.</p>
+            </a>
+
             {{-- Federation colours.
                  Points at the per-province Standings/Colours report, which
                  is the one with Top-N-per-province, Standings PDF, Colours

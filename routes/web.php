@@ -867,6 +867,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
         Route::get('/selection/export', [ReportsController::class, 'selectionExport'])->name('selection.export');
         Route::get('/participation', [ReportsController::class, 'participation'])->name('participation');
         Route::get('/participation/export', [ReportsController::class, 'participationExport'])->name('participation.export');
+        // Annual standings report for the year: top 5 per division, year totals,
+        // the nationals that count, and the SA Champs contribution. Resolves a
+        // series+season and redirects into the per-match championship report
+        // (same data, just reachable from Reports instead of the match page).
+        Route::get('/annual-standings', [ReportsController::class, 'annualStandings'])
+            ->name('annual-standings');
         Route::get('/federation-colours', [ReportsController::class, 'federationColours'])->name('federation-colours');
         Route::get('/federation-colours/csv', [ReportsController::class, 'federationColoursCsv'])->name('federation-colours.csv');
         Route::get('/federation-colours/pdf', [ReportsController::class, 'federationColoursPdf'])->name('federation-colours.pdf');
