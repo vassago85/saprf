@@ -57,6 +57,25 @@
         </div>
     @endif
 
+    @if($match->series_level === 'final' && $match->scores()->exists())
+        @can('view', $match)
+            <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="font-heading text-sm font-bold text-amber-950">Championship post-match report</h2>
+                        <p class="mt-0.5 text-xs text-amber-900">
+                            Top 5 in every division, the division winners for the year, and the nationals that count on each shooter's log. Only shooters who shot this championship appear.
+                        </p>
+                    </div>
+                    <a href="{{ route('matches.post-match-report', $match) }}" wire:navigate
+                       class="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700">
+                        Open report
+                    </a>
+                </div>
+            </div>
+        @endcan
+    @endif
+
     @if($match->isTwoDayNational() && $match->impact_live_sync && $match->impact_match_id)
         @can('update', $match)
             {{-- window global, not Alpine.data(): wire:navigate keeps one Alpine

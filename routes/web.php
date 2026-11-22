@@ -690,6 +690,12 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::match(['get', 'post'], '/entries/squads/pdf', [MatchWorkspaceController::class, 'downloadSquadSheet'])->name('matches.squad-recommendation.pdf');
             Route::match(['get', 'post'], '/entries/squads/export', [MatchWorkspaceController::class, 'exportSquadRecommendation'])->name('matches.squad-recommendation.export');
             Route::get('/scores', [MatchWorkspaceController::class, 'scores'])->name('matches.scores');
+            // Championship post-match report (division top 5 + year breakdown).
+            // Only renders on a `final`-level match; the controller redirects
+            // away with a flash on anything else so an MD who clicks it on
+            // the wrong match is not stuck on a 404.
+            Route::get('/post-match-report', [\App\Http\Controllers\PostMatchReportController::class, 'show'])
+                ->name('matches.post-match-report');
             // MD "scores are checked — send the notifications" gate. POST
             // routes (not GET) so a prefetch / crawler can't accidentally
             // mark a match complete.
