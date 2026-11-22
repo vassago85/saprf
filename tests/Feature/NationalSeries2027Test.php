@@ -287,6 +287,36 @@ it('carries Factory results into Open for a shooter who moved up, but not the ot
         ->and($points($movedDown, $this->factory))->toBe(80.0);
 });
 
+it('does not show selection eligibility on the 2026 log', function () {
+    QualificationRule::create([
+        'series' => 'PRS',
+        'season' => '2026',
+        'scoring_mode' => QualificationRule::MODE_NATIONAL_SERIES_2027,
+        'min_out_of_province_matches' => 1,
+        'best_of_count' => 3,
+        'total_qualifying_matches' => 4,
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $shooter = User::factory()->create(['name' => 'No Selection Year', 'province_id' => $this->gp->id]);
+    $national = ns27Match('GP National', 'national', '2026-07-11', $this->gp, ['season' => '2026']);
+    ns27Score($national, User::factory()->create(), 100.0);
+    ns27Score($national, $shooter, 90.0);
+
+    app(StandingsCalculationService::class)->calculateMatchRankings($national);
+    app(StandingsCalculationService::class)->recalculateSeasonStandings('PRS', '2026');
+
+    $this->get('/standings/prs?season=2026')
+        ->assertOk()
+        ->assertSee('No Selection Year')
+        ->assertDontSee('Not selection eligible');
+
+    $this->followingRedirects()->get('/standings/2026/shooter/'.$shooter->id)
+        ->assertOk()
+        ->assertDontSee('Not yet eligible for selection')
+        ->assertDontSee('National team selection');
+});
+
 it('renders the 500-point breakdown, championship days and selection note on the profile and log', function () {
     $shooter = User::factory()->create(['name' => 'Home Only', 'province_id' => $this->gp->id]);
 

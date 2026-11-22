@@ -566,7 +566,7 @@ new class extends Component
                                 @if($saBadge)
                                     <x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" compact />
                                 @endif
-                                @if(($standing->pool_breakdown['selection_eligible'] ?? true) === false)
+                                @if((int) $standing->season >= 2027 && ($standing->pool_breakdown['selection_eligible'] ?? true) === false)
                                     <span class="text-[10px] font-semibold uppercase tracking-wide text-amber-700" title="{{ $standing->pool_breakdown['selection_note'] ?? '' }}">Not selection eligible</span>
                                 @endif
                             </div>
@@ -769,7 +769,7 @@ new class extends Component
                                                         @if($saBadge)
                                                             <span class="shrink-0"><x-sa-team-badge :years="$saBadge['years']" :tooltip="$saBadge['tooltip']" compact /></span>
                                                         @endif
-                                                        @if(($standing->pool_breakdown['selection_eligible'] ?? true) === false)
+                                                        @if((int) $standing->season >= 2027 && ($standing->pool_breakdown['selection_eligible'] ?? true) === false)
                                                             <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-700 whitespace-nowrap" title="{{ $standing->pool_breakdown['selection_note'] ?? '' }}">Not selection eligible</span>
                                                         @endif
                                                         @if($showQualifierFlag)

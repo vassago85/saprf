@@ -136,16 +136,18 @@
                         <span class="text-xs font-semibold uppercase tracking-wider">Annual Total</span>
                         <span class="text-2xl font-bold tabular-nums">{{ number_format($pb['total'] ?? ($entry['overall_points'] ?? 0), 1) }} / {{ $pb['max'] ?? 400 }}</span>
                     </div>
-                    @isset($pb['selection_points'])
-                        <p class="mt-2 text-[11px] text-stone-500">
-                            National team selection: {{ number_format($pb['selection_points'], 1) }} / {{ $pb['selection_max'] ?? 400 }}.
-                            The championships count 100 on that scale, and shooting them is mandatory.
-                        </p>
-                    @endisset
-                    @if(($pb['selection_eligible'] ?? true) === false)
-                        <p class="mt-2 text-[11px] text-amber-700">
-                            Not yet eligible for selection: {{ $pb['selection_note'] ?? 'fewer than 3 counting national results.' }}
-                        </p>
+                    @if((int) $season >= 2027)
+                        @isset($pb['selection_points'])
+                            <p class="mt-2 text-[11px] text-stone-500">
+                                National team selection: {{ number_format($pb['selection_points'], 1) }} / {{ $pb['selection_max'] ?? 400 }}.
+                                The championships count 100 on that scale, and shooting them is mandatory.
+                            </p>
+                        @endisset
+                        @if(($pb['selection_eligible'] ?? true) === false)
+                            <p class="mt-2 text-[11px] text-amber-700">
+                                Not yet eligible for selection: {{ $pb['selection_note'] ?? 'fewer than 3 counting national results.' }}
+                            </p>
+                        @endif
                     @endif
                 </div>
             {{-- Best-of-N breakdown card. Used for any series whose

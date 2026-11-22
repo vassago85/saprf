@@ -299,15 +299,21 @@ class ImpactLiveSyncService
      */
     public function setConfirmed(MatchEvent $match, bool $confirmed): void
     {
-        $live = $match->scores()->get()->filter(
-            fn (Score $score) => ! empty($score->raw_meta['impact']['live_sync'])
-        );
+        $scores = $match->scores()->get();
+        // Confirming publishes every row on the match. Unmarking only
+        // puts live rows back to incomplete, so a score that was already
+        // official before the live pull stays on the log.
+        $targets = $confirmed
+            ? $scores
+            : $scores->filter(
+                fn (Score $score) => ! empty($score->raw_meta['impact']['live_sync'])
+            );
 
-        if ($live->isEmpty()) {
+        if ($targets->isEmpty()) {
             return;
         }
 
-        foreach ($live as $score) {
+        foreach ($targets as $score) {
             $score->forceFill([
                 'counts_for_season' => $confirmed,
                 'counts_for_log' => $confirmed,
