@@ -58,7 +58,7 @@ it('keeps a two-day championship as a final and makes day 1 a provincial', funct
         ->and($final->fresh()->series_level)->toBe('final');
 });
 
-it('shows the day 1 provincial control only on an open live two-day national', function () {
+it('shows the day 1 provincial control on a live two-day national, including after scores are complete', function () {
     $this->actingAs($this->admin)
         ->get(route('matches.scores', $this->match))
         ->assertOk()
@@ -70,7 +70,8 @@ it('shows the day 1 provincial control only on an open live two-day national', f
     $this->actingAs($this->admin)
         ->get(route('matches.scores', $this->match))
         ->assertOk()
-        ->assertDontSee('Submit day 1 as the provincial');
+        ->assertSee('Submit day 1 as the provincial')
+        ->assertSee('The championship stays marked complete');
 
     $club = day1National($this->admin, $this->province, [
         'name' => 'Club Saturday',
