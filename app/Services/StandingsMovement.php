@@ -171,23 +171,24 @@ class StandingsMovement
         // timestamps. Prevents intra-day import noise (CSV → correction
         // → Impact live tick) from showing up as fake rank movement.
         //
-        // Rank the matches themselves by MAX(taken_at) so the chronological
-        // picking is right (a backfilled older match does not jump ahead of
-        // a genuinely recent one). But identify each match's LATEST row by
-        // MAX(id), not MAX(taken_at), because the two are not the same for
-        // a match whose match_date is in the future: the recorder stamped
-        // the first snapshot with that future taken_at, and every retry
-        // after that uses Carbon::now() (which is smaller). MAX(id) always
-        // picks the actually-latest row. See the comment block in the
-        // for() main path for the full story.
+        // Rank the matches by MAX(id), NOT MAX(taken_at). `id` is monotonic
+        // with insertion order, so "largest id" = "most recently written".
+        // `taken_at` is not monotonic for a match whose match_date is in
+        // the future: the recorder stamped the first snapshot with that
+        // future match_date (end-of-day), and every retry after that uses
+        // Carbon::now() (which is smaller). Ordering by MAX(taken_at)
+        // leaves such a match pinned to the top of the pair forever,
+        // flipping arrows for every shooter whose rank actually moved.
+        // MAX(id) always picks the actually-latest match. See the
+        // comment block in the for() main path for the full story, and
+        // the regression tests in StandingsDisciplineRebuildTest.
         $matches = DB::select(
             'SELECT triggered_by_match_id,
-                    MAX(taken_at) AS last_taken_at,
                     MAX(id) AS last_id
              FROM standings_snapshots
              WHERE season = ? AND series = ? AND level = ? AND province_id IS NOT NULL AND triggered_by_match_id IS NOT NULL '.$divisionSql.'
              GROUP BY triggered_by_match_id
-             ORDER BY last_taken_at DESC
+             ORDER BY last_id DESC
              LIMIT 2',
             $bindings,
         );

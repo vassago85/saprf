@@ -598,6 +598,103 @@ it('picks the latest-written snapshot per match, not the one with the highest ta
         ->and($move[$faller->id])->toBe(-2);
 });
 
+it('picks the latest-written match on the all-provinces board by insertion id, not MAX(taken_at), so a future-dated stale row cannot pin a match to the top of the pair', function () {
+    // Live bug on 22 Nov 2026 (Chris Leeson — WC): on the combined
+    // provincial board, a match from an earlier day had a stale row with
+    // taken_at = 2026-11-21 23:59:59 (written when the champs sibling's
+    // match_date was still in the future). MAX(taken_at) for that match
+    // outranked every genuinely-newer match, so the (current, previous)
+    // pair flipped. Climbers rendered as fallers and vice-versa. The
+    // acrossProvinces() picker now orders matches by MAX(id) — insertion
+    // order — which is the true "last written" chronology.
+    $gp = Province::firstOrCreate(['name' => 'Gauteng'], ['abbreviation' => 'GP']);
+    $wc = Province::firstOrCreate(['name' => 'Western Cape'], ['abbreviation' => 'WC']);
+    $climber = User::factory()->create(['name' => 'Chris AllProv Climber']);
+    $faller = User::factory()->create(['name' => 'Dylan AllProv Faller']);
+
+    // Match A = the earlier match whose snapshot was contaminated with an
+    // ancient stale row (low id, far-future taken_at — written weeks ago
+    // when the match_date was still the future and the recorder cap was
+    // not yet in place). This is Chris's id=1828 shape.
+    $matchA = arrowMatch('Earlier National', '2026-11-20', now()->subDay());
+    // Match B = today's genuinely-newer match (champs sibling).
+    $matchB = arrowMatch('Today Champs Sibling', '2026-11-22', now());
+
+    // 1. ANCIENT stale rows for match A — written first (lowest ids),
+    //    taken_at stamped far in the future. This matches the real
+    //    production shape where id=1828 predates every recent retry.
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'provincial',
+        'province_id' => $wc->id, 'division_id' => null,
+        'user_id' => $climber->id, 'rank' => 1, 'points' => 180.0,
+        'taken_at' => Carbon::parse('2026-11-30')->endOfDay(),
+        'triggered_by_match_id' => $matchA->id,
+    ]);
+    StandingsSnapshot::create([
+        'season' => '2026', 'series' => 'PRS', 'level' => 'provincial',
+        'province_id' => $gp->id, 'division_id' => null,
+        'user_id' => $faller->id, 'rank' => 1, 'points' => 300.0,
+        'taken_at' => Carbon::parse('2026-11-30')->endOfDay(),
+        'triggered_by_match_id' => $matchA->id,
+    ]);
+
+    // 2. Fresh rows for match A — written yesterday, correct taken_at.
+    foreach ([
+        [$climber, $wc, 180.0],
+        [$faller,  $gp, 300.0],
+    ] as [$shooter, $province, $points]) {
+        StandingsSnapshot::create([
+            'season' => '2026', 'series' => 'PRS', 'level' => 'provincial',
+            'province_id' => $province->id, 'division_id' => null,
+            'user_id' => $shooter->id, 'rank' => 1, 'points' => $points,
+            'taken_at' => now()->subDay(),
+            'triggered_by_match_id' => $matchA->id,
+        ]);
+    }
+
+    // 3. Match B rows — climber up to 2nd combined, faller slipped to 3rd.
+    //    Written NOW, highest ids overall, correct taken_at.
+    foreach ([
+        [$climber, $wc, 280.0],
+        [$faller,  $gp, 260.0],
+    ] as [$shooter, $province, $points]) {
+        StandingsSnapshot::create([
+            'season' => '2026', 'series' => 'PRS', 'level' => 'provincial',
+            'province_id' => $province->id, 'division_id' => null,
+            'user_id' => $shooter->id, 'rank' => 1, 'points' => $points,
+            'taken_at' => now(),
+            'triggered_by_match_id' => $matchB->id,
+        ]);
+    }
+
+    // Climber Standing record so the all-provinces board renders them.
+    Standing::create([
+        'user_id' => $climber->id, 'series' => 'PRS', 'season' => '2026',
+        'province_id' => $wc->id, 'division_id' => null,
+        'points' => 280.0, 'rank' => 1,
+    ]);
+    Standing::create([
+        'user_id' => $faller->id, 'series' => 'PRS', 'season' => '2026',
+        'province_id' => $gp->id, 'division_id' => null,
+        'points' => 260.0, 'rank' => 1,
+    ]);
+
+    $move = app(StandingsMovement::class)->for(
+        [$climber->id, $faller->id],
+        '2026', 'PRS', 'provincial', null, null,
+    );
+
+    // Combined rank from points:
+    //  - Match A: faller 300.0 → 1st, climber 180.0 → 2nd.
+    //  - Match B: climber 280.0 → 1st, faller 260.0 → 2nd.
+    // Climber: previous 2 - current 1 = +1 (▲1 UP).
+    // Faller: previous 1 - current 2 = -1 (▼1 DOWN).
+    // Old buggy picker would have swapped current/previous and given
+    // climber a -1 (▼1 DOWN) — exactly what Chris saw yesterday.
+    expect($move[$climber->id])->toBe(1)
+        ->and($move[$faller->id])->toBe(-1);
+});
+
 it('caps a future match_date taken_at at now() when recording, so the arrow query cannot be tricked by a future-dated original', function () {
     $open = Division::firstOrCreate(
         ['slug' => 'open'],
