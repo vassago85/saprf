@@ -124,6 +124,81 @@
                         </div>
                     @endif
 
+                    {{-- Public shooter-feedback summary. Numbers only,
+                         zero comments. Shown to every visitor (member or
+                         guest) once the 5-day window has closed AND at
+                         least one shooter has replied. Comments stay
+                         with MD + Exco — see MatchSurveyService::publicSummary(). --}}
+                    @if(! empty($surveySummary))
+                        @php
+                            $overall = $surveySummary['overall_average'];
+                            $responded = $surveySummary['responded'];
+                            $eligible = $surveySummary['eligible'];
+                            $rate = $surveySummary['response_rate'];
+                            $topCat = collect($surveySummary['categories'])->sortByDesc('average')->first();
+                            $lowCat = collect($surveySummary['categories'])->sortBy('average')->first();
+                        @endphp
+                        <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">Shooter feedback</p>
+                                    <h2 class="mt-0.5 font-heading text-lg font-bold text-stone-900">What the shooters said</h2>
+                                </div>
+                                <p class="text-xs text-stone-500">
+                                    {{ $responded }} of {{ $eligible }} shooters replied
+                                    @if($rate !== null) · {{ $rate }}% @endif
+                                </p>
+                            </div>
+
+                            @if($overall !== null)
+                                <div class="mt-3 flex flex-wrap items-baseline gap-5">
+                                    <div>
+                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-400">Overall</p>
+                                        <p class="font-heading text-3xl font-bold text-emerald-700 tabular-nums">
+                                            {{ number_format($overall, 2) }}<span class="text-sm font-normal text-stone-400"> / 10</span>
+                                        </p>
+                                    </div>
+                                    @if($topCat)
+                                        <div>
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-400">Top rated</p>
+                                            <p class="text-sm font-semibold text-stone-900">{{ $topCat['label'] }}</p>
+                                            <p class="text-xs text-emerald-700 tabular-nums">{{ number_format($topCat['average'], 2) }} / 10</p>
+                                        </div>
+                                    @endif
+                                    @if($lowCat && $lowCat['key'] !== ($topCat['key'] ?? null))
+                                        <div>
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-400">Lowest</p>
+                                            <p class="text-sm font-semibold text-stone-900">{{ $lowCat['label'] }}</p>
+                                            <p class="text-xs text-amber-700 tabular-nums">{{ number_format($lowCat['average'], 2) }} / 10</p>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+
+                            <div class="mt-5">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-400 mb-2">All categories</p>
+                                <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                                    @foreach($surveySummary['categories'] as $cat)
+                                        @php
+                                            // Simple colour band: 8+ emerald, 6–8 stone, below 6 amber.
+                                            $tone = $cat['average'] >= 8
+                                                ? 'text-emerald-700'
+                                                : ($cat['average'] >= 6 ? 'text-stone-700' : 'text-amber-700');
+                                        @endphp
+                                        <li class="flex items-center justify-between gap-3 text-sm">
+                                            <span class="text-stone-700 truncate">{{ $cat['label'] }}</span>
+                                            <span class="font-semibold tabular-nums {{ $tone }}">{{ number_format($cat['average'], 2) }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+
+                            <p class="mt-5 text-[11px] text-stone-500 leading-relaxed">
+                                Average rating of each category on a 1&ndash;10 scale. Individual answers and comments are not shown here &mdash; those stay with the match director and Exco so the volunteer team running the match gets honest feedback without it being screenshotted into a group chat.
+                            </p>
+                        </div>
+                    @endif
+
                     {{-- Description --}}
                     @if($match->description)
                         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
