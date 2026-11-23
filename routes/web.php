@@ -245,6 +245,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/matches/{match}/survey', [MatchSurveyController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('matches.survey.store');
+
+    // Match-agnostic "what does the questionnaire look like?" preview —
+    // open to any logged-in SAPRF member. Match Directors use this to
+    // proof the form before a match; shooters use it to know what
+    // they'll be asked afterwards. Not tied to any match row.
+    Route::get('/survey/specimen', [MatchSurveyController::class, 'specimen'])
+        ->name('survey.specimen');
 });
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──

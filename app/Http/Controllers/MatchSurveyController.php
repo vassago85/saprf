@@ -118,6 +118,27 @@ class MatchSurveyController extends Controller
             ->with('success', 'Thanks — your anonymous feedback has been recorded.');
     }
 
+    // ── Specimen: any logged-in member can proof the questions ─────────
+
+    /**
+     * Generic, match-agnostic preview of the shooter questionnaire.
+     *
+     * This endpoint is deliberately unscoped so a Match Director (or
+     * anyone else in SAPRF) can look at the exact form that goes out
+     * after a match, without first having to be set as `created_by` on
+     * a specific match. It carries no real match context: the header
+     * says "Sample questionnaire", the form fields are the 13 rating
+     * rows + 3 text questions from MatchSurveyService verbatim, and
+     * nothing can be submitted from this page.
+     *
+     * Gate is `auth` + `verified` only — shared with any member who
+     * wants to see what they'll be asked after their next match.
+     */
+    public function specimen(Request $request): View
+    {
+        return view('matches.survey.specimen');
+    }
+
     // ── MD + staff: preview the shooter form ───────────────────────────
 
     /**

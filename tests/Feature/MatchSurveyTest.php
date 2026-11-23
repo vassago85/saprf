@@ -331,6 +331,28 @@ it('blocks a plain member from the results page and from the invite endpoint', f
         ->assertForbidden();
 });
 
+it('lets any logged-in member view the match-agnostic specimen questionnaire', function () {
+    // Specimen is intentionally open to any authenticated SAPRF member
+    // so a match director (or anyone else) can see what the form looks
+    // like without needing to be set as created_by on a specific match.
+    $plain = User::factory()->create(['email_verified_at' => now()]);
+    $plain->assignRole('member');
+
+    $this->actingAs($plain)
+        ->get(route('survey.specimen'))
+        ->assertOk()
+        ->assertSee('Sample questionnaire')
+        ->assertSee('Pre-match communication')       // first rating
+        ->assertSee('What was your favourite aspect') // Q14
+        ->assertDontSee('Submit feedback');           // no real CTA
+
+    // Guest: bounced to login, not 200. Flush the Pest auth state first
+    // because the earlier actingAs($plain) is still carried on the TestCase.
+    auth()->logout();
+    $this->get(route('survey.specimen'))
+        ->assertRedirect(route('login'));
+});
+
 it('lets the match director and staff preview the shooter form, and blocks everyone else', function () {
     $match = surveyMatch();
 
