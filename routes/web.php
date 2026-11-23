@@ -696,6 +696,8 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             // the wrong match is not stuck on a 404.
             Route::get('/post-match-report', [\App\Http\Controllers\PostMatchReportController::class, 'show'])
                 ->name('matches.post-match-report');
+            Route::get('/post-match-report/pdf', [\App\Http\Controllers\PostMatchReportController::class, 'pdf'])
+                ->name('matches.post-match-report.pdf');
             // MD "scores are checked — send the notifications" gate. POST
             // routes (not GET) so a prefetch / crawler can't accidentally
             // mark a match complete.

@@ -12,7 +12,16 @@
                         Only shooters who shot this championship are listed.
                     </p>
                 </div>
-                <p class="text-xs text-amber-800">Generated {{ $generated_at->format('D j M Y, H:i') }}</p>
+                <div class="flex flex-col items-end gap-2">
+                    <a
+                        href="{{ route('matches.post-match-report.pdf', $match) }}"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-amber-50 shadow-sm hover:bg-amber-950"
+                    >
+                        <flux:icon name="arrow-down-tray" class="size-3.5" />
+                        Download PDF
+                    </a>
+                    <p class="text-xs text-amber-800">Generated {{ $generated_at->format('D j M Y, H:i') }}</p>
+                </div>
             </div>
         </div>
 

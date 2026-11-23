@@ -286,3 +286,46 @@ it('refuses the report page to a member who cannot view the match', function () 
         ->get(route('matches.post-match-report', $champs))
         ->assertForbidden();
 });
+
+it('downloads the championship report as a PDF with the expected filename', function () {
+    $champs = pmrMatch('Centrefire SA Championship', 'final', '2026-11-22', $this->gp, [
+        'match_end_date' => '2026-11-22',
+    ]);
+    $openWinner = pmrShooter('Open Year Winner', $this->gp);
+    pmrScore($champs, User::factory()->create(['name' => 'Baseline']), 100.0, null, test()->open->id);
+    pmrScore($champs, $openWinner, 90.0, null, test()->open->id);
+
+    pmrRebuild();
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('matches.post-match-report.pdf', $champs));
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toBe('application/pdf');
+    expect($response->headers->get('Content-Disposition'))
+        ->toContain('SAPRF-prs-2026-Championship-Report-2026-11-22.pdf');
+    // DomPDF streams raw PDF bytes; the header is a cheap sanity check
+    // that we got a real PDF out and not an HTML error page.
+    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+});
+
+it('redirects the PDF route back to the overview when the match is not a championship', function () {
+    $national = pmrMatch('GP National', 'national', '2026-07-11', test()->gp);
+
+    $this->actingAs($this->admin)
+        ->get(route('matches.post-match-report.pdf', $national))
+        ->assertRedirect(route('matches.overview', $national))
+        ->assertSessionHas('error');
+});
+
+it('refuses the PDF route to a member who cannot view the match', function () {
+    $champs = pmrMatch('Centrefire SA Championship', 'final', '2026-11-22', $this->gp, [
+        'match_end_date' => '2026-11-22',
+    ]);
+    $member = User::factory()->create();
+    $member->assignRole('member');
+
+    $this->actingAs($member)
+        ->get(route('matches.post-match-report.pdf', $champs))
+        ->assertForbidden();
+});
