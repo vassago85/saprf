@@ -276,7 +276,7 @@ it('shows the awards list and downloads one division as csv', function () {
     colourAwardLog($shooter, 'PR22', $this->open, 100);
 
     $this->actingAs($this->admin)
-        ->get(route('reports.federation-colour-awards', ['series' => 'PR22', 'season' => '2026']))
+        ->get(route('reports.federation-colour-awards', ['series' => 'PR22', 'season' => '2027']))
         ->assertOk()
         ->assertSee('Csv Shooter')
         ->assertSee('Open')
@@ -287,13 +287,13 @@ it('shows the awards list and downloads one division as csv', function () {
     $csv = $this->actingAs($this->admin)
         ->get(route('reports.federation-colour-awards.csv', [
             'series' => 'PR22',
-            'season' => '2026',
+            'season' => '2027',
             'division' => $this->open->id,
         ]));
     $csv->assertOk();
     $body = $csv->streamedContent();
 
-    expect($csv->headers->get('content-disposition'))->toContain('SAPRF-Federation-Colour-Awards-PR22-2026.csv')
+    expect($csv->headers->get('content-disposition'))->toContain('SAPRF-Federation-Colour-Awards-PR22-2027.csv')
         ->and($body)->toContain('Csv Shooter')
         ->and($body)->toContain('Open')
         ->and($body)->toContain('CSV-1')
@@ -323,7 +323,7 @@ it('shows the earned colour and series on the public profile', function () {
     colourAwardQualifyingNational($below, 'PRS', $this->open);
     colourAwardLog($below, 'PRS', $this->open, 100);
 
-    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-1', 'season' => '2026']))
+    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-1', 'season' => '2027']))
         ->assertOk()
         ->assertSee('Federation Colour')
         ->assertSee('Gold')
@@ -333,7 +333,7 @@ it('shows the earned colour and series on the public profile', function () {
         ->assertSee('Factory')
         ->assertDontSee('Pending');
 
-    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-2', 'season' => '2026']))
+    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-2', 'season' => '2027']))
         ->assertOk()
         ->assertDontSee('Federation Colour');
 });
@@ -349,7 +349,7 @@ it('shows a pending colour on the profile when a shooter is sitting in a band bu
     // No qualifying match — just a national log.
     colourAwardLog($pending, 'PRS', $this->open, 190);
 
-    $response = $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-3', 'season' => '2026']))
+    $response = $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-3', 'season' => '2027']))
         ->assertOk()
         ->assertSee('Federation Colour')
         ->assertSee('Pending Gold')
@@ -357,9 +357,38 @@ it('shows a pending colour on the profile when a shooter is sitting in a band bu
         ->assertSee('Open');
 
     // The leader's profile should NOT show any pending pill.
-    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-L', 'season' => '2026']))
+    $this->get(route('shooters.show.season', ['saprfNumber' => 'PRO-L', 'season' => '2027']))
         ->assertOk()
         ->assertDontSee('Pending');
+});
+
+it('returns no awards for seasons before the first-award season', function () {
+    // Seed a plausible leader for the pre-2027 season. Even with a Standing
+    // row that would normally earn a Gold pill, the service must return an
+    // empty divisions list because the FIRST_AWARD_SEASON gate short-circuits.
+    $shooter = colourAwardShooter('Pre Award Leader', $this->gp);
+    colourAwardQualifyingNational($shooter, 'PRS', $this->open);
+
+    Standing::create([
+        'user_id' => $shooter->id,
+        'series' => 'PRS',
+        'season' => '2026',
+        'province_id' => null,
+        'division_id' => $this->open->id,
+        'points' => 200,
+        'rank' => 1,
+    ]);
+
+    $awards = app(FederationColourAwards::class);
+
+    expect(FederationColourAwards::isActiveForSeason('2026'))->toBeFalse();
+    expect(FederationColourAwards::isActiveForSeason('2027'))->toBeTrue();
+
+    $report = $awards->build('PRS', '2026');
+    expect($report['divisions'])->toBe([]);
+
+    $shooterAwards = $awards->forShooter($shooter->id, '2026');
+    expect($shooterAwards)->toBe([]);
 });
 
 function colourAwardShooter(string $name, Province $province, bool $paid = true, ?string $number = null): User
@@ -446,7 +475,7 @@ function colourAwardMatch(User $owner, string $series, string $level, Province $
         'match_type' => $series,
         'series' => $series,
         'series_level' => $level,
-        'season' => '2026',
+        'season' => '2027',
         'province_id' => $province->id,
         'match_date' => '2026-06-01',
         'status' => 'completed',
@@ -475,7 +504,7 @@ function colourAwardLog(User $shooter, string $series, Division $division, float
     Standing::create([
         'user_id' => $shooter->id,
         'series' => $series,
-        'season' => '2026',
+        'season' => '2027',
         'province_id' => $provinceId,
         'division_id' => $division->id,
         'points' => $points,
@@ -496,7 +525,8 @@ function colourAwardRows(string $series, int $divisionId): array
  */
 function colourAwardDivision(string $series, int $divisionId): array
 {
-    $report = app(FederationColourAwards::class)->build($series, '2026');
+    $report = app(FederationColourAwards::class)->build($series, '2027');
 
     return collect($report['divisions'])->firstWhere('id', $divisionId);
 }
+

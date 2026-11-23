@@ -52,6 +52,26 @@ class FederationColoursReport
      */
     public function build(string $series, string $season, array $options = []): array
     {
+        // Season gate: share the FederationColourAwards baseline so the
+        // provincial report and the national-only report go dark together.
+        // Pre-2027 seasons were run as "normal provincials" with no colour
+        // framework; see FederationColourAwards::FIRST_AWARD_SEASON.
+        if (! FederationColourAwards::isActiveForSeason($season)) {
+            return [
+                'series' => $series,
+                'season' => $season,
+                'divisions' => [],
+                'summary' => [
+                    'total_rows' => 0,
+                    'gold' => 0,
+                    'silver' => 0,
+                    'bronze' => 0,
+                    'divisions' => 0,
+                    'provinces' => 0,
+                ],
+            ];
+        }
+
         $requireChamps = (bool) ($options['require_champs'] ?? false);
         $thresholds = [
             'gold' => (float) ($options['gold'] ?? 95),

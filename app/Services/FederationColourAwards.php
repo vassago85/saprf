@@ -35,6 +35,34 @@ class FederationColourAwards
     public const SERIES = ['PRS', 'PR22'];
 
     /**
+     * First season in which federation colour awards are issued.
+     *
+     * SAPRF decided the gold/silver/bronze award framework starts with the
+     * 2027 national series — the 2026 season was run as "normal provincials"
+     * with no national series for PR22 and the PRS annual log retained. To
+     * keep pre-2027 shooter profiles and report pages from displaying a
+     * pending colour that will never be earned (the "Pending Gold · PR22"
+     * pill on LeRiche Coetzer Snr's profile was the user-visible trigger),
+     * every entry point here short-circuits when the requested season is
+     * before this baseline.
+     *
+     * Flip this constant forward (e.g. to '2028') if SAPRF ever decides to
+     * skip a year, or delete the gate entirely once a decade of awards has
+     * accumulated and the "no awards yet" branch is no longer reachable.
+     */
+    public const FIRST_AWARD_SEASON = '2027';
+
+    /**
+     * Whether colour awards are issued for the given season. Reports, the
+     * profile pill, and the Reports hub card all consult this before
+     * building or linking anything.
+     */
+    public static function isActiveForSeason(string $season): bool
+    {
+        return strcmp($season, self::FIRST_AWARD_SEASON) >= 0;
+    }
+
+    /**
      * @return array{
      *     series: string,
      *     season: string,
@@ -43,6 +71,18 @@ class FederationColourAwards
      */
     public function build(string $series, string $season, ?int $divisionId = null): array
     {
+        // Season gate: pre-2027 seasons never issue colour awards, so skip
+        // the whole Standing load and return an empty report shape. All
+        // downstream consumers (forShooter, flat, catalog, controllers,
+        // views) already handle an empty `divisions` list cleanly.
+        if (! self::isActiveForSeason($season)) {
+            return [
+                'series' => $series,
+                'season' => $season,
+                'divisions' => [],
+            ];
+        }
+
         $standings = Standing::query()
             ->where('series', $series)
             ->where('season', $season)
@@ -130,6 +170,12 @@ class FederationColourAwards
      */
     public function catalog(string $series, string $season): array
     {
+        // Same season gate as build() — pre-2027 the awards page has no
+        // divisions to filter by.
+        if (! self::isActiveForSeason($season)) {
+            return [];
+        }
+
         return Standing::query()
             ->where('series', $series)
             ->where('season', $season)

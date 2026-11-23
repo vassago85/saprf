@@ -323,7 +323,7 @@ it('submits day 1 stage totals onto the provincial and leaves the national runni
     expect($standing)->not->toBeNull()
         ->and(Standing::where('user_id', $guest->id)->exists())->toBeFalse();
 
-    $colours = app(FederationColoursReport::class)->build('PRS', '2026');
+    $colours = app(FederationColoursReport::class)->build('PRS', '2027');
     $names = collect($colours['divisions'])->flatMap(fn ($division) => collect($division['provinces'])->flatMap(
         fn ($province) => collect($province['rows'])->pluck('name')
     ));
@@ -606,7 +606,7 @@ function day1National(User $owner, Province $province, array $overrides = []): M
         'match_type' => 'PRS',
         'series' => 'PRS',
         'series_level' => 'national',
-        'season' => '2026',
+        'season' => '2027',
         'province_id' => $province->id,
         'venue_name' => 'Range',
         'match_date' => now()->toDateString(),

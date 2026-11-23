@@ -7,6 +7,7 @@ use App\Models\Province;
 use App\Models\Score;
 use App\Models\Standing;
 use App\Models\User;
+use App\Services\FederationColourAwards;
 use App\Services\FederationColoursReport;
 
 beforeEach(function () {
@@ -44,7 +45,7 @@ function coloursStanding(User $user, string $series, Province $province, ?Divisi
     Standing::create([
         'user_id' => $user->id,
         'series' => $series,
-        'season' => '2026',
+        'season' => '2027',
         'province_id' => $province->id,
         'division_id' => $division?->id,
         'points' => $points,
@@ -77,7 +78,7 @@ it('keeps open and factory separate and grades against the division province lea
     $other = $series === 'PRS' ? 'PR22' : 'PRS';
     coloursStanding($kevin, $other, $this->gp, $this->open, 50);
 
-    $report = app(FederationColoursReport::class)->build($series, '2026');
+    $report = app(FederationColoursReport::class)->build($series, '2027');
 
     expect($report['divisions'])->toHaveCount(2)
         ->and($report['divisions'][0]['name'])->toBe('Open')
@@ -133,7 +134,7 @@ it('gives tied leaders the same rank and 100 percent', function () {
     coloursStanding($ada, 'PR22', $this->gp, $this->open, 100);
     coloursStanding($bea, 'PR22', $this->gp, $this->open, 100);
 
-    $group = app(FederationColoursReport::class)->build('PR22', '2026')['divisions'][0]['provinces'][0];
+    $group = app(FederationColoursReport::class)->build('PR22', '2027')['divisions'][0]['provinces'][0];
 
     expect($group['leader_name'])->toBe('Ada Tied, Bea Tied')
         ->and($group['rows'][0]['rank'])->toBe(1)
@@ -150,7 +151,7 @@ it('shows the report and downloads a csv and a pdf for the selected series', fun
     coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
 
     $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026']))
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2027']))
         ->assertOk()
         ->assertSee('Kevin Goncalves')
         ->assertSee('Open')
@@ -159,7 +160,7 @@ it('shows the report and downloads a csv and a pdf for the selected series', fun
         ->assertSee('KG-1');
 
     $csv = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours.csv', ['series' => 'PR22', 'season' => '2026']));
+        ->get(route('reports.federation-colours.csv', ['series' => 'PR22', 'season' => '2027']));
     $csv->assertOk();
     $body = $csv->streamedContent();
     expect($body)->toContain('Kevin Goncalves')
@@ -170,11 +171,11 @@ it('shows the report and downloads a csv and a pdf for the selected series', fun
         ->and(substr_count($body, 'Kevin Goncalves'))->toBe(2);
 
     $pdf = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours.pdf', ['series' => 'PR22', 'season' => '2026']));
+        ->get(route('reports.federation-colours.pdf', ['series' => 'PR22', 'season' => '2027']));
     $pdf->assertOk();
     expect($pdf->headers->get('content-type'))->toContain('pdf')
         ->and(substr($pdf->getContent(), 0, 4))->toBe('%PDF')
-        ->and($pdf->headers->get('content-disposition'))->toContain('SAPRF-Federation-Colours-PR22-2026.pdf');
+        ->and($pdf->headers->get('content-disposition'))->toContain('SAPRF-Federation-Colours-PR22-2027.pdf');
 });
 
 function coloursChamps(User $user, string $series, Division $division): void
@@ -185,7 +186,7 @@ function coloursChamps(User $user, string $series, Division $division): void
         'series' => $series,
         'series_level' => 'final',
         'is_sa_championships' => true,
-        'season' => '2026',
+        'season' => '2027',
         'province_id' => $user->province_id,
         'match_date' => '2026-09-01',
         'status' => 'completed',
@@ -214,7 +215,7 @@ it('withholds a grade without an sa championships score in that division', funct
     coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
     coloursChamps($kevin, 'PR22', $this->open);
 
-    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true]);
+    $report = app(FederationColoursReport::class)->build('PR22', '2027', ['require_champs' => true]);
     $open = collect($report['divisions'][0]['provinces'][0]['rows'])->firstWhere('name', 'Kevin Goncalves');
     $factory = collect($report['divisions'][1]['provinces'][0]['rows'])->firstWhere('name', 'Kevin Goncalves');
 
@@ -232,7 +233,7 @@ it('awards a grade without sa championships when a reason is recorded', function
     $this->actingAs($this->admin)
         ->post(route('reports.federation-colours.overrides.store'), [
             'series' => 'PR22',
-            'season' => '2026',
+            'season' => '2027',
             'user_id' => $kevin->id,
             'division_id' => $this->factory->id,
             'reason' => 'Medical withdrawal after the entry closed',
@@ -240,11 +241,11 @@ it('awards a grade without sa championships when a reason is recorded', function
         ])
         ->assertRedirect(route('reports.federation-colours', [
             'series' => 'PR22',
-            'season' => '2026',
+            'season' => '2027',
             'require_champs' => '1',
         ]));
 
-    $row = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
+    $row = app(FederationColoursReport::class)->build('PR22', '2027', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
 
     expect($row['grade'])->toBe('Gold')
         ->and($row['shot_champs'])->toBeFalse()
@@ -253,14 +254,14 @@ it('awards a grade without sa championships when a reason is recorded', function
     $this->actingAs($this->admin)
         ->delete(route('reports.federation-colours.overrides.destroy', $row['override_id']), [
             'series' => 'PR22',
-            'season' => '2026',
+            'season' => '2027',
             'require_champs' => '1',
         ])
         ->assertRedirect();
 
     expect(FederationColourOverride::query()->count())->toBe(0);
 
-    $cleared = app(FederationColoursReport::class)->build('PR22', '2026', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
+    $cleared = app(FederationColoursReport::class)->build('PR22', '2027', ['require_champs' => true])['divisions'][0]['provinces'][0]['rows'][0];
     expect($cleared['grade'])->toBeNull();
 });
 
@@ -269,10 +270,10 @@ it('rejects an override without a real reason', function () {
     coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
 
     $this->actingAs($this->admin)
-        ->from(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'require_champs' => '1']))
+        ->from(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2027', 'require_champs' => '1']))
         ->post(route('reports.federation-colours.overrides.store'), [
             'series' => 'PR22',
-            'season' => '2026',
+            'season' => '2027',
             'user_id' => $kevin->id,
             'division_id' => $this->open->id,
             'reason' => 'short',
@@ -290,7 +291,7 @@ it('uses the cutoffs chosen for this report', function () {
     coloursStanding($leader, 'PRS', $this->gp, $this->open, 100);
     coloursStanding($edge, 'PRS', $this->gp, $this->open, 70);
 
-    $rows = collect(app(FederationColoursReport::class)->build('PRS', '2026', [
+    $rows = collect(app(FederationColoursReport::class)->build('PRS', '2027', [
         'gold' => 90,
         'silver' => 80,
         'bronze' => 70,
@@ -310,13 +311,13 @@ it('filters to one division or one province without changing the leader percenta
     coloursStanding($kevin, 'PR22', $this->gp, $this->factory, 150);
     coloursStanding($cape, 'PR22', $this->wc, $this->open, 100);
 
-    $openOnly = app(FederationColoursReport::class)->build('PR22', '2026', ['division_id' => $this->open->id]);
+    $openOnly = app(FederationColoursReport::class)->build('PR22', '2027', ['division_id' => $this->open->id]);
     expect(collect($openOnly['divisions'])->pluck('name')->all())->toBe(['Open']);
     $gpOpen = collect($openOnly['divisions'][0]['provinces'])->firstWhere('name', 'Gauteng');
     expect(collect($gpOpen['rows'])->firstWhere('name', 'Open Rival')['percentage'])->toBe(80.0)
         ->and(collect($gpOpen['rows'])->firstWhere('name', 'Open Rival')['grade'])->toBe('Bronze');
 
-    $gpOnly = app(FederationColoursReport::class)->build('PR22', '2026', ['province_id' => $this->gp->id]);
+    $gpOnly = app(FederationColoursReport::class)->build('PR22', '2027', ['province_id' => $this->gp->id]);
     $provinceNames = collect($gpOnly['divisions'])->flatMap(fn (array $division) => collect($division['provinces'])->pluck('name'))->unique()->values()->all();
     expect($provinceNames)->toBe(['Gauteng']);
 });
@@ -330,15 +331,15 @@ it('refuses the report to a member', function () {
         ->assertForbidden();
 });
 
-// ──────────────────────────────────────────────────────────────────────
+// ----------------------------------------------------------------------
 // top_n filter + summary strip + clickable shooter links
-// ──────────────────────────────────────────────────────────────────────
+// ----------------------------------------------------------------------
 
 it('trims each province group to top N shooters without re-anchoring the leader percentage', function () {
-    // 6 Open shooters in Gauteng: top N=3 should keep ranks 1–3 only, and
+    // 6 Open shooters in Gauteng: top N=3 should keep ranks 1�3 only, and
     // the top 3 keep their original % against the real province leader
     // (200 pts = 100%). If top_n accidentally re-anchored the baseline on
-    // the #3 shooter, #3 would report 100% — the assertion below guards
+    // the #3 shooter, #3 would report 100% � the assertion below guards
     // against that regression.
     $leader = coloursShooter('Leader One', $this->gp, 'LD-TOP');
     $second = coloursShooter('Second Two', $this->gp, 'SC-TOP');
@@ -354,7 +355,7 @@ it('trims each province group to top N shooters without re-anchoring the leader 
     coloursStanding($fifth, 'PR22', $this->gp, $this->open, 120);
     coloursStanding($sixth, 'PR22', $this->gp, $this->open, 100);
 
-    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 3]);
+    $report = app(FederationColoursReport::class)->build('PR22', '2027', ['top_n' => 3]);
     $gpOpen = $report['divisions'][0]['provinces'][0];
 
     expect($gpOpen['rows'])->toHaveCount(3)
@@ -372,7 +373,7 @@ it('leaves provinces with fewer than N shooters unchanged', function () {
     $cape = coloursShooter('Cape Only', $this->wc, 'CO-1');
     coloursStanding($cape, 'PR22', $this->wc, $this->open, 150);
 
-    $report = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 10]);
+    $report = app(FederationColoursReport::class)->build('PR22', '2027', ['top_n' => 10]);
     $wcOpen = $report['divisions'][0]['provinces'][0];
 
     expect($wcOpen['rows'])->toHaveCount(1)
@@ -381,7 +382,7 @@ it('leaves provinces with fewer than N shooters unchanged', function () {
 });
 
 it('populates a summary strip with grade counts reflecting the trimmed output', function () {
-    // 4 shooters: 2 Gold, 1 Silver, 1 (below Bronze cutoff → no grade).
+    // 4 shooters: 2 Gold, 1 Silver, 1 (below Bronze cutoff ? no grade).
     // Top N=2 should drop the Silver and no-grade rows from the summary.
     $g1 = coloursShooter('Gold One', $this->gp, 'G1-SUM');
     $g2 = coloursShooter('Gold Two', $this->gp, 'G2-SUM');
@@ -393,7 +394,7 @@ it('populates a summary strip with grade counts reflecting the trimmed output', 
     coloursStanding($s1, 'PR22', $this->gp, $this->open, 180);
     coloursStanding($x1, 'PR22', $this->gp, $this->open, 100);
 
-    $full = app(FederationColoursReport::class)->build('PR22', '2026');
+    $full = app(FederationColoursReport::class)->build('PR22', '2027');
     expect($full['summary']['total_rows'])->toBe(4)
         ->and($full['summary']['gold'])->toBe(2)
         ->and($full['summary']['silver'])->toBe(1)
@@ -401,7 +402,7 @@ it('populates a summary strip with grade counts reflecting the trimmed output', 
         ->and($full['summary']['divisions'])->toBe(1)
         ->and($full['summary']['provinces'])->toBe(1);
 
-    $topTwo = app(FederationColoursReport::class)->build('PR22', '2026', ['top_n' => 2]);
+    $topTwo = app(FederationColoursReport::class)->build('PR22', '2027', ['top_n' => 2]);
     expect($topTwo['summary']['total_rows'])->toBe(2)
         ->and($topTwo['summary']['gold'])->toBe(2)
         ->and($topTwo['summary']['silver'])->toBe(0)
@@ -421,7 +422,7 @@ it('links shooter names to their public profile and honours the top_n querystrin
 
     // top_n=3 is the smallest value on the whitelist in ReportsController::parseTopN.
     $response = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'top_n' => 3]))
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2027', 'top_n' => 3]))
         ->assertOk()
         ->assertSee('Linked Leader')
         ->assertSee('Linked Second')
@@ -431,8 +432,8 @@ it('links shooter names to their public profile and honours the top_n querystrin
     // Each shown shooter name is wrapped in an anchor pointing at their
     // canonical profile URL. The PR22 season context is preserved so the
     // profile lands directly on the right season view.
-    $leaderUrl = route('shooters.show.season', ['saprfNumber' => 'LL-1', 'season' => '2026']);
-    $secondUrl = route('shooters.show.season', ['saprfNumber' => 'LL-2', 'season' => '2026']);
+    $leaderUrl = route('shooters.show.season', ['saprfNumber' => 'LL-1', 'season' => '2027']);
+    $secondUrl = route('shooters.show.season', ['saprfNumber' => 'LL-2', 'season' => '2027']);
     $response->assertSee($leaderUrl, false)
         ->assertSee($secondUrl, false);
 });
@@ -442,7 +443,7 @@ it('renders a standings sheet with no grades and downloads a standings pdf', fun
     coloursStanding($kevin, 'PR22', $this->gp, $this->open, 200);
 
     $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']))
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2027', 'awards' => '0']))
         ->assertOk()
         ->assertSee('Provincial Standings')
         ->assertSee('Kevin Goncalves')
@@ -451,17 +452,43 @@ it('renders a standings sheet with no grades and downloads a standings pdf', fun
         ->assertDontSee('>Gold<', false);
 
     $pdf = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours.pdf', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']));
+        ->get(route('reports.federation-colours.pdf', ['series' => 'PR22', 'season' => '2027', 'awards' => '0']));
     $pdf->assertOk();
-    expect($pdf->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2026.pdf')
+    expect($pdf->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2027.pdf')
         ->and(substr($pdf->getContent(), 0, 4))->toBe('%PDF');
 
     $csv = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours.csv', ['series' => 'PR22', 'season' => '2026', 'awards' => '0']));
+        ->get(route('reports.federation-colours.csv', ['series' => 'PR22', 'season' => '2027', 'awards' => '0']));
     $body = $csv->streamedContent();
-    expect($csv->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2026.csv')
+    expect($csv->headers->get('content-disposition'))->toContain('SAPRF-Provincial-Standings-PR22-2027.csv')
         ->and($body)->toContain('Kevin Goncalves')
         ->and($body)->not->toContain('Grade');
+});
+
+it('returns an empty report for seasons before the first-award season', function () {
+    // Seed a plausible top shooter for the pre-2027 season. The report
+    // should still return an empty shape because the FIRST_AWARD_SEASON
+    // gate short-circuits before the standings query runs.
+    $shooter = coloursShooter('Pre Award', $this->gp, 'PA-1');
+
+    Standing::create([
+        'user_id' => $shooter->id,
+        'series' => 'PR22',
+        'season' => '2026',
+        'province_id' => $this->gp->id,
+        'division_id' => $this->open->id,
+        'points' => 250,
+        'rank' => 1,
+    ]);
+
+    expect(FederationColourAwards::isActiveForSeason('2026'))->toBeFalse();
+
+    $report = app(FederationColoursReport::class)->build('PR22', '2026');
+    expect($report['divisions'])->toBe([])
+        ->and($report['summary']['total_rows'])->toBe(0)
+        ->and($report['summary']['gold'])->toBe(0)
+        ->and($report['summary']['silver'])->toBe(0)
+        ->and($report['summary']['bronze'])->toBe(0);
 });
 
 it('ignores an unknown top_n value and falls back to the full list', function () {
@@ -473,8 +500,9 @@ it('ignores an unknown top_n value and falls back to the full list', function ()
     coloursStanding($two, 'PR22', $this->gp, $this->open, 80);
 
     $response = $this->actingAs($this->admin)
-        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2026', 'top_n' => 99]))
+        ->get(route('reports.federation-colours', ['series' => 'PR22', 'season' => '2027', 'top_n' => 99]))
         ->assertOk()
         ->assertSee('First')
         ->assertSee('Second');
 });
+
