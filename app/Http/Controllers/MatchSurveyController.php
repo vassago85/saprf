@@ -118,6 +118,39 @@ class MatchSurveyController extends Controller
             ->with('success', 'Thanks — your anonymous feedback has been recorded.');
     }
 
+    // ── MD + staff: preview the shooter form ───────────────────────────
+
+    /**
+     * Read-only preview of the exact form a shooter sees. Match
+     * Directors asked for this so they (and Exco) can proof the
+     * questionnaire before clicking "Email shooters a survey link" —
+     * the shape of the form is the single biggest driver of reply
+     * quality, and nobody wants to send 60 emails pointing at a form
+     * that asks the wrong question.
+     *
+     * The form is rendered inside a <div>, not a <form>, so even if a
+     * reviewer somehow synthesises a POST the data never reaches the
+     * store endpoint. The eligibility / window checks still fire on
+     * the real `show()` + `store()` routes, so this page is purely a
+     * visual proof.
+     */
+    public function preview(Request $request, MatchEvent $match): View|RedirectResponse
+    {
+        $this->authorizeSurveyAccess($request, $match);
+
+        if (! $this->surveys->isApplicableTo($match)) {
+            return redirect()
+                ->route('matches.overview', $match)
+                ->with('error', 'The post-match survey is only available on provincial, national, or championship matches.');
+        }
+
+        return view('matches.survey.form', [
+            'match' => $match,
+            'closesAt' => $this->surveys->windowClosesAt($match),
+            'preview' => true,
+        ]);
+    }
+
     // ── MD + staff: results tab + invite action ────────────────────────
 
     public function results(Request $request, MatchEvent $match): View|RedirectResponse

@@ -2,6 +2,11 @@
     @php
         $venueLabel = $match->venue_name ?: ($match->city ?: 'the venue');
         $errors = $errors ?? session('errors');
+        // Preview mode (MD / Exco proofing the questionnaire) renders the
+        // exact same layout as the real form but wraps it in a <div> so
+        // there is no action to submit against, and swaps the submit CTA
+        // for a "Close preview" link back to the staff survey page.
+        $preview = $preview ?? false;
 
         // 13 rating rows in the WhatsApp-approved order. Keeping the numbering
         // on the labels so the on-screen form reads the same as the briefing
@@ -26,6 +31,16 @@
     @endphp
 
     <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
+        @if($preview)
+            <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p class="font-semibold">Preview mode</p>
+                <p class="mt-1 text-xs">
+                    This is a read-only view of the form shooters see. Radios and text fields are disabled; nothing can be submitted from this page.
+                    <a href="{{ route('matches.survey.results', $match) }}" class="font-semibold underline">Back to the survey tab</a>.
+                </p>
+            </div>
+        @endif
+
         <div class="mb-8 border-l-4 border-emerald-600 pl-4">
             <p class="text-xs font-semibold uppercase tracking-wider text-stone-500">SAPRF match · shooter feedback scorecard</p>
             <h1 class="mt-1 font-heading text-3xl font-bold text-stone-900 sm:text-4xl">{{ $match->name }}</h1>
@@ -70,8 +85,12 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('matches.survey.store', $match) }}" class="space-y-6">
-            @csrf
+        @if($preview)
+            <div class="space-y-6" aria-label="Survey preview">
+        @else
+            <form method="POST" action="{{ route('matches.survey.store', $match) }}" class="space-y-6">
+                @csrf
+        @endif
 
             <section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="font-heading text-lg font-bold text-stone-900">Rate the match</h2>
@@ -148,14 +167,29 @@
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <p class="text-xs text-stone-500">
-                    Submitting once records your reply anonymously. You can only submit once.
-                </p>
-                <button type="submit"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
-                    Submit feedback
-                </button>
+                @if($preview)
+                    <p class="text-xs text-stone-500">
+                        Preview only &mdash; nothing is sent from this page.
+                    </p>
+                    <a href="{{ route('matches.survey.results', $match) }}"
+                       class="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50">
+                        Close preview
+                    </a>
+                @else
+                    <p class="text-xs text-stone-500">
+                        Submitting once records your reply anonymously. You can only submit once.
+                    </p>
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                        Submit feedback
+                    </button>
+                @endif
             </div>
-        </form>
+
+        @if($preview)
+            </div>
+        @else
+            </form>
+        @endif
     </div>
 </x-layouts.app>

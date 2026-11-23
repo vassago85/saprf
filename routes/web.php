@@ -764,11 +764,13 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
             Route::post('/revert-to-draft', [MatchWorkspaceController::class, 'revertToDraft'])
                 ->name('matches.revert-to-draft');
 
-            // Anonymous survey results — Exco/Owner/Admin/Developer only.
-            // Match directors are intentionally blocked inside the
-            // controller because comments cover the RO team, the range
-            // setup and SAPRF comms, and a results page the MD can read
-            // would undo the anonymity the storage split protects.
+            // Anonymous post-match survey — results, invite, and a
+            // read-only preview of the shooter-facing form. Open to
+            // Match Director (on their own match), Exco, Owner, Admin,
+            // and Developer; the per-match scoping lives inside the
+            // controller via MatchPolicy::view().
+            Route::get('/survey/preview', [MatchSurveyController::class, 'preview'])
+                ->name('matches.survey.preview');
             Route::get('/survey/results', [MatchSurveyController::class, 'results'])
                 ->name('matches.survey.results');
             Route::post('/survey/invite', [MatchSurveyController::class, 'invite'])

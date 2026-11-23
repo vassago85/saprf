@@ -78,6 +78,15 @@
             </p>
 
             <div class="mt-4 flex flex-wrap items-center gap-2">
+                {{-- Preview button is always available so the MD / Exco
+                     can proof the form before clicking the irreversible
+                     "Email shooters" action. Opens in a new tab so the
+                     reviewer keeps this page handy. --}}
+                <a href="{{ route('matches.survey.preview', $match) }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
+                    Preview the shooter form
+                </a>
+
                 @if($match->survey_invites_sent_at !== null)
                     <button type="button" disabled
                             class="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 opacity-70">

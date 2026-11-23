@@ -331,6 +331,45 @@ it('blocks a plain member from the results page and from the invite endpoint', f
         ->assertForbidden();
 });
 
+it('lets the match director and staff preview the shooter form, and blocks everyone else', function () {
+    $match = surveyMatch();
+
+    // MD on their own match
+    $md = User::factory()->create();
+    $md->assignRole('match_director');
+    $match->forceFill(['created_by' => $md->id])->save();
+
+    $this->actingAs($md)
+        ->get(route('matches.survey.preview', $match))
+        ->assertOk()
+        ->assertSee('Preview mode')
+        ->assertSee('Pre-match communication')         // first rating label
+        ->assertSee('What was your favourite aspect')  // text question 14
+        ->assertDontSee('Submit feedback');            // real CTA replaced
+
+    // Exco
+    $exco = User::factory()->create();
+    $exco->assignRole('exco');
+    $this->actingAs($exco)
+        ->get(route('matches.survey.preview', $match))
+        ->assertOk()
+        ->assertSee('Preview mode');
+
+    // A match director who does NOT own this match
+    $otherMd = User::factory()->create();
+    $otherMd->assignRole('match_director');
+    $this->actingAs($otherMd)
+        ->get(route('matches.survey.preview', $match))
+        ->assertForbidden();
+
+    // Plain member
+    $plain = User::factory()->create();
+    $plain->assignRole('member');
+    $this->actingAs($plain)
+        ->get(route('matches.survey.preview', $match))
+        ->assertForbidden();
+});
+
 it('sends invitation emails once and marks the match so a second invite is blocked', function () {
     Notification::fake();
 
