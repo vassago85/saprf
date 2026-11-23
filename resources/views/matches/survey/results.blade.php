@@ -62,6 +62,21 @@
                 </div>
             </div>
 
+            {{-- Auto-report notice. Once the window closes, the daily
+                 SendClosedMatchSurveyReportsJob emails the aggregated PDF
+                 to the match director + every exco/owner/admin. Showing
+                 the plan up front so an MD doesn't start wondering
+                 whether they need to do something manually. --}}
+            <p class="mt-3 text-[11px] text-emerald-800">
+                @if($match->survey_report_sent_at !== null)
+                    PDF report emailed to the match director and Exco on {{ $match->survey_report_sent_at->timezone(config('app.timezone'))->format('j M Y, H:i') }}.
+                @elseif($windowIsOpen && $closesAt)
+                    A PDF of this report will be emailed automatically to the match director and Exco the morning after the window closes ({{ $closesAt->timezone(config('app.timezone'))->format('j M Y') }}).
+                @else
+                    The window has closed. The PDF report will be emailed to the match director and Exco on the next 07:00 sweep.
+                @endif
+            </p>
+
             <div class="mt-4 flex flex-wrap items-center gap-2">
                 @if($match->survey_invites_sent_at !== null)
                     <button type="button" disabled

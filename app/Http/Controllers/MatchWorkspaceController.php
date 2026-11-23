@@ -1275,15 +1275,17 @@ class MatchWorkspaceController extends Controller
         ];
 
         // Survey tab — only when the match is a provincial / national /
-        // championship that has been marked completed, and only for Exco /
-        // Owner / Admin / Developer viewers. Match directors can `view` the
-        // match but are kept off the survey because the free-text comments
-        // cover their RO team, their range setup and SAPRF comms.
+        // championship that has been marked completed. Match Directors
+        // (on their own match), Exco, Owner, Admin, and Developer all
+        // see the tab; member-only accounts do not. Per-match scoping
+        // happens inside the controller via MatchPolicy::view(), so a
+        // match_director cannot land on another MD's survey tab even if
+        // they type the URL directly.
         $viewer = request()->user();
-        $viewerIsStaff = $viewer !== null
-            && $viewer->hasAnyRole(['developer', 'exco', 'owner', 'admin']);
+        $viewerMaySeeSurvey = $viewer !== null
+            && $viewer->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director']);
 
-        if ($viewerIsStaff && $this->surveys->isApplicableTo($match)) {
+        if ($viewerMaySeeSurvey && $this->surveys->isApplicableTo($match)) {
             $tabs[] = [
                 'key' => 'survey',
                 'label' => 'Survey',

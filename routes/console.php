@@ -6,6 +6,7 @@ use App\Jobs\ExpireMembershipsJob;
 use App\Jobs\ExpireSponsorsJob;
 use App\Jobs\NotifyRegistrationClosedPendingJob;
 use App\Jobs\ResolvePendingScoresJob;
+use App\Jobs\SendClosedMatchSurveyReportsJob;
 use App\Jobs\SyncImpactLiveScoresJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -59,5 +60,16 @@ Schedule::command('saprf:invoice-charsley')
 // immediately via reactionsAreOpen(); this only flips the status badge.
 Schedule::command('saprf:archive-closed-decisions')
     ->hourly()
+    ->timezone('Africa/Johannesburg')
+    ->withoutOverlapping();
+
+// Post-match survey: once the 5-day feedback window has elapsed, email
+// the anonymous aggregated PDF to the match director + every exco /
+// owner / admin. Runs once a day at 07:00 so the report lands in staff
+// inboxes during business hours, not the middle of the night. The job
+// stamps matches.survey_report_sent_at so a re-run on the same match
+// is a no-op.
+Schedule::job(new SendClosedMatchSurveyReportsJob)
+    ->dailyAt('07:00')
     ->timezone('Africa/Johannesburg')
     ->withoutOverlapping();

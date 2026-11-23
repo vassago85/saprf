@@ -20,11 +20,12 @@ use RuntimeException;
  * The form (`show` + `store`) is member-facing: logged-in shooters who
  * entered or shot the match can answer once.
  *
- * The `results` + `invite` endpoints are staff-only (Exco / Owner /
- * Admin / Developer). Match directors are NOT allowed to read answers
- * because the free-text comments cover the RO team, the range setup
- * and SAPRF comms — a names-attached results page would undo the
- * anonymity the two-table split exists to protect.
+ * The `results` + `invite` endpoints are match-director + staff only —
+ * Match Director, Exco, Owner, Admin, and Developer can both open the
+ * results page and fire the invite email. The anonymity split still
+ * holds end-to-end: both the pre-open invite (this controller) and the
+ * post-close report (SendClosedMatchSurveyReportsJob) show aggregates
+ * and comments, never per-shooter answers.
  */
 class MatchSurveyController extends Controller
 {
@@ -117,11 +118,11 @@ class MatchSurveyController extends Controller
             ->with('success', 'Thanks — your anonymous feedback has been recorded.');
     }
 
-    // ── Staff: results tab + invite action ─────────────────────────────
+    // ── MD + staff: results tab + invite action ────────────────────────
 
     public function results(Request $request, MatchEvent $match): View|RedirectResponse
     {
-        $this->authorizeStaff($request, $match);
+        $this->authorizeSurveyAccess($request, $match);
 
         if (! $this->surveys->isApplicableTo($match)) {
             return redirect()
@@ -158,7 +159,7 @@ class MatchSurveyController extends Controller
 
     public function invite(Request $request, MatchEvent $match): RedirectResponse
     {
-        $this->authorizeStaff($request, $match);
+        $this->authorizeSurveyAccess($request, $match);
 
         if (! $this->surveys->isApplicableTo($match)) {
             return redirect()
@@ -203,20 +204,26 @@ class MatchSurveyController extends Controller
     // ── Helpers ────────────────────────────────────────────────────────
 
     /**
-     * Staff-only gate for results / invite. Match directors can `view` the
-     * match in general, but survey results are intentionally hidden from
-     * them because the comments talk about ROs and SAPRF comms.
+     * Gate for the results page + invite action.
+     *
+     * Match Directors can open the results page and fire the invite for
+     * their own match — the MatchPolicy::view() call on the same
+     * controller already limits a match_director to matches they
+     * created, so a match_director cannot sideload another MD's match.
+     *
+     * Exco / Owner / Admin / Developer get the full picture across every
+     * match as before. "member" role on its own is never enough.
      */
-    private function authorizeStaff(Request $request, MatchEvent $match): void
+    private function authorizeSurveyAccess(Request $request, MatchEvent $match): void
     {
         /** @var User|null $user */
         $user = $request->user();
-        if ($user === null || ! $user->hasAnyRole(['developer', 'exco', 'owner', 'admin'])) {
-            abort(403, 'Only Exco, owners, and admins can read survey results.');
+        if ($user === null || ! $user->hasAnyRole(['developer', 'exco', 'owner', 'admin', 'match_director'])) {
+            abort(403, 'Only the match director, Exco, owners, and admins can open the survey page.');
         }
 
-        // Keep the authorize() call so the policy still has a chance to
-        // deny on an unrelated match the staff role should not touch.
+        // Per-match scoping: match_director must own this match, everyone
+        // else is already blanket-allowed by the policy.
         $this->authorize('view', $match);
     }
 

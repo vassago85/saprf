@@ -2,12 +2,14 @@
 
 use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Jobs\SendClosedMatchSurveyReportsJob;
 use App\Models\MatchSurveyRespondent;
 use App\Models\MatchSurveyResponse;
 use App\Models\Province;
 use App\Models\Score;
 use App\Models\User;
 use App\Notifications\MatchSurveyInvitationNotification;
+use App\Notifications\MatchSurveyReportReadyNotification;
 use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
@@ -261,23 +263,70 @@ it('lets staff (Exco / Owner / Admin / Developer) view aggregated results', func
     }
 });
 
-it('does not let the match director view survey results', function () {
+it('lets the match director read the results page and fire the invite for their own match', function () {
+    Notification::fake();
+
     $match = surveyMatch();
 
     /** @var User $md */
-    $md = User::factory()->create();
+    $md = User::factory()->create(['email_verified_at' => now()]);
     $md->assignRole('match_director');
     $match->forceFill(['created_by' => $md->id])->save();
 
-    $user = surveyEntrant($match);
-    $this->actingAs($user)
+    $entrant = surveyEntrant($match);
+    $this->actingAs($entrant)
         ->post(route('matches.survey.store', $match), surveyAnswersPayload());
 
+    // Results page: MD can read it (the summary + PDF reach them anyway
+    // when the window closes, so blocking the in-app view would just
+    // frustrate the MD).
     $this->actingAs($md)
+        ->get(route('matches.survey.results', $match))
+        ->assertOk()
+        ->assertSee('Shooter feedback scorecard');
+
+    // Invite: MD can trigger it. The notification fake confirms the
+    // entrant actually got the invite — we don't just trust the redirect.
+    $this->actingAs($md)
+        ->post(route('matches.survey.invite', $match))
+        ->assertRedirect(route('matches.survey.results', $match))
+        ->assertSessionHas('success');
+
+    Notification::assertSentTo($entrant, MatchSurveyInvitationNotification::class);
+    expect($match->fresh()->survey_invites_sent_at)->not->toBeNull();
+});
+
+it('blocks a match director from reading another MD\'s survey results', function () {
+    $match = surveyMatch();
+
+    // Owner of `match` is someone else.
+    $otherMd = User::factory()->create();
+    $otherMd->assignRole('match_director');
+    $match->forceFill(['created_by' => $otherMd->id])->save();
+
+    $outsiderMd = User::factory()->create();
+    $outsiderMd->assignRole('match_director');
+
+    $this->actingAs($outsiderMd)
         ->get(route('matches.survey.results', $match))
         ->assertForbidden();
 
-    $this->actingAs($md)
+    $this->actingAs($outsiderMd)
+        ->post(route('matches.survey.invite', $match))
+        ->assertForbidden();
+});
+
+it('blocks a plain member from the results page and from the invite endpoint', function () {
+    $match = surveyMatch();
+
+    $plain = User::factory()->create();
+    $plain->assignRole('member');
+
+    $this->actingAs($plain)
+        ->get(route('matches.survey.results', $match))
+        ->assertForbidden();
+
+    $this->actingAs($plain)
         ->post(route('matches.survey.invite', $match))
         ->assertForbidden();
 });
@@ -351,4 +400,88 @@ it('rejects out-of-range ratings (0 and 11)', function () {
         ->assertSessionHasErrors(['stage_design', 'target_sizes']);
 
     expect(MatchSurveyResponse::count())->toBe(0);
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// SendClosedMatchSurveyReportsJob — the daily sweep that emails the
+// aggregated PDF to the MD + exco / owner / admin once the window has
+// closed. The PDF is generated inline by DomPDF, so these tests also
+// catch any Blade syntax errors in the report template.
+// ──────────────────────────────────────────────────────────────────────
+
+it('does not email the closing report while the survey window is still open', function () {
+    Notification::fake();
+
+    // Match from yesterday — window closes 5 days after match_end_date,
+    // so the sweep must skip it.
+    $match = surveyMatch();
+
+    $md = User::factory()->create(['email_verified_at' => now()]);
+    $md->assignRole('match_director');
+    $match->forceFill(['created_by' => $md->id])->save();
+
+    $exco = User::factory()->create(['email_verified_at' => now()]);
+    $exco->assignRole('exco');
+
+    (new SendClosedMatchSurveyReportsJob)->handle(app(\App\Services\MatchSurveyService::class));
+
+    Notification::assertNothingSent();
+    expect($match->fresh()->survey_report_sent_at)->toBeNull();
+});
+
+it('emails the closing report once the window has closed and marks the match so a re-run is a no-op', function () {
+    Notification::fake();
+
+    // Match 10 days ago — window closed 5 days ago.
+    $match = surveyMatch([
+        'match_date' => now()->subDays(10)->toDateString(),
+        'match_end_date' => now()->subDays(10)->toDateString(),
+    ]);
+
+    $md = User::factory()->create(['email_verified_at' => now()]);
+    $md->assignRole('match_director');
+    $match->forceFill(['created_by' => $md->id])->save();
+
+    $exco = User::factory()->create(['email_verified_at' => now()]);
+    $exco->assignRole('exco');
+
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    // Seed one reply so the PDF has something to render.
+    $shooter = surveyEntrant($match);
+    $this->actingAs($shooter)
+        ->post(route('matches.survey.store', $match), surveyAnswersPayload());
+
+    (new SendClosedMatchSurveyReportsJob)->handle(app(\App\Services\MatchSurveyService::class));
+
+    Notification::assertSentTo($md, MatchSurveyReportReadyNotification::class);
+    Notification::assertSentTo($exco, MatchSurveyReportReadyNotification::class);
+    Notification::assertSentTo($admin, MatchSurveyReportReadyNotification::class);
+    expect($match->fresh()->survey_report_sent_at)->not->toBeNull();
+
+    // Re-run: second sweep must be a no-op because survey_report_sent_at
+    // is now set. Clearing the fake and running again is the cleanest way
+    // to check "no new notifications".
+    Notification::fake();
+    (new SendClosedMatchSurveyReportsJob)->handle(app(\App\Services\MatchSurveyService::class));
+    Notification::assertNothingSent();
+});
+
+it('deduplicates the recipient list so an MD who is also exco only gets the closing report once', function () {
+    Notification::fake();
+
+    $match = surveyMatch([
+        'match_date' => now()->subDays(10)->toDateString(),
+        'match_end_date' => now()->subDays(10)->toDateString(),
+    ]);
+
+    // One person wearing two hats: match director AND exco.
+    $hybrid = User::factory()->create(['email_verified_at' => now()]);
+    $hybrid->assignRole(['match_director', 'exco']);
+    $match->forceFill(['created_by' => $hybrid->id])->save();
+
+    (new SendClosedMatchSurveyReportsJob)->handle(app(\App\Services\MatchSurveyService::class));
+
+    Notification::assertSentToTimes($hybrid, MatchSurveyReportReadyNotification::class, 1);
 });
