@@ -102,6 +102,28 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {{-- ═══ Main Column ═══ --}}
                 <div class="lg:col-span-2 space-y-6">
+                    {{-- Post-match survey CTA — only renders for a logged-in
+                         shooter who entered or shot the match, while the
+                         window is open, and only if they have not already
+                         answered. See MatchController::publicShow. --}}
+                    @if(($viewerCanTakeSurvey ?? false))
+                        <div class="bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-5">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Tell us how the match went</p>
+                                    <h2 class="mt-1 font-heading text-lg font-bold text-emerald-950">Post-match survey</h2>
+                                    <p class="mt-1 max-w-xl text-xs text-emerald-900">
+                                        Anonymous feedback on briefings, stages, range officers, scoring, catering and prize giving. SAPRF can see <em>that</em> you responded, not what you said.
+                                    </p>
+                                </div>
+                                <a href="{{ route('matches.survey.show', $match) }}"
+                                   class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
+                                    Open survey
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Description --}}
                     @if($match->description)
                         <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">

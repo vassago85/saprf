@@ -992,10 +992,18 @@ class MatchController extends Controller
         $divList = $board['divisions'];
         $showStageProgress = $board['has_stage_progress'];
 
+        // Post-match survey CTA — only renders for a logged-in shooter who
+        // entered or shot the match, while the window is open, and only if
+        // they have not already answered. Kept out of the public list / for
+        // guests so nobody can guess at the eligible-shooter list by probing.
+        $surveys = app(\App\Services\MatchSurveyService::class);
+        $viewerCanTakeSurvey = $viewer !== null
+            && $surveys->userMayAnswer($match, $viewer);
+
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
             'viewerCanRemoveZeroScores', 'viewerCanDownloadResults', 'saBadgesByUser', 'scoreImports',
-            'scoreData', 'divList', 'showStageProgress',
+            'scoreData', 'divList', 'showStageProgress', 'viewerCanTakeSurvey',
         ));
     }
 

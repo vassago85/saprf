@@ -2,10 +2,13 @@
 
 namespace App\Support\Dashboard\Shooter;
 
+use App\Models\MatchEvent;
 use App\Models\MatchRegistration;
+use App\Models\MatchSurveyRespondent;
 use App\Models\RifleConfiguration;
 use App\Models\Score;
 use App\Models\User;
+use App\Services\MatchSurveyService;
 use App\Services\QualificationService;
 use Illuminate\Support\Carbon;
 
@@ -13,6 +16,7 @@ final class AttentionBuilder
 {
     public function __construct(
         private readonly QualificationService $qualification,
+        private readonly MatchSurveyService $surveys,
     ) {}
 
     /**
@@ -143,7 +147,53 @@ final class AttentionBuilder
             ];
         }
 
-        // 5. No rifles yet.
+        // 5. Open post-match surveys the shooter has not answered yet.
+        // One card per match, so a shooter who skipped two provincials sees
+        // both. Scoped to matches whose end date is within the survey
+        // window (5 days + a day of slack for the service's own window
+        // check to catch stragglers).
+        $lookbackDays = MatchSurveyService::DAYS_AFTER_MATCH_END + 1;
+        $surveyMatches = MatchEvent::query()
+            ->whereIn('series_level', MatchSurveyService::APPLICABLE_SERIES_LEVELS)
+            ->where('status', 'completed')
+            ->where(function ($q) use ($lookbackDays) {
+                $q->where('match_end_date', '>=', Carbon::now()->subDays($lookbackDays))
+                    ->orWhere('match_date', '>=', Carbon::now()->subDays($lookbackDays));
+            })
+            ->whereIn(
+                'id',
+                MatchRegistration::query()
+                    ->where('user_id', $user->id)
+                    ->where('registration_status', '!=', 'cancelled')
+                    ->select('match_id')
+            )
+            ->whereNotIn(
+                'id',
+                MatchSurveyRespondent::query()
+                    ->where('user_id', $user->id)
+                    ->select('match_id')
+            )
+            ->orderByDesc('match_date')
+            ->limit(5)
+            ->get();
+
+        foreach ($surveyMatches as $surveyMatch) {
+            if (! $this->surveys->windowIsOpen($surveyMatch)) {
+                continue;
+            }
+
+            $items[] = [
+                'tone' => 'neutral',
+                'pill_tone' => 'sky',
+                'pill_count' => 'new',
+                'title' => 'Tell us how ' . $surveyMatch->name . ' went',
+                'body' => 'Share anonymous feedback on briefings, stages, range officers, scoring, catering and prize giving.',
+                'href' => route('matches.survey.show', $surveyMatch),
+                'href_label' => 'Open survey',
+            ];
+        }
+
+        // 6. No rifles yet.
         $rifleCount = RifleConfiguration::forUser($user->id)->active()->count();
         if ($rifleCount === 0) {
             $labels = collect($disciplines)->map(fn ($d) => $d === 'PR22' ? 'rimfire' : 'centrefire')->implode(' and ');

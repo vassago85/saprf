@@ -41,6 +41,7 @@ use App\Http\Controllers\MailgunWebhookController;
 use App\Http\Controllers\MatchAnnouncementController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchExpenseController;
+use App\Http\Controllers\MatchSurveyController;
 use App\Http\Controllers\MatchWorkspaceController;
 use App\Http\Controllers\MediaAlbumController;
 use App\Http\Controllers\MemberLookupController;
@@ -231,6 +232,19 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->name('decisions.index');
     Route::post('/decisions/{decision}/react', [DecisionController::class, 'react'])
         ->name('decisions.react');
+
+    // Anonymous post-match survey. Only shooters who entered or shot the
+    // match can answer, and only while the window is open. The service
+    // writes a "this user replied" row separately from the answer row so
+    // staff never sees the two joined. Kept off the `profile.complete`
+    // guard so a shooter whose profile lapsed (expired membership, etc.)
+    // can still answer the survey — same reasoning as the Decision
+    // Register which also sits above.
+    Route::get('/matches/{match}/survey', [MatchSurveyController::class, 'show'])
+        ->name('matches.survey.show');
+    Route::post('/matches/{match}/survey', [MatchSurveyController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('matches.survey.store');
 });
 
 // ── PayFast ITN Webhook (no auth / session / CSRF — PayFast POSTs here) ──
@@ -749,6 +763,16 @@ Route::middleware(['auth', 'verified', 'profile.complete'])->group(function (): 
                 ->name('matches.cancel');
             Route::post('/revert-to-draft', [MatchWorkspaceController::class, 'revertToDraft'])
                 ->name('matches.revert-to-draft');
+
+            // Anonymous survey results — Exco/Owner/Admin/Developer only.
+            // Match directors are intentionally blocked inside the
+            // controller because comments cover the RO team, the range
+            // setup and SAPRF comms, and a results page the MD can read
+            // would undo the anonymity the storage split protects.
+            Route::get('/survey/results', [MatchSurveyController::class, 'results'])
+                ->name('matches.survey.results');
+            Route::post('/survey/invite', [MatchSurveyController::class, 'invite'])
+                ->name('matches.survey.invite');
         });
 
     // Legacy name alias. `matches.show` is referenced from a lot of

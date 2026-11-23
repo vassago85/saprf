@@ -22,6 +22,7 @@ use App\Services\ImpactScoring\SquadRecommendation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\MatchCloseoutWizard;
 use App\Services\MatchFinanceService;
+use App\Services\MatchSurveyService;
 use App\Services\MatchWhatsappInviteMailer;
 use App\Services\PaymentInquiryService;
 use App\Services\RegistrationPricingService;
@@ -57,6 +58,7 @@ class MatchWorkspaceController extends Controller
         private readonly FinancialService $financials,
         private readonly SettingsService $settings,
         private readonly MatchCloseoutWizard $wizard,
+        private readonly MatchSurveyService $surveys,
     ) {}
 
     // ── Overview ──
@@ -1263,7 +1265,7 @@ class MatchWorkspaceController extends Controller
      */
     private function tabsFor(MatchEvent $match, array $counts): array
     {
-        return [
+        $tabs = [
             ['key' => 'overview', 'label' => 'Overview', 'route' => 'matches.overview', 'count' => null],
             ['key' => 'entries', 'label' => 'Entries', 'route' => 'matches.entries', 'count' => $counts['counted'] ?? null],
             ['key' => 'scores', 'label' => 'Scores', 'route' => 'matches.scores', 'count' => null],
@@ -1271,5 +1273,25 @@ class MatchWorkspaceController extends Controller
             ['key' => 'messages', 'label' => 'Messages', 'route' => 'matches.messages', 'count' => null],
             ['key' => 'settings', 'label' => 'Settings', 'route' => 'matches.settings', 'count' => null],
         ];
+
+        // Survey tab — only when the match is a provincial / national /
+        // championship that has been marked completed, and only for Exco /
+        // Owner / Admin / Developer viewers. Match directors can `view` the
+        // match but are kept off the survey because the free-text comments
+        // cover their RO team, their range setup and SAPRF comms.
+        $viewer = request()->user();
+        $viewerIsStaff = $viewer !== null
+            && $viewer->hasAnyRole(['developer', 'exco', 'owner', 'admin']);
+
+        if ($viewerIsStaff && $this->surveys->isApplicableTo($match)) {
+            $tabs[] = [
+                'key' => 'survey',
+                'label' => 'Survey',
+                'route' => 'matches.survey.results',
+                'count' => null,
+            ];
+        }
+
+        return $tabs;
     }
 }
