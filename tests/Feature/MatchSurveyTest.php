@@ -529,82 +529,39 @@ it('emails the closing report once the window has closed and marks the match so 
     Notification::assertNothingSent();
 });
 
-// ──────────────────────────────────────────────────────────────────────
-// Public shooter-feedback summary on events.show. Numbers only; never
-// comments. Only shown once the window has closed AND at least one
-// shooter has replied.
-// ──────────────────────────────────────────────────────────────────────
+// The public events.show page must never leak survey results — numbers
+// or comments. Staff see everything on the results tab; the public page
+// only shows the invite card to logged-in eligible shooters.
 
-it('does not show the public summary while the window is open', function () {
-    $match = surveyMatch(); // match from yesterday → window open
-    $entrant = surveyEntrant($match);
-    $this->actingAs($entrant)
-        ->post(route('matches.survey.store', $match), surveyAnswersPayload());
-
-    $summary = app(\App\Services\MatchSurveyService::class)->publicSummary($match->fresh());
-    expect($summary)->toBeNull();
-
-    // And the public events.show page renders without the summary block.
-    $this->get(route('events.show', $match))
-        ->assertOk()
-        ->assertDontSee('Shooter feedback')
-        ->assertDontSee('What the shooters said');
-});
-
-it('shows the public summary once the window has closed, with no comments leaked', function () {
-    // Start with the match in its open window so the shooter can actually
-    // submit, then shuffle the dates backwards so the window has closed by
-    // the time we ask for the public summary.
+it('does not render any post-match survey results on the public match page', function () {
     $match = surveyMatch();
     $entrant = surveyEntrant($match);
 
+    // Submit a reply while the window is open, with distinctive strings
+    // so we can assert they never land on the public page.
     $this->actingAs($entrant)
         ->post(route('matches.survey.store', $match), surveyAnswersPayload([
-            'highlight' => 'THIS_IS_A_COMMENT_SIGNATURE_X',
-            'improvement' => 'ANOTHER_SIGNATURE_Y',
-            'other_comments' => 'A_THIRD_SIGNATURE_Z',
+            'highlight' => 'HIGHLIGHT_SIGNATURE',
+            'improvement' => 'IMPROVEMENT_SIGNATURE',
+            'other_comments' => 'OTHER_SIGNATURE',
         ]))
         ->assertRedirect();
 
+    // Shift the match so the window is now closed — the exact condition
+    // where an earlier public-summary feature would have surfaced numbers.
     $match->update([
         'match_date' => now()->subDays(10)->toDateString(),
         'match_end_date' => now()->subDays(10)->toDateString(),
     ]);
 
-    $summary = app(\App\Services\MatchSurveyService::class)->publicSummary($match->fresh());
-    expect($summary)->not->toBeNull()
-        ->and($summary['responded'])->toBe(1)
-        ->and($summary['overall_average'])->not->toBeNull()
-        ->and($summary['categories'])->not->toBeEmpty();
-
-    // Public summary structure must not expose comments by any key name.
-    $flat = json_encode($summary);
-    expect($flat)->not->toContain('SIGNATURE')
-        ->and($flat)->not->toContain('comment')
-        ->and($flat)->not->toContain('highlight')
-        ->and($flat)->not->toContain('improvement');
-
-    // Rendered page shows the headline, hides the comments.
     auth()->logout();
     $this->get(route('events.show', $match))
         ->assertOk()
-        ->assertSee('What the shooters said')
-        ->assertSee('Shooter feedback')
-        ->assertDontSee('THIS_IS_A_COMMENT_SIGNATURE_X')
-        ->assertDontSee('ANOTHER_SIGNATURE_Y')
-        ->assertDontSee('A_THIRD_SIGNATURE_Z');
-});
-
-it('does not show the public summary when the window closed with zero replies', function () {
-    $match = surveyMatch([
-        'match_date' => now()->subDays(10)->toDateString(),
-        'match_end_date' => now()->subDays(10)->toDateString(),
-    ]);
-    // Create an entrant but no survey response — window closed, zero replies.
-    surveyEntrant($match);
-
-    $summary = app(\App\Services\MatchSurveyService::class)->publicSummary($match->fresh());
-    expect($summary)->toBeNull();
+        ->assertDontSee('Shooter feedback')
+        ->assertDontSee('What the shooters said')
+        ->assertDontSee('HIGHLIGHT_SIGNATURE')
+        ->assertDontSee('IMPROVEMENT_SIGNATURE')
+        ->assertDontSee('OTHER_SIGNATURE');
 });
 
 it('deduplicates the recipient list so an MD who is also exco only gets the closing report once', function () {

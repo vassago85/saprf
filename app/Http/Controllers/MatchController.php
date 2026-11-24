@@ -1000,18 +1000,10 @@ class MatchController extends Controller
         $viewerCanTakeSurvey = $viewer !== null
             && $surveys->userMayAnswer($match, $viewer);
 
-        // Numbers-only post-match summary. Returned by the service only
-        // after the window has closed and at least one shooter has
-        // replied, so here we just forward whatever comes back; the view
-        // branches on `@if ($surveySummary)`. Comments are never
-        // included — publishing them is a human decision via the Match
-        // Review announcement, not an automated dump.
-        $surveySummary = $surveys->publicSummary($match);
-
         return view('events.show', compact(
             'match', 'userRegistration', 'divisions', 'entries', 'reconciliation',
             'viewerCanRemoveZeroScores', 'viewerCanDownloadResults', 'saBadgesByUser', 'scoreImports',
-            'scoreData', 'divList', 'showStageProgress', 'viewerCanTakeSurvey', 'surveySummary',
+            'scoreData', 'divList', 'showStageProgress', 'viewerCanTakeSurvey',
         ));
     }
 
