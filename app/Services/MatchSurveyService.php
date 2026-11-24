@@ -32,6 +32,26 @@ use RuntimeException;
  * 13 strict 1–10 ratings plus three free-text questions (favourite
  * aspect, one thing to improve, other comments). The design is
  * deliberately simple so the same form works for both PRS and PR22.
+ *
+ * ── Privacy principle ─────────────────────────────────────────────
+ *
+ * Aggregate results (averages, histograms, comments) are visible only
+ * to the match director, Exco, admin, owner and developer roles via
+ * the staff results page and the PDF closing report. They are NOT
+ * exposed on `events.show`, in any public API, or in any shooter-facing
+ * view.
+ *
+ * This is deliberate. Our match directors are volunteers running
+ * matches at their own cost of time and money. Publishing a public
+ * score-out-of-10 for their match turns one bad weekend (weather,
+ * logistics, a single difficult shooter) into a permanent reputational
+ * hit and shrinks the pipeline of people willing to host. The survey
+ * exists so the MD gets honest feedback to improve the next match,
+ * not so the SAPRF community scores volunteers in public.
+ *
+ * If a future request asks for "just the overall average publicly"
+ * or "top-rated category publicly", push back — that is the exact
+ * refactor this comment is here to prevent.
  */
 class MatchSurveyService
 {
